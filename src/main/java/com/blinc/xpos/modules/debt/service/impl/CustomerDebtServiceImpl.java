@@ -1,0 +1,278 @@
+package com.blinc.xpos.modules.debt.service.impl;
+
+import com.blinc.xpos.common.constants.enums.CustomerDebtStatus;
+import com.blinc.xpos.common.error.BadRequestException;
+import com.blinc.xpos.common.error.NotFoundException;
+import com.blinc.xpos.modules.cash.domain.Shift;
+import com.blinc.xpos.modules.cash.service.ShiftService;
+import com.blinc.xpos.modules.debt.domain.CustomerDebt;
+import com.blinc.xpos.modules.debt.repository.CustomerDebtRepository;
+import com.blinc.xpos.modules.debt.service.CustomerDebtService;
+import com.blinc.xpos.modules.organization.domain.Customer;
+import com.blinc.xpos.modules.organization.domain.Terminal;
+import com.blinc.xpos.modules.organization.service.BranchService;
+import com.blinc.xpos.modules.organization.service.CustomerService;
+import com.blinc.xpos.modules.organization.service.StaffUserService;
+import com.blinc.xpos.modules.organization.service.TerminalService;
+import com.blinc.xpos.modules.sales.domain.Sale;
+import com.blinc.xpos.modules.sales.service.SaleService;
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Objects;
+import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class CustomerDebtServiceImpl implements CustomerDebtService {
+
+  private static final String DEFAULT_CURRENCY = "KES";
+
+  private final CustomerDebtRepository customerDebtRepository;
+  private final CustomerService customerService;
+  private final BranchService branchService;
+  private final StaffUserService staffUserService;
+  private final ShiftService shiftService;
+  private final TerminalService terminalService;
+  private final SaleService saleService;
+  private final Clock clock;
+
+  public CustomerDebtServiceImpl(
+      CustomerDebtRepository customerDebtRepository,
+      CustomerService customerService,
+      BranchService branchService,
+      StaffUserService staffUserService,
+      ShiftService shiftService,
+      TerminalService terminalService,
+      SaleService saleService,
+      Clock clock) {
+    this.customerDebtRepository =
+        Objects.requireNonNull(customerDebtRepository, "customerDebtRepository");
+    this.customerService = Objects.requireNonNull(customerService, "customerService");
+    this.branchService = Objects.requireNonNull(branchService, "branchService");
+    this.staffUserService = Objects.requireNonNull(staffUserService, "staffUserService");
+    this.shiftService = Objects.requireNonNull(shiftService, "shiftService");
+    this.terminalService = Objects.requireNonNull(terminalService, "terminalService");
+    this.saleService = Objects.requireNonNull(saleService, "saleService");
+    this.clock = Objects.requireNonNull(clock, "clock");
+  }
+
+  @Override
+  @Transactional
+  public CustomerDebt create(
+      UUID orgId,
+      UUID branchId,
+      UUID customerId,
+      BigDecimal amount,
+      LocalDate dueDate,
+      String notes,
+      UUID saleId,
+      UUID terminalId,
+      UUID shiftId,
+      UUID createdByStaffUserId) {
+    branchService.require(orgId, branchId);
+    Customer customer = customerService.require(orgId, customerId);
+    var createdBy = staffUserService.require(orgId, createdByStaffUserId);
+
+    CustomerDebt debt = new CustomerDebt();
+    debt.setOrg(customer.getOrg());
+    debt.setBranch(branchService.require(orgId, branchId));
+    debt.setCustomer(customer);
+    debt.setAmount(amount != null ? amount : BigDecimal.ZERO);
+    debt.setAmountSettled(BigDecimal.ZERO);
+    debt.setCurrency(DEFAULT_CURRENCY);
+    debt.setDueDate(dueDate);
+    debt.setStatus(CustomerDebtStatus.OPEN);
+    debt.setNotes(notes != null ? notes.trim() : null);
+    debt.setCreatedBy(createdBy);
+    debt.setCreatedAt(Instant.now(clock));
+
+    if (saleId != null) {
+      Sale sale =
+          saleService
+              .getByIdAndOrg(orgId, saleId)
+              .orElseThrow(
+                  () ->
+                      new NotFoundException(
+                          "SALE_NOT_FOUND", "Sale not found"));
+      if (!sale.getBranch().getId().equals(branchId)) {
+        throw new NotFoundException(
+            "SALE_NOT_FOUND", "Sale does not belong to this branch");
+      }
+      debt.setSale(sale);
+    }
+
+    if (terminalId != null) {
+      Terminal terminal = terminalService.require(orgId, terminalId);
+      if (!terminal.getBranch().getId().equals(branchId)) {
+        throw new NotFoundException(
+            "TERMINAL_NOT_FOUND", "Terminal does not belong to this branch");
+      }
+      debt.setTerminal(terminal);
+    }
+
+    if (shiftId != null) {
+      Shift shift = shiftService.require(orgId, shiftId);
+      if (!shift.getBranch().getId().equals(branchId)) {
+        throw new NotFoundException(
+            "SHIFT_NOT_FOUND", "Shift does not belong to this branch");
+      }
+      debt.setShift(shift);
+    }
+
+    return customerDebtRepository.save(debt);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public CustomerDebt require(UUID orgId, UUID debtId) {
+    return customerDebtRepository
+        .findByIdAndOrgId(debtId, orgId)
+        .orElseThrow(
+            () ->
+                new NotFoundException(
+                    "CUSTOMER_DEBT_NOT_FOUND", "Customer debt not found"));
+  }
+
+  @Override
+  @Transactional
+  public CustomerDebt update(
+      UUID orgId,
+      UUID debtId,
+      BigDecimal amount,
+      BigDecimal outstanding,
+      LocalDate dueDate,
+      String notes,
+      UUID updatedByStaffUserId) {
+    staffUserService.require(orgId, updatedByStaffUserId);
+    CustomerDebt debt = require(orgId, debtId);
+    if (debt.getStatus() == CustomerDebtStatus.CANCELLED) {
+      throw new BadRequestException(
+          "DEBT_CANCELLED", "Cannot update a cancelled debt.");
+    }
+    if (debt.getStatus() == CustomerDebtStatus.SETTLED) {
+      throw new BadRequestException(
+          "DEBT_SETTLED", "Cannot update a settled debt.");
+    }
+    BigDecimal currentSettled =
+        debt.getAmountSettled() != null ? debt.getAmountSettled() : BigDecimal.ZERO;
+    if (currentSettled.compareTo(BigDecimal.ZERO) > 0) {
+      throw new BadRequestException(
+          "DEBT_HAS_REPAYMENTS",
+          "Cannot edit debt once repayments have been recorded. Use Record payment to add more.");
+    }
+    if (outstanding != null) {
+      BigDecimal orig = debt.getAmount() != null ? debt.getAmount() : BigDecimal.ZERO;
+      if (outstanding.compareTo(BigDecimal.ZERO) < 0) {
+        throw new BadRequestException(
+            "BALANCE_NEGATIVE", "Balance cannot be negative.");
+      }
+      if (outstanding.compareTo(orig) > 0) {
+        throw new BadRequestException(
+            "BALANCE_EXCEEDS_ORIGINAL",
+            "Balance cannot exceed the original debt.");
+      }
+      BigDecimal newSettled = orig.subtract(outstanding);
+      debt.setAmountSettled(newSettled);
+      debt.setStatus(
+          outstanding.compareTo(BigDecimal.ZERO) <= 0
+              ? CustomerDebtStatus.SETTLED
+              : newSettled.compareTo(BigDecimal.ZERO) > 0
+                  ? CustomerDebtStatus.PARTIAL
+                  : CustomerDebtStatus.OPEN);
+    }
+    if (amount != null) {
+      BigDecimal settled =
+          debt.getAmountSettled() != null ? debt.getAmountSettled() : BigDecimal.ZERO;
+      if (amount.compareTo(settled) < 0) {
+        throw new BadRequestException(
+            "AMOUNT_BELOW_SETTLED",
+            "Original amount cannot be less than amount already repaid.");
+      }
+      debt.setAmount(amount);
+    }
+    if (dueDate != null) {
+      debt.setDueDate(dueDate);
+    }
+    if (notes != null) {
+      debt.setNotes(notes.trim().isEmpty() ? null : notes.trim());
+    }
+    return customerDebtRepository.save(debt);
+  }
+
+  @Override
+  @Transactional
+  public CustomerDebt cancel(UUID orgId, UUID debtId, UUID cancelledByStaffUserId) {
+    var cancelledBy = staffUserService.require(orgId, cancelledByStaffUserId);
+    CustomerDebt debt = require(orgId, debtId);
+    if (debt.getStatus() == CustomerDebtStatus.CANCELLED) {
+      throw new BadRequestException(
+          "DEBT_ALREADY_CANCELLED", "Debt is already cancelled.");
+    }
+    BigDecimal currentSettled =
+        debt.getAmountSettled() != null ? debt.getAmountSettled() : BigDecimal.ZERO;
+    if (currentSettled.compareTo(BigDecimal.ZERO) > 0) {
+      throw new BadRequestException(
+          "DEBT_HAS_REPAYMENTS",
+          "Cannot clear debt once repayments have been recorded.");
+    }
+    debt.setStatus(CustomerDebtStatus.CANCELLED);
+    debt.setCancelledAt(Instant.now(clock));
+    debt.setCancelledBy(cancelledBy);
+    return customerDebtRepository.save(debt);
+  }
+
+  @Override
+  @Transactional
+  public CustomerDebt settle(
+      UUID orgId,
+      UUID debtId,
+      BigDecimal paymentAmount,
+      UUID settledByStaffUserId) {
+    staffUserService.require(orgId, settledByStaffUserId);
+    CustomerDebt debt = require(orgId, debtId);
+    if (debt.getStatus() == CustomerDebtStatus.CANCELLED) {
+      throw new BadRequestException(
+          "DEBT_CANCELLED", "Cannot settle a cancelled debt.");
+    }
+    if (debt.getStatus() == CustomerDebtStatus.SETTLED) {
+      throw new BadRequestException(
+          "DEBT_ALREADY_SETTLED", "Debt is already fully settled.");
+    }
+    if (paymentAmount == null || paymentAmount.compareTo(BigDecimal.ZERO) <= 0) {
+      throw new BadRequestException(
+          "INVALID_PAYMENT", "Payment amount must be positive.");
+    }
+    BigDecimal newSettled =
+        (debt.getAmountSettled() != null ? debt.getAmountSettled() : BigDecimal.ZERO)
+            .add(paymentAmount);
+    if (newSettled.compareTo(debt.getAmount()) > 0) {
+      throw new BadRequestException(
+          "PAYMENT_EXCEEDS_DEBT", "Payment exceeds the outstanding amount.");
+    }
+    debt.setAmountSettled(newSettled);
+    debt.setStatus(
+        newSettled.compareTo(debt.getAmount()) >= 0
+            ? CustomerDebtStatus.SETTLED
+            : CustomerDebtStatus.PARTIAL);
+    return customerDebtRepository.save(debt);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<CustomerDebt> listByBranch(UUID orgId, UUID branchId, Pageable pageable) {
+    branchService.require(orgId, branchId);
+    return customerDebtRepository.findAllByOrgIdAndBranchId(orgId, branchId, pageable);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<CustomerDebt> listByCustomer(UUID orgId, UUID customerId, Pageable pageable) {
+    customerService.require(orgId, customerId);
+    return customerDebtRepository.findAllByOrgIdAndCustomerId(orgId, customerId, pageable);
+  }
+}

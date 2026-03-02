@@ -1,0 +1,5 @@
+# Default profile when none is set (e.g. running from IntelliJ without "Active profiles").
+# Ensures dev datasource, Hikari, Flyway, and Redis config are loaded.
+spring:
+  profiles:
+    active: dev

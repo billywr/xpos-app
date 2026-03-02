@@ -1,0 +1,9 @@
+# Profile for integration tests (Testcontainers). Datasource URL is set via @DynamicPropertySource.
+spring:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  jpa:
+    hibernate:
+      ddl-auto: validate

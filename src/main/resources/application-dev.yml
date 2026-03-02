@@ -1,0 +1,159 @@
+spring:
+  application:
+    name: xpos
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/xpos_dev
+    username: postgres
+    password: root
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      pool-name: XposHikariPool
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+    show-sql: false
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    out-of-order: false
+
+  cache:
+    type: redis
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: root
+      timeout: 5s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          #issuer-uri: http://localhost:8088/realms/xpos
+          jwk-set-uri: http://localhost:8088/realms/xpos/protocol/openid-connect/certs
+
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+  kafka:
+    bootstrap-servers: 127.0.0.1:9095
+    consumer:
+      auto-offset-reset: latest
+      enable-auto-commit: false
+    listener:
+      ack-mode: manual
+
+server:
+  port: 9003
+  shutdown: graceful
+  error:
+    include-message: always
+    include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN
+    com.blinc.xpos: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+xpos:
+  upload:
+    dir: uploads
+  outbox:
+    kafka:
+      topic: xpos-outbox-events
+      poll-interval-ms: 5000
+      batch-size: 50
+  api:
+    pagination:
+      default-size: 25
+      max-size: 200
+    cors:
+      enabled: true
+      allowed-origins:
+        - http://localhost:5173
+        - http://127.0.0.1:5173
+        - http://localhost:3000
+        - http://127.0.0.1:3000
+
+  environment: dev
+
+  security:
+    require-device-binding: true
+    require-branch-scope: true
+    issuer: http://localhost:8088/realms/xpos
+    audience: ""
+
+  receipt:
+    block-size: 100
+    prefix: DEV
+
+  shift:
+    blind-close-enabled: true
+    variance-threshold: 100.00
+
+  inventory:
+    allow-negative-stock: false
+    auto-post-consumption: true
+
+  audit:
+    hash-algorithm: SHA-256
+    verify-chain-on-startup: false
+
+  offline:
+    enabled: true
+    max-batch-size: 200
+    priority-order:
+      - SALE
+      - TENDER
+      - STOCK
+      - PROFILE

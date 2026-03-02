@@ -1,0 +1,9 @@
+spring:
+  profiles:
+    active: dev
+
+logging:
+  level:
+    org.springframework.orm.jpa: DEBUG
+    org.springframework.boot.autoconfigure.orm.jpa: DEBUG
+    org.hibernate: INFO
