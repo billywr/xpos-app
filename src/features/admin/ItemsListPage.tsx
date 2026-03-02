@@ -1,0 +1,1038 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAppSelector } from "@/hooks/useAppSelector";
+import { selectToken } from "@/store/selectors/authSelectors";
+import { fetchOrgs } from "@/api/orgs";
+import { fetchCategories } from "@/api/categories";
+import { fetchUoms } from "@/api/uoms";
+import { fetchTaxProfiles } from "@/api/taxProfiles";
+import { fetchModifierGroups } from "@/api/modifierGroups";
+import {
+  fetchItems,
+  fetchItem,
+  createItem,
+  updateItem,
+  deleteItem,
+  uploadItemImage,
+  fetchItemBarcodes,
+  addItemBarcode,
+  deleteItemBarcode,
+  fetchItemModifierGroups,
+  addItemModifierGroup,
+  deleteItemModifierGroup,
+} from "@/api/items";
+import type { Org } from "@/types/org";
+import { filterActiveOrgs } from "@/types/org";
+import type { Item } from "@/types/catalog";
+import type { Category } from "@/types/catalog";
+import type { ItemBarcode } from "@/types/catalog";
+import type { ItemModifierGroupLink } from "@/types/catalog";
+import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
+import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import { useToast } from "@/contexts/ToastContext";
+import { getItemImageUrl, getItemImageName } from "@/utils/itemImage";
+import { resizeImageTo400x400 } from "@/utils/imageResize";
+import { Plus, Pencil, Trash2, Upload } from "lucide-react";
+
+const DEFAULT_PAGE_SIZE = 25;
+const MAX_PAGE_SIZE = 100;
+const ITEM_TYPES = ["STOCK", "SERVICE", "MENU", "BUNDLE"] as const;
+
+export function ItemsListPage() {
+  const token = useAppSelector(selectToken);
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [slideOpen, setSlideOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [formSku, setFormSku] = useState("");
+  const [formName, setFormName] = useState("");
+  const [formItemType, setFormItemType] = useState<string>("MENU");
+  const [formCategoryId, setFormCategoryId] = useState("");
+  const [formBaseUomId, setFormBaseUomId] = useState("");
+  const [formTaxProfileId, setFormTaxProfileId] = useState("");
+  const [formTrackInventory, setFormTrackInventory] = useState(false);
+  const [formActive, setFormActive] = useState(true);
+  const [formImageUrl, setFormImageUrl] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+  const [newBarcode, setNewBarcode] = useState("");
+  const [newModifierGroupId, setNewModifierGroupId] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Item | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const { data: orgsData } = useQuery({
+    queryKey: ["admin-orgs", token],
+    queryFn: () => fetchOrgs(token, { size: 200 }),
+    enabled: Boolean(token),
+  });
+
+  const { data: itemsData, isLoading, isError, error } = useQuery({
+    queryKey: ["admin-items", token, selectedOrgId, page, size],
+    queryFn: () => fetchItems(token, selectedOrgId, { page, size }),
+    enabled: Boolean(token) && Boolean(selectedOrgId),
+  });
+
+  const { data: categoriesData } = useQuery({
+    queryKey: ["admin-categories", token, selectedOrgId],
+    queryFn: () => fetchCategories(token, selectedOrgId, { size: 500 }),
+    enabled: Boolean(token) && Boolean(selectedOrgId) && slideOpen,
+  });
+
+  const { data: uomsData } = useQuery({
+    queryKey: ["admin-uoms", token, selectedOrgId],
+    queryFn: () => fetchUoms(token, selectedOrgId, { size: 200 }),
+    enabled: Boolean(token) && Boolean(selectedOrgId) && slideOpen,
+  });
+
+  const { data: taxProfilesData } = useQuery({
+    queryKey: ["admin-tax-profiles", token, selectedOrgId],
+    queryFn: () => fetchTaxProfiles(token, selectedOrgId, { size: 200 }),
+    enabled: Boolean(token) && Boolean(selectedOrgId) && slideOpen,
+  });
+
+  const { data: modifierGroupsData } = useQuery({
+    queryKey: ["admin-modifier-groups", token, selectedOrgId],
+    queryFn: () => fetchModifierGroups(token, selectedOrgId, { size: 200 }),
+    enabled: Boolean(token) && Boolean(selectedOrgId) && slideOpen,
+  });
+
+  const { data: editingItemData } = useQuery({
+    queryKey: ["admin-item", token, selectedOrgId, editingItem?.id],
+    queryFn: () => fetchItem(token, selectedOrgId, editingItem!.id),
+    enabled:
+      Boolean(token) &&
+      Boolean(selectedOrgId) &&
+      Boolean(editingItem) &&
+      slideOpen,
+  });
+
+  const { data: barcodesData } = useQuery({
+    queryKey: ["admin-item-barcodes", token, selectedOrgId, editingItem?.id],
+    queryFn: () =>
+      fetchItemBarcodes(token, selectedOrgId, editingItem!.id),
+    enabled:
+      Boolean(token) &&
+      Boolean(selectedOrgId) &&
+      Boolean(editingItem) &&
+      slideOpen,
+  });
+
+  const { data: itemModifierGroupsData } = useQuery({
+    queryKey: [
+      "admin-item-modifier-groups",
+      token,
+      selectedOrgId,
+      editingItem?.id,
+    ],
+    queryFn: () =>
+      fetchItemModifierGroups(token, selectedOrgId, editingItem!.id),
+    enabled:
+      Boolean(token) &&
+      Boolean(selectedOrgId) &&
+      Boolean(editingItem) &&
+      slideOpen,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (body: {
+      sku: string | null;
+      name: string;
+      itemType: string;
+      categoryId: string | null;
+      baseUomId: string | null;
+      taxProfileId: string | null;
+      trackInventory: boolean;
+      active: boolean;
+      imageUrl: string | null;
+    }) => createItem(token, selectedOrgId, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin-items", token, selectedOrgId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["items", selectedOrgId] });
+      setSlideOpen(false);
+      setEditingItem(null);
+      resetForm();
+      toast.success("Item created.", { title: "Created" });
+    },
+    onError: (err) => {
+      setSubmitLoading(false);
+      const requestId = getApiErrorRequestId(err);
+      toast.error(getApiErrorMessage(err), {
+        detail: requestId ? `Reference: ${requestId}` : undefined,
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (body: {
+      itemId: string;
+      sku: string | null;
+      name: string;
+      itemType: string;
+      categoryId: string | null;
+      baseUomId: string | null;
+      taxProfileId: string | null;
+      trackInventory: boolean;
+      active: boolean;
+      imageUrl: string | null;
+    }) =>
+      updateItem(token, selectedOrgId, body.itemId, {
+        sku: body.sku,
+        name: body.name,
+        itemType: body.itemType,
+        categoryId: body.categoryId,
+        baseUomId: body.baseUomId,
+        taxProfileId: body.taxProfileId,
+        trackInventory: body.trackInventory,
+        active: body.active,
+        imageUrl: body.imageUrl,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin-items", token, selectedOrgId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-item", token, selectedOrgId, editingItem?.id],
+      });
+      queryClient.invalidateQueries({ queryKey: ["items", selectedOrgId] });
+      setSubmitLoading(false);
+      toast.success("Item updated.", { title: "Saved" });
+    },
+    onError: (err) => {
+      setSubmitLoading(false);
+      const requestId = getApiErrorRequestId(err);
+      toast.error(getApiErrorMessage(err), {
+        detail: requestId ? `Reference: ${requestId}` : undefined,
+      });
+    },
+  });
+
+  const addBarcodeMutation = useMutation({
+    mutationFn: (barcode: string) =>
+      addItemBarcode(token, selectedOrgId, editingItem!.id, barcode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin-item-barcodes", token, selectedOrgId, editingItem?.id],
+      });
+      setNewBarcode("");
+      toast.success("Barcode added.", { title: "Added" });
+    },
+    onError: (err) => {
+      const requestId = getApiErrorRequestId(err);
+      toast.error(getApiErrorMessage(err), {
+        detail: requestId ? `Reference: ${requestId}` : undefined,
+      });
+    },
+  });
+
+  const deleteBarcodeMutation = useMutation({
+    mutationFn: (barcodeId: string) =>
+      deleteItemBarcode(token, selectedOrgId, editingItem!.id, barcodeId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin-item-barcodes", token, selectedOrgId, editingItem?.id],
+      });
+      toast.success("Barcode removed.", { title: "Removed" });
+    },
+    onError: (err) => {
+      const requestId = getApiErrorRequestId(err);
+      toast.error(getApiErrorMessage(err), {
+        detail: requestId ? `Reference: ${requestId}` : undefined,
+      });
+    },
+  });
+
+  const addModifierGroupMutation = useMutation({
+    mutationFn: (modifierGroupId: string) =>
+      addItemModifierGroup(token, selectedOrgId, editingItem!.id, modifierGroupId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [
+          "admin-item-modifier-groups",
+          token,
+          selectedOrgId,
+          editingItem?.id,
+        ],
+      });
+      setNewModifierGroupId("");
+      toast.success("Modifier group linked.", { title: "Added" });
+    },
+    onError: (err) => {
+      const requestId = getApiErrorRequestId(err);
+      toast.error(getApiErrorMessage(err), {
+        detail: requestId ? `Reference: ${requestId}` : undefined,
+      });
+    },
+  });
+
+  const deleteModifierGroupMutation = useMutation({
+    mutationFn: (linkId: string) =>
+      deleteItemModifierGroup(token, selectedOrgId, editingItem!.id, linkId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [
+          "admin-item-modifier-groups",
+          token,
+          selectedOrgId,
+          editingItem?.id,
+        ],
+      });
+      toast.success("Modifier group unlinked.", { title: "Removed" });
+    },
+    onError: (err) => {
+      const requestId = getApiErrorRequestId(err);
+      toast.error(getApiErrorMessage(err), {
+        detail: requestId ? `Reference: ${requestId}` : undefined,
+      });
+    },
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: (itemId: string) =>
+      deleteItem(token, selectedOrgId, itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin-items", token, selectedOrgId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["items", selectedOrgId] });
+      setConfirmDelete(null);
+      setDeleteLoading(false);
+      toast.success("Item deleted.", { title: "Deleted" });
+    },
+    onError: (err) => {
+      setDeleteLoading(false);
+      const requestId = getApiErrorRequestId(err);
+      toast.error(getApiErrorMessage(err), {
+        detail: requestId ? `Reference: ${requestId}` : undefined,
+      });
+    },
+  });
+
+  const orgs = filterActiveOrgs(orgsData?.content ?? []);
+  const items = itemsData?.content ?? [];
+  const totalElements = itemsData?.totalElements ?? 0;
+  const categories = categoriesData?.content ?? [];
+  const uoms = uomsData?.content ?? [];
+  const taxProfiles = taxProfilesData?.content ?? [];
+  const modifierGroups = modifierGroupsData?.content ?? [];
+  const barcodes = barcodesData ?? [];
+  const itemModifierGroups = itemModifierGroupsData ?? [];
+  const assignedModifierGroupIds = new Set(
+    itemModifierGroups.map((l: ItemModifierGroupLink) => l.modifierGroupId)
+  );
+  const availableModifierGroups = modifierGroups.filter(
+    (mg: { id: string }) => !assignedModifierGroupIds.has(mg.id)
+  );
+
+  useEffect(() => {
+    if (!selectedOrgId && orgs.length > 0) {
+      setSelectedOrgId(orgs[0].id);
+    }
+  }, [orgs, selectedOrgId]);
+
+  useEffect(() => {
+    if (editingItemData) {
+      setFormSku(editingItemData.sku ?? "");
+      setFormName(editingItemData.name);
+      setFormItemType(editingItemData.itemType);
+      setFormCategoryId(editingItemData.categoryId ?? "");
+      setFormBaseUomId(editingItemData.baseUomId ?? "");
+      setFormTaxProfileId(editingItemData.taxProfileId ?? "");
+      setFormTrackInventory(editingItemData.trackInventory);
+      setFormActive(editingItemData.active);
+      setFormImageUrl(editingItemData.primaryImageUrl ?? "");
+    }
+  }, [editingItemData]);
+
+  function resetForm() {
+    setFormSku("");
+    setFormName("");
+    setFormItemType("MENU");
+    setFormCategoryId("");
+    setFormBaseUomId("");
+    setFormTaxProfileId("");
+    setFormTrackInventory(false);
+    setFormActive(true);
+    setFormImageUrl("");
+    setFormError(null);
+    setNewBarcode("");
+    setNewModifierGroupId("");
+  }
+
+  const openCreate = () => {
+    setEditingItem(null);
+    resetForm();
+    setSlideOpen(true);
+  };
+
+  const openEdit = (item: Item) => {
+    setEditingItem(item);
+    setFormError(null);
+    setNewBarcode("");
+    setNewModifierGroupId("");
+    setSlideOpen(true);
+  };
+
+  const closeSlide = () => {
+    setSlideOpen(false);
+    setEditingItem(null);
+    setFormError(null);
+  };
+
+  const handleItemSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    const trimmed = formName.trim();
+    if (!trimmed) {
+      setFormError("Name is required.");
+      return;
+    }
+    const payload = {
+      sku: formSku.trim() || null,
+      name: trimmed,
+      itemType: formItemType,
+      categoryId: formCategoryId || null,
+      baseUomId: formBaseUomId || null,
+      taxProfileId: formTaxProfileId || null,
+      trackInventory: formTrackInventory,
+      active: formActive,
+      imageUrl: formImageUrl.trim() || null,
+    };
+    setSubmitLoading(true);
+    if (editingItem) {
+      updateMutation.mutate(
+        { ...payload, itemId: editingItem.id },
+        { onSettled: () => setSubmitLoading(false) }
+      );
+    } else {
+      createMutation.mutate(payload, { onSettled: () => setSubmitLoading(false) });
+    }
+  };
+
+  const handleAddBarcode = (e: React.FormEvent) => {
+    e.preventDefault();
+    const b = newBarcode.trim();
+    if (!b || !editingItem) return;
+    addBarcodeMutation.mutate(b);
+  };
+
+  const handleAddModifierGroup = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newModifierGroupId || !editingItem) return;
+    addModifierGroupMutation.mutate(newModifierGroupId);
+  };
+
+  const handleSizeChange = (newSize: number) => {
+    setSize(Math.min(newSize, MAX_PAGE_SIZE));
+    setPage(0);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!confirmDelete) return;
+    setDeleteLoading(true);
+    deleteItemMutation.mutate(confirmDelete.id);
+  };
+
+  const categoryName = (id: string | null) =>
+    id ? categories.find((c: Category) => c.id === id)?.name ?? id : "—";
+  const modifierGroupName = (modifierGroupId: string) =>
+    modifierGroups.find((mg: { id: string; name: string }) => mg.id === modifierGroupId)
+      ?.name ?? modifierGroupId;
+
+  if (isLoading && selectedOrgId) {
+    return (
+      <div className="min-h-0 flex-1 overflow-auto">
+        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
+          Items
+        </h1>
+        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+          Loading…
+        </div>
+      </div>
+    );
+  }
+
+  if (isError && selectedOrgId) {
+    const message = getApiErrorMessage(error);
+    const requestId = getApiErrorRequestId(error);
+    return (
+      <div className="min-h-0 flex-1 overflow-auto">
+        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
+          Items
+        </h1>
+        <div
+          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+          role="alert"
+        >
+          <p>{message}</p>
+          {requestId && (
+            <p className="mt-2 text-sm opacity-90">
+              Reference:{" "}
+              <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
+                {requestId}
+              </code>
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-0 flex-1 overflow-auto">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
+            Items
+          </h1>
+          <p className="mt-1 text-slate-600 dark:text-slate-400">
+            Catalog items: products, menu items, and services. Add barcodes and modifier groups when editing.
+          </p>
+        </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-4">
+        <label
+          htmlFor="item-org-select"
+          className="text-sm font-medium text-slate-700 dark:text-slate-300"
+        >
+          Organization
+        </label>
+        <select
+          id="item-org-select"
+          value={selectedOrgId}
+          onChange={(e) => {
+            setSelectedOrgId(e.target.value);
+            setPage(0);
+          }}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+        >
+          <option value="">Select organization…</option>
+          {orgs.map((o: Org) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+        {selectedOrgId && (
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-500 dark:hover:bg-primary-600 dark:focus:ring-offset-slate-800"
+          >
+            <Plus className="h-4 w-4" />
+            Add item
+          </button>
+        )}
+      </div>
+
+      {!selectedOrgId ? (
+        <div className="rounded-xl border border-sky-200/70 bg-white/90 p-8 text-center text-slate-500 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400">
+          Select an organization to view and manage items.
+        </div>
+      ) : (
+        <>
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                <thead className="bg-slate-50 dark:bg-slate-800/80">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      SKU
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      Category
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      Type
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      Active
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      Image name
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {items.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                      >
+                        No items yet. Add one to build your catalog.
+                      </td>
+                    </tr>
+                  ) : (
+                    items.map((item: Item) => (
+                      <tr
+                        key={item.id}
+                        className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
+                      >
+                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">
+                          {item.name}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                          {item.sku ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                          {categoryName(item.categoryId)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                            {item.itemType}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {item.active ? (
+                            <span className="text-emerald-600 dark:text-emerald-400">
+                              Yes
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">No</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                          {getItemImageName(item.primaryImageUrl) ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(item)}
+                              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
+                              aria-label={`Edit ${item.name}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDelete(item)}
+                              className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
+                              aria-label={`Delete ${item.name}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {totalElements > 0 && (
+              <Pagination
+                page={page}
+                size={size}
+                totalElements={totalElements}
+                onPageChange={setPage}
+                onSizeChange={handleSizeChange}
+                sizeOptions={[10, 25, 50, 100]}
+              />
+            )}
+          </div>
+
+          <SlideOver
+            open={slideOpen}
+            onClose={closeSlide}
+            title={editingItem ? "Edit item" : "Add item"}
+            maxWidth="max-w-xl"
+          >
+            <form onSubmit={handleItemSubmit} className="space-y-4">
+              {formError && (
+                <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/30 dark:text-red-200">
+                  {formError}
+                </p>
+              )}
+              <div>
+                <label
+                  htmlFor="item-name"
+                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Name
+                </label>
+                <input
+                  id="item-name"
+                  type="text"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  placeholder="e.g. Coca Cola 500ml"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="item-sku"
+                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  SKU (optional)
+                </label>
+                <input
+                  id="item-sku"
+                  type="text"
+                  value={formSku}
+                  onChange={(e) => setFormSku(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="item-type"
+                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Type
+                </label>
+                <select
+                  id="item-type"
+                  value={formItemType}
+                  onChange={(e) => setFormItemType(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                >
+                  {ITEM_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="item-category"
+                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Category
+                </label>
+                <select
+                  id="item-category"
+                  value={formCategoryId}
+                  onChange={(e) => setFormCategoryId(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                >
+                  <option value="">None</option>
+                  {categories.map((c: Category) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="item-uom"
+                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Base UoM
+                </label>
+                <select
+                  id="item-uom"
+                  value={formBaseUomId}
+                  onChange={(e) => setFormBaseUomId(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                >
+                  <option value="">None</option>
+                  {uoms.map((u: { id: string; name: string; symbol: string }) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.symbol})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="item-tax"
+                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Tax profile
+                </label>
+                <select
+                  id="item-tax"
+                  value={formTaxProfileId}
+                  onChange={(e) => setFormTaxProfileId(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                >
+                  <option value="">None</option>
+                  {taxProfiles.map((t: { id: string; name: string }) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={formTrackInventory}
+                    onChange={(e) => setFormTrackInventory(e.target.checked)}
+                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+                  />
+                  Track inventory
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={formActive}
+                    onChange={(e) => setFormActive(e.target.checked)}
+                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+                  />
+                  Active
+                </label>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Item image (optional)
+                </label>
+                <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+                  Auto-resized to 400×400 px. JPEG, PNG or WebP, max 5MB.
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label
+                    htmlFor="item-image-upload"
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  >
+                    <Upload className="h-4 w-4" />
+                    {imageUploading ? "Uploading…" : "Upload image"}
+                    <input
+                      id="item-image-upload"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      disabled={imageUploading || !selectedOrgId}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !selectedOrgId) return;
+                        setImageUploading(true);
+                        try {
+                          const resized = await resizeImageTo400x400(file);
+                          const { url } = await uploadItemImage(
+                            token,
+                            selectedOrgId,
+                            resized
+                          );
+                          setFormImageUrl(url);
+                          toast.success("Image uploaded.", { title: "Uploaded" });
+                        } catch (err: unknown) {
+                          const data = err && typeof err === "object" && "data" in err
+                            ? (err as { data?: { message?: string } }).data
+                            : undefined;
+                          toast.error(
+                            (data?.message as string) ?? "Image upload failed"
+                          );
+                        } finally {
+                          setImageUploading(false);
+                          e.target.value = "";
+                        }
+                      }}
+                    />
+                  </label>
+                  {formImageUrl && (
+                    <div className="flex items-center gap-2">
+                      <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-600 dark:bg-slate-700">
+                        <img
+                          src={getItemImageUrl(formImageUrl) ?? formImageUrl}
+                          alt="Item"
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormImageUrl("")}
+                        className="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={formImageUrl}
+                  onChange={(e) => setFormImageUrl(e.target.value)}
+                  className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  placeholder="Or paste image URL…"
+                  aria-label="Image URL (optional)"
+                />
+              </div>
+
+              {editingItem && (
+                <>
+                  <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
+                    <h3 className="mb-2 text-sm font-semibold text-slate-800 dark:text-white">
+                      Barcodes
+                    </h3>
+                    {barcodes.length === 0 ? (
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        No barcodes.
+                      </p>
+                    ) : (
+                      <ul className="mb-2 space-y-1">
+                        {barcodes.map((b: ItemBarcode) => (
+                          <li
+                            key={b.id}
+                            className="flex items-center justify-between rounded bg-slate-50 px-2 py-1 text-sm dark:bg-slate-700/50"
+                          >
+                            <code>{b.barcode}</code>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                deleteBarcodeMutation.mutate(b.id)
+                              }
+                              className="rounded p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
+                              aria-label={`Remove ${b.barcode}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <form
+                      onSubmit={handleAddBarcode}
+                      className="flex gap-2"
+                    >
+                      <input
+                        type="text"
+                        value={newBarcode}
+                        onChange={(e) => setNewBarcode(e.target.value)}
+                        placeholder="New barcode"
+                        className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!newBarcode.trim()}
+                        className="rounded-lg bg-slate-600 px-3 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-500 dark:hover:bg-slate-600"
+                      >
+                        Add
+                      </button>
+                    </form>
+                  </div>
+                  <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
+                    <h3 className="mb-2 text-sm font-semibold text-slate-800 dark:text-white">
+                      Modifier groups
+                    </h3>
+                    {itemModifierGroups.length === 0 ? (
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        No modifier groups linked.
+                      </p>
+                    ) : (
+                      <ul className="mb-2 space-y-1">
+                        {itemModifierGroups.map(
+                          (l: ItemModifierGroupLink) => (
+                            <li
+                              key={l.id}
+                              className="flex items-center justify-between rounded bg-slate-50 px-2 py-1 text-sm dark:bg-slate-700/50"
+                            >
+                              {modifierGroupName(l.modifierGroupId)}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  deleteModifierGroupMutation.mutate(l.id)
+                                }
+                                className="rounded p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
+                                aria-label={`Unlink ${modifierGroupName(l.modifierGroupId)}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    )}
+                    {availableModifierGroups.length > 0 && (
+                      <form
+                        onSubmit={handleAddModifierGroup}
+                        className="flex gap-2"
+                      >
+                        <select
+                          value={newModifierGroupId}
+                          onChange={(e) =>
+                            setNewModifierGroupId(e.target.value)
+                          }
+                          className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                        >
+                          <option value="">Select modifier group…</option>
+                          {availableModifierGroups.map(
+                            (mg: { id: string; name: string }) => (
+                              <option key={mg.id} value={mg.id}>
+                                {mg.name}
+                              </option>
+                            )
+                          )}
+                        </select>
+                        <button
+                          type="submit"
+                          disabled={!newModifierGroupId}
+                          className="rounded-lg bg-slate-600 px-3 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-500 dark:hover:bg-slate-600"
+                        >
+                          Add
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <div className="flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={closeSlide}
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitLoading}
+                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+                >
+                  {submitLoading
+                    ? "Saving…"
+                    : editingItem
+                      ? "Save"
+                      : "Create"}
+                </button>
+              </div>
+            </form>
+          </SlideOver>
+
+          <ConfirmDialog
+            open={Boolean(confirmDelete)}
+            onClose={() => setConfirmDelete(null)}
+            onConfirm={handleDeleteConfirm}
+            title="Delete item?"
+            message={
+              confirmDelete ? (
+                <>
+                  <strong>{confirmDelete.name}</strong> will be deactivated. It
+                  will no longer appear in the menu.
+                </>
+              ) : (
+                ""
+              )
+            }
+            confirmLabel="Delete"
+            variant="danger"
+            loading={deleteLoading}
+          />
+        </>
+      )}
+    </div>
+  );
+}

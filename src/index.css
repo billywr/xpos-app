@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #0f172a;
+  /* Light bluish base with soft blend */
+  --app-bg-start: #f0f7fc;
+  --app-bg-mid: #e8f4fc;
+  --app-bg-end: #f5fafd;
+  --sidebar-start: #ffffff;
+  --sidebar-end: #f0f7fc;
+  --sidebar-edge: rgba(224, 242, 254, 0.6);
+  --card-bg: #ffffff;
+  --card-border: rgba(186, 230, 253, 0.5);
+}
+
+.dark {
+  --app-bg-start: #0f172a;
+  --app-bg-mid: #1e293b;
+  --app-bg-end: #0f172a;
+  --sidebar-start: #1e293b;
+  --sidebar-end: #0f172a;
+  --sidebar-edge: rgba(30, 41, 59, 0.8);
+  --card-bg: #1e293b;
+  --card-border: rgba(51, 65, 85, 0.6);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(165deg, var(--app-bg-start) 0%, var(--app-bg-end) 50%, var(--app-bg-mid) 100%);
+}
+
+@layer utilities {
+  .bg-app {
+    background: linear-gradient(165deg, var(--app-bg-start) 0%, var(--app-bg-end) 50%, var(--app-bg-mid) 100%);
+  }
+  .bg-sidebar {
+    background: linear-gradient(180deg, var(--sidebar-start) 0%, var(--sidebar-end) 100%);
+  }
+}
+
+/* Receipt thermal-print style */
+.receipt-body {
+  width: 72mm;
+  max-width: 100%;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  color: #000;
+}
+.receipt-body .r-header {
+  text-align: center;
+}
+.receipt-body .r-shop {
+  font-weight: bold;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+.receipt-body .r-sub {
+  font-size: 11px;
+}
+.receipt-body .r-sep {
+  text-align: center;
+  font-size: 11px;
+  margin: 8px 0;
+}
+.receipt-body .r-title {
+  text-align: center;
+  font-weight: bold;
+}
+.receipt-body .r-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 2px 0;
+}
+.receipt-body .r-col {
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+.receipt-body .r-desc {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.receipt-body .r-num {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.receipt-body .r-item {
+  margin: 2px 0;
+}
+.receipt-body .r-mod {
+  font-size: 11px;
+  color: #4b5563;
+  margin-left: 8px;
+}
+.receipt-body .r-total {
+  font-weight: bold;
+}
+.receipt-body .r-footer {
+  text-align: center;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-top: 12px;
+}
+.receipt-body .r-barcode {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+.receipt-body .r-barcode > div {
+  display: flex;
+  gap: 2px;
+  height: 36px;
+}
+.receipt-body .r-barcode > div > div {
+  background: #000;
+  min-width: 1px;
+}
