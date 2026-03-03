@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -9,12 +9,13 @@ import {
   type SaleSummary,
   type FetchAdminSalesParams,
 } from "@/api/adminSales";
+import { fetchReceiptDetails } from "@/api/sales";
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { Pagination } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
-import { Receipt } from "lucide-react";
+import { Receipt, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -34,6 +35,7 @@ export function SalesListPage() {
   defaultFrom.setDate(defaultFrom.getDate() - 30);
   const [fromDate, setFromDate] = useState<string>(toDateStr(defaultFrom));
   const [toDate, setToDate] = useState<string>(toDateStr(today));
+  const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
 
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
@@ -62,9 +64,35 @@ export function SalesListPage() {
     enabled: Boolean(token) && Boolean(selectedOrgId) && Boolean(selectedBranchId),
   });
 
+  const sales = salesData?.content ?? [];
+  const expandedSale = sales.find((s: SaleSummary) => s.id === expandedSaleId);
+  const { data: receiptDetails, isLoading: receiptLoading } = useQuery({
+    queryKey: [
+      "receipt-details",
+      token,
+      selectedOrgId,
+      selectedBranchId,
+      expandedSale?.terminalId,
+      expandedSaleId,
+    ],
+    queryFn: () =>
+      fetchReceiptDetails(
+        token,
+        selectedOrgId!,
+        selectedBranchId!,
+        expandedSale!.terminalId,
+        expandedSaleId!
+      ),
+    enabled:
+      Boolean(token) &&
+      Boolean(selectedOrgId) &&
+      Boolean(selectedBranchId) &&
+      Boolean(expandedSaleId) &&
+      Boolean(expandedSale?.terminalId),
+  });
+
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
-  const sales = salesData?.content ?? [];
   const totalElements = salesData?.totalElements ?? 0;
 
   const handleSizeChange = (newSize: number) => {
@@ -230,6 +258,7 @@ export function SalesListPage() {
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                 <thead className="bg-slate-50 dark:bg-slate-800/80">
                   <tr>
+                    <th className="w-10 px-2 py-3" aria-label="Expand" />
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Receipt #
                     </th>
@@ -248,7 +277,7 @@ export function SalesListPage() {
                   {sales.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={5}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
                         No completed sales for {selectedBranch?.name ?? "this branch"} in the
@@ -257,25 +286,98 @@ export function SalesListPage() {
                     </tr>
                   ) : (
                     sales.map((sale: SaleSummary) => (
-                      <tr
-                        key={sale.id}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
-                      >
-                        <td className="px-4 py-3 font-mono text-slate-800 dark:text-white">
-                          {sale.receiptNumber ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-slate-800 dark:text-white">
-                          {sale.completedAt
-                            ? new Date(sale.completedAt).toLocaleString()
-                            : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                          {sale.createdByUsername ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums font-medium text-slate-800 dark:text-white">
-                          {formatCurrency(sale.total)}
-                        </td>
-                      </tr>
+                      <Fragment key={sale.id}>
+                        <tr
+                          key={sale.id}
+                          className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
+                        >
+                          <td className="w-10 px-2 py-3">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedSaleId(
+                                  expandedSaleId === sale.id ? null : sale.id
+                                )
+                              }
+                              className="rounded p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200"
+                              aria-label={
+                                expandedSaleId === sale.id
+                                  ? "Collapse items"
+                                  : "Expand items"
+                              }
+                            >
+                              {expandedSaleId === sale.id ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-slate-800 dark:text-white">
+                            {sale.receiptNumber ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 text-slate-800 dark:text-white">
+                            {sale.completedAt
+                              ? new Date(sale.completedAt).toLocaleString()
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                            {sale.createdByUsername ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums font-medium text-slate-800 dark:text-white">
+                            {formatCurrency(sale.total)}
+                          </td>
+                        </tr>
+                        {expandedSaleId === sale.id && (
+                          <tr key={`${sale.id}-expanded`}>
+                            <td
+                              colSpan={5}
+                              className="bg-slate-50 px-4 py-3 dark:bg-slate-800/50"
+                            >
+                              {receiptLoading ? (
+                                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Loading items…
+                                </div>
+                              ) : receiptDetails?.lines && receiptDetails.lines.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                  <table className="min-w-[200px] text-sm">
+                                    <thead>
+                                      <tr className="border-b border-slate-200 dark:border-slate-600">
+                                        <th className="pb-2 pr-4 text-left font-medium text-slate-600 dark:text-slate-400">
+                                          Item
+                                        </th>
+                                        <th className="pb-2 text-right font-medium text-slate-600 dark:text-slate-400">
+                                          Qty
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {receiptDetails.lines.map((line) => (
+                                        <tr
+                                          key={line.id}
+                                          className="border-b border-slate-100 dark:border-slate-700/50"
+                                        >
+                                          <td className="py-1.5 pr-4 text-slate-800 dark:text-white">
+                                            {line.itemName}
+                                          </td>
+                                          <td className="py-1.5 text-right tabular-nums text-slate-600 dark:text-slate-300">
+                                            {line.qty}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                  No line items
+                                </p>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     ))
                   )}
                 </tbody>

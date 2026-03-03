@@ -3,6 +3,7 @@ import {
   BarChart3,
   Building2,
   Briefcase,
+  ClipboardList,
   CreditCard,
   FileText,
   FolderTree,
@@ -22,6 +23,7 @@ import {
   Wallet,
   Truck,
   PackagePlus,
+  CalendarClock,
 } from "lucide-react";
 import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
 
@@ -45,6 +47,8 @@ const navItems = [
   { to: "/admin/suppliers", label: "Suppliers", icon: Truck, end: false },
   { to: "/admin/goods-receipt", label: "Goods Receipt", icon: PackagePlus, end: false },
   { to: "/admin/inventory", label: "Inventory", icon: Package, end: false },
+  { to: "/admin/stock-taking-schedules", label: "Stock Taking", icon: CalendarClock, end: false },
+  { to: "/admin/stock-count-sessions", label: "Stock Counts", icon: ClipboardList, end: false },
   { to: "/admin/revenue", label: "Revenue & P&L", icon: TrendingUp, end: false },
   { to: "/admin/analytics", label: "Analytics", icon: BarChart3, end: false },
 ];

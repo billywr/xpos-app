@@ -17,8 +17,24 @@ This document defines the phased rollout of the XPOS React UI. Each phase delive
 | G | Ledger & audit | Ledger entries, audit log viewer | ~1 week | 🔲 Pending |
 | H | Operator polish | Idle logout, keyboard shortcuts, performance | ~1 week | ✅ Done (idle logout, theme, a11y) |
 | I | Advanced / optional | E2E, offline, reporting, multi-lang, etc. | 2+ weeks | ✅ E2E done; rest pending |
+| J | Debts, expenses, payment-debt | Customer Debts, Misc Expenses, payment with balance as debt, receipt debt, Analytics (admin) | ~1 week | ✅ Done |
 
 Status legend: ✅ Done, 🔲 Pending. See detailed phase sections below.
+
+---
+
+## Phase J: Customer Debts, Misc Expenses, Payment-with-debt, Analytics
+
+**Goal:** Operator can record and manage customer debts and misc expenses; partial payments can be completed with balance recorded as debt; receipts show debt info; Analytics accessible from Admin.
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Customer Debts (operator) | ✅ | DebtsPage: list, record (name, phone, amount, due date), edit, settle, clear. Create customer on-the-fly. |
+| Misc Expenses (operator) | ✅ | MiscExpensesPage: list, record, edit, soft delete. Incurred-by, total row. |
+| Payment with balance as debt | ✅ | PaymentModal: when partial payment (totalTendered > 0 and < total), show customer form (name, phone, due date) and "Complete with balance as debt". Calls complete-with-debt API. |
+| Receipt debt amount & due date | ✅ | ReceiptModal (and print) displays debt amount and due date when sale completed with debt. |
+| Analytics (operator) | ✅ | AnalyticsPage: KPI cards, debt/expense intelligence, charts, BI report download. |
+| Analytics (admin) | ✅ | Route /admin/analytics; same AnalyticsPage under Admin layout. |
 
 ---
 
@@ -140,7 +156,7 @@ Status legend: ✅ Done, 🔲 Pending. See detailed phase sections below.
 | Block sale when out of stock | 🔲 | Disable or gray out items with 0 stock; show "Hakuna stock" / "Out of stock" badge. Prevent add-to-cart when qty &gt; available. |
 | Proceed to payment validation | 🔲 | Before create sale: if any cart line has insufficient stock, show error: "Insufficient stock for [item]. Only [available] remaining." User-friendly, Kenya Swahili option: "Hakuna stock ya [item]. Ni [available] peke yake." |
 | Receiving (GRN) admin UI | ✅ | Admin → Goods Receipt: create GRN with lines; increases stock. Suppliers page for managing suppliers. |
-| Stock count admin UI | 🔲 | Admin → Stock count: start session, add counted lines, close; view variance. |
+| Stock count admin UI | ✅ | Admin → Stock Taking Schedules (DAILY/WEEKLY), Stock Count Sessions; Operator → Stock Count (manual). |
 | Inventory balance view (admin) | 🔲 | Admin → Inventory → Stock levels: per-branch, per-item on-hand qty. |
 
 **UX guidelines (Kenya, industry std):**

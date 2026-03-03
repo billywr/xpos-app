@@ -34,9 +34,12 @@ import { SuppliersListPage } from "@/features/admin/SuppliersListPage";
 import { GoodsReceiptPage } from "@/features/admin/GoodsReceiptPage";
 import { InventoryPage } from "@/features/admin/InventoryPage";
 import { RevenueDashboardPage } from "@/features/admin/RevenueDashboardPage";
+import { StockTakingSchedulesPage } from "@/features/admin/StockTakingSchedulesPage";
+import { StockCountSessionsPage } from "@/features/admin/StockCountSessionsPage";
 import { AnalyticsPage } from "@/features/operator/AnalyticsPage";
 import { DebtsPage } from "@/features/operator/DebtsPage";
 import { MiscExpensesPage } from "@/features/operator/MiscExpensesPage";
+import { StockCountPage } from "@/features/operator/StockCountPage";
 import { MenuOrderPage } from "@/features/operator/MenuOrderPage";
 import { OperatorDashboard } from "@/features/operator/OperatorDashboard";
 import { PaymentsPage } from "@/features/operator/PaymentsPage";
@@ -90,6 +93,8 @@ function App() {
           <Route path="suppliers" element={<SuppliersListPage />} />
           <Route path="goods-receipt" element={<GoodsReceiptPage />} />
           <Route path="inventory" element={<InventoryPage />} />
+          <Route path="stock-taking-schedules" element={<StockTakingSchedulesPage />} />
+          <Route path="stock-count-sessions" element={<StockCountSessionsPage />} />
           <Route path="revenue" element={<RevenueDashboardPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
         </Route>
@@ -109,6 +114,8 @@ function App() {
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="debts" element={<DebtsPage />} />
           <Route path="misc-expenses" element={<MiscExpensesPage />} />
+          <Route path="stock-count" element={<StockCountPage />} />
+          <Route path="withdrawal" element={<div className="p-6 text-slate-600 dark:text-slate-400">Withdrawal (TODO)</div>} />
           <Route path="dishes" element={<div className="p-4 text-white">Dishes (TODO)</div>} />
           <Route path="payments" element={<PaymentsPage />} />
         </Route>

@@ -20,6 +20,7 @@ import {
   Moon,
   HandCoins,
   ReceiptText,
+  ClipboardList,
 } from "lucide-react";
 import { useState } from "react";
 import { useAppSelector } from "@/hooks/useAppSelector";
@@ -44,6 +45,7 @@ const navItems = [
   { to: "/operator/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/operator/debts", label: "Customer Debts", icon: HandCoins },
   { to: "/operator/misc-expenses", label: "Misc Expenses", icon: ReceiptText },
+  { to: "/operator/stock-count", label: "Stock Count", icon: ClipboardList },
   { to: "/operator/withdrawal", label: "Withdrawal", icon: Wallet },
 ];
 
