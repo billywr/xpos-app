@@ -93,6 +93,20 @@ export async function completeSale(
   );
 }
 
+/** Operator: void an open or held sale. Removes from open sales list. */
+export async function voidSale(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  terminalId: string,
+  saleId: string
+): Promise<Sale> {
+  return apiFetch<Sale>(
+    `${salesPath(orgId, branchId, terminalId)}/${saleId}/void`,
+    { token, method: "POST" as RequestInit["method"] }
+  );
+}
+
 export interface CompleteWithDebtRequest {
   customerName: string;
   customerPhone?: string;
@@ -170,6 +184,19 @@ export async function recordReceiptReprint(
 ): Promise<void> {
   return apiFetch(
     `${receiptsPath(orgId, branchId)}/${saleId}/reprint`,
+    { token, method: "POST" }
+  );
+}
+
+/** Operator: refund a completed sale. Returns items to stock, cancels linked debts. */
+export async function refundSale(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  saleId: string
+): Promise<SaleSummary> {
+  return apiFetch<SaleSummary>(
+    `${receiptsPath(orgId, branchId)}/${saleId}/refund`,
     { token, method: "POST" }
   );
 }

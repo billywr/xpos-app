@@ -307,7 +307,7 @@ export function BusinessesListPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       KRA PIN
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -334,12 +334,13 @@ export function BusinessesListPage() {
                         <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                           {business.kraPin ?? "—"}
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-2">
+                        <td className="px-4 py-3 text-left">
+                          <div className="flex justify-start gap-2">
                             <button
                               type="button"
                               onClick={() => openEdit(business)}
                               className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
+                              title={`Edit ${business.legalName}`}
                               aria-label={`Edit ${business.legalName}`}
                             >
                               <Pencil className="h-4 w-4" />
@@ -348,6 +349,7 @@ export function BusinessesListPage() {
                               type="button"
                               onClick={() => setConfirmDelete(business)}
                               className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
+                              title={`Delete ${business.legalName}`}
                               aria-label={`Delete ${business.legalName}`}
                             >
                               <Trash2 className="h-4 w-4" />

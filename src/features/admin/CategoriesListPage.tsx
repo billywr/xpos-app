@@ -327,7 +327,7 @@ export function CategoriesListPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Type
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -359,12 +359,13 @@ export function CategoriesListPage() {
                             {cat.type}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-2">
+                        <td className="px-4 py-3 text-left">
+                          <div className="flex justify-start gap-2">
                             <button
                               type="button"
                               onClick={() => openEdit(cat)}
                               className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
+                              title={`Edit ${cat.name}`}
                               aria-label={`Edit ${cat.name}`}
                             >
                               <Pencil className="h-4 w-4" />
@@ -373,6 +374,7 @@ export function CategoriesListPage() {
                               type="button"
                               onClick={() => setConfirmDelete(cat)}
                               className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
+                              title={`Delete ${cat.name}`}
                               aria-label={`Delete ${cat.name}`}
                             >
                               <Trash2 className="h-4 w-4" />

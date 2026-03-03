@@ -122,6 +122,9 @@ export interface StockCountLineResponse {
   countedQty: number;
   systemQty: number;
   varianceQty: number;
+  unitCost: number | null;
+  qtySold: number;
+  sellingPrice: number | null;
   createdAt: string;
 }
 
@@ -191,6 +194,31 @@ export async function addStockCountLine(
   );
 }
 
+export async function updateStockCountLine(
+  token: string | null,
+  orgId: string,
+  sessionId: string,
+  lineId: string,
+  body: { countedQty: number }
+): Promise<StockCountSessionResponse> {
+  return apiFetch<StockCountSessionResponse>(
+    `/api/v1/admin/orgs/${orgId}/stock-count-sessions/${sessionId}/lines/${lineId}`,
+    { token, method: "PATCH", body }
+  );
+}
+
+export async function deleteStockCountLine(
+  token: string | null,
+  orgId: string,
+  sessionId: string,
+  lineId: string
+): Promise<StockCountSessionResponse> {
+  return apiFetch<StockCountSessionResponse>(
+    `/api/v1/admin/orgs/${orgId}/stock-count-sessions/${sessionId}/lines/${lineId}`,
+    { token, method: "DELETE" }
+  );
+}
+
 export async function closeStockCountSession(
   token: string | null,
   orgId: string,
@@ -199,6 +227,18 @@ export async function closeStockCountSession(
   return apiFetch<StockCountSessionResponse>(
     `/api/v1/admin/orgs/${orgId}/stock-count-sessions/${sessionId}/close`,
     { token, method: "POST" }
+  );
+}
+
+/** Admin: soft-delete a stock count session (OPEN or CLOSED). */
+export async function deleteAdminStockCountSession(
+  token: string | null,
+  orgId: string,
+  sessionId: string
+): Promise<StockCountSessionResponse> {
+  return apiFetch<StockCountSessionResponse>(
+    `/api/v1/admin/orgs/${orgId}/stock-count-sessions/${sessionId}`,
+    { token, method: "DELETE" }
   );
 }
 
@@ -252,6 +292,33 @@ export async function addOperatorStockCountLine(
   );
 }
 
+export async function updateOperatorStockCountLine(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  sessionId: string,
+  lineId: string,
+  body: { countedQty: number }
+): Promise<StockCountSessionResponse> {
+  return apiFetch<StockCountSessionResponse>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/stock-count-sessions/${sessionId}/lines/${lineId}`,
+    { token, method: "PATCH", body }
+  );
+}
+
+export async function deleteOperatorStockCountLine(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  sessionId: string,
+  lineId: string
+): Promise<StockCountSessionResponse> {
+  return apiFetch<StockCountSessionResponse>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/stock-count-sessions/${sessionId}/lines/${lineId}`,
+    { token, method: "DELETE" }
+  );
+}
+
 export async function closeOperatorStockCountSession(
   token: string | null,
   orgId: string,
@@ -261,5 +328,18 @@ export async function closeOperatorStockCountSession(
   return apiFetch<StockCountSessionResponse>(
     `/api/v1/operator/orgs/${orgId}/branches/${branchId}/stock-count-sessions/${sessionId}/close`,
     { token, method: "POST" }
+  );
+}
+
+/** Operator: soft-delete a stock count session (OPEN or CLOSED). */
+export async function deleteOperatorStockCountSession(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  sessionId: string
+): Promise<StockCountSessionResponse> {
+  return apiFetch<StockCountSessionResponse>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/stock-count-sessions/${sessionId}`,
+    { token, method: "DELETE" }
   );
 }

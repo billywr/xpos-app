@@ -180,16 +180,16 @@ export function InventoryPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       SKU
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Received
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Remaining (on hand)
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Sold
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Reserved
                     </th>
                   </tr>
@@ -230,22 +230,22 @@ export function InventoryPage() {
                         <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                           {line.sku ?? "—"}
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-slate-600 dark:text-slate-400">
+                        <td className="px-4 py-3 text-left tabular-nums text-slate-600 dark:text-slate-400">
                           {formatQty(line.receivedQty)}
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums">
+                        <td className="px-4 py-3 text-left tabular-nums">
                           <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
                             <TrendingUp className="h-4 w-4" />
                             {formatQty(line.onHandQty)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums">
+                        <td className="px-4 py-3 text-left tabular-nums">
                           <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300">
                             <TrendingDown className="h-4 w-4" />
                             {formatQty(line.soldQty)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-slate-600 dark:text-slate-400">
+                        <td className="px-4 py-3 text-left tabular-nums text-slate-600 dark:text-slate-400">
                           {formatQty(line.reservedQty)}
                         </td>
                       </tr>

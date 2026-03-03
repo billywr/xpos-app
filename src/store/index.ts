@@ -4,7 +4,7 @@ import cartReducer from "./slices/cartSlice";
 import orgContextReducer from "./slices/orgContextSlice";
 import { setOrg, setBranch, setTerminal } from "./slices/orgContextSlice";
 import { getStoredAuth } from "@/utils/authStorage";
-import { getStoredContext } from "@/utils/contextStorage";
+import { getStoredContext, getStoredAdminContext } from "@/utils/contextStorage";
 
 const storedAuth = getStoredAuth();
 
@@ -26,7 +26,7 @@ export const store = configureStore({
       : undefined,
 });
 
-// Restore operator context from sessionStorage so refresh keeps user on menu-order etc.
+// Restore context from sessionStorage so refresh keeps user context (Analytics, Revenue, etc.)
 const storedContext = getStoredContext();
 if (storedContext != null) {
   store.dispatch(setOrg({ orgId: storedContext.orgId, orgName: storedContext.orgName }));
@@ -34,6 +34,12 @@ if (storedContext != null) {
   store.dispatch(
     setTerminal({ terminalId: storedContext.terminalId, terminalName: storedContext.terminalName })
   );
+} else {
+  const adminContext = getStoredAdminContext();
+  if (adminContext != null) {
+    store.dispatch(setOrg({ orgId: adminContext.orgId, orgName: adminContext.orgName }));
+    store.dispatch(setBranch({ branchId: adminContext.branchId, branchName: adminContext.branchName }));
+  }
 }
 
 export type RootState = ReturnType<typeof store.getState>;

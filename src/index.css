@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: #0f172a;
@@ -19,14 +19,15 @@
 }
 
 .dark {
-  --app-bg-start: #0f172a;
-  --app-bg-mid: #1e293b;
-  --app-bg-end: #0f172a;
-  --sidebar-start: #1e293b;
-  --sidebar-end: #0f172a;
-  --sidebar-edge: rgba(30, 41, 59, 0.8);
-  --card-bg: #1e293b;
-  --card-border: rgba(51, 65, 85, 0.6);
+  color: #ffffff;
+  --app-bg-start: #0d2a4a;
+  --app-bg-mid: #113264;
+  --app-bg-end: #0d2a4a;
+  --sidebar-start: #113264;
+  --sidebar-end: #0e2d52;
+  --sidebar-edge: rgba(17, 50, 100, 0.6);
+  --card-bg: #164278;
+  --card-border: rgba(255, 255, 255, 0.12);
 }
 
 body {

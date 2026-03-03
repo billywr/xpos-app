@@ -33,6 +33,16 @@ export function getApiErrorMessage(err: unknown): string {
 }
 
 /**
+ * Returns the error code from an API error when available (e.g. ITEM_NOT_SUPPLIED).
+ */
+export function getApiErrorCode(err: unknown): string | undefined {
+  if (isApiFetchError(err) && err.data.code) {
+    return err.data.code;
+  }
+  return undefined;
+}
+
+/**
  * Returns the requestId from an API error when available (for support reference).
  */
 export function getApiErrorRequestId(err: unknown): string | undefined {

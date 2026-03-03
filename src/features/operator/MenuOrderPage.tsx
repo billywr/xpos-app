@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
@@ -46,27 +47,26 @@ import type { ReceiptDetailResponse, Sale, Tender } from "@/types/sales";
 import { Minus, Plus, Trash2, CreditCard, X } from "lucide-react";
 
 function usePriceMap(orgId: string | null, priceListId: string | null, token: string | null) {
-  const { data: priceItems } = useQuery({
+  const { data: priceItemsPage } = useQuery({
     queryKey: ["priceListItems", orgId, priceListId],
     queryFn: () =>
-      priceListId && orgId
-        ? fetchPriceListItems(token, orgId, priceListId)
-        : Promise.resolve([]),
+      fetchPriceListItems(token!, orgId!, priceListId!, { page: 0, size: 2000 }),
     enabled: Boolean(orgId && priceListId && token),
   });
   return useMemo(() => {
     const map = new Map<string, number>();
-    if (priceItems) {
-      for (const p of priceItems) {
-        const num = typeof p.price === "number" ? p.price : Number(p.price);
-        if (!Number.isNaN(num)) map.set(p.itemId, num);
-      }
+    const items = priceItemsPage?.content ?? [];
+    for (const p of items) {
+      const num = typeof p.price === "number" ? p.price : Number(p.price);
+      if (!Number.isNaN(num)) map.set(p.itemId, num);
     }
     return map;
-  }, [priceItems]);
+  }, [priceItemsPage]);
 }
 
 export function MenuOrderPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const saleIdFromUrl = searchParams.get("saleId");
   const token = useAppSelector(selectToken);
   const orgId = useAppSelector(selectOrgId);
   const branchId = useAppSelector(selectBranchId);
@@ -115,6 +115,38 @@ export function MenuOrderPage() {
   const [saleForPayment, setSaleForPayment] = useState<Sale | null>(null);
   const [addTenderAmount, setAddTenderAmount] = useState<string>("");
   const [addTenderTypeId, setAddTenderTypeId] = useState<string>("");
+
+  const { data: saleFromUrl } = useQuery({
+    queryKey: ["sale", token, orgId, branchId, terminalId, saleIdFromUrl],
+    queryFn: () =>
+      fetchSale(token!, orgId!, branchId!, terminalId!, saleIdFromUrl!),
+    enabled: Boolean(
+      saleIdFromUrl && token && orgId && branchId && terminalId
+    ),
+  });
+
+  useEffect(() => {
+    if (saleFromUrl && saleIdFromUrl) {
+      const isOpenOrHeld =
+        saleFromUrl.status === "OPEN" || saleFromUrl.status === "HELD";
+      if (isOpenOrHeld) {
+        setSaleForPayment(saleFromUrl);
+        const total = Number(saleFromUrl.total) || 0;
+        const tendered = (saleFromUrl.tenders ?? []).reduce(
+          (sum, t) => sum + (Number(t.amount) || 0),
+          0
+        );
+        const remainder = total - tendered;
+        setAddTenderAmount(remainder > 0 ? String(remainder) : "");
+        setAddTenderTypeId(cashTenderTypeId ?? tenderTypes[0]?.id ?? "");
+      }
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("saleId");
+        return next;
+      });
+    }
+  }, [saleFromUrl, saleIdFromUrl, cashTenderTypeId, tenderTypes, setSearchParams]);
   const [modifierModalItem, setModifierModalItem] = useState<{
     item: Item;
     price: number;

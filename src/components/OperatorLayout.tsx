@@ -45,7 +45,7 @@ const navItems = [
   { to: "/operator/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/operator/debts", label: "Customer Debts", icon: HandCoins },
   { to: "/operator/misc-expenses", label: "Misc Expenses", icon: ReceiptText },
-  { to: "/operator/stock-count", label: "Stock Count", icon: ClipboardList },
+  { to: "/operator/stock-count", label: "Manual Stock Taking", icon: ClipboardList },
   { to: "/operator/withdrawal", label: "Withdrawal", icon: Wallet },
 ];
 
@@ -78,8 +78,8 @@ export function OperatorLayout() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-white">
-      <header className="sticky top-0 z-30 flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900 dark:bg-darkBg dark:text-white">
+      <header className="sticky top-0 z-30 flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-white/10 dark:bg-darkNav">
         <div className="flex items-center gap-3">
           <Link
             to="/operator"
@@ -107,29 +107,29 @@ export function OperatorLayout() {
           <button
             type="button"
             onClick={toggleTheme}
-            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
+            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
             aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
           >
             {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </button>
           <button
             type="button"
-            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
+            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
             aria-label="Refresh"
           >
             <RefreshCw className="h-5 w-5" />
           </button>
           <div className="relative hidden md:block">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-white/60" />
             <input
               type="search"
               placeholder="Search menu..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-48 rounded-lg border border-slate-300 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500"
+              className="w-48 rounded-lg border border-slate-300 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-white/20 dark:bg-darkSurface dark:text-white dark:placeholder-white/50"
             />
           </div>
-          <span className="text-sm text-slate-500 dark:text-slate-500">
+          <span className="text-sm text-slate-500 dark:text-white/70">
             {new Date().toLocaleDateString("en-GB", {
               weekday: "long",
               day: "numeric",
@@ -139,11 +139,11 @@ export function OperatorLayout() {
               minute: "2-digit",
             })}
           </span>
-          <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 dark:bg-slate-800">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-300 text-sm font-medium text-slate-600 dark:bg-slate-600 dark:text-slate-300">
+          <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 dark:bg-darkSurface">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-300 text-sm font-medium text-slate-600 dark:bg-white/20 dark:text-white">
               U
             </div>
-            <span className="hidden text-sm text-slate-700 sm:inline dark:text-slate-300">User</span>
+            <span className="hidden text-sm text-slate-700 sm:inline dark:text-white">User</span>
           </div>
         </div>
       </header>
@@ -167,15 +167,15 @@ export function OperatorLayout() {
 
       <div className="flex flex-1 overflow-hidden">
         <aside
-          className={`flex shrink-0 flex-col border-r border-slate-200 bg-white transition-[width] duration-200 dark:border-slate-700 dark:bg-slate-800/50 ${
+          className={`flex shrink-0 flex-col border-r border-slate-200 bg-white transition-[width] duration-200 dark:border-white/10 dark:bg-darkNav ${
             collapsed ? "w-[4.25rem]" : "w-56"
           }`}
         >
-          <div className="flex items-center justify-end border-b border-slate-200 p-2 dark:border-slate-700">
+          <div className="flex items-center justify-end border-b border-slate-200 p-2 dark:border-white/10">
             <button
               type="button"
               onClick={toggleSidebar}
-              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
+              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {collapsed ? (
@@ -197,7 +197,7 @@ export function OperatorLayout() {
                   } ${
                     isActive
                       ? "bg-primary-600 text-white"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
                   }`
                 }
               >
@@ -207,11 +207,11 @@ export function OperatorLayout() {
             ))}
             {!collapsed && (
               <>
-                <div className="my-2 border-t border-slate-200 dark:border-slate-600" />
+                <div className="my-2 border-t border-slate-200 dark:border-white/10" />
                 <button
                   type="button"
                   onClick={() => setManageOpen(!manageOpen)}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
                 >
                   <span className="flex items-center gap-3">
                     <UtensilsCrossed className="h-5 w-5 shrink-0" />
@@ -222,7 +222,7 @@ export function OperatorLayout() {
                   />
                 </button>
                 {manageOpen && (
-                  <div className="ml-4 flex flex-col gap-1 border-l border-slate-200 pl-2 dark:border-slate-600">
+                  <div className="ml-4 flex flex-col gap-1 border-l border-slate-200 pl-2 dark:border-white/10">
                     {manageItems
                       .filter((i) => i.parent === "Manage Table")
                       .map(({ to, label }) => (
@@ -233,7 +233,7 @@ export function OperatorLayout() {
                             `rounded-lg px-2 py-1.5 text-sm ${
                               isActive
                                 ? "text-primary-600 dark:text-primary-400"
-                                : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                                : "text-slate-500 hover:text-slate-900 dark:text-white/80 dark:hover:text-white"
                             }`
                           }
                         >
@@ -252,7 +252,7 @@ export function OperatorLayout() {
                         `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                           isActive
                             ? "bg-primary-600 text-white"
-                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"
+                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
                         }`
                       }
                     >
@@ -262,11 +262,11 @@ export function OperatorLayout() {
                   ))}
               </>
             )}
-            <div className="my-2 border-t border-slate-200 dark:border-slate-600" />
+            <div className="my-2 border-t border-slate-200 dark:border-white/10" />
             {!collapsed && (
               <Link
                 to="/settings"
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
               >
                 <Settings className="h-5 w-5 shrink-0" />
                 Settings
@@ -275,7 +275,7 @@ export function OperatorLayout() {
             <button
               type="button"
               onClick={handleLogout}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white ${collapsed ? "justify-center" : ""}`}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white ${collapsed ? "justify-center" : ""}`}
             >
               <LogOut className="h-5 w-5 shrink-0" />
               {!collapsed && <span>Logout</span>}
@@ -283,7 +283,7 @@ export function OperatorLayout() {
           </nav>
         </aside>
 
-        <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-slate-900">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-darkBg">
           <Outlet />
         </main>
       </div>

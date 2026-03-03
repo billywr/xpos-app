@@ -99,13 +99,46 @@ export async function updatePriceList(
 export async function fetchPriceListItems(
   token: string | null,
   orgId: string,
-  priceListId: string
-): Promise<PriceListItem[]> {
-  const res = await apiFetch<PriceListItem[]>(
-    `/api/v1/admin/orgs/${orgId}/price-lists/${priceListId}/items`,
+  priceListId: string,
+  params?: { page?: number; size?: number }
+): Promise<PageResponse<PriceListItem>> {
+  const query = buildPageQuery({
+    page: params?.page ?? 0,
+    size: params?.size ?? 25,
+    sort: "item.name,asc",
+  });
+  const res = await apiFetch<PageResponse<PriceListItem>>(
+    `/api/v1/admin/orgs/${orgId}/price-lists/${priceListId}/items${query}`,
     { token }
   );
-  return Array.isArray(res) ? res : [];
+  return (
+    res ?? {
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      size: 25,
+      number: 0,
+      first: true,
+      last: true,
+    }
+  );
+}
+
+export async function updatePriceListItem(
+  token: string | null,
+  orgId: string,
+  priceListId: string,
+  priceListItemId: string,
+  body: { price: number; currency?: string }
+): Promise<PriceListItem> {
+  return apiFetch<PriceListItem>(
+    `/api/v1/admin/orgs/${orgId}/price-lists/${priceListId}/items/${priceListItemId}`,
+    {
+      token,
+      method: "PATCH",
+      body: { price: body.price, currency: body.currency ?? "KES" },
+    }
+  );
 }
 
 export async function addPriceListItem(

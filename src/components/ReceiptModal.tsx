@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Printer, X } from "lucide-react";
+import { Printer, RotateCcw, X } from "lucide-react";
 import { formatCurrency } from "@/utils/formatCurrency";
 import type { ReceiptDetailResponse } from "@/types/sales";
 
@@ -16,6 +16,12 @@ interface ReceiptModalProps {
   phone?: string;
   /** Called when user clicks Print (before opening print dialog). Use for reprint logging. */
   onPrintComplete?: () => void;
+  /** Sale ID for this receipt. When provided with onRefund, shows Refund button. */
+  saleId?: string;
+  /** Called when user clicks Refund. Parent should call refund API. */
+  onRefund?: (saleId: string) => void;
+  /** Whether refund is in progress. */
+  isRefunding?: boolean;
 }
 
 function toNum(v: unknown): number {
@@ -178,6 +184,9 @@ export function ReceiptModal({
   address = "",
   phone = "",
   onPrintComplete,
+  saleId,
+  onRefund,
+  isRefunding = false,
 }: ReceiptModalProps) {
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -249,7 +258,7 @@ export function ReceiptModal({
           >
             Receipt #{receipt.receiptNumber}
           </h2>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button
               type="button"
               onClick={handlePrint}
@@ -259,6 +268,26 @@ export function ReceiptModal({
               <Printer className="h-5 w-5" />
               Print
             </button>
+            {saleId && onRefund && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Refund this sale? Items will be returned to stock. This cannot be undone."
+                    )
+                  ) {
+                    onRefund(saleId);
+                  }
+                }}
+                disabled={isRefunding}
+                className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2.5 text-base font-medium text-white transition hover:bg-amber-500 disabled:opacity-50 dark:bg-amber-500 dark:hover:bg-amber-600"
+                aria-label="Refund sale"
+              >
+                <RotateCcw className="h-5 w-5" />
+                {isRefunding ? "Refunding…" : "Refund"}
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}

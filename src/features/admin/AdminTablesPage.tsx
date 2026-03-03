@@ -459,6 +459,7 @@ export function AdminTablesPage() {
                             type="button"
                             onClick={() => openAreaEdit(area)}
                             className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-300"
+                            title={`Edit ${area.name}`}
                             aria-label={`Edit ${area.name}`}
                           >
                             <Pencil className="h-4 w-4" />
@@ -530,7 +531,7 @@ export function AdminTablesPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
                               table.status === "ACTIVE" ||
                               table.status === "FREE" ||
                               table.status === "AVAILABLE"
@@ -546,6 +547,7 @@ export function AdminTablesPage() {
                             type="button"
                             onClick={() => openTableEdit(table)}
                             className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-300"
+                            title={`Edit ${table.name}`}
                             aria-label={`Edit ${table.name}`}
                           >
                             <Pencil className="h-4 w-4" />

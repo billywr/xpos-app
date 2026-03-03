@@ -184,13 +184,13 @@ export function ShiftsListPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Opening float
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Closing counted
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Variance
                     </th>
                   </tr>
@@ -221,7 +221,7 @@ export function ShiftsListPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
                               shift.status === "OPEN"
                                 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
                                 : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
@@ -230,15 +230,15 @@ export function ShiftsListPage() {
                             {shift.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-slate-800 dark:text-white">
+                        <td className="px-4 py-3 text-left tabular-nums text-slate-800 dark:text-white">
                           {formatCurrency(shift.openingFloatAmount)}
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-slate-600 dark:text-slate-300">
+                        <td className="px-4 py-3 text-left tabular-nums text-slate-600 dark:text-slate-300">
                           {shift.closingCountedAmount != null
                             ? formatCurrency(shift.closingCountedAmount)
                             : "—"}
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-slate-600 dark:text-slate-300">
+                        <td className="px-4 py-3 text-left tabular-nums text-slate-600 dark:text-slate-300">
                           {shift.varianceAmount != null
                             ? formatCurrency(shift.varianceAmount)
                             : "—"}

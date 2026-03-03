@@ -26,8 +26,9 @@ import {
   HandCoins,
   ReceiptText,
   FileDown,
+  Calendar,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import {
@@ -42,8 +43,15 @@ import {
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import { AnalyticsOrgBranchFilter } from "@/components/AnalyticsOrgBranchFilter";
 
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
+
+function todayIso(): string {
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
+}
+
 const CHART_COLORS = [
   "#0ea5e9",
   "#22c55e",
@@ -53,15 +61,15 @@ const CHART_COLORS = [
   "#14b8a6",
 ];
 
-function useAnalyticsSnapshot() {
+function useAnalyticsSnapshot(fromDate: string, toDate: string) {
   const token = useAppSelector(selectToken);
   const orgId = useAppSelector(selectOrgId);
   const branchId = useAppSelector(selectBranchId);
 
   return useQuery({
-    queryKey: ["operator-analytics-snapshot", orgId, branchId],
+    queryKey: ["operator-analytics-snapshot", orgId, branchId, fromDate, toDate],
     queryFn: () =>
-      fetchOperatorAnalyticsSnapshot(token, orgId!, branchId!),
+      fetchOperatorAnalyticsSnapshot(token, orgId!, branchId!, fromDate, toDate),
     enabled: Boolean(token && orgId && branchId),
     refetchInterval: AUTO_REFRESH_MS,
     refetchIntervalInBackground: true,
@@ -75,6 +83,13 @@ export function AnalyticsPage() {
   const branchId = useAppSelector(selectBranchId);
   const toast = useToast();
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const defaultToday = useMemo(() => todayIso(), []);
+  const [fromDate, setFromDate] = useState(defaultToday);
+  const [toDate, setToDate] = useState(defaultToday);
+
+  useEffect(() => {
+    if (fromDate > toDate) setToDate(fromDate);
+  }, [fromDate, toDate]);
   const {
     data: snapshot,
     isLoading,
@@ -83,14 +98,40 @@ export function AnalyticsPage() {
     refetch,
     isFetching,
     dataUpdatedAt,
-  } = useAnalyticsSnapshot();
+  } = useAnalyticsSnapshot(fromDate, toDate);
 
-  if (!useAppSelector(selectOrgId) || !useAppSelector(selectBranchId)) {
+  if (!orgId) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center p-6">
-        <p className="text-slate-500 dark:text-slate-400">
-          Select org and branch context to view analytics.
-        </p>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-10 w-10 animate-spin text-primary-500" />
+          <p className="text-slate-500 dark:text-slate-400">
+            Loading context…
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!branchId) {
+    return (
+      <div className="min-h-0 flex-1 overflow-auto p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            Analytics
+          </h1>
+          <p className="mt-1 text-slate-600 dark:text-slate-400">
+            Select a branch to view analytics
+          </p>
+          <div className="mt-3">
+            <AnalyticsOrgBranchFilter />
+          </div>
+        </div>
+        <div className="flex min-h-[40vh] items-center justify-center rounded-xl border border-amber-200 bg-amber-50 p-8 dark:border-amber-700 dark:bg-amber-950/30">
+          <p className="text-center text-amber-800 dark:text-amber-200">
+            No branches for this organization. Add a branch in Admin to view analytics.
+          </p>
+        </div>
       </div>
     );
   }
@@ -114,7 +155,11 @@ export function AnalyticsPage() {
   }
 
   if (!snapshot) {
-    return null;
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center p-6">
+        <Loader2 className="h-10 w-10 animate-spin text-primary-500" />
+      </div>
+    );
   }
 
   const {
@@ -133,7 +178,7 @@ export function AnalyticsPage() {
     if (!token || !orgId || !branchId) return;
     setDownloadingPdf(true);
     try {
-      await downloadBiReportPdf(token, orgId, branchId);
+      await downloadBiReportPdf(token, orgId, branchId, fromDate, toDate);
       toast.success("BI report downloaded.", { title: "Report" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Download failed");
@@ -141,6 +186,9 @@ export function AnalyticsPage() {
       setDownloadingPdf(false);
     }
   };
+
+  const isTodayRange =
+    snapshot.fromDate === snapshot.toDate && snapshot.toDate === todayIso();
 
   const hourlyChartData = hourlyTrend.map((p) => ({
     hour: `${p.hour}:00`,
@@ -160,7 +208,7 @@ export function AnalyticsPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-auto p-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
             Analytics
@@ -168,6 +216,40 @@ export function AnalyticsPage() {
           <p className="mt-1 text-slate-600 dark:text-slate-400">
             Real-time view for {branchName ?? "this branch"}
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-4">
+            <AnalyticsOrgBranchFilter />
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-slate-500 dark:text-slate-400" aria-hidden />
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  aria-label="From date"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-primary-400 dark:focus:ring-primary-400"
+                />
+                <span className="text-slate-500 dark:text-slate-400">–</span>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  aria-label="To date"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-primary-400 dark:focus:ring-primary-400"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const t = todayIso();
+                  setFromDate(t);
+                  setToDate(t);
+                }}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Today
+              </button>
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-slate-500 dark:text-slate-400">
@@ -203,7 +285,7 @@ export function AnalyticsPage() {
       {/* KPI cards */}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Today's revenue"
+          title={isTodayRange ? "Today's revenue" : "Revenue"}
           value={summary.todayRevenue}
           icon={DollarSign}
           accent="primary"
@@ -221,9 +303,9 @@ export function AnalyticsPage() {
           accent="amber"
         />
         <ComparisonCard
-          yesterdayRevenue={comparison.yesterdayRevenue}
+          previousPeriodRevenue={comparison.previousPeriodRevenue}
           percentChange={comparison.percentChange}
-          todayRevenue={summary.todayRevenue}
+          isToday={isTodayRange}
         />
       </div>
 
@@ -270,7 +352,7 @@ export function AnalyticsPage() {
           accent="rose"
         />
         <KpiCard
-          title="Today's expenses"
+          title={isTodayRange ? "Today's expenses" : "Expenses"}
           value={expenseIntelligence?.todayTotal ?? 0}
           icon={ReceiptText}
           accent="primary"
@@ -299,8 +381,8 @@ export function AnalyticsPage() {
           <h2 className="mb-4 font-semibold text-slate-900 dark:text-white">
             Hourly revenue
           </h2>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 min-h-[256px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={256}>
               <BarChart data={hourlyChartData}>
                 <CartesianGrid
                   strokeDasharray="3 3"
@@ -337,8 +419,8 @@ export function AnalyticsPage() {
           <h2 className="mb-4 font-semibold text-slate-900 dark:text-white">
             7-day trend
           </h2>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 min-h-[256px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={256}>
               <AreaChart data={last7DaysTrend}>
                 <defs>
                   <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
@@ -395,8 +477,8 @@ export function AnalyticsPage() {
           </h2>
           {pieData.length > 0 ? (
             <div className="flex items-center gap-4">
-              <div className="h-48 w-48 shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-48 w-48 min-h-[192px] min-w-[192px] shrink-0">
+                <ResponsiveContainer width="100%" height="100%" minWidth={192} minHeight={192}>
                   <PieChart>
                     <Pie
                       data={pieData}
@@ -441,7 +523,7 @@ export function AnalyticsPage() {
             </div>
           ) : (
             <p className="py-8 text-center text-slate-500 dark:text-slate-400">
-              No payments today
+              {isTodayRange ? "No payments today" : "No payments in range"}
             </p>
           )}
         </div>
@@ -472,7 +554,7 @@ export function AnalyticsPage() {
             </div>
           ) : (
             <p className="py-8 text-center text-slate-500 dark:text-slate-400">
-              No sales today
+              {isTodayRange ? "No sales today" : "No sales in range"}
             </p>
           )}
         </div>
@@ -532,25 +614,27 @@ function KpiCard({
 }
 
 function ComparisonCard({
-  yesterdayRevenue,
+  previousPeriodRevenue,
   percentChange,
+  isToday,
 }: {
-  yesterdayRevenue: number;
+  previousPeriodRevenue: number;
   percentChange: number;
-  todayRevenue: number;
+  isToday: boolean;
 }) {
   const isUp = percentChange >= 0;
   const Icon = isUp ? TrendingUp : TrendingDown;
   const colorClass = isUp
     ? "text-emerald-600 dark:text-emerald-400"
     : "text-red-600 dark:text-red-400";
+  const label = isToday ? "vs yesterday" : "vs previous period";
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-600 dark:bg-slate-800">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-            vs yesterday
+            {label}
           </p>
           <p className="mt-1 flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-white">
             <span className={colorClass}>
@@ -560,7 +644,9 @@ function ComparisonCard({
             <Icon className={`h-6 w-6 ${colorClass}`} />
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Yesterday: {formatCurrency(yesterdayRevenue)}
+            {label === "vs yesterday"
+              ? `Yesterday: ${formatCurrency(previousPeriodRevenue)}`
+              : `Previous: ${formatCurrency(previousPeriodRevenue)}`}
           </p>
         </div>
       </div>

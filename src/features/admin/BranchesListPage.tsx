@@ -374,7 +374,7 @@ export function BranchesListPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -407,7 +407,7 @@ export function BranchesListPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
                               branch.status === "ACTIVE"
                                 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
                                 : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
@@ -416,12 +416,13 @@ export function BranchesListPage() {
                             {branch.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-2">
+                        <td className="px-4 py-3 text-left">
+                          <div className="flex justify-start gap-2">
                             <button
                               type="button"
                               onClick={() => openEdit(branch)}
                               className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
+                              title={`Edit ${branch.name}`}
                               aria-label={`Edit ${branch.name}`}
                             >
                               <Pencil className="h-4 w-4" />
@@ -431,6 +432,7 @@ export function BranchesListPage() {
                                 type="button"
                                 onClick={() => setConfirmDeactivate(branch)}
                                 className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
+                                title={`Deactivate ${branch.name}`}
                                 aria-label={`Deactivate ${branch.name}`}
                               >
                                 <Ban className="h-4 w-4" />
@@ -441,6 +443,7 @@ export function BranchesListPage() {
                                 type="button"
                                 onClick={() => setConfirmDelete(branch)}
                                 className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
+                                title={`Delete ${branch.name}`}
                                 aria-label={`Delete ${branch.name}`}
                               >
                                 <Trash2 className="h-4 w-4" />

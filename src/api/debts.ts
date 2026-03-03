@@ -1,10 +1,11 @@
-import { apiFetch, buildPageQuery } from "@/api/client";
+import { apiFetch } from "@/api/client";
 import type { PageResponse } from "@/types/api";
 
 export interface CustomerDebtResponse {
   id: string;
   customerId: string;
   customerName: string;
+  customerPhone: string | null;
   saleId: string | null;
   amount: number;
   amountSettled: number;
@@ -35,11 +36,17 @@ export async function fetchDebts(
   token: string | null,
   orgId: string,
   branchId: string,
-  params?: { page?: number; size?: number; sort?: string }
+  params?: { page?: number; size?: number; sort?: string; status?: string }
 ): Promise<PageResponse<CustomerDebtResponse>> {
-  const query = buildPageQuery(params ?? {});
+  const search = new URLSearchParams();
+  const p = params ?? {};
+  if (p.page !== undefined) search.set("page", String(p.page));
+  if (p.size !== undefined) search.set("size", String(p.size));
+  if (p.sort) search.set("sort", p.sort);
+  if (p.status) search.set("status", p.status);
+  const query = search.toString();
   return apiFetch<PageResponse<CustomerDebtResponse>>(
-    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/debts${query}`,
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/debts${query ? `?${query}` : ""}`,
     { token }
   );
 }

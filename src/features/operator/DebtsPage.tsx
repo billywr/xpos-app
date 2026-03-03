@@ -23,9 +23,24 @@ import { Pagination, ConfirmDialog } from "@/components/ui";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
-import { HandCoins, Plus, Loader2, Pencil, XCircle, Banknote } from "lucide-react";
+import {
+  HandCoins,
+  Plus,
+  Loader2,
+  Pencil,
+  XCircle,
+  Banknote,
+  ChevronDown,
+} from "lucide-react";
 
 const PAGE_SIZE = 20;
+const STATUS_OPTIONS = [
+  { value: "OPEN", label: "Open" },
+  { value: "PARTIAL", label: "Partial" },
+  { value: "SETTLED", label: "Settled" },
+  { value: "CANCELLED", label: "Cancelled" },
+  { value: "", label: "All" },
+] as const;
 
 export function DebtsPage() {
   const token = useAppSelector(selectToken);
@@ -58,11 +73,16 @@ export function DebtsPage() {
     useState<CustomerDebtResponse | null>(null);
   const [settleAmount, setSettleAmount] = useState("");
   const [settleSubmitting, setSettleSubmitting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("OPEN");
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["operator-debts", token, orgId, branchId, page],
+    queryKey: ["operator-debts", token, orgId, branchId, page, statusFilter],
     queryFn: () =>
-      fetchDebts(token, orgId!, branchId!, { page, size: PAGE_SIZE }),
+      fetchDebts(token, orgId!, branchId!, {
+        page,
+        size: PAGE_SIZE,
+        status: statusFilter || undefined,
+      }),
     enabled: Boolean(token && orgId && branchId),
   });
 
@@ -288,6 +308,36 @@ export function DebtsPage() {
           <p className="mt-1 text-slate-600 dark:text-slate-400">
             Record and view credit sales for {branchName ?? "this branch"}
           </p>
+          <div className="mt-3 flex items-center gap-2">
+            <label
+              htmlFor="debt-status-filter"
+              className="text-sm font-medium text-slate-600 dark:text-slate-400"
+            >
+              Status
+            </label>
+            <div className="relative">
+              <select
+                id="debt-status-filter"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(0);
+                }}
+                aria-label="Filter by status"
+                className="appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 pr-8 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-primary-400 dark:focus:ring-primary-400"
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value || "all"} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+                aria-hidden
+              />
+            </div>
+          </div>
         </div>
         <button
           type="button"
@@ -340,13 +390,16 @@ export function DebtsPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Customer
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Phone
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Original
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Repaid
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Balanced
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -358,7 +411,7 @@ export function DebtsPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Created
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Actions
                       </th>
                     </tr>
@@ -369,18 +422,21 @@ export function DebtsPage() {
                         <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                           {d.customerName}
                         </td>
-                        <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                          {d.customerPhone ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-left text-slate-700 dark:text-slate-300">
                           {formatCurrency(d.amount)}
                         </td>
-                        <td className="px-4 py-3 text-right text-emerald-600 dark:text-emerald-400">
+                        <td className="px-4 py-3 text-left text-emerald-600 dark:text-emerald-400">
                           {formatCurrency(d.amountSettled ?? 0)}
                         </td>
-                        <td className="px-4 py-3 text-right font-medium text-amber-600 dark:text-amber-400">
+                        <td className="px-4 py-3 text-left font-medium text-amber-600 dark:text-amber-400">
                           {formatCurrency(d.outstanding)}
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            className={`inline-flex justify-start rounded-full px-2.5 py-0.5 text-left text-xs font-medium ${
                               d.status === "OPEN" || d.status === "PARTIAL"
                                 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
                                 : d.status === "SETTLED"
@@ -397,9 +453,9 @@ export function DebtsPage() {
                         <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                           {new Date(d.createdAt).toLocaleString()}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-left">
                           {canRecordPayment(d) ? (
-                            <div className="flex justify-end gap-1">
+                            <div className="flex justify-start gap-1">
                               <button
                                 type="button"
                                 onClick={() => openSettleForm(d)}

@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { CheckCircle2, XCircle, X } from "lucide-react";
 
 export type ToastVariant = "success" | "error";
+
+export interface ToastAction {
+  label: string;
+  href: string;
+}
 
 export interface ToastItem {
   id: string;
@@ -9,6 +15,7 @@ export interface ToastItem {
   title: string;
   message: string;
   detail?: string;
+  action?: ToastAction;
   duration?: number;
 }
 
@@ -71,6 +78,14 @@ export function Toast({ toast, isExiting, onDismiss }: ToastProps) {
         <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">{toast.message}</p>
         {toast.detail && (
           <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">{toast.detail}</p>
+        )}
+        {toast.action && (
+          <Link
+            to={toast.action.href}
+            className="mt-2 inline-block text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+          >
+            {toast.action.label} →
+          </Link>
         )}
       </div>
       <div className="flex shrink-0 items-start p-2">

@@ -268,7 +268,7 @@ export function SalesListPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Cashier
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Total
                     </th>
                   </tr>
@@ -324,7 +324,7 @@ export function SalesListPage() {
                           <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                             {sale.createdByUsername ?? "—"}
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums font-medium text-slate-800 dark:text-white">
+                          <td className="px-4 py-3 text-left tabular-nums font-medium text-slate-800 dark:text-white">
                             {formatCurrency(sale.total)}
                           </td>
                         </tr>
@@ -347,7 +347,7 @@ export function SalesListPage() {
                                         <th className="pb-2 pr-4 text-left font-medium text-slate-600 dark:text-slate-400">
                                           Item
                                         </th>
-                                        <th className="pb-2 text-right font-medium text-slate-600 dark:text-slate-400">
+                                        <th className="pb-2 text-left font-medium text-slate-600 dark:text-slate-400">
                                           Qty
                                         </th>
                                       </tr>
@@ -361,7 +361,7 @@ export function SalesListPage() {
                                           <td className="py-1.5 pr-4 text-slate-800 dark:text-white">
                                             {line.itemName}
                                           </td>
-                                          <td className="py-1.5 text-right tabular-nums text-slate-600 dark:text-slate-300">
+                                          <td className="py-1.5 text-left tabular-nums text-slate-600 dark:text-slate-300">
                                             {line.qty}
                                           </td>
                                         </tr>

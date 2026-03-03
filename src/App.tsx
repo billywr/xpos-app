@@ -25,6 +25,7 @@ import { CategoriesListPage } from "@/features/admin/CategoriesListPage";
 import { UomsListPage } from "@/features/admin/UomsListPage";
 import { ItemsListPage } from "@/features/admin/ItemsListPage";
 import { PriceListsListPage } from "@/features/admin/PriceListsListPage";
+import { PriceListEditPage } from "@/features/admin/PriceListEditPage";
 import { TenderTypesListPage } from "@/features/admin/TenderTypesListPage";
 import { SalesListPage } from "@/features/admin/SalesListPage";
 import { ShiftsListPage } from "@/features/admin/ShiftsListPage";
@@ -40,6 +41,8 @@ import { AnalyticsPage } from "@/features/operator/AnalyticsPage";
 import { DebtsPage } from "@/features/operator/DebtsPage";
 import { MiscExpensesPage } from "@/features/operator/MiscExpensesPage";
 import { StockCountPage } from "@/features/operator/StockCountPage";
+import { StockCountSessionPage } from "@/features/operator/StockCountSessionPage";
+import { StockCountSessionDetailAdminPage } from "@/features/admin/StockCountSessionDetailAdminPage";
 import { MenuOrderPage } from "@/features/operator/MenuOrderPage";
 import { OperatorDashboard } from "@/features/operator/OperatorDashboard";
 import { PaymentsPage } from "@/features/operator/PaymentsPage";
@@ -85,6 +88,10 @@ function App() {
           <Route path="uoms" element={<UomsListPage />} />
           <Route path="items" element={<ItemsListPage />} />
           <Route path="price-lists" element={<PriceListsListPage />} />
+          <Route
+            path="price-lists/:priceListId"
+            element={<PriceListEditPage />}
+          />
           <Route path="tender-types" element={<TenderTypesListPage />} />
           <Route path="sales" element={<SalesListPage />} />
           <Route path="tables" element={<AdminTablesPage />} />
@@ -95,6 +102,10 @@ function App() {
           <Route path="inventory" element={<InventoryPage />} />
           <Route path="stock-taking-schedules" element={<StockTakingSchedulesPage />} />
           <Route path="stock-count-sessions" element={<StockCountSessionsPage />} />
+          <Route
+            path="stock-count-sessions/:sessionId"
+            element={<StockCountSessionDetailAdminPage />}
+          />
           <Route path="revenue" element={<RevenueDashboardPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
         </Route>
@@ -115,6 +126,10 @@ function App() {
           <Route path="debts" element={<DebtsPage />} />
           <Route path="misc-expenses" element={<MiscExpensesPage />} />
           <Route path="stock-count" element={<StockCountPage />} />
+          <Route
+            path="stock-count/:sessionId"
+            element={<StockCountSessionPage />}
+          />
           <Route path="withdrawal" element={<div className="p-6 text-slate-600 dark:text-slate-400">Withdrawal (TODO)</div>} />
           <Route path="dishes" element={<div className="p-4 text-white">Dishes (TODO)</div>} />
           <Route path="payments" element={<PaymentsPage />} />

@@ -11,6 +11,7 @@ import {
   fetchOperatorReceipts,
   fetchReceiptDetails,
   recordReceiptReprint,
+  refundSale,
   type SaleSummary,
 } from "@/api/sales";
 import { ReceiptModal } from "@/components/ReceiptModal";
@@ -79,6 +80,27 @@ export function ReceiptsPage() {
     },
     onError: (err) => {
       setReprintingSaleId(null);
+      const requestId = getApiErrorRequestId(err);
+      toast.error(getApiErrorMessage(err), {
+        detail: requestId ? `Reference: ${requestId}` : undefined,
+      });
+    },
+  });
+
+  const refundMutation = useMutation({
+    mutationFn: (saleId: string) =>
+      refundSale(token, orgId!, branchId!, saleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["operator-receipts", token, orgId, branchId],
+      });
+      setReceiptDetails(null);
+      setReprintingSaleId(null);
+      toast.success("Sale refunded. Items returned to stock.", {
+        title: "Refund",
+      });
+    },
+    onError: (err) => {
       const requestId = getApiErrorRequestId(err);
       toast.error(getApiErrorMessage(err), {
         detail: requestId ? `Reference: ${requestId}` : undefined,
@@ -196,7 +218,7 @@ export function ReceiptsPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                     Staff
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                     Actions
                   </th>
                 </tr>
@@ -231,7 +253,7 @@ export function ReceiptsPage() {
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                         {sale.createdByUsername ?? "—"}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-left">
                         <button
                           type="button"
                           onClick={() => handleReprint(sale)}
@@ -269,6 +291,9 @@ export function ReceiptsPage() {
           receipt={receiptDetails}
           onClose={handleCloseReceiptModal}
           shopName={branchName ?? ""}
+          saleId={reprintingSaleId ?? undefined}
+          onRefund={(sid) => refundMutation.mutate(sid)}
+          isRefunding={refundMutation.isPending}
           onPrintComplete={() => {
             if (reprintingSaleId) reprintMutation.mutate(reprintingSaleId);
           }}

@@ -105,6 +105,7 @@ export interface PriceListItem {
   id: string;
   priceListId: string;
   itemId: string;
+  itemName?: string;
   price: number;
   currency: string;
 }

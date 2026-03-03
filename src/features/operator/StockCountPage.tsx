@@ -1,50 +1,44 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import {
   selectOrgId,
   selectBranchId,
   selectBranchName,
+  selectOrgName,
 } from "@/store/selectors/orgContextSelectors";
-import { fetchItems } from "@/api/items";
 import {
   fetchOperatorStockCountSessions,
-  startOperatorStockCountSession,
   fetchOperatorStockCountSession,
-  addOperatorStockCountLine,
-  closeOperatorStockCountSession,
+  startOperatorStockCountSession,
+  deleteOperatorStockCountSession,
   type StockCountSessionResponse,
-  type StockCountLineResponse,
 } from "@/api/stockTaking";
-import type { Item } from "@/types/catalog";
-import { SlideOver, Pagination } from "@/components/ui";
+import { Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
-import { ClipboardList, Plus, Loader2, Check } from "lucide-react";
+import { downloadStockCountPdf } from "@/utils/stockCountPdf";
+import { ClipboardList, Plus, Loader2, Trash2, Download } from "lucide-react";
 
 const PAGE_SIZE = 10;
-
-function formatVariance(v: number): string {
-  const sign = v >= 0 ? "+" : "";
-  return `${sign}${v}`;
-}
 
 export function StockCountPage() {
   const token = useAppSelector(selectToken);
   const orgId = useAppSelector(selectOrgId) ?? "";
   const branchId = useAppSelector(selectBranchId) ?? "";
   const branchName = useAppSelector(selectBranchName);
+  const orgName = useAppSelector(selectOrgName);
   const queryClient = useQueryClient();
   const toast = useToast();
+  const navigate = useNavigate();
   const [page, setPage] = useState(0);
-  const [slideOpen, setSlideOpen] = useState(false);
-  const [viewingSession, setViewingSession] =
+  const [sessionToDelete, setSessionToDelete] =
     useState<StockCountSessionResponse | null>(null);
-  const [addLineItemId, setAddLineItemId] = useState("");
-  const [addLineQty, setAddLineQty] = useState("");
-  const [addLineSubmitting, setAddLineSubmitting] = useState(false);
-  const [closeSubmitting, setCloseSubmitting] = useState(false);
+  const [pdfLoadingSessionId, setPdfLoadingSessionId] = useState<string | null>(
+    null
+  );
 
   const { data: sessionsData, isLoading, isError, error } = useQuery({
     queryKey: [
@@ -62,27 +56,18 @@ export function StockCountPage() {
     enabled: Boolean(token && orgId && branchId),
   });
 
-  const { data: itemsData } = useQuery({
-    queryKey: ["items", token, orgId],
-    queryFn: () => fetchItems(token, orgId, { size: 500 }),
-    enabled: Boolean(token) && Boolean(orgId) && slideOpen,
-  });
-
   const sessions = sessionsData?.content ?? [];
   const totalElements = sessionsData?.totalElements ?? 0;
   const totalPages = sessionsData?.totalPages ?? 0;
-  const items = itemsData?.content ?? [];
-  const trackedItems = items.filter((i: Item) => i.trackInventory);
 
   const startMutation = useMutation({
     mutationFn: () => startOperatorStockCountSession(token, orgId, branchId),
-    onSuccess: (data) => {
+    onSuccess: (data: StockCountSessionResponse) => {
       queryClient.invalidateQueries({
         queryKey: ["operator-stock-count-sessions"],
       });
-      setViewingSession(data);
-      setSlideOpen(true);
       toast.success("Stock count session started.", { title: "Stock count" });
+      navigate(`/operator/stock-count/${data.id}`);
     },
     onError: (err) => {
       toast.error(getApiErrorMessage(err), {
@@ -93,57 +78,37 @@ export function StockCountPage() {
     },
   });
 
-  async function handleAddLine() {
-    if (!viewingSession || !addLineItemId || !addLineQty) return;
-    const qty = parseFloat(addLineQty);
-    if (isNaN(qty) || qty < 0) {
-      toast.error("Enter a valid non-negative quantity.", { title: "Validation" });
-      return;
-    }
-    setAddLineSubmitting(true);
-    try {
-      const updated = await addOperatorStockCountLine(
-        token,
-        orgId,
-        branchId,
-        viewingSession.id,
-        { itemId: addLineItemId, countedQty: qty }
-      );
-      setViewingSession(updated);
-      setAddLineItemId("");
-      setAddLineQty("");
+  const deleteMutation = useMutation({
+    mutationFn: (sessionId: string) =>
+      deleteOperatorStockCountSession(token, orgId, branchId, sessionId),
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["operator-stock-count-sessions"],
       });
-      toast.success("Count line added.", { title: "Stock count" });
-    } catch (err) {
+      setSessionToDelete(null);
+      toast.success("Stock count session removed.", { title: "Deleted" });
+    },
+    onError: (err) => {
       toast.error(getApiErrorMessage(err), {
         detail: getApiErrorRequestId(err)
           ? `Reference: ${getApiErrorRequestId(err)}`
           : undefined,
       });
-    } finally {
-      setAddLineSubmitting(false);
-    }
-  }
+    },
+  });
 
-  async function handleClose() {
-    if (!viewingSession) return;
-    setCloseSubmitting(true);
+  async function handleDownloadPdf(s: StockCountSessionResponse) {
+    if (!token || !orgId || !branchId) return;
+    setPdfLoadingSessionId(s.id);
     try {
-      await closeOperatorStockCountSession(
+      const session = await fetchOperatorStockCountSession(
         token,
         orgId,
         branchId,
-        viewingSession.id
+        s.id
       );
-      setSlideOpen(false);
-      setViewingSession(null);
-      queryClient.invalidateQueries({
-        queryKey: ["operator-stock-count-sessions"],
-      });
-      queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
-      toast.success("Session closed. Stock adjusted.", { title: "Stock count" });
+      downloadStockCountPdf(session, branchName ?? undefined, orgName ?? undefined);
+      toast.success("PDF downloaded.", { title: "Stock count" });
     } catch (err) {
       toast.error(getApiErrorMessage(err), {
         detail: getApiErrorRequestId(err)
@@ -151,20 +116,12 @@ export function StockCountPage() {
           : undefined,
       });
     } finally {
-      setCloseSubmitting(false);
+      setPdfLoadingSessionId(null);
     }
   }
 
   function openSession(s: StockCountSessionResponse) {
-    setViewingSession(s);
-    setSlideOpen(true);
-  }
-
-  function refreshSession() {
-    if (!viewingSession) return;
-    fetchOperatorStockCountSession(token, orgId, branchId, viewingSession.id)
-      .then(setViewingSession)
-      .catch(() => {});
+    navigate(`/operator/stock-count/${s.id}`);
   }
 
   if (!orgId || !branchId) {
@@ -183,11 +140,11 @@ export function StockCountPage() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
             <ClipboardList className="h-7 w-7" />
-            Stock Count
+            Manual Stock Taking
           </h1>
           <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Manual stock counts at {branchName ?? "this branch"}. Start a session,
-            add counted quantities, then close to apply variances.
+            Stock counts at {branchName ?? "this branch"}. Start a session, add
+            counted quantities on the count page, then close to apply variances.
           </p>
         </div>
         <button
@@ -244,7 +201,7 @@ export function StockCountPage() {
                       <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
                         Status
                       </th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
                         Actions
                       </th>
                     </tr>
@@ -266,7 +223,7 @@ export function StockCountPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                            className={`inline-flex justify-start rounded-full px-2 py-1 text-left text-xs font-medium ${
                               s.status === "OPEN"
                                 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
                                 : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
@@ -275,14 +232,40 @@ export function StockCountPage() {
                             {s.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => openSession(s)}
-                            className="rounded-lg px-3 py-1.5 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/30"
-                          >
-                            View
-                          </button>
+                        <td className="px-4 py-3 text-left">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openSession(s)}
+                              className="rounded-lg px-3 py-1.5 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/30"
+                            >
+                              Open
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadPdf(s)}
+                              disabled={pdfLoadingSessionId === s.id}
+                              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-600 disabled:opacity-50"
+                              aria-label="Download PDF report"
+                            >
+                              {pdfLoadingSessionId === s.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
+                              PDF
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSessionToDelete(s)}
+                              disabled={deleteMutation.isPending}
+                              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-600 disabled:opacity-50"
+                              aria-label="Delete session"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -304,147 +287,24 @@ export function StockCountPage() {
         </>
       )}
 
-      <SlideOver
-        open={slideOpen}
-        onClose={() => {
-          setSlideOpen(false);
-          setViewingSession(null);
-          setAddLineItemId("");
-          setAddLineQty("");
+      <ConfirmDialog
+        open={sessionToDelete !== null}
+        onClose={() => setSessionToDelete(null)}
+        onConfirm={() => {
+          if (sessionToDelete) deleteMutation.mutate(sessionToDelete.id);
         }}
-        title={
-          viewingSession
-            ? `Stock count ${viewingSession.status === "OPEN" ? "(open)" : "(closed)"}`
-            : "Stock count"
+        title="Delete this stock count session?"
+        message={
+          sessionToDelete
+            ? `Remove session from ${new Date(
+                sessionToDelete.startedAt
+              ).toLocaleString()}? This cannot be undone.`
+            : ""
         }
-      >
-        {viewingSession && (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Started{" "}
-              {new Date(viewingSession.startedAt).toLocaleString("en-GB")} ·{" "}
-              {viewingSession.sourceType}
-            </p>
-            {viewingSession.lines && viewingSession.lines.length > 0 && (
-              <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-600">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700/50">
-                      <th className="px-3 py-2 text-left font-medium text-slate-700 dark:text-slate-300">
-                        Item
-                      </th>
-                      <th className="px-3 py-2 text-right font-medium text-slate-700 dark:text-slate-300">
-                        System
-                      </th>
-                      <th className="px-3 py-2 text-right font-medium text-slate-700 dark:text-slate-300">
-                        Counted
-                      </th>
-                      <th className="px-3 py-2 text-right font-medium text-slate-700 dark:text-slate-300">
-                        Variance
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {viewingSession.lines.map((l: StockCountLineResponse) => (
-                      <tr
-                        key={l.id}
-                        className="border-b border-slate-100 dark:border-slate-600/50"
-                      >
-                        <td className="px-3 py-2 text-slate-900 dark:text-white">
-                          {l.itemName}
-                        </td>
-                        <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-400">
-                          {l.systemQty}
-                        </td>
-                        <td className="px-3 py-2 text-right text-slate-900 dark:text-white">
-                          {l.countedQty}
-                        </td>
-                        <td
-                          className={`px-3 py-2 text-right font-medium ${
-                            l.varianceQty > 0
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : l.varianceQty < 0
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-slate-500"
-                          }`}
-                        >
-                          {formatVariance(l.varianceQty)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            {viewingSession.status === "OPEN" && (
-              <>
-                <div className="flex gap-2">
-                  <select
-                    value={addLineItemId}
-                    onChange={(e) => setAddLineItemId(e.target.value)}
-                    className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  >
-                    <option value="">Select item…</option>
-                    {trackedItems.map((i: Item) => (
-                      <option key={i.id} value={i.id}>
-                        {i.name}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.001"
-                    placeholder="Qty"
-                    value={addLineQty}
-                    onChange={(e) => setAddLineQty(e.target.value)}
-                    className="w-24 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddLine}
-                    disabled={
-                      !addLineItemId ||
-                      !addLineQty ||
-                      addLineSubmitting
-                    }
-                    className="flex items-center gap-1 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
-                  >
-                    {addLineSubmitting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plus className="h-4 w-4" />
-                    )}
-                    Add
-                  </button>
-                </div>
-                <div className="flex justify-between gap-2 border-t border-slate-200 pt-4 dark:border-slate-600">
-                  <button
-                    type="button"
-                    onClick={refreshSession}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-                  >
-                    Refresh
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleClose}
-                    disabled={closeSubmitting}
-                    className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-                  >
-                    {closeSubmitting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Check className="h-4 w-4" />
-                    )}
-                    Close session
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </SlideOver>
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleteMutation.isPending}
+      />
     </div>
   );
 }

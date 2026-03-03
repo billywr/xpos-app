@@ -7,15 +7,29 @@ import type { PageResponse } from "@/types/api";
 export async function fetchItems(
   token: string | null,
   orgId: string,
-  params?: { page?: number; size?: number }
+  params?: { page?: number; size?: number; categoryId?: string | null }
 ): Promise<PageResponse<Item>> {
   const query = buildPageQuery({
     page: params?.page ?? 0,
     size: params?.size ?? 100,
     sort: "name,asc",
   });
+  const categoryParam =
+    params?.categoryId && params.categoryId.trim()
+      ? `&categoryId=${encodeURIComponent(params.categoryId)}`
+      : "";
   return apiFetch<PageResponse<Item>>(
-    `/api/v1/admin/orgs/${orgId}/items${query}`,
+    `/api/v1/admin/orgs/${orgId}/items${query}${categoryParam}`,
+    { token }
+  );
+}
+
+export async function fetchItemIdsWithPrices(
+  token: string | null,
+  orgId: string
+): Promise<{ itemIds: string[] }> {
+  return apiFetch<{ itemIds: string[] }>(
+    `/api/v1/admin/orgs/${orgId}/items/ids-with-prices`,
     { token }
   );
 }

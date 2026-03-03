@@ -26,6 +26,7 @@ export interface Item {
   trackInventory: boolean;
   active: boolean;
   primaryImageUrl: string | null;
+  hasPurchaseHistory?: boolean;
   createdAt: string;
   updatedAt: string;
 }

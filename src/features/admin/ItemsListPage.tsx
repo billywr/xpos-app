@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -10,6 +11,7 @@ import { fetchModifierGroups } from "@/api/modifierGroups";
 import {
   fetchItems,
   fetchItem,
+  fetchItemIdsWithPrices,
   createItem,
   updateItem,
   deleteItem,
@@ -32,7 +34,7 @@ import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { getItemImageUrl, getItemImageName } from "@/utils/itemImage";
 import { resizeImageTo400x400 } from "@/utils/imageResize";
-import { Plus, Pencil, Trash2, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, Upload, Banknote, ChevronDown } from "lucide-react";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -43,7 +45,25 @@ export function ItemsListPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
+  const [categoryFilterQuery, setCategoryFilterQuery] = useState("");
+  const categoryFilterRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        categoryFilterOpen &&
+        categoryFilterRef.current &&
+        !categoryFilterRef.current.contains(e.target as Node)
+      ) {
+        setCategoryFilterOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [categoryFilterOpen]);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [slideOpen, setSlideOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
@@ -71,15 +91,35 @@ export function ItemsListPage() {
   });
 
   const { data: itemsData, isLoading, isError, error } = useQuery({
-    queryKey: ["admin-items", token, selectedOrgId, page, size],
-    queryFn: () => fetchItems(token, selectedOrgId, { page, size }),
+    queryKey: [
+      "admin-items",
+      token,
+      selectedOrgId,
+      selectedCategoryId || null,
+      page,
+      size,
+    ],
+    queryFn: () =>
+      fetchItems(token, selectedOrgId, {
+        page,
+        size,
+        categoryId: selectedCategoryId || undefined,
+      }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
+
+  const { data: itemIdsWithPricesData } = useQuery({
+    queryKey: ["admin-item-ids-with-prices", token, selectedOrgId],
+    queryFn: () => fetchItemIdsWithPrices(token, selectedOrgId),
+    enabled: Boolean(token) && Boolean(selectedOrgId),
+  });
+
+  const itemIdsWithPrices = new Set(itemIdsWithPricesData?.itemIds ?? []);
 
   const { data: categoriesData } = useQuery({
     queryKey: ["admin-categories", token, selectedOrgId],
     queryFn: () => fetchCategories(token, selectedOrgId, { size: 500 }),
-    enabled: Boolean(token) && Boolean(selectedOrgId) && slideOpen,
+    enabled: Boolean(token) && Boolean(selectedOrgId),
   });
 
   const { data: uomsData } = useQuery({
@@ -440,6 +480,19 @@ export function ItemsListPage() {
 
   const categoryName = (id: string | null) =>
     id ? categories.find((c: Category) => c.id === id)?.name ?? id : "—";
+
+  const filteredCategoriesForDropdown = useMemo(() => {
+    const q = categoryFilterQuery.trim().toLowerCase();
+    if (!q) return categories;
+    return categories.filter((c: Category) =>
+      c.name.toLowerCase().includes(q)
+    );
+  }, [categories, categoryFilterQuery]);
+
+  const selectedCategoryLabel = selectedCategoryId
+    ? categoryName(selectedCategoryId)
+    : "All categories";
+
   const modifierGroupName = (modifierGroupId: string) =>
     modifierGroups.find((mg: { id: string; name: string }) => mg.id === modifierGroupId)
       ?.name ?? modifierGroupId;
@@ -508,6 +561,7 @@ export function ItemsListPage() {
           value={selectedOrgId}
           onChange={(e) => {
             setSelectedOrgId(e.target.value);
+            setSelectedCategoryId("");
             setPage(0);
           }}
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
@@ -520,14 +574,98 @@ export function ItemsListPage() {
           ))}
         </select>
         {selectedOrgId && (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-500 dark:hover:bg-primary-600 dark:focus:ring-offset-slate-800"
-          >
-            <Plus className="h-4 w-4" />
-            Add item
-          </button>
+          <>
+            <div ref={categoryFilterRef} className="relative">
+              <label
+                htmlFor="item-category-filter"
+                className="sr-only"
+              >
+                Category filter
+              </label>
+              <input
+                id="item-category-filter"
+                type="text"
+                value={categoryFilterOpen ? categoryFilterQuery : selectedCategoryLabel}
+                onChange={(e) => setCategoryFilterQuery(e.target.value)}
+                onFocus={() => {
+                  setCategoryFilterOpen(true);
+                  setCategoryFilterQuery("");
+                }}
+                readOnly={!categoryFilterOpen}
+                placeholder="Filter by category…"
+                className="w-48 rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setCategoryFilterOpen((o) => !o)
+                }
+                className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-600"
+                aria-label="Toggle category filter"
+              >
+                <ChevronDown
+                  className={`h-4 w-4 transition ${categoryFilterOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              {categoryFilterOpen && (
+                <ul
+                  className="absolute left-0 top-full z-20 mt-1 max-h-60 w-48 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-600 dark:bg-slate-800"
+                  role="listbox"
+                >
+                  <li
+                    role="option"
+                    aria-selected={!selectedCategoryId}
+                    onClick={() => {
+                      setSelectedCategoryId("");
+                      setCategoryFilterOpen(false);
+                      setCategoryFilterQuery("");
+                      setPage(0);
+                    }}
+                    className={`cursor-pointer px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 ${
+                      !selectedCategoryId
+                        ? "bg-primary-50 font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
+                        : "text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    All categories
+                  </li>
+                  {filteredCategoriesForDropdown.map((c: Category) => (
+                    <li
+                      key={c.id}
+                      role="option"
+                      aria-selected={selectedCategoryId === c.id}
+                      onClick={() => {
+                        setSelectedCategoryId(c.id);
+                        setCategoryFilterOpen(false);
+                        setCategoryFilterQuery("");
+                        setPage(0);
+                      }}
+                      className={`cursor-pointer px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 ${
+                        selectedCategoryId === c.id
+                          ? "bg-primary-50 font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
+                          : "text-slate-700 dark:text-slate-300"
+                      }`}
+                    >
+                      {c.name}
+                    </li>
+                  ))}
+                  {filteredCategoriesForDropdown.length === 0 && (
+                    <li className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">
+                      No categories match
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-500 dark:hover:bg-primary-600 dark:focus:ring-offset-slate-800"
+            >
+              <Plus className="h-4 w-4" />
+              Add item
+            </button>
+          </>
         )}
       </div>
 
@@ -549,9 +687,6 @@ export function ItemsListPage() {
                       SKU
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Category
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Type
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
@@ -560,7 +695,7 @@ export function ItemsListPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Image name
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -569,7 +704,7 @@ export function ItemsListPage() {
                   {items.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={6}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
                         No items yet. Add one to build your catalog.
@@ -577,58 +712,86 @@ export function ItemsListPage() {
                     </tr>
                   ) : (
                     items.map((item: Item) => (
-                      <tr
-                        key={item.id}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
-                      >
-                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">
-                          {item.name}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                          {item.sku ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                          {categoryName(item.categoryId)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                            {item.itemType}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {item.active ? (
-                            <span className="text-emerald-600 dark:text-emerald-400">
-                              Yes
+                        <tr
+                          key={item.id}
+                          className={
+                            item.hasPurchaseHistory === false
+                              ? "bg-amber-50/60 hover:bg-amber-100/60 dark:bg-amber-900/15 dark:hover:bg-amber-900/25"
+                              : "hover:bg-slate-50 dark:hover:bg-slate-700/30"
+                          }
+                          title={
+                            item.hasPurchaseHistory === false
+                              ? "No purchase history—record a Goods Receipt first before adding to price lists."
+                              : undefined
+                          }
+                        >
+                          <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">
+                            {item.name}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                            {item.sku ?? "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                              {item.itemType}
                             </span>
-                          ) : (
-                            <span className="text-slate-500">No</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                          {getItemImageName(item.primaryImageUrl) ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => openEdit(item)}
-                              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
-                              aria-label={`Edit ${item.name}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setConfirmDelete(item)}
-                              className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
-                              aria-label={`Delete ${item.name}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                          <td className="px-4 py-3">
+                            {item.active ? (
+                              <span className="text-emerald-600 dark:text-emerald-400">
+                                Yes
+                              </span>
+                            ) : (
+                              <span className="text-slate-500">No</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                            {getItemImageName(item.primaryImageUrl) ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 text-left">
+                            <div className="flex justify-start gap-2">
+                              <Link
+                                to={
+                                  selectedOrgId
+                                    ? `/admin/price-lists?orgId=${selectedOrgId}&itemId=${item.id}`
+                                    : "/admin/price-lists"
+                                }
+                                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
+                                title={
+                                  itemIdsWithPrices.has(item.id)
+                                    ? `Edit price for ${item.name}`
+                                    : `Add price for ${item.name}`
+                                }
+                                aria-label={
+                                  itemIdsWithPrices.has(item.id)
+                                    ? `Edit price for ${item.name}`
+                                    : `Add price for ${item.name}`
+                                }
+                              >
+                                <Banknote className="h-4 w-4" />
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => openEdit(item)}
+                                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
+                                title={`Edit ${item.name}`}
+                                aria-label={`Edit ${item.name}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDelete(item)}
+                                className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
+                                title={`Delete ${item.name}`}
+                                aria-label={`Delete ${item.name}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                   )}
                 </tbody>
               </table>
@@ -895,6 +1058,7 @@ export function ItemsListPage() {
                                 deleteBarcodeMutation.mutate(b.id)
                               }
                               className="rounded p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
+                              title={`Remove ${b.barcode}`}
                               aria-label={`Remove ${b.barcode}`}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -946,6 +1110,7 @@ export function ItemsListPage() {
                                   deleteModifierGroupMutation.mutate(l.id)
                                 }
                                 className="rounded p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
+                                title={`Unlink ${modifierGroupName(l.modifierGroupId)}`}
                                 aria-label={`Unlink ${modifierGroupName(l.modifierGroupId)}`}
                               >
                                 <Trash2 className="h-4 w-4" />

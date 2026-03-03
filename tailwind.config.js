@@ -5,6 +5,9 @@ export default {
   theme: {
     extend: {
       colors: {
+        darkNav: "#113264",
+        darkSurface: "#164278",
+        darkBg: "#0d2a4a",
         primary: {
           50: "#f0f9ff",
           100: "#e0f2fe",

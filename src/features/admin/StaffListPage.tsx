@@ -471,7 +471,7 @@ export function StaffListPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -497,7 +497,7 @@ export function StaffListPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
                               s.status === "ACTIVE"
                                 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
                                 : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
@@ -506,12 +506,13 @@ export function StaffListPage() {
                             {s.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-2">
+                        <td className="px-4 py-3 text-left">
+                          <div className="flex justify-start gap-2">
                             <button
                               type="button"
                               onClick={() => openProfile(s)}
                               className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
+                              title={`Edit profile ${s.username}`}
                               aria-label={`Edit profile ${s.username}`}
                             >
                               <Pencil className="h-4 w-4" />
@@ -521,6 +522,7 @@ export function StaffListPage() {
                                 type="button"
                                 onClick={() => setConfirmActivate(s)}
                                 className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
+                                title={`Activate ${s.username}`}
                                 aria-label={`Activate ${s.username}`}
                               >
                                 <Power className="h-4 w-4" />
@@ -531,6 +533,7 @@ export function StaffListPage() {
                                 type="button"
                                 onClick={() => setConfirmDeactivate(s)}
                                 className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-600"
+                                title={`Deactivate ${s.username}`}
                                 aria-label={`Deactivate ${s.username}`}
                               >
                                 <PowerOff className="h-4 w-4" />
@@ -540,6 +543,7 @@ export function StaffListPage() {
                               type="button"
                               onClick={() => setConfirmDelete(s)}
                               className="rounded-lg p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                              title={`Delete ${s.username}`}
                               aria-label={`Delete ${s.username}`}
                             >
                               <Trash2 className="h-4 w-4" />

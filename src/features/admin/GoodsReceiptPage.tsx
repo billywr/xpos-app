@@ -450,7 +450,7 @@ export function GoodsReceiptPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Lines
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -486,7 +486,7 @@ export function GoodsReceiptPage() {
                             .map((l) => `${l.itemName} × ${l.qty}`)
                             .join(", ")}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-left">
                           {grn.active ? (
                             <>
                               <button

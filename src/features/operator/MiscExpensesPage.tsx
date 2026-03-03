@@ -267,6 +267,9 @@ export function MiscExpensesPage() {
                   <thead>
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Incurred by
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Amount
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -276,15 +279,12 @@ export function MiscExpensesPage() {
                         Description
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        Incurred by
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Receipt ref
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Created
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Actions
                       </th>
                     </tr>
@@ -295,19 +295,19 @@ export function MiscExpensesPage() {
                         key={e.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/50"
                       >
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                          {e.incurredBy ?? "—"}
+                        </td>
                         <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                           {formatCurrency(e.amount)}
                         </td>
                         <td className="px-4 py-3">
-                          <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                          <span className="inline-flex justify-start rounded-full bg-slate-100 px-2.5 py-0.5 text-left text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">
                             {e.category}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
                           {e.description}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
-                          {e.incurredBy ?? "—"}
                         </td>
                         <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                           {e.receiptRef ?? "—"}
@@ -315,8 +315,8 @@ export function MiscExpensesPage() {
                         <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                           {new Date(e.createdAt).toLocaleString()}
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-1">
+                        <td className="px-4 py-3 text-left">
+                          <div className="flex justify-start gap-1">
                             <button
                               type="button"
                               onClick={() => openEditForm(e)}
@@ -341,15 +341,15 @@ export function MiscExpensesPage() {
                   <tfoot className="border-t-2 border-slate-200 dark:border-slate-600">
                     <tr>
                       <td
-                        colSpan={5}
-                        className="px-4 py-3 text-right text-sm font-medium text-slate-500 dark:text-slate-400"
+                        colSpan={1}
+                        className="px-4 py-3 text-left text-sm font-medium text-slate-500 dark:text-slate-400"
                       >
                         Total
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-bold text-slate-900 dark:text-white">
+                      <td className="px-4 py-3 text-left text-sm font-bold text-slate-900 dark:text-white">
                         {formatCurrency(totalAmount)}
                       </td>
-                      <td colSpan={2} />
+                      <td colSpan={5} />
                     </tr>
                   </tfoot>
                 </table>

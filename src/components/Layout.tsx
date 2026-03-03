@@ -1,6 +1,7 @@
 import { useEffect } from "react";
-import { Outlet, Link, useNavigate } from "react-router-dom";
+import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { Store, LayoutDashboard, LogOut, Sun, Moon } from "lucide-react";
+import { ContextSelectDropdowns } from "@/components/ContextSelectDropdowns";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
 import { clearCredentials } from "@/store/slices/authSlice";
@@ -16,6 +17,7 @@ const IDLE_LOGOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 export function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAppDispatch();
   const token = useAppSelector(selectToken);
   const iamUserId = useAppSelector(selectIamUserId);
@@ -45,17 +47,18 @@ export function Layout() {
     clearStoredContext();
     dispatch(clearCredentials());
     dispatch(clearContext());
-    navigate("/login", { replace: true });
+    const returnTo = location.pathname + location.search || "/";
+    navigate(`/login?returnTo=${encodeURIComponent(returnTo)}`, { replace: true });
   };
 
   return (
     <div className="flex min-h-screen flex-col bg-app">
-      <header className="border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/95">
+      <header className="border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-darkNav/95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-14">
             <Link
               to="/"
-              className="flex items-center gap-2 font-semibold text-primary-700 dark:text-primary-400"
+              className="flex items-center gap-2 font-semibold text-primary-700 dark:text-white"
             >
               <Store className="h-7 w-7" />
               <span>XPOS</span>
@@ -63,33 +66,34 @@ export function Layout() {
             <nav className="flex items-center gap-4">
               <Link
                 to="/"
-                className="flex items-center gap-1.5 text-slate-600 hover:text-primary-600 dark:text-slate-300 dark:hover:text-primary-400"
+                className="flex items-center gap-1.5 text-slate-600 hover:text-primary-600 dark:text-white/90 dark:hover:text-white"
               >
                 <LayoutDashboard className="h-4 w-4" />
                 Home
               </Link>
               <Link
                 to="/admin"
-                className="text-slate-600 hover:text-primary-600 dark:text-slate-300 dark:hover:text-primary-400"
+                className="text-slate-600 hover:text-primary-600 dark:text-white/90 dark:hover:text-white"
               >
                 Admin
               </Link>
               <Link
                 to="/operator"
-                className="text-slate-600 hover:text-primary-600 dark:text-slate-300 dark:hover:text-primary-400"
+                className="text-slate-600 hover:text-primary-600 dark:text-white/90 dark:hover:text-white"
               >
                 Operator
               </Link>
               <Link
                 to="/select-context"
-                className="text-slate-600 hover:text-primary-600 dark:text-slate-300 dark:hover:text-primary-400"
+                className="text-slate-600 hover:text-primary-600 dark:text-white/90 dark:hover:text-white"
               >
-                Context
+                Org
               </Link>
+              <ContextSelectDropdowns />
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
+                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
                 aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
               >
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -98,7 +102,7 @@ export function Layout() {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex items-center gap-1.5 text-slate-600 hover:text-primary-600 dark:text-slate-300 dark:hover:text-primary-400"
+                  className="flex items-center gap-1.5 text-slate-600 hover:text-primary-600 dark:text-white/90 dark:hover:text-white"
                   aria-label="Log out"
                 >
                   <LogOut className="h-4 w-4" />

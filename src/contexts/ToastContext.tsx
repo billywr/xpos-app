@@ -12,9 +12,16 @@ const DEFAULT_SUCCESS_DURATION = 5_000;
 const DEFAULT_ERROR_DURATION = 7_000;
 const EXIT_MS = 300;
 
+interface ToastOptions {
+  title?: string;
+  detail?: string;
+  duration?: number;
+  action?: { label: string; href: string };
+}
+
 interface ToastContextValue {
-  success: (message: string, options?: { title?: string; detail?: string; duration?: number }) => void;
-  error: (message: string, options?: { title?: string; detail?: string; duration?: number }) => void;
+  success: (message: string, options?: ToastOptions) => void;
+  error: (message: string, options?: ToastOptions) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -44,11 +51,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const add = useCallback(
-    (
-      variant: ToastVariant,
-      message: string,
-      options?: { title?: string; detail?: string; duration?: number }
-    ) => {
+    (variant: ToastVariant, message: string, options?: ToastOptions) => {
       const id = crypto.randomUUID();
       const title = options?.title ?? (variant === "success" ? "Success" : "Error");
       const duration =
@@ -61,6 +64,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         title,
         message,
         detail: options?.detail,
+        action: options?.action,
         duration,
       };
 
@@ -71,14 +75,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 
   const success = useCallback(
-    (message: string, options?: { title?: string; detail?: string; duration?: number }) => {
+    (message: string, options?: ToastOptions) => {
       add("success", message, options);
     },
     [add]
   );
 
   const error = useCallback(
-    (message: string, options?: { title?: string; detail?: string; duration?: number }) => {
+    (message: string, options?: ToastOptions) => {
       add("error", message, options);
     },
     [add]

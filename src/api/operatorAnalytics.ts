@@ -39,7 +39,7 @@ export interface AnalyticsDailyTrendPoint {
 }
 
 export interface AnalyticsComparison {
-  yesterdayRevenue: number;
+  previousPeriodRevenue: number;
   percentChange: number;
 }
 
@@ -65,6 +65,8 @@ export interface ExpenseIntelligence {
 
 export interface AnalyticsSnapshotResponse {
   businessDate: string;
+  fromDate: string;
+  toDate: string;
   timezone: string;
   summary: AnalyticsSummary;
   openShift: AnalyticsOpenShift;
@@ -81,12 +83,16 @@ export interface AnalyticsSnapshotResponse {
 export async function fetchOperatorAnalyticsSnapshot(
   token: string | null,
   orgId: string,
-  branchId: string
+  branchId: string,
+  fromDate?: string,
+  toDate?: string
 ): Promise<AnalyticsSnapshotResponse> {
-  return apiFetch<AnalyticsSnapshotResponse>(
-    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/analytics/snapshot`,
-    { token }
-  );
+  const params = new URLSearchParams();
+  if (fromDate) params.set("fromDate", fromDate);
+  if (toDate) params.set("toDate", toDate);
+  const qs = params.toString();
+  const url = `/api/v1/operator/orgs/${orgId}/branches/${branchId}/analytics/snapshot${qs ? `?${qs}` : ""}`;
+  return apiFetch<AnalyticsSnapshotResponse>(url, { token });
 }
 
 /**

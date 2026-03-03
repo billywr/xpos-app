@@ -322,7 +322,7 @@ export function SuppliersListPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -358,7 +358,7 @@ export function SuppliersListPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
                               s.active
                                 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
                                 : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
@@ -367,14 +367,15 @@ export function SuppliersListPage() {
                             {s.active ? "Active" : "Inactive"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-1">
+                        <td className="px-4 py-3 text-left">
+                          <div className="flex justify-start gap-1">
                             {s.active ? (
                               <>
                                 <button
                                   type="button"
                                   onClick={() => handleEdit(s)}
                                   className="rounded p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-white"
+                                  title={`Edit ${s.name}`}
                                   aria-label={`Edit ${s.name}`}
                                 >
                                   <Pencil className="h-4 w-4" />
@@ -383,6 +384,7 @@ export function SuppliersListPage() {
                                   type="button"
                                   onClick={() => setConfirmDeactivate(s)}
                                   className="rounded p-2 text-slate-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-slate-600 dark:hover:text-red-300"
+                                  title={`Deactivate ${s.name}`}
                                   aria-label={`Deactivate ${s.name}`}
                                 >
                                   <Trash2 className="h-4 w-4" />
