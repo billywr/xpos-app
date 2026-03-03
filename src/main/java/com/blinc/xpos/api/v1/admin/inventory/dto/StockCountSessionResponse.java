@@ -9,7 +9,10 @@ public record StockCountSessionResponse(
     UUID orgId,
     UUID branchId,
     String status,
+    String sourceType,
+    UUID scheduleId,
     UUID startedByStaffUserId,
     Instant startedAt,
+    UUID closedByStaffUserId,
     Instant closedAt,
     List<StockCountLineResponse> lines) {}

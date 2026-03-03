@@ -122,4 +122,35 @@ public class InventoryItemServiceImpl implements InventoryItemService {
     }
     return result;
   }
+
+  @Override
+  @Transactional
+  public void applyStockTakeVariance(
+      UUID orgId, UUID branchId, UUID itemId, BigDecimal varianceDelta) {
+    if (varianceDelta == null || varianceDelta.compareTo(BigDecimal.ZERO) == 0) {
+      return;
+    }
+    Branch branch = branchService.require(orgId, branchId);
+    Item item = itemService.require(orgId, itemId);
+    BigDecimal delta = varianceDelta.setScale(SCALE, RoundingMode.HALF_UP);
+
+    InventoryItem inv =
+        inventoryItemRepository
+            .findByOrgIdAndBranchIdAndItemId(orgId, branchId, itemId)
+            .orElseGet(
+                () -> {
+                  InventoryItem created = new InventoryItem();
+                  created.setOrg(branch.getOrg());
+                  created.setBranch(branch);
+                  created.setItem(item);
+                  created.setOnHandQty(BigDecimal.ZERO);
+                  created.setReservedQty(BigDecimal.ZERO);
+                  created.setUpdatedAt(Instant.now(clock));
+                  return inventoryItemRepository.save(created);
+                });
+    inv.setOnHandQty(
+        inv.getOnHandQty().add(delta).setScale(SCALE, RoundingMode.HALF_UP));
+    inv.setUpdatedAt(Instant.now(clock));
+    inventoryItemRepository.save(inv);
+  }
 }

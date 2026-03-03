@@ -4,6 +4,8 @@ import com.blinc.xpos.modules.organization.domain.StaffBranchAssignment;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -55,4 +57,15 @@ public interface StaffBranchAssignmentRepository
             """)
   Optional<StaffBranchAssignment> findByBranchIdAndStaffUserIamUserId(
       @Param("branchId") UUID branchId, @Param("iamUserId") String iamUserId);
+
+  @Query(
+      """
+            select a from StaffBranchAssignment a
+            where a.org.id = :orgId and a.branch.id = :branchId
+            order by a.isPrimary desc nulls last, a.createdAt asc
+            """)
+  Page<StaffBranchAssignment> findAllByOrgIdAndBranchId(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      Pageable pageable);
 }

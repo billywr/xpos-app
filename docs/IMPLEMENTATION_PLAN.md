@@ -9,10 +9,10 @@ Use the PRD/FRD for product goals, workflows, and acceptance criteria; use this 
 
 ---
 
-**Current state (Phases 1–9 done):**
+**Current state (Phases 1–9, A–G done):**
 
-- **Done (full API + services + entities + repos):** Organization, Catalog, Pricing, Cash/till, Sales, Inventory, Ledger & reporting, Compliance & fraud, Audit & outbox (audit log, audit vault, outbox events).
-- **Remaining:** Optional follow-ups (LedgerPostingService, wire eTIMS/approvals into sales, outbox consumer).
+- **Done (full API + services + entities + repos):** Organization, Catalog, Pricing, Cash/till, Sales, Inventory, Ledger & reporting, Compliance & fraud, Audit & outbox (audit log, audit vault, outbox events). **Phase H:** Customer debt, Misc expense, Sale complete-with-debt, Receipt debt fields, Operator analytics snapshot.
+- **Remaining:** Optional follow-ups (wire eTIMS/approvals into sales, outbox consumer).
 
 Each phase adds **services + API (and tests)** for one domain, following the same patterns as the organization module.
 
@@ -194,6 +194,24 @@ Each phase adds **services + API (and tests)** for one domain, following the sam
 - **Operator vs admin:** Keep admin under `/api/v1/admin/orgs/...` and operator under `/api/v1/operator/orgs/{orgId}/branches/.../terminals/...` so security and scoping stay clear.
 - **Migrations:** Prefer no new migrations in early phases (schema exists). Add Flyway migrations only when you introduce new tables or columns.
 - **Reporting:** Phase 7 added the `reporting` package (ZReportService, ZReportSummaryResponse); extend with more report DTOs/services as needed.
+
+**Phase H – Customer debt, misc expense, payment-with-debt (done):**
+
+- **CustomerDebt:** Create, update, settle, cancel. Link to sale, terminal, shift. Operator list + create (on-the-fly customer). Analytics debt intelligence.
+- **MiscExpense:** Create, update, cancel (soft delete). incurredBy, totalAmount. Operator list.
+- **Sale complete-with-debt:** `POST .../sales/{saleId}/complete-with-debt` – when partial payment: create customer, create debt for remainder, complete sale.
+- **Receipt:** ReceiptDetailResponse includes debtAmount, debtDueDate when sale linked to debt.
+- **Analytics:** Operator snapshot with debt/expense intelligence; accessible from Admin at /admin/analytics.
+
+**Phase I – Stock taking (daily/weekly automatic + manual) done:**
+
+- **StockTakingSchedule:** DAILY or WEEKLY per branch; scheduled hour/minute; lastRunAt for idempotency.
+- **StockTakingScheduler:** Cron job creates sessions when due; one run per period (DAILY=per day, WEEKLY=per week).
+- **Manual trigger:** `POST .../stock-taking-schedules/{id}/trigger` – run schedule now.
+- **List schedules:** `GET .../stock-taking-schedules` (paginated).
+- **Operator stock taking:** `POST/GET .../branches/{branchId}/stock-count-sessions` – manual cycle counts at branch.
+- **InventoryItemService.applyStockTakeVariance:** Adjusts on-hand qty on session close.
+- See **docs/STOCK_TAKING_IMPLEMENTATION.md** for diagram and details.
 
 **Next concrete step:** Optional follow-ups remaining: wire Phase 8 into Phase 5 (void/refund require approval; sale complete creates eTIMS record). LedgerPostingService and outbox consumer are done.
 

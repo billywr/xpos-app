@@ -12,6 +12,7 @@ public interface StockCountLineRepository extends JpaRepository<StockCountLine, 
   @Query(
       """
       select l from StockCountLine l
+      join fetch l.item
       where l.session.id = :sessionId
       order by l.createdAt
       """)

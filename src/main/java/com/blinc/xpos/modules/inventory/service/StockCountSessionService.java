@@ -13,6 +13,9 @@ public interface StockCountSessionService {
 
   StockCountSession start(UUID orgId, UUID branchId, UUID startedByStaffUserId);
 
+  StockCountSession startScheduled(
+      UUID orgId, UUID branchId, UUID scheduleId, UUID startedByStaffUserId);
+
   StockCountSession require(UUID orgId, UUID sessionId);
 
   Page<StockCountSession> listByBranch(UUID orgId, UUID branchId, Pageable pageable);
@@ -20,5 +23,5 @@ public interface StockCountSessionService {
   StockCountSession addLine(
       UUID orgId, UUID sessionId, UUID itemId, BigDecimal countedQty);
 
-  StockCountSession close(UUID orgId, UUID sessionId);
+  StockCountSession close(UUID orgId, UUID sessionId, UUID closedByStaffUserId);
 }

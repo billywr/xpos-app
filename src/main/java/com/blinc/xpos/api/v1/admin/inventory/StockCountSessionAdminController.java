@@ -89,7 +89,9 @@ public class StockCountSessionAdminController {
   @PostMapping("/{sessionId}/close")
   public StockCountSessionResponse close(
       @PathVariable UUID orgId, @PathVariable UUID sessionId) {
-    return toResponse(sessionService.close(orgId, sessionId));
+    var staffUser =
+        staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
+    return toResponse(sessionService.close(orgId, sessionId, staffUser.getId()));
   }
 
   private StockCountSessionResponse toResponse(StockCountSession s) {
@@ -100,8 +102,11 @@ public class StockCountSessionAdminController {
         s.getOrg().getId(),
         s.getBranch().getId(),
         s.getStatus(),
+        s.getSourceType(),
+        s.getScheduleId(),
         s.getStartedBy().getId(),
         s.getStartedAt(),
+        s.getClosedBy() != null ? s.getClosedBy().getId() : null,
         s.getClosedAt(),
         lineResponses);
   }

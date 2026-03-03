@@ -361,6 +361,20 @@ Base URL: **http://localhost:9003**. All requests (except health) need: `Authori
 
 ---
 
+## Operator – Stock count sessions (manual stock taking)
+
+Branch-scoped. Staff must be assigned to branch. Industry standard: floor staff perform cycle counts.
+
+| Method | Path | Body / query |
+|--------|------|----------------|
+| POST | /api/v1/operator/orgs/{orgId}/branches/{branchId}/stock-count-sessions | No body |
+| GET | .../stock-count-sessions | `page`, `size` |
+| GET | .../stock-count-sessions/{sessionId} | No body |
+| POST | .../stock-count-sessions/{sessionId}/lines | `{"itemId": "<id>", "countedQty": 10}` |
+| POST | .../stock-count-sessions/{sessionId}/close | No body |
+
+---
+
 ## Operator – Sales
 
 | Method | Path | Body / query |
@@ -460,12 +474,28 @@ Base URL: **http://localhost:9003**. All requests (except health) need: `Authori
 
 ---
 
-## Inventory – Stock count sessions
+## Inventory – Stock taking schedules (admin)
+
+Daily or weekly automatic stock counts per branch. Industry standard: cycle counts on a schedule.
+
+| Method | Path | Body / query |
+|--------|------|----------------|
+| POST | /api/v1/admin/orgs/{orgId}/stock-taking-schedules | `{"branchId": "<id>", "frequency": "DAILY", "scheduledHour": 6, "scheduledMinute": 0}` or `{"frequency": "WEEKLY", "dayOfWeek": 1, ...}` |
+| GET | /api/v1/admin/orgs/{orgId}/stock-taking-schedules | `page`, `size` |
+| GET | .../stock-taking-schedules/by-branch | `branchId` (required) |
+| GET | .../stock-taking-schedules/{scheduleId} | No body |
+| PUT | .../stock-taking-schedules/{scheduleId} | `{"frequency", "dayOfWeek", "scheduledHour", "scheduledMinute", "isActive"}` |
+| DELETE | .../stock-taking-schedules/{scheduleId} | No body |
+| POST | .../stock-taking-schedules/{scheduleId}/trigger | No body. Manually run the schedule now; returns created session. |
+
+---
+
+## Inventory – Stock count sessions (admin)
 
 | Method | Path | Body / query |
 |--------|------|----------------|
 | POST | /api/v1/admin/orgs/{orgId}/stock-count-sessions | `{"branchId": "<id>"}` |
-| GET | /api/v1/admin/orgs/{orgId}/stock-count-sessions | `page`, `size` |
+| GET | /api/v1/admin/orgs/{orgId}/stock-count-sessions | `branchId` (required), `page`, `size` |
 | GET | .../stock-count-sessions/{sessionId} | No body |
 | POST | .../stock-count-sessions/{sessionId}/lines | `{"itemId": "<id>", "countedQty": 10}` |
 | POST | .../stock-count-sessions/{sessionId}/close | No body |

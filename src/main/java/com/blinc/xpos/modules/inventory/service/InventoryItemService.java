@@ -30,4 +30,10 @@ public interface InventoryItemService {
    */
   Map<UUID, BigDecimal> getOnHandQtysByItemIds(
       UUID orgId, UUID branchId, Set<UUID> itemIds);
+
+  /**
+   * Applies stock take variance: adds delta to on-hand qty. Creates InventoryItem if needed.
+   * Delta can be positive (overcount) or negative (undercount).
+   */
+  void applyStockTakeVariance(UUID orgId, UUID branchId, UUID itemId, BigDecimal varianceDelta);
 }

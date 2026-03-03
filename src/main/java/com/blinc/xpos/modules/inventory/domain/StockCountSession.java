@@ -41,6 +41,9 @@ public class StockCountSession {
   @Column(name = "status", nullable = false)
   private String status;
 
+  public static final String SOURCE_MANUAL = "MANUAL";
+  public static final String SOURCE_SCHEDULED = "SCHEDULED";
+
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "started_by", nullable = false)
   private StaffUser startedBy;
@@ -50,4 +53,14 @@ public class StockCountSession {
 
   @Column(name = "closed_at")
   private Instant closedAt;
+
+  @Column(name = "source_type", nullable = false)
+  private String sourceType = SOURCE_MANUAL;
+
+  @Column(name = "schedule_id")
+  private UUID scheduleId;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "closed_by")
+  private StaffUser closedBy;
 }

@@ -2,6 +2,7 @@ package com.blinc.xpos.api.v1.admin.inventory;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -78,6 +79,75 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
                 .with(jwt().jwt(j -> j.subject("admin"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("CLOSED"));
+  }
+
+  @Test
+  void addLineWithNegativeCountedQtyReturns400() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID itemId = createItem(orgId);
+
+    String createBody = "{\"branchId\":\"" + branchId + "\"}";
+    MvcResult createResult =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content(createBody))
+            .andExpect(status().isCreated())
+            .andReturn();
+    UUID sessionId =
+        UUID.fromString(
+            objectMapper.readTree(createResult.getResponse().getContentAsString())
+                .get("id").asText());
+
+    String addLineBody =
+        """
+        {"itemId":"%s","countedQty":-1}
+        """
+            .formatted(itemId);
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions/" + sessionId + "/lines")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(addLineBody))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void getSessionFromOtherOrgReturns404() throws Exception {
+    UUID orgId = createOrg();
+    UUID otherOrgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    String createBody = "{\"branchId\":\"" + branchId + "\"}";
+    MvcResult createResult =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content(createBody))
+            .andExpect(status().isCreated())
+            .andReturn();
+    UUID sessionId =
+        UUID.fromString(
+            objectMapper.readTree(createResult.getResponse().getContentAsString())
+                .get("id").asText());
+
+    mockMvc
+        .perform(
+            get("/api/v1/admin/orgs/" + otherOrgId + "/stock-count-sessions/" + sessionId)
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isNotFound());
   }
 
   private UUID createOrg() throws Exception {
