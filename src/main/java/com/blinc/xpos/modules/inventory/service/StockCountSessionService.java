@@ -23,5 +23,16 @@ public interface StockCountSessionService {
   StockCountSession addLine(
       UUID orgId, UUID sessionId, UUID itemId, BigDecimal countedQty);
 
+  StockCountSession updateLine(
+      UUID orgId, UUID sessionId, UUID lineId, BigDecimal countedQty);
+
+  StockCountSession deleteLine(UUID orgId, UUID sessionId, UUID lineId);
+
   StockCountSession close(UUID orgId, UUID sessionId, UUID closedByStaffUserId);
+
+  /**
+   * Soft-deletes a session. Both OPEN and CLOSED sessions can be deleted.
+   * already applied variances and cannot be removed.
+   */
+  StockCountSession softDelete(UUID orgId, UUID sessionId, UUID deletedByStaffUserId);
 }

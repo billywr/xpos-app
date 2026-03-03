@@ -14,14 +14,20 @@ public interface StockCountSessionRepository extends JpaRepository<StockCountSes
   @Query(
       """
       select s from StockCountSession s
-      where s.id = :id and s.org.id = :orgId
+      where s.id = :id and s.org.id = :orgId and s.deletedAt is null
       """)
   Optional<StockCountSession> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
   @Query(
-      """
+      value =
+          """
       select s from StockCountSession s
-      where s.org.id = :orgId and s.branch.id = :branchId
+      where s.org.id = :orgId and s.branch.id = :branchId and s.deletedAt is null
+      """,
+      countQuery =
+          """
+      select count(s) from StockCountSession s
+      where s.org.id = :orgId and s.branch.id = :branchId and s.deletedAt is null
       """)
   Page<StockCountSession> findAllByOrgIdAndBranchId(
       @Param("orgId") UUID orgId, @Param("branchId") UUID branchId, Pageable pageable);

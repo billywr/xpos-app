@@ -1,6 +1,7 @@
 package com.blinc.xpos.modules.organization.service.impl;
 
 import com.blinc.xpos.common.constants.enums.StatusCommon;
+import com.blinc.xpos.common.error.ConflictException;
 import com.blinc.xpos.common.error.NotFoundException;
 import com.blinc.xpos.modules.organization.domain.Business;
 import com.blinc.xpos.modules.organization.domain.Org;
@@ -34,6 +35,12 @@ public class BusinessServiceImpl implements BusinessService {
   @Transactional
   public Business create(
       UUID orgId, String legalName, String kraPin, String logoUrl, String receiptFooter) {
+    if (kraPin != null && !kraPin.isBlank()
+        && businessRepository.existsByKraPin(kraPin)) {
+      throw new ConflictException(
+          "KRA_PIN_ALREADY_EXISTS",
+          "A business with this KRA PIN already exists. KRA PIN must be unique.");
+    }
     Org org = orgService.require(orgId);
     Business business = new Business();
     business.setOrg(org);
@@ -75,6 +82,12 @@ public class BusinessServiceImpl implements BusinessService {
       String receiptFooter,
       StatusCommon status) {
     Business business = require(orgId, businessId);
+    if (kraPin != null && !kraPin.isBlank()
+        && businessRepository.existsByKraPinAndIdNot(kraPin, businessId)) {
+      throw new ConflictException(
+          "KRA_PIN_ALREADY_EXISTS",
+          "A business with this KRA PIN already exists. KRA PIN must be unique.");
+    }
     business.setLegalName(legalName);
     business.setKraPin(kraPin);
     business.setLogoUrl(logoUrl);

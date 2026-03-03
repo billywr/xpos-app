@@ -32,6 +32,12 @@ public interface CustomerDebtService {
 
   CustomerDebt cancel(UUID orgId, UUID debtId, UUID cancelledByStaffUserId);
 
+  /**
+   * Cancels all debts linked to a sale that have no repayments. Skips already cancelled/settled.
+   * Throws if any linked debt has repayments (cannot auto-cancel).
+   */
+  void cancelDebtsForSale(UUID orgId, UUID saleId, UUID cancelledByStaffUserId);
+
   CustomerDebt settle(
       UUID orgId,
       UUID debtId,
@@ -39,6 +45,16 @@ public interface CustomerDebtService {
       UUID settledByStaffUserId);
 
   Page<CustomerDebt> listByBranch(UUID orgId, UUID branchId, Pageable pageable);
+
+  /**
+   * List debts by branch, optionally filtered by status. When statuses is null or
+   * empty, returns all statuses.
+   */
+  Page<CustomerDebt> listByBranch(
+      UUID orgId,
+      UUID branchId,
+      java.util.List<com.blinc.xpos.common.constants.enums.CustomerDebtStatus> statuses,
+      Pageable pageable);
 
   Page<CustomerDebt> listByCustomer(UUID orgId, UUID customerId, Pageable pageable);
 }

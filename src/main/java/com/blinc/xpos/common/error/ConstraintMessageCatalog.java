@@ -53,6 +53,9 @@ public class ConstraintMessageCatalog {
     m.put(
         "uq_branch_org_business_name", "A branch with this name already exists for this business.");
     m.put(
+        "uq_business_kra_pin",
+        "A business with this KRA PIN already exists. KRA PIN must be unique.");
+    m.put(
         "uq_business_org_legal",
         "A business with this legal name already exists in this organization.");
     m.put(

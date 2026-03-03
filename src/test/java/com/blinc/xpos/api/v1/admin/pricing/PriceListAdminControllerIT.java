@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.pricing;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -34,6 +34,24 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
   @Test
   void createPriceListThenAddItemAndList() throws Exception {
     UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+
+    String grnBody =
+        "{\"branchId\":\"" + branchId + "\",\"supplierId\":\"" + supplierId
+            + "\",\"lines\":[{\"itemId\":\"" + itemId + "\",\"qty\":5,\"receivedUnitCost\":80.00}]}";
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(grnBody))
+        .andExpect(status().isCreated());
+
     String createBody = """
         {"name":"Default","priority":0,"active":true}
         """;
@@ -42,7 +60,7 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/price-lists")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -58,11 +76,9 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId)
-                .with(user("admin").roles("ADMIN")))
+                .with(jwt().jwt(j -> j.subject("admin"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.name").value("Default"));
-
-    UUID itemId = createItem(orgId);
     String itemBody =
         """
         {"itemId":"%s","price":99.50,"currency":"KES"}
@@ -72,7 +88,7 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(itemBody))
             .andExpect(status().isCreated())
@@ -84,7 +100,7 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
-                .with(user("admin").roles("ADMIN")))
+                .with(jwt().jwt(j -> j.subject("admin"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].price").value(99.5));
@@ -96,7 +112,7 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
         .perform(
             get("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items/"
                     + priceListItemId)
-                .with(user("admin").roles("ADMIN")))
+                .with(jwt().jwt(j -> j.subject("admin"))))
         .andExpect(status().isOk());
 
     String updateListBody = """
@@ -105,11 +121,128 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             patch("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId)
-                .with(user("admin").roles("ADMIN"))
+                .with(jwt().jwt(j -> j.subject("admin")))
                 .contentType(APPLICATION_JSON)
                 .content(updateListBody))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.name").value("Default Retail"));
+            .andExpect(jsonPath("$.name").value("Default Retail"));
+  }
+
+  @Test
+  void addPriceListItemWithItemNotSuppliedRejects() throws Exception {
+    UUID orgId = createOrg();
+    UUID itemId = createItem(orgId);
+
+    String createListBody = """
+        {"name":"Default","priority":0,"active":true}
+        """;
+    MvcResult listResult =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/price-lists")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content(createListBody))
+            .andExpect(status().isCreated())
+            .andReturn();
+    UUID priceListId =
+        UUID.fromString(
+            objectMapper.readTree(listResult.getResponse().getContentAsString()).get("id").asText());
+
+    String itemBody =
+        """
+        {"itemId":"%s","price":99.50,"currency":"KES"}
+        """
+            .formatted(itemId);
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(itemBody))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("ITEM_NOT_SUPPLIED"))
+        .andExpect(jsonPath("$.message").exists());
+  }
+
+  @Test
+  void addPriceListItemWithSellingPriceBelowCostRejects() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+
+    String grnBody =
+        "{\"branchId\":\"" + branchId + "\",\"supplierId\":\"" + supplierId
+            + "\",\"lines\":[{\"itemId\":\"" + itemId + "\",\"qty\":5,\"receivedUnitCost\":50.00}]}";
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(grnBody))
+        .andExpect(status().isCreated());
+
+    String createListBody = """
+        {"name":"Default","priority":0,"active":true}
+        """;
+    MvcResult listResult =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/price-lists")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content(createListBody))
+            .andExpect(status().isCreated())
+            .andReturn();
+    UUID priceListId =
+        UUID.fromString(objectMapper.readTree(listResult.getResponse().getContentAsString()).get("id").asText());
+
+    String itemBodyEqual =
+        """
+        {"itemId":"%s","price":50.00,"currency":"KES"}
+        """
+            .formatted(itemId);
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(itemBodyEqual))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("SELLING_PRICE_BELOW_COST"))
+        .andExpect(jsonPath("$.message").exists());
+
+    String itemBodyLess =
+        """
+        {"itemId":"%s","price":40.00,"currency":"KES"}
+        """
+            .formatted(itemId);
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(itemBodyLess))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("SELLING_PRICE_BELOW_COST"));
+
+    String itemBodyOk =
+        """
+        {"itemId":"%s","price":51.00,"currency":"KES"}
+        """
+            .formatted(itemId);
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(itemBodyOk))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.price").value(51.0));
   }
 
   private UUID createOrg() throws Exception {
@@ -120,7 +253,7 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -128,6 +261,75 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
     OrgResponse org =
         objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class);
     return org.id();
+  }
+
+  private UUID createBusiness(UUID orgId) throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/businesses")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"legalName\":\"Biz\"}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private UUID createBranch(UUID orgId, UUID businessId) throws Exception {
+    String body =
+        "{\"businessId\":\"" + businessId + "\",\"name\":\"Main\","
+            + "\"timezone\":\"Africa/Nairobi\",\"currency\":\"KES\"}";
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/branches")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content(body))
+            .andExpect(status().isCreated())
+            .andReturn();
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private UUID createStaffUser(UUID orgId) throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/staff-users")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"iamUserId\":\"admin\",\"username\":\"admin\"}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private void assignStaffToBranch(UUID orgId, UUID staffUserId, UUID branchId) throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content("{\"branchId\":\"" + branchId + "\",\"primary\":true}"))
+        .andExpect(status().isCreated());
+  }
+
+  private UUID createSupplier(UUID orgId) throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/suppliers")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"name\":\"Supplier\"}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
   }
 
   private UUID createItem(UUID orgId) throws Exception {
@@ -141,7 +343,7 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -159,7 +361,7 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/tax-profiles")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())

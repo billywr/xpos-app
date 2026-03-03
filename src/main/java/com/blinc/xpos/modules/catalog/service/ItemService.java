@@ -21,7 +21,7 @@ public interface ItemService {
 
   Item require(UUID orgId, UUID itemId);
 
-  Page<Item> list(UUID orgId, Pageable pageable);
+  Page<Item> list(UUID orgId, UUID categoryId, Pageable pageable);
 
   Item update(
       UUID orgId,

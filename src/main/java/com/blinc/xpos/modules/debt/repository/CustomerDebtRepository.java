@@ -12,7 +12,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface CustomerDebtRepository extends JpaRepository<CustomerDebt, UUID> {
+public interface CustomerDebtRepository
+    extends JpaRepository<CustomerDebt, UUID>, CustomerDebtRepositoryCustom {
 
   @Query(
       """

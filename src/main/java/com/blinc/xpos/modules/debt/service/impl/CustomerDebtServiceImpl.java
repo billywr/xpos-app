@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -228,6 +229,27 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
 
   @Override
   @Transactional
+  public void cancelDebtsForSale(UUID orgId, UUID saleId, UUID cancelledByStaffUserId) {
+    List<CustomerDebt> debts =
+        customerDebtRepository.findAllBySaleIdAndOrgId(saleId, orgId);
+    for (CustomerDebt debt : debts) {
+      if (debt.getStatus() == CustomerDebtStatus.CANCELLED
+          || debt.getStatus() == CustomerDebtStatus.SETTLED) {
+        continue;
+      }
+      BigDecimal settled =
+          debt.getAmountSettled() != null ? debt.getAmountSettled() : BigDecimal.ZERO;
+      if (settled.compareTo(BigDecimal.ZERO) > 0) {
+        throw new BadRequestException(
+            "DEBT_HAS_REPAYMENTS",
+            "Cannot refund sale: linked debt has repayments. Settle or clear debt first.");
+      }
+      cancel(orgId, debt.getId(), cancelledByStaffUserId);
+    }
+  }
+
+  @Override
+  @Transactional
   public CustomerDebt settle(
       UUID orgId,
       UUID debtId,
@@ -265,7 +287,23 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
   @Override
   @Transactional(readOnly = true)
   public Page<CustomerDebt> listByBranch(UUID orgId, UUID branchId, Pageable pageable) {
+    return listByBranch(orgId, branchId, null, pageable);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<CustomerDebt> listByBranch(
+      UUID orgId,
+      UUID branchId,
+      List<CustomerDebtStatus> statuses,
+      Pageable pageable) {
     branchService.require(orgId, branchId);
+    if (statuses != null && !statuses.isEmpty()) {
+      List<String> statusNames =
+          statuses.stream().map(Enum::name).toList();
+      return customerDebtRepository.findAllByOrgIdAndBranchIdAndStatusIn(
+          orgId, branchId, statusNames, pageable);
+    }
     return customerDebtRepository.findAllByOrgIdAndBranchId(orgId, branchId, pageable);
   }
 

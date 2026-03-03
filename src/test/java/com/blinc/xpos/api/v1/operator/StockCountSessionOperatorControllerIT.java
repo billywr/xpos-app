@@ -2,6 +2,7 @@ package com.blinc.xpos.api.v1.operator;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -81,11 +82,92 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
-  void operatorGetSessionFromOtherBranchReturns404() throws Exception {
+  void operatorSoftDeleteClosedSessionRemovesFromList() throws Exception {
     UUID orgId = createOrg();
     UUID businessId = createBusiness(orgId);
     UUID branchId = createBranch(orgId, businessId);
-    UUID otherBranchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    String base =
+        "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/stock-count-sessions";
+
+    MvcResult startResult =
+        mockMvc
+            .perform(post(base).with(jwt().jwt(j -> j.subject("admin"))))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.status").value("OPEN"))
+            .andReturn();
+    UUID sessionId =
+        UUID.fromString(
+            objectMapper.readTree(startResult.getResponse().getContentAsString()).get("id").asText());
+
+    mockMvc
+        .perform(
+            post(base + "/" + sessionId + "/close")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("CLOSED"));
+
+    mockMvc
+        .perform(get(base).with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1));
+
+    mockMvc
+        .perform(delete(base + "/" + sessionId).with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(sessionId.toString()));
+
+    mockMvc
+        .perform(get(base).with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(0));
+  }
+
+  @Test
+  void operatorSoftDeleteOpenSessionRemovesFromList() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    String base =
+        "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/stock-count-sessions";
+
+    MvcResult startResult =
+        mockMvc
+            .perform(post(base).with(jwt().jwt(j -> j.subject("admin"))))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.status").value("OPEN"))
+            .andReturn();
+    UUID sessionId =
+        UUID.fromString(
+            objectMapper.readTree(startResult.getResponse().getContentAsString()).get("id").asText());
+
+    mockMvc
+        .perform(get(base).with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1));
+
+    mockMvc
+        .perform(delete(base + "/" + sessionId).with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(sessionId.toString()));
+
+    mockMvc
+        .perform(get(base).with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(0));
+  }
+
+  @Test
+  void operatorGetSessionFromOtherBranchReturns404() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId, "Branch A");
+    UUID otherBranchId = createBranch(orgId, businessId, "Branch B");
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
     assignStaffToBranch(orgId, staffUserId, otherBranchId);
@@ -142,11 +224,15 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   private UUID createBranch(UUID orgId, UUID businessId) throws Exception {
+    return createBranch(orgId, businessId, "Branch");
+  }
+
+  private UUID createBranch(UUID orgId, UUID businessId, String name) throws Exception {
     String body =
         """
-        {"businessId":"%s","name":"Branch","timezone":"Africa/Nairobi","currency":"KES"}
+        {"businessId":"%s","name":"%s","timezone":"Africa/Nairobi","currency":"KES"}
         """
-            .formatted(businessId);
+            .formatted(businessId, name);
     MvcResult result =
         mockMvc
             .perform(

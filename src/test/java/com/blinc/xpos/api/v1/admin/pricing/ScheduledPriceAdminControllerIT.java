@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.pricing;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -31,8 +31,22 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
   void addListGetAndRemoveScheduledPrice() throws Exception {
     UUID orgId = createOrg();
     UUID branchId = createBranch(orgId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID supplierId = createSupplier(orgId);
     UUID priceScheduleId = createPriceSchedule(orgId, branchId);
     UUID itemId = createItem(orgId);
+
+    String grnBody =
+        "{\"branchId\":\"" + branchId + "\",\"supplierId\":\"" + supplierId
+            + "\",\"lines\":[{\"itemId\":\"" + itemId + "\",\"qty\":5,\"receivedUnitCost\":80.00}]}";
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(grnBody))
+        .andExpect(status().isCreated());
 
     String addBody =
         """
@@ -49,7 +63,7 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
                             + "/price-schedules/"
                             + priceScheduleId
                             + "/prices")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(addBody))
             .andExpect(status().isCreated())
@@ -70,7 +84,7 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
                         + "/price-schedules/"
                         + priceScheduleId
                         + "/prices")
-                .with(user("admin").roles("ADMIN")))
+                .with(jwt().jwt(j -> j.subject("admin"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(1));
 
@@ -83,7 +97,7 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
                         + priceScheduleId
                         + "/prices/"
                         + scheduledPriceId)
-                .with(user("admin").roles("ADMIN")))
+                .with(jwt().jwt(j -> j.subject("admin"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.price").value(99.99));
 
@@ -96,7 +110,7 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
                         + priceScheduleId
                         + "/prices/"
                         + scheduledPriceId)
-                .with(user("admin").roles("ADMIN")))
+                .with(jwt().jwt(j -> j.subject("admin"))))
         .andExpect(status().isNoContent());
   }
 
@@ -108,12 +122,50 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
     return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+  }
+
+  private UUID createStaffUser(UUID orgId) throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/staff-users")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"iamUserId\":\"admin\",\"username\":\"admin\"}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private void assignStaffToBranch(UUID orgId, UUID staffUserId, UUID branchId) throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content("{\"branchId\":\"" + branchId + "\",\"primary\":true}"))
+        .andExpect(status().isCreated());
+  }
+
+  private UUID createSupplier(UUID orgId) throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/suppliers")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"name\":\"Supplier\"}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
   }
 
   private UUID createBranch(UUID orgId) throws Exception {
@@ -127,7 +179,7 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -144,7 +196,7 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -163,7 +215,7 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/price-schedules")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -185,7 +237,7 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -202,7 +254,7 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/categories")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -219,7 +271,7 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/uoms")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -237,7 +289,7 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/tax-profiles")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(jwt().jwt(j -> j.subject("admin")))
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())

@@ -80,6 +80,19 @@ public class ReceiptsOperatorController {
         .map(ReceiptsOperatorController::toResponse);
   }
 
+  @PostMapping("/{saleId}/refund")
+  public SaleSummaryResponse refund(
+      @PathVariable UUID orgId,
+      @PathVariable UUID branchId,
+      @PathVariable UUID saleId) {
+    var staffUser =
+        staffAuthorizationService.requireStaffUser(
+            orgId, principalResolver.require().iamUserId());
+    branchService.require(orgId, branchId);
+    Sale sale = saleService.refundSale(orgId, saleId, staffUser.getId());
+    return toResponse(sale);
+  }
+
   @PostMapping("/{saleId}/reprint")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void reprint(

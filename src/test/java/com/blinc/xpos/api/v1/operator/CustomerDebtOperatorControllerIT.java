@@ -360,6 +360,280 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
+  void listDebtsWithStatusFilterOpenReturnsOnlyOpenDebts() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    mockMvc
+        .perform(
+            post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content("{\"customerId\":\"" + customerId + "\",\"amount\":100}"))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(
+            get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts?status=OPEN")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].status").value("OPEN"));
+  }
+
+  @Test
+  void listDebtsWithStatusFilterSettledExcludesOpen() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    MvcResult createResult =
+        mockMvc
+            .perform(
+                post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"customerId\":\"" + customerId + "\",\"amount\":50}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+    UUID debtId =
+        UUID.fromString(
+            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+
+    mockMvc
+        .perform(
+            post(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/debts/"
+                        + debtId
+                        + "/settle")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content("{\"paymentAmount\":50}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("SETTLED"));
+
+    mockMvc
+        .perform(
+            get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts?status=OPEN")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(0));
+
+    mockMvc
+        .perform(
+            get(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/debts?status=SETTLED")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].status").value("SETTLED"));
+  }
+
+  @Test
+  void listDebtsWithStatusFilterPartialReturnsOnlyPartialDebts() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    MvcResult createResult =
+        mockMvc
+            .perform(
+                post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"customerId\":\"" + customerId + "\",\"amount\":80}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+    UUID debtId =
+        UUID.fromString(
+            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+
+    mockMvc
+        .perform(
+            post(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/debts/"
+                        + debtId
+                        + "/settle")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content("{\"paymentAmount\":30}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("PARTIAL"));
+
+    mockMvc
+        .perform(
+            get(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/debts?status=PARTIAL")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].status").value("PARTIAL"));
+  }
+
+  @Test
+  void listDebtsWithStatusFilterCancelledReturnsOnlyCancelledDebts() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    MvcResult createResult =
+        mockMvc
+            .perform(
+                post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"customerId\":\"" + customerId + "\",\"amount\":90}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+    UUID debtId =
+        UUID.fromString(
+            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+
+    mockMvc
+        .perform(
+            post(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/debts/"
+                        + debtId
+                        + "/cancel")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("CANCELLED"));
+
+    mockMvc
+        .perform(
+            get(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/debts?status=CANCELLED")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].status").value("CANCELLED"));
+  }
+
+  @Test
+  void listDebtsWithMultipleStatusesReturnsMatchingDebts() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    mockMvc
+        .perform(
+            post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content("{\"customerId\":\"" + customerId + "\",\"amount\":60}"))
+        .andExpect(status().isCreated());
+
+    MvcResult create2 =
+        mockMvc
+            .perform(
+                post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"customerId\":\"" + customerId + "\",\"amount\":40}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+    UUID debt2Id =
+        UUID.fromString(
+            objectMapper.readTree(create2.getResponse().getContentAsString()).get("id").asText());
+    mockMvc
+        .perform(
+            post(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/debts/"
+                        + debt2Id
+                        + "/settle")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content("{\"paymentAmount\":40}"))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            get(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/debts?status=OPEN&status=SETTLED")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(2));
+  }
+
+  @Test
+  void listDebtsWithoutStatusParamReturnsAll() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    mockMvc
+        .perform(
+            post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content("{\"customerId\":\"" + customerId + "\",\"amount\":200}"))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(
+            get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].status").value("OPEN"));
+  }
+
+  @Test
   void listDebtsOtherOrgBranchReturns403Or404() throws Exception {
     UUID orgId = createOrg();
     UUID otherOrgId = createOrg();

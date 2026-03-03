@@ -61,7 +61,7 @@ class AnalyticsOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.paymentBreakdown").isArray())
         .andExpect(jsonPath("$.last7DaysTrend").isArray())
         .andExpect(jsonPath("$.comparison").exists())
-        .andExpect(jsonPath("$.comparison.yesterdayRevenue").exists())
+        .andExpect(jsonPath("$.comparison.previousPeriodRevenue").exists())
         .andExpect(jsonPath("$.comparison.percentChange").exists())
         .andExpect(jsonPath("$.debtIntelligence").exists())
         .andExpect(jsonPath("$.debtIntelligence.totalOutstanding").exists())

@@ -30,6 +30,7 @@ import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
 import com.blinc.xpos.modules.inventory.service.InventoryItemService;
 import com.blinc.xpos.modules.sales.domain.Sale;
 import com.blinc.xpos.modules.sales.domain.SaleLine;
+import com.blinc.xpos.modules.debt.service.CustomerDebtService;
 import com.blinc.xpos.modules.sales.domain.SaleLineModifier;
 import com.blinc.xpos.modules.sales.repository.SaleLineModifierRepository;
 import com.blinc.xpos.modules.sales.repository.SaleLineRepository;
@@ -50,6 +51,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -80,6 +82,7 @@ public class SaleServiceImpl implements SaleService {
   private final LedgerPostingService ledgerPostingService;
   private final InventoryItemService inventoryItemService;
   private final StockMovementRepository stockMovementRepository;
+  private final CustomerDebtService customerDebtService;
   private final Clock clock;
 
   public SaleServiceImpl(
@@ -102,6 +105,7 @@ public class SaleServiceImpl implements SaleService {
       LedgerPostingService ledgerPostingService,
       InventoryItemService inventoryItemService,
       StockMovementRepository stockMovementRepository,
+      @Lazy CustomerDebtService customerDebtService,
       Clock clock) {
     this.saleRepository = Objects.requireNonNull(saleRepository, "saleRepository");
     this.saleLineRepository = Objects.requireNonNull(saleLineRepository, "saleLineRepository");
@@ -130,6 +134,8 @@ public class SaleServiceImpl implements SaleService {
         Objects.requireNonNull(inventoryItemService, "inventoryItemService");
     this.stockMovementRepository =
         Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
+    this.customerDebtService =
+        Objects.requireNonNull(customerDebtService, "customerDebtService");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 
@@ -400,6 +406,74 @@ public class SaleServiceImpl implements SaleService {
         null,
         null);
     return loadSaleWithAssociations(orgId, saleId);
+  }
+
+  @Override
+  @Transactional
+  public Sale refundSale(UUID orgId, UUID saleId, UUID refundedByStaffUserId) {
+    Sale sale = requireCompletedSale(orgId, saleId);
+    List<SaleLine> lines =
+        saleLineRepository.findBySaleIdOrderByCreatedAtWithItemAndUom(sale.getId());
+
+    Instant now = Instant.now(clock);
+    for (SaleLine line : lines) {
+      if (Boolean.TRUE.equals(line.getItem().getTrackInventory())) {
+        BigDecimal unitCost = BigDecimal.ZERO;
+        var latestIn =
+            stockMovementRepository.findLatestInByOrgAndBranchAndItem(
+                orgId,
+                sale.getBranch().getId(),
+                line.getItem().getId(),
+                PageRequest.of(0, 1));
+        if (!latestIn.isEmpty() && latestIn.getContent().get(0).getUnitCost() != null) {
+          unitCost = latestIn.getContent().get(0).getUnitCost();
+        }
+        StockMovement mov = new StockMovement();
+        mov.setOrg(sale.getOrg());
+        mov.setBranch(sale.getBranch());
+        mov.setItem(line.getItem());
+        mov.setMovementType(MovementType.IN);
+        mov.setQty(line.getQty().setScale(INV_SCALE, RoundingMode.HALF_UP));
+        mov.setUom(line.getUom());
+        mov.setUnitCost(unitCost);
+        mov.setSourceType(SourceType.REFUND);
+        mov.setSourceId(sale.getId());
+        mov.setCreatedBy(staffUserService.require(orgId, refundedByStaffUserId));
+        mov.setCreatedAt(now);
+        stockMovementRepository.save(mov);
+        inventoryItemService.incrementOnHand(
+            orgId, sale.getBranch().getId(), line.getItem().getId(), line.getQty());
+      }
+    }
+
+    customerDebtService.cancelDebtsForSale(orgId, saleId, refundedByStaffUserId);
+
+    sale.setStatus(SaleStatus.REFUNDED);
+    saleRepository.save(sale);
+    auditLogService.append(
+        orgId,
+        sale.getBranch().getId(),
+        sale.getTerminal().getId(),
+        refundedByStaffUserId,
+        "REFUND",
+        "Sale",
+        sale.getId(),
+        null,
+        null);
+    return loadSaleWithAssociations(orgId, saleId);
+  }
+
+  private Sale requireCompletedSale(UUID orgId, UUID saleId) {
+    Sale sale =
+        saleRepository
+            .findByIdAndOrgId(saleId, orgId)
+            .orElseThrow(
+                () -> new NotFoundException("SALE_NOT_FOUND", "Sale not found: " + saleId));
+    if (sale.getStatus() != SaleStatus.COMPLETED) {
+      throw new IllegalStateException(
+          "Sale must be completed to refund. Current status: " + sale.getStatus());
+    }
+    return sale;
   }
 
   private Sale loadSaleWithAssociations(UUID orgId, UUID saleId) {

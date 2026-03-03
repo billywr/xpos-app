@@ -29,6 +29,17 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
       """
       select i from Item i
       where i.org.id = :orgId and i.active = true
+        and (:categoryId is null or i.category.id = :categoryId)
+      """)
+  Page<Item> findAllByOrgIdAndCategoryId(
+      @Param("orgId") UUID orgId,
+      @Param("categoryId") UUID categoryId,
+      Pageable pageable);
+
+  @Query(
+      """
+      select i from Item i
+      where i.org.id = :orgId and i.active = true
       """)
   Page<Item> findAllByOrgIdAndActiveTrue(@Param("orgId") UUID orgId, Pageable pageable);
 

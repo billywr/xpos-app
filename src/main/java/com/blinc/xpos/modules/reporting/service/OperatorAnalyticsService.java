@@ -1,6 +1,7 @@
 package com.blinc.xpos.modules.reporting.service;
 
 import com.blinc.xpos.api.v1.operator.dto.AnalyticsSnapshotResponse;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -10,8 +11,10 @@ import java.util.UUID;
 public interface OperatorAnalyticsService {
 
   /**
-   * Returns a live snapshot: today's revenue, sales count, open shift status,
-   * hourly trend, top items, payment breakdown, and yesterday comparison.
+   * Returns a live snapshot: revenue, sales count, open shift status, hourly
+   * trend, top items, payment breakdown, and comparison. When fromDate and
+   * toDate are null, defaults to today in branch timezone.
    */
-  AnalyticsSnapshotResponse getSnapshot(UUID orgId, UUID branchId);
+  AnalyticsSnapshotResponse getSnapshot(
+      UUID orgId, UUID branchId, LocalDate fromDate, LocalDate toDate);
 }

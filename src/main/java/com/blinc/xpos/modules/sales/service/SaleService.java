@@ -65,6 +65,12 @@ public interface SaleService {
   Sale voidSale(UUID orgId, UUID saleId);
 
   /**
+   * Refunds a completed sale: returns items to stock, cancels linked debts, sets status REFUNDED.
+   * Only COMPLETED sales can be refunded.
+   */
+  Sale refundSale(UUID orgId, UUID saleId, UUID refundedByStaffUserId);
+
+  /**
    * Lists sales by branch with status and completedAt date range (admin).
    * For COMPLETED status, filters by completedAt between start and end.
    */

@@ -6,11 +6,13 @@ import com.blinc.xpos.api.v1.operator.dto.CustomerDebtUpdateRequest;
 import com.blinc.xpos.api.v1.operator.dto.DebtSettleRequest;
 import com.blinc.xpos.common.security.CurrentPrincipalResolver;
 import com.blinc.xpos.common.web.paging.PageRequestFactory;
+import com.blinc.xpos.common.constants.enums.CustomerDebtStatus;
 import com.blinc.xpos.modules.debt.domain.CustomerDebt;
 import com.blinc.xpos.modules.debt.service.CustomerDebtService;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -123,13 +126,39 @@ public class CustomerDebtOperatorController {
   public Page<CustomerDebtResponse> list(
       @PathVariable UUID orgId,
       @PathVariable UUID branchId,
+      @RequestParam(required = false) List<String> status,
       Pageable pageable) {
     staffAuthorizationService.requireStaffUserForBranch(
         orgId, branchId, principalResolver.require().iamUserId());
     Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
-    return customerDebtService.listByBranch(orgId, branchId, normalized)
+        pageRequestFactory.normalize(pageable, Sort.unsorted());
+    List<CustomerDebtStatus> statuses = parseStatuses(status);
+    return customerDebtService.listByBranch(orgId, branchId, statuses, normalized)
         .map(CustomerDebtOperatorController::toResponse);
+  }
+
+  private static List<CustomerDebtStatus> parseStatuses(List<String> status) {
+    if (status == null || status.isEmpty()) {
+      return null;
+    }
+    List<CustomerDebtStatus> result =
+        status.stream()
+            .map(String::trim)
+            .map(String::toUpperCase)
+            .filter(s -> !s.isEmpty())
+            .distinct()
+            .map(
+                s -> {
+                  try {
+                    return CustomerDebtStatus.valueOf(s);
+                  } catch (IllegalArgumentException e) {
+                    return null;
+                  }
+                })
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    return result.isEmpty() ? null : result;
   }
 
   private static CustomerDebtResponse toResponse(CustomerDebt d) {
@@ -139,6 +168,7 @@ public class CustomerDebtOperatorController {
         d.getId(),
         d.getCustomer().getId(),
         d.getCustomer().getName(),
+        d.getCustomer().getPhone(),
         d.getSale() != null ? d.getSale().getId() : null,
         d.getAmount(),
         d.getAmountSettled(),

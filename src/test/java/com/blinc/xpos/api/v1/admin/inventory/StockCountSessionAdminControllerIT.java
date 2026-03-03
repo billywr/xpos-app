@@ -151,7 +151,9 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
   }
 
   private UUID createOrg() throws Exception {
-    String body = objectMapper.writeValueAsString(new OrgCreateRequest("Test Org StockCount"));
+    String body =
+        objectMapper.writeValueAsString(
+            new OrgCreateRequest("Test Org StockCount " + UUID.randomUUID()));
     MvcResult result =
         mockMvc
             .perform(

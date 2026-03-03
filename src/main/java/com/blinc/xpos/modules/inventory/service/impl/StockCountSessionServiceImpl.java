@@ -2,7 +2,9 @@ package com.blinc.xpos.modules.inventory.service.impl;
 
 import com.blinc.xpos.common.constants.enums.MovementType;
 import com.blinc.xpos.common.constants.enums.SourceType;
+import com.blinc.xpos.common.error.BadRequestException;
 import com.blinc.xpos.common.error.NotFoundException;
+import com.blinc.xpos.modules.catalog.domain.Item;
 import com.blinc.xpos.modules.catalog.service.ItemService;
 import com.blinc.xpos.modules.inventory.domain.StockCountLine;
 import com.blinc.xpos.modules.inventory.domain.StockCountSession;
@@ -21,6 +23,7 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -158,6 +161,62 @@ public class StockCountSessionServiceImpl implements StockCountSessionService {
 
   @Override
   @Transactional
+  public StockCountSession updateLine(
+      UUID orgId, UUID sessionId, UUID lineId, BigDecimal countedQty) {
+    StockCountSession session = require(orgId, sessionId);
+    if (!STATUS_OPEN.equals(session.getStatus())) {
+      throw new IllegalStateException(
+          "Only open sessions can be updated. Status: " + session.getStatus());
+    }
+    StockCountLine line =
+        lineRepository
+            .findByIdAndOrgId(lineId, orgId)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "STOCK_COUNT_LINE_NOT_FOUND",
+                        "Stock count line not found: " + lineId));
+    if (!line.getSession().getId().equals(sessionId)) {
+      throw new IllegalArgumentException("Line does not belong to this session");
+    }
+    if (countedQty == null || countedQty.compareTo(BigDecimal.ZERO) < 0) {
+      throw new IllegalArgumentException("Counted quantity must be non-negative");
+    }
+    BigDecimal varianceQty =
+        countedQty
+            .subtract(line.getSystemQty())
+            .setScale(SCALE, RoundingMode.HALF_UP);
+    line.setCountedQty(countedQty.setScale(SCALE, RoundingMode.HALF_UP));
+    line.setVarianceQty(varianceQty);
+    lineRepository.save(line);
+    return session;
+  }
+
+  @Override
+  @Transactional
+  public StockCountSession deleteLine(UUID orgId, UUID sessionId, UUID lineId) {
+    StockCountSession session = require(orgId, sessionId);
+    if (!STATUS_OPEN.equals(session.getStatus())) {
+      throw new IllegalStateException(
+          "Only open sessions can have lines deleted. Status: " + session.getStatus());
+    }
+    StockCountLine line =
+        lineRepository
+            .findByIdAndOrgId(lineId, orgId)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "STOCK_COUNT_LINE_NOT_FOUND",
+                        "Stock count line not found: " + lineId));
+    if (!line.getSession().getId().equals(sessionId)) {
+      throw new IllegalArgumentException("Line does not belong to this session");
+    }
+    lineRepository.delete(line);
+    return session;
+  }
+
+  @Override
+  @Transactional
   public StockCountSession close(UUID orgId, UUID sessionId, UUID closedByStaffUserId) {
     StockCountSession session = require(orgId, sessionId);
     if (!STATUS_OPEN.equals(session.getStatus())) {
@@ -172,24 +231,57 @@ public class StockCountSessionServiceImpl implements StockCountSessionService {
 
     List<StockCountLine> lines = lineRepository.findBySessionIdOrderByCreatedAt(sessionId);
     UUID branchId = session.getBranch().getId();
+    Map<UUID, BigDecimal> countedByItem = new java.util.HashMap<>();
     for (StockCountLine line : lines) {
-      BigDecimal variance = line.getVarianceQty();
-      if (variance != null && variance.compareTo(BigDecimal.ZERO) != 0) {
-        StockMovement mov = new StockMovement();
-        mov.setOrg(session.getOrg());
-        mov.setBranch(session.getBranch());
-        mov.setItem(line.getItem());
-        mov.setMovementType(MovementType.ADJUST);
-        mov.setQty(variance.setScale(SCALE, RoundingMode.HALF_UP));
-        mov.setSourceType(SourceType.STOCKTAKE);
-        mov.setSourceId(sessionId);
-        mov.setCreatedBy(closedBy);
-        mov.setCreatedAt(now);
-        stockMovementRepository.save(mov);
-        inventoryItemService.applyStockTakeVariance(
-            orgId, branchId, line.getItem().getId(), variance);
+      UUID itemId = line.getItem().getId();
+      BigDecimal qty = line.getCountedQty();
+      if (qty != null) {
+        countedByItem.merge(itemId, qty.setScale(SCALE, RoundingMode.HALF_UP), BigDecimal::add);
       }
     }
+    for (var e : countedByItem.entrySet()) {
+      UUID itemId = e.getKey();
+      BigDecimal totalCounted = e.getValue();
+      BigDecimal systemQty = BigDecimal.ZERO;
+      var invItem =
+          inventoryItemRepository.findByOrgIdAndBranchIdAndItemId(orgId, branchId, itemId);
+      if (invItem.isPresent()) {
+        systemQty = invItem.get().getOnHandQty().setScale(SCALE, RoundingMode.HALF_UP);
+      }
+      BigDecimal variance =
+          totalCounted.subtract(systemQty).setScale(SCALE, RoundingMode.HALF_UP);
+      if (variance.compareTo(BigDecimal.ZERO) == 0) {
+        continue;
+      }
+      Item item = itemService.require(orgId, itemId);
+      StockMovement mov = new StockMovement();
+      mov.setOrg(session.getOrg());
+      mov.setBranch(session.getBranch());
+      mov.setItem(item);
+      mov.setMovementType(MovementType.ADJUST);
+      mov.setQty(variance);
+      mov.setSourceType(SourceType.STOCKTAKE);
+      mov.setSourceId(sessionId);
+      mov.setCreatedBy(closedBy);
+      mov.setCreatedAt(now);
+      stockMovementRepository.save(mov);
+      inventoryItemService.applyStockTakeVariance(orgId, branchId, itemId, variance);
+    }
+    return sessionRepository.save(session);
+  }
+
+  @Override
+  @Transactional
+  public StockCountSession softDelete(
+      UUID orgId, UUID sessionId, UUID deletedByStaffUserId) {
+    StockCountSession session = require(orgId, sessionId);
+    if (session.getDeletedAt() != null) {
+      throw new BadRequestException(
+          "SESSION_ALREADY_DELETED", "Session is already deleted.");
+    }
+    StaffUser deletedBy = staffUserService.require(orgId, deletedByStaffUserId);
+    session.setDeletedAt(Instant.now(clock));
+    session.setDeletedBy(deletedBy);
     return sessionRepository.save(session);
   }
 }

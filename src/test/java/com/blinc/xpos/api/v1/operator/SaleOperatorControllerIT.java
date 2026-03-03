@@ -297,6 +297,83 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.tenders[0].currency").value("KES"));
   }
 
+  @Test
+  void refundCompletedSaleReturnsRefundedStatus() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID terminalId = createTerminal(orgId, branchId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    openShift(orgId, branchId, terminalId);
+    UUID supplierId = createSupplier(orgId);
+    UUID priceListId = createPriceList(orgId);
+    UUID itemId = createItemForRefundTest(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
+    addItemToPriceList(orgId, priceListId, itemId);
+    UUID tenderTypeId = getCashTenderTypeId(orgId);
+
+    String salesBase =
+        "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/terminals/" + terminalId;
+    String receiptsBase =
+        "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/receipts";
+
+    MvcResult createSaleResult =
+        mockMvc
+            .perform(
+                post(salesBase + "/sales")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"priceListId\":\"" + priceListId + "\"}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+    UUID saleId =
+        UUID.fromString(
+            objectMapper
+                .readTree(createSaleResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
+
+    mockMvc
+        .perform(
+            post(salesBase + "/sales/" + saleId + "/lines")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"itemId":"%s","qty":2,"uomId":null,"unitPriceOverride":99.50,"modifiers":[]}
+                    """
+                        .formatted(itemId)))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            post(salesBase + "/sales/" + saleId + "/tenders")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"tenderTypeId":"%s","amount":200,"currency":"KES"}
+                    """
+                        .formatted(tenderTypeId)))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(
+            post(salesBase + "/sales/" + saleId + "/complete")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("COMPLETED"));
+
+    mockMvc
+        .perform(
+            post(receiptsBase + "/" + saleId + "/refund")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(saleId.toString()))
+        .andExpect(jsonPath("$.status").value("REFUNDED"));
+  }
+
   /**
    * Completing a sale with a SALE_COMPLETE posting rule creates two ledger entries (debit and
    * credit) for the sale total.
@@ -638,7 +715,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     UUID taxProfileId = createTaxProfile(orgId);
     String body =
         """
-        {"name":"Test Product","itemType":"STOCK","taxProfileId":"%s","trackInventory":true,"active":true}
+        {"name":"Test Product","itemType":"STOCK","taxProfileId":"%s","trackInventory":false,"active":true}
         """
             .formatted(taxProfileId);
     MvcResult result =
@@ -686,6 +763,56 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
                         + "/price-lists/"
                         + priceListId
                         + "/items")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isCreated());
+  }
+
+  private UUID createSupplier(UUID orgId) throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/suppliers")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"name\":\"Supplier\"}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private UUID createItemForRefundTest(UUID orgId) throws Exception {
+    UUID taxProfileId = createTaxProfile(orgId);
+    String body =
+        """
+        {"name":"Test Product","itemType":"STOCK","taxProfileId":"%s","trackInventory":true,"active":true}
+        """
+            .formatted(taxProfileId);
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/items")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content(body))
+            .andExpect(status().isCreated())
+            .andReturn();
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private void createGrnForItem(UUID orgId, UUID branchId, UUID supplierId, UUID itemId)
+      throws Exception {
+    String body =
+        """
+        {"branchId":"%s","supplierId":"%s","lines":[{"itemId":"%s","qty":5,"receivedUnitCost":80.00}]}
+        """
+            .formatted(branchId, supplierId, itemId);
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
                 .with(jwt().jwt(j -> j.subject("admin")))
                 .contentType(APPLICATION_JSON)
                 .content(body))

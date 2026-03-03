@@ -100,9 +100,9 @@ public class ItemServiceImpl implements ItemService {
 
   @Override
   @Transactional(readOnly = true)
-  public Page<Item> list(UUID orgId, Pageable pageable) {
+  public Page<Item> list(UUID orgId, UUID categoryId, Pageable pageable) {
     orgService.require(orgId);
-    return itemRepository.findAllByOrgIdAndActiveTrue(orgId, pageable);
+    return itemRepository.findAllByOrgIdAndCategoryId(orgId, categoryId, pageable);
   }
 
   @Override

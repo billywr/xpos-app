@@ -6,11 +6,15 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Operator analytics snapshot: today's KPIs, hourly trend, top items, payment
- * mix, 7-day trend, debts and expenses intelligence. Designed for fast fetch.
+ * Operator analytics snapshot: KPIs for the date range, hourly trend, top
+ * items, payment mix, 7-day trend, debts and expenses intelligence. When
+ * fromDate and toDate are both set, they indicate the filter range; when
+ * equal, a single day. businessDate equals fromDate for backward compatibility.
  */
 public record AnalyticsSnapshotResponse(
     LocalDate businessDate,
+    LocalDate fromDate,
+    LocalDate toDate,
     String timezone,
     Summary summary,
     OpenShift openShift,
@@ -64,5 +68,6 @@ public record AnalyticsSnapshotResponse(
 
   public record PaymentBreakdown(String code, String name, BigDecimal amount) {}
 
-  public record Comparison(BigDecimal yesterdayRevenue, BigDecimal percentChange) {}
+  public record Comparison(
+      BigDecimal previousPeriodRevenue, BigDecimal percentChange) {}
 }

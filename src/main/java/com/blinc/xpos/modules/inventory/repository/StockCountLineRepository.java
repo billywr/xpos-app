@@ -2,12 +2,20 @@ package com.blinc.xpos.modules.inventory.repository;
 
 import com.blinc.xpos.modules.inventory.domain.StockCountLine;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface StockCountLineRepository extends JpaRepository<StockCountLine, UUID> {
+
+  @Query(
+      """
+      select l from StockCountLine l
+      where l.id = :id and l.org.id = :orgId
+      """)
+  Optional<StockCountLine> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
   @Query(
       """

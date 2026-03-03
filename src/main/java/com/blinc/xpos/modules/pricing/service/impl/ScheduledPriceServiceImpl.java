@@ -1,8 +1,10 @@
 package com.blinc.xpos.modules.pricing.service.impl;
 
+import com.blinc.xpos.common.error.BadRequestException;
 import com.blinc.xpos.common.error.NotFoundException;
 import com.blinc.xpos.modules.catalog.domain.Item;
 import com.blinc.xpos.modules.catalog.service.ItemService;
+import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
 import com.blinc.xpos.modules.pricing.domain.PriceSchedule;
 import com.blinc.xpos.modules.pricing.domain.ScheduledPrice;
 import com.blinc.xpos.modules.pricing.repository.ScheduledPriceRepository;
@@ -25,18 +27,22 @@ public class ScheduledPriceServiceImpl implements ScheduledPriceService {
   private final ScheduledPriceRepository scheduledPriceRepository;
   private final PriceScheduleService priceScheduleService;
   private final ItemService itemService;
+  private final StockMovementRepository stockMovementRepository;
   private final Clock clock;
 
   public ScheduledPriceServiceImpl(
       ScheduledPriceRepository scheduledPriceRepository,
       PriceScheduleService priceScheduleService,
       ItemService itemService,
+      StockMovementRepository stockMovementRepository,
       Clock clock) {
     this.scheduledPriceRepository =
         Objects.requireNonNull(scheduledPriceRepository, "scheduledPriceRepository");
     this.priceScheduleService =
         Objects.requireNonNull(priceScheduleService, "priceScheduleService");
     this.itemService = Objects.requireNonNull(itemService, "itemService");
+    this.stockMovementRepository =
+        Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 
@@ -46,11 +52,32 @@ public class ScheduledPriceServiceImpl implements ScheduledPriceService {
       UUID orgId, UUID priceScheduleId, UUID itemId, BigDecimal price, String currency) {
     PriceSchedule schedule = priceScheduleService.require(orgId, priceScheduleId);
     Item item = itemService.require(orgId, itemId);
+
+    BigDecimal sellingPrice = price != null ? price : BigDecimal.ZERO;
+    BigDecimal maxUnitCost =
+        stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, itemId);
+
+    if (maxUnitCost == null) {
+      throw new BadRequestException(
+          "ITEM_NOT_SUPPLIED",
+          "Item has no purchase history. You cannot sell what you don't have. "
+              + "Go to Inventory → Goods Receipt Notes, create a Goods Receipt when you receive "
+              + "stock, record the unit cost, then add the item to this schedule.");
+    }
+
+    if (sellingPrice.compareTo(maxUnitCost) <= 0) {
+      throw new BadRequestException(
+          "SELLING_PRICE_BELOW_COST",
+          "Selling price must be greater than buying price (cost: "
+              + maxUnitCost
+              + "). Reduce cost or increase selling price.");
+    }
+
     ScheduledPrice scheduled = new ScheduledPrice();
     scheduled.setOrg(schedule.getOrg());
     scheduled.setPriceSchedule(schedule);
     scheduled.setItem(item);
-    scheduled.setPrice(price != null ? price : BigDecimal.ZERO);
+    scheduled.setPrice(sellingPrice);
     scheduled.setCurrency(
         currency != null && !currency.isBlank() ? currency : DEFAULT_CURRENCY);
     scheduled.setCreatedAt(Instant.now(clock));

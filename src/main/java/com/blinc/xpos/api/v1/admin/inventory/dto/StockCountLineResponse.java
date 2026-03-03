@@ -12,4 +12,7 @@ public record StockCountLineResponse(
     BigDecimal countedQty,
     BigDecimal systemQty,
     BigDecimal varianceQty,
+    BigDecimal unitCost,
+    BigDecimal qtySold,
+    BigDecimal sellingPrice,
     Instant createdAt) {}

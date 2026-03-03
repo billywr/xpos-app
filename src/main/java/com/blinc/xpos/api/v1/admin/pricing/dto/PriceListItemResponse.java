@@ -8,6 +8,7 @@ public record PriceListItemResponse(
     UUID id,
     UUID priceListId,
     UUID itemId,
+    String itemName,
     BigDecimal price,
     String currency,
     Instant createdAt) {}

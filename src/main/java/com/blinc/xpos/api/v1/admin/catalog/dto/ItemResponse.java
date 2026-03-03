@@ -16,5 +16,6 @@ public record ItemResponse(
     boolean trackInventory,
     boolean active,
     String primaryImageUrl,
+    boolean hasPurchaseHistory,
     Instant createdAt,
     Instant updatedAt) {}

@@ -30,4 +30,18 @@ select b
       @Param("orgId") UUID orgId,
       @Param("statuses") Collection<StatusCommon> statuses,
       Pageable pageable);
+
+  @Query(
+      """
+      select count(b) > 0 from Business b
+      where b.kraPin is not null and b.kraPin = :kraPin
+      """)
+  boolean existsByKraPin(@Param("kraPin") String kraPin);
+
+  @Query(
+      """
+      select count(b) > 0 from Business b
+      where b.kraPin is not null and b.kraPin = :kraPin and b.id <> :excludeId
+      """)
+  boolean existsByKraPinAndIdNot(@Param("kraPin") String kraPin, @Param("excludeId") UUID excludeId);
 }

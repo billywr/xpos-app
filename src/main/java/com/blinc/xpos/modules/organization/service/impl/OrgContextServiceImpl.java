@@ -64,6 +64,7 @@ import com.blinc.xpos.modules.catalog.service.UomService;
 import com.blinc.xpos.modules.compliance.service.TaxAgencyConfigService;
 import com.blinc.xpos.modules.fraud.service.ReasonCodeService;
 import com.blinc.xpos.modules.inventory.domain.Supplier;
+import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
 import com.blinc.xpos.modules.inventory.service.SupplierService;
 import com.blinc.xpos.modules.ledger.service.LedgerAccountService;
 import com.blinc.xpos.modules.ledger.service.PostingRuleService;
@@ -106,6 +107,7 @@ public class OrgContextServiceImpl implements OrgContextService {
   private final ItemImageService itemImageService;
   private final DeviceRegistrationService deviceRegistrationService;
   private final ShiftService shiftService;
+  private final StockMovementRepository stockMovementRepository;
 
   public OrgContextServiceImpl(
       OrgService orgService,
@@ -130,7 +132,8 @@ public class OrgContextServiceImpl implements OrgContextService {
       ItemService itemService,
       ItemImageService itemImageService,
       DeviceRegistrationService deviceRegistrationService,
-      ShiftService shiftService) {
+      ShiftService shiftService,
+      StockMovementRepository stockMovementRepository) {
     this.orgService = Objects.requireNonNull(orgService, "orgService");
     this.businessService = Objects.requireNonNull(businessService, "businessService");
     this.branchService = Objects.requireNonNull(branchService, "branchService");
@@ -162,6 +165,8 @@ public class OrgContextServiceImpl implements OrgContextService {
     this.deviceRegistrationService =
         Objects.requireNonNull(deviceRegistrationService, "deviceRegistrationService");
     this.shiftService = Objects.requireNonNull(shiftService, "shiftService");
+    this.stockMovementRepository =
+        Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
   }
 
   @Override
@@ -202,7 +207,7 @@ public class OrgContextServiceImpl implements OrgContextService {
             .map(this::toApprovalPolicyResponse).toList(),
         postingRuleService.list(orgId, page).getContent().stream()
             .map(this::toPostingRuleResponse).toList(),
-        toItemResponses(orgId, itemService.list(orgId, page).getContent()),
+        toItemResponses(orgId, itemService.list(orgId, null, page).getContent()),
         deviceRegistrationService.list(orgId, page).getContent().stream()
             .map(this::toDeviceResponse).toList(),
         shiftService.listOpenByOrg(orgId, shiftsPage).getContent().stream()
@@ -427,12 +432,19 @@ public class OrgContextServiceImpl implements OrgContextService {
     }
     var itemIds = items.stream().map(Item::getId).toList();
     var primaryUrls = itemImageService.findPrimaryUrlsByItemIds(orgId, itemIds);
+    var idsWithHistory =
+        new java.util.HashSet<>(stockMovementRepository.findItemIdsWithPurchaseHistoryByOrgId(orgId));
     return items.stream()
-        .map(i -> toItemResponse(i, primaryUrls.get(i.getId())))
+        .map(
+            i ->
+                toItemResponse(
+                    i,
+                    primaryUrls.get(i.getId()),
+                    idsWithHistory.contains(i.getId())))
         .toList();
   }
 
-  private ItemResponse toItemResponse(Item i, String primaryImageUrl) {
+  private ItemResponse toItemResponse(Item i, String primaryImageUrl, boolean hasPurchaseHistory) {
     return new ItemResponse(
         i.getId(),
         i.getOrg().getId(),
@@ -445,6 +457,7 @@ public class OrgContextServiceImpl implements OrgContextService {
         i.getTrackInventory(),
         i.getActive(),
         primaryImageUrl,
+        hasPurchaseHistory,
         i.getCreatedAt(),
         i.getUpdatedAt());
   }

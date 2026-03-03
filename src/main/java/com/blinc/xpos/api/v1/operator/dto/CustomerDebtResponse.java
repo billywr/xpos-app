@@ -9,6 +9,7 @@ public record CustomerDebtResponse(
     UUID id,
     UUID customerId,
     String customerName,
+    String customerPhone,
     UUID saleId,
     BigDecimal amount,
     BigDecimal amountSettled,

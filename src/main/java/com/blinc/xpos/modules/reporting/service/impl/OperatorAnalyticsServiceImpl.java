@@ -75,84 +75,97 @@ public class OperatorAnalyticsServiceImpl implements OperatorAnalyticsService {
 
   @Override
   @Transactional(readOnly = true)
-  public AnalyticsSnapshotResponse getSnapshot(UUID orgId, UUID branchId) {
+  public AnalyticsSnapshotResponse getSnapshot(
+      UUID orgId, UUID branchId, LocalDate fromDate, LocalDate toDate) {
     Branch branch = branchService.require(orgId, branchId);
     ZoneId zone = toZoneId(branch.getTimezone());
     LocalDate today = LocalDate.now(zone);
-    LocalDate yesterday = today.minusDays(1);
 
-    Instant todayStart = today.atStartOfDay(zone).toInstant();
-    Instant todayEnd = today.plusDays(1).atStartOfDay(zone).toInstant();
-    Instant yesterdayStart = yesterday.atStartOfDay(zone).toInstant();
-    Instant yesterdayEnd = todayStart;
+    LocalDate effectiveFrom = fromDate != null ? fromDate : today;
+    LocalDate effectiveTo = toDate != null ? toDate : today;
+    if (effectiveFrom.isAfter(effectiveTo)) {
+      LocalDate tmp = effectiveFrom;
+      effectiveFrom = effectiveTo;
+      effectiveTo = tmp;
+    }
 
-    List<Sale> todaySales =
+    Instant rangeStart = effectiveFrom.atStartOfDay(zone).toInstant();
+    Instant rangeEnd = effectiveTo.plusDays(1).atStartOfDay(zone).toInstant();
+
+    List<Sale> rangeSales =
         saleRepository.findListByOrgIdAndBranchIdAndStatusAndCompletedAtBetween(
-            orgId, branchId, SaleStatus.COMPLETED, todayStart, todayEnd);
-    List<Sale> yesterdaySales =
-        saleRepository.findListByOrgIdAndBranchIdAndStatusAndCompletedAtBetween(
-            orgId, branchId, SaleStatus.COMPLETED, yesterdayStart, yesterdayEnd);
+            orgId, branchId, SaleStatus.COMPLETED, rangeStart, rangeEnd);
 
-    BigDecimal todayRevenue =
-        todaySales.stream()
+    BigDecimal rangeRevenue =
+        rangeSales.stream()
             .map(Sale::getTotal)
             .filter(Objects::nonNull)
             .reduce(BigDecimal.ZERO, BigDecimal::add)
             .setScale(SCALE, ROUNDING);
-    BigDecimal todayTax =
-        todaySales.stream()
+    BigDecimal rangeTax =
+        rangeSales.stream()
             .map(Sale::getTaxTotal)
             .filter(Objects::nonNull)
             .reduce(BigDecimal.ZERO, BigDecimal::add)
             .setScale(SCALE, ROUNDING);
-    int todayCount = todaySales.size();
-    BigDecimal todayAvg =
-        todayCount > 0
-            ? todayRevenue.divide(BigDecimal.valueOf(todayCount), SCALE, ROUNDING)
+    int rangeCount = rangeSales.size();
+    BigDecimal rangeAvg =
+        rangeCount > 0
+            ? rangeRevenue.divide(BigDecimal.valueOf(rangeCount), SCALE, ROUNDING)
             : BigDecimal.ZERO;
 
-    BigDecimal yesterdayRevenue =
-        yesterdaySales.stream()
+    long daysInRange = java.time.temporal.ChronoUnit.DAYS.between(effectiveFrom, effectiveTo) + 1;
+    LocalDate prevStart = effectiveFrom.minusDays(daysInRange);
+    LocalDate prevEnd = effectiveFrom.minusDays(1);
+    Instant prevStartInstant = prevStart.atStartOfDay(zone).toInstant();
+    Instant prevEndInstant = prevEnd.plusDays(1).atStartOfDay(zone).toInstant();
+    List<Sale> prevSales =
+        saleRepository.findListByOrgIdAndBranchIdAndStatusAndCompletedAtBetween(
+            orgId, branchId, SaleStatus.COMPLETED, prevStartInstant, prevEndInstant);
+    BigDecimal prevRevenue =
+        prevSales.stream()
             .map(Sale::getTotal)
             .filter(Objects::nonNull)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
     BigDecimal percentChange = BigDecimal.ZERO;
-    if (yesterdayRevenue.compareTo(BigDecimal.ZERO) > 0) {
+    if (prevRevenue.compareTo(BigDecimal.ZERO) > 0) {
       percentChange =
-          todayRevenue
-              .subtract(yesterdayRevenue)
-              .divide(yesterdayRevenue, 4, RoundingMode.HALF_UP)
+          rangeRevenue
+              .subtract(prevRevenue)
+              .divide(prevRevenue, 4, RoundingMode.HALF_UP)
               .multiply(BigDecimal.valueOf(100))
               .setScale(1, ROUNDING);
     }
 
     AnalyticsSnapshotResponse.OpenShift openShift = buildOpenShift(orgId, branchId);
     List<AnalyticsSnapshotResponse.HourlyPoint> hourlyTrend =
-        buildHourlyTrend(todaySales, zone);
+        buildHourlyTrend(rangeSales, zone);
     List<AnalyticsSnapshotResponse.TopItem> topItems =
-        buildTopItems(orgId, branchId, todayStart, todayEnd);
+        buildTopItems(orgId, branchId, rangeStart, rangeEnd);
     List<AnalyticsSnapshotResponse.PaymentBreakdown> paymentBreakdown =
-        buildPaymentBreakdown(todaySales);
+        buildPaymentBreakdown(rangeSales);
     List<AnalyticsSnapshotResponse.DailyTrendPoint> last7DaysTrend =
-        buildLast7DaysTrend(orgId, branchId, zone);
+        buildLast7DaysTrend(orgId, branchId, zone, effectiveTo);
     AnalyticsSnapshotResponse.DebtIntelligence debtIntelligence =
         buildDebtIntelligence(orgId, branchId, today);
     AnalyticsSnapshotResponse.ExpenseIntelligence expenseIntelligence =
-        buildExpenseIntelligence(orgId, branchId, todayStart, todayEnd);
+        buildExpenseIntelligence(orgId, branchId, rangeStart, rangeEnd);
 
     return new AnalyticsSnapshotResponse(
-        today,
+        effectiveFrom,
+        effectiveFrom,
+        effectiveTo,
         branch.getTimezone(),
         new AnalyticsSnapshotResponse.Summary(
-            todayRevenue, todayCount, todayAvg, todayTax),
+            rangeRevenue, rangeCount, rangeAvg, rangeTax),
         openShift,
         hourlyTrend,
         topItems,
         paymentBreakdown,
         last7DaysTrend,
         new AnalyticsSnapshotResponse.Comparison(
-            yesterdayRevenue.setScale(SCALE, ROUNDING), percentChange),
+            prevRevenue.setScale(SCALE, ROUNDING), percentChange),
         debtIntelligence,
         expenseIntelligence,
         Instant.now());
@@ -290,8 +303,8 @@ public class OperatorAnalyticsServiceImpl implements OperatorAnalyticsService {
   }
 
   private List<AnalyticsSnapshotResponse.DailyTrendPoint> buildLast7DaysTrend(
-      UUID orgId, UUID branchId, ZoneId zone) {
-    LocalDate end = LocalDate.now(zone);
+      UUID orgId, UUID branchId, ZoneId zone, LocalDate endDate) {
+    LocalDate end = endDate;
     LocalDate start = end.minusDays(6);
     List<AnalyticsSnapshotResponse.DailyTrendPoint> result = new java.util.ArrayList<>();
     for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
