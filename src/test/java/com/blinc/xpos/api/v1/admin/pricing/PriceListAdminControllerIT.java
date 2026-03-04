@@ -102,8 +102,8 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
             get("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
                 .with(jwt().jwt(j -> j.subject("admin"))))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.length()").value(1))
-        .andExpect(jsonPath("$[0].price").value(99.5));
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].price").value(99.5));
 
     UUID priceListItemId =
         UUID.fromString(

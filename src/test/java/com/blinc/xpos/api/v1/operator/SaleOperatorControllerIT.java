@@ -41,7 +41,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
     UUID priceListId = createPriceList(orgId);
+    UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
     addItemToPriceList(orgId, priceListId, itemId);
     UUID modifierGroupId = createModifierGroup(orgId);
     UUID modifierOptionId = createModifierOption(orgId, modifierGroupId);
@@ -96,7 +98,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
     UUID priceListId = createPriceList(orgId);
+    UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
     addItemToPriceList(orgId, priceListId, itemId);
 
     String base =
@@ -142,7 +146,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
     UUID priceListId = createPriceList(orgId);
+    UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
     addItemToPriceList(orgId, priceListId, itemId);
     UUID tenderTypeId = getCashTenderTypeId(orgId);
 
@@ -216,7 +222,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
     UUID priceListId = createPriceList(orgId);
+    UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
     addItemToPriceList(orgId, priceListId, itemId);
     UUID tenderTypeId = getCashTenderTypeId(orgId);
 
@@ -388,7 +396,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
     UUID priceListId = createPriceList(orgId);
+    UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
     addItemToPriceList(orgId, priceListId, itemId);
     UUID tenderTypeId = getCashTenderTypeId(orgId);
     createLedgerAccount(orgId, "1000", "Cash", "ASSET");
@@ -464,7 +474,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
     UUID priceListId = createPriceList(orgId);
+    UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
     addItemToPriceList(orgId, priceListId, itemId);
     UUID tenderTypeId = getCashTenderTypeId(orgId);
 

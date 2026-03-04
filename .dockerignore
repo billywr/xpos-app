@@ -1,0 +1,31 @@
+# Git and IDE
+.git
+.gitignore
+.idea
+*.iml
+.vscode
+*.swp
+*.swo
+
+# Build output (rebuilt in container)
+target/
+
+# Docs and local config (not needed in image)
+docs/
+*.md
+!README.md
+.env
+.env.*
+!.env.example
+
+# Test resources (excluded from runtime)
+src/test/
+**/application-test.yml
+**/application-dev.yml
+
+# Maven wrapper (optional; use maven image)
+.mvn/wrapper/maven-wrapper.properties
+
+# Misc
+*.log
+.DS_Store

@@ -12,6 +12,7 @@ public interface TransferOrderLineRepository extends JpaRepository<TransferOrder
   @Query(
       """
       select l from TransferOrderLine l
+      left join fetch l.item left join fetch l.uom
       where l.transferOrder.id = :transferOrderId
       order by l.createdAt
       """)

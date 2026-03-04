@@ -48,6 +48,8 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
     UUID taxProfileId = step8cCreateTaxProfile(orgId);
     UUID itemId = step8dCreateItem(orgId, categoryId, uomId, taxProfileId);
     UUID priceListId = step9aCreatePriceList(orgId, branchId);
+    UUID supplierId = step9a1CreateSupplier(orgId);
+    step9a2CreateGrnForItem(orgId, branchId, supplierId, itemId);
     step9bAddPriceListItem(orgId, priceListId, itemId);
     UUID tenderTypeId = step10CreateTenderType(orgId);
     step10aLedgerAndPostingRule(orgId);
@@ -332,6 +334,37 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
             .andReturn();
     return UUID.fromString(
         objectMapper.readTree(r.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private UUID step9a1CreateSupplier(UUID orgId) throws Exception {
+    MvcResult r =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/suppliers")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"name\":\"Supplier\"}"))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").exists())
+            .andReturn();
+    return UUID.fromString(
+        objectMapper.readTree(r.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private void step9a2CreateGrnForItem(
+      UUID orgId, UUID branchId, UUID supplierId, UUID itemId) throws Exception {
+    String body =
+        """
+        {"branchId":"%s","supplierId":"%s","lines":[{"itemId":"%s","qty":5,"receivedUnitCost":40.00}]}
+        """
+            .formatted(branchId, supplierId, itemId);
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isCreated());
   }
 
   private void step9bAddPriceListItem(UUID orgId, UUID priceListId, UUID itemId) throws Exception {

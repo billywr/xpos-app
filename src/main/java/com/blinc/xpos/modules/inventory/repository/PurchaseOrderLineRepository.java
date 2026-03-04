@@ -12,6 +12,7 @@ public interface PurchaseOrderLineRepository extends JpaRepository<PurchaseOrder
   @Query(
       """
       select l from PurchaseOrderLine l
+      left join fetch l.item left join fetch l.uom
       where l.purchaseOrder.id = :purchaseOrderId
       order by l.createdAt
       """)

@@ -227,6 +227,46 @@ BadRequestException: client version 1.32 is too old. Minimum supported API versi
 
 ---
 
+### 4.2 Pipeline: only SimpleSanityTest runs (integration tests skipped)
+
+**Symptom:** `mvn test` reports "Tests run: 1" (only SimpleSanityTest); integration tests not executed.
+
+**Cause:** Integration tests extend AbstractIntegrationTest and are tagged `@Tag("integration")`. By default, `surefire.excludedGroups` excludes them (Docker required).
+
+**Fix:** Run with profile: `mvn test -Psurefire-integration`. CI pipeline uses this profile. Ensure Docker is running.
+
+---
+
+### 4.3 addItemToPriceList returns 400 ITEM_NOT_SUPPLIED
+
+**Symptom:** POST to add item to price list returns 400 with code ITEM_NOT_SUPPLIED.
+
+**Cause:** PriceListItemService requires: (1) item has purchase history (GRN/stock movement with unit cost), and (2) selling price > max unit cost.
+
+**Fix:** Before adding to price list: create supplier, create GRN for the item, then add to price list. In tests: `createSupplier(orgId)`, `createGrnForItem(orgId, branchId, supplierId, itemId)`, then `addItemToPriceList(...)`. Use unit cost in GRN lower than selling price (e.g. 80 vs 150).
+
+---
+
+### 4.4 LazyInitializationException / 500 on list or add-line endpoints
+
+**Symptom:** GET ledger-entries, POST purchase-order/recipe/transfer-order lines, or similar return 500.
+
+**Cause:** Controllers map entities to DTOs. LAZY associations (org, branch, item, supplier, etc.) are accessed after the service transaction ends, causing LazyInitializationException.
+
+**Fix:** Add `left join fetch` in repository JPQL queries for associations used in response mapping. For parent entities: fetch org, branch, supplier, createdBy, menuItem, fromBranch, toBranch. For line entities: fetch item, ingredientItem, uom. See LedgerEntryRepository, PurchaseOrderLineRepository, RecipeLineRepository, TransferOrderLineRepository for examples.
+
+---
+
+### 4.5 Test assertion fails: $.length() expected 1 but was 11
+
+**Symptom:** JSON path assertion like `$.length()` returns unexpected value (e.g. 11 instead of 1).
+
+**Cause:** List endpoints return Spring Page; JSON structure has `content` array. Using `$.length()` hits the wrong level.
+
+**Fix:** Use `$.content.length()` and `$.content[0].field` instead of `$.length()` and `$[0].field`.
+
+---
+
 ## 5. Reference
 
 | Doc | Purpose |

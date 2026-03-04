@@ -36,7 +36,9 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
     UUID priceListId = createPriceList(orgId);
+    UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
     addItemToPriceList(orgId, priceListId, itemId);
     UUID tenderTypeId = getCashTenderTypeId(orgId);
     UUID saleId = createCompletedSale(orgId, branchId, terminalId, itemId, tenderTypeId);
@@ -257,6 +259,36 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
             .andReturn();
     return UUID.fromString(
         objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private UUID createSupplier(UUID orgId) throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/suppliers")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"name\":\"Supplier\"}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private void createGrnForItem(
+      UUID orgId, UUID branchId, UUID supplierId, UUID itemId) throws Exception {
+    String body =
+        """
+        {"branchId":"%s","supplierId":"%s","lines":[{"itemId":"%s","qty":5,"receivedUnitCost":40.00}]}
+        """
+            .formatted(branchId, supplierId, itemId);
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isCreated());
   }
 
   private void addItemToPriceList(UUID orgId, UUID priceListId, UUID itemId) throws Exception {

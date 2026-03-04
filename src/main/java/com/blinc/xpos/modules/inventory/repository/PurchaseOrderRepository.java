@@ -14,6 +14,8 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UU
   @Query(
       """
       select p from PurchaseOrder p
+      left join fetch p.org left join fetch p.branch
+      left join fetch p.supplier left join fetch p.createdBy
       where p.id = :id and p.org.id = :orgId
       """)
   Optional<PurchaseOrder> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
@@ -21,6 +23,8 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UU
   @Query(
       """
       select p from PurchaseOrder p
+      left join fetch p.org left join fetch p.branch
+      left join fetch p.supplier left join fetch p.createdBy
       where p.org.id = :orgId and p.branch.id = :branchId
       """)
   Page<PurchaseOrder> findAllByOrgIdAndBranchId(

@@ -15,6 +15,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
   @Query(
       """
       select e from LedgerEntry e
+      left join fetch e.org left join fetch e.branch left join fetch e.account
       where e.id = :id and e.org.id = :orgId
       """)
   Optional<LedgerEntry> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
@@ -22,6 +23,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
   @Query(
       """
       select e from LedgerEntry e
+      left join fetch e.org left join fetch e.branch left join fetch e.account
       where e.org.id = :orgId
       order by e.createdAt desc
       """)
@@ -30,6 +32,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
   @Query(
       """
       select e from LedgerEntry e
+      left join fetch e.org left join fetch e.branch left join fetch e.account
       where e.org.id = :orgId and e.branch.id = :branchId
       order by e.createdAt desc
       """)
@@ -39,6 +42,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
   @Query(
       """
       select e from LedgerEntry e
+      left join fetch e.org left join fetch e.branch left join fetch e.account
       where e.org.id = :orgId and e.branch.id = :branchId and e.businessDate = :businessDate
       order by e.createdAt desc
       """)

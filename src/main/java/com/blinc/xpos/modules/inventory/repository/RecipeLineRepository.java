@@ -12,6 +12,7 @@ public interface RecipeLineRepository extends JpaRepository<RecipeLine, UUID> {
   @Query(
       """
       select l from RecipeLine l
+      left join fetch l.ingredientItem left join fetch l.uom
       where l.recipe.id = :recipeId
       order by l.createdAt
       """)

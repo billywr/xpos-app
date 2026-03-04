@@ -14,6 +14,7 @@ public interface TransferOrderRepository extends JpaRepository<TransferOrder, UU
   @Query(
       """
       select t from TransferOrder t
+      left join fetch t.org left join fetch t.fromBranch left join fetch t.toBranch
       where t.id = :id and t.org.id = :orgId
       """)
   Optional<TransferOrder> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
@@ -21,6 +22,7 @@ public interface TransferOrderRepository extends JpaRepository<TransferOrder, UU
   @Query(
       """
       select t from TransferOrder t
+      left join fetch t.org left join fetch t.fromBranch left join fetch t.toBranch
       where t.org.id = :orgId
       """)
   Page<TransferOrder> findAllByOrgId(@Param("orgId") UUID orgId, Pageable pageable);
