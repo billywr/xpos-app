@@ -1,0 +1,27 @@
+# Dependencies and build output
+node_modules
+dist
+coverage
+
+# Git and IDE
+.git
+.gitignore
+.idea
+.vscode
+*.log
+.DS_Store
+
+# Test and docs (not needed in image)
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+e2e/
+docs/
+*.md
+!README.md
+
+# Env files (use build args)
+.env
+.env.*
+!.env.example
