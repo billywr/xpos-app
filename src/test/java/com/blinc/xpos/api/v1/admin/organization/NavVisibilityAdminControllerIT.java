@@ -37,7 +37,11 @@ class NavVisibilityAdminControllerIT extends AbstractIntegrationTest {
             .with(jwt().jwt(j -> j.subject("admin"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.admin").isEmpty())
-        .andExpect(jsonPath("$.operator").isEmpty());
+        .andExpect(jsonPath("$.operator").isEmpty())
+        .andExpect(jsonPath("$.header").isEmpty())
+        .andExpect(jsonPath("$.adminLabels").isEmpty())
+        .andExpect(jsonPath("$.operatorLabels").isEmpty())
+        .andExpect(jsonPath("$.headerLabels").isEmpty());
   }
 
   @Test
@@ -54,7 +58,8 @@ class NavVisibilityAdminControllerIT extends AbstractIntegrationTest {
                 .contentType(APPLICATION_JSON)
                 .content(
                     objectMapper.writeValueAsString(
-                        new NavVisibilityUpdateRequest(admin, operator))))
+                        new NavVisibilityUpdateRequest(
+                            admin, operator, Map.of(), Map.of(), Map.of(), Map.of()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.admin./admin/items").value(false))
         .andExpect(jsonPath("$.admin./admin/suppliers").value(true))
@@ -70,6 +75,42 @@ class NavVisibilityAdminControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
+  void putWithLabelsSavesAndReturnsLabels() throws Exception {
+    UUID orgId = createOrg();
+
+    Map<String, String> adminLabels =
+        Map.of("/admin/items", "Products", "/admin/suppliers", "Vendors");
+    Map<String, String> operatorLabels = Map.of("/operator/receipts", "Receipts History");
+
+    mockMvc
+        .perform(
+            put("/api/v1/admin/orgs/" + orgId + "/nav-visibility")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        new NavVisibilityUpdateRequest(
+                            Map.of(),
+                            Map.of(),
+                            Map.of(),
+                            adminLabels,
+                            operatorLabels,
+                            Map.of()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.adminLabels./admin/items").value("Products"))
+        .andExpect(jsonPath("$.adminLabels./admin/suppliers").value("Vendors"))
+        .andExpect(jsonPath("$.operatorLabels./operator/receipts").value("Receipts History"));
+
+    mockMvc
+        .perform(
+            get("/api/v1/admin/orgs/" + orgId + "/nav-visibility")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.adminLabels./admin/items").value("Products"))
+        .andExpect(jsonPath("$.operatorLabels./operator/receipts").value("Receipts History"));
+  }
+
+  @Test
   void putEmptyResetsToDefaults() throws Exception {
     UUID orgId = createOrg();
 
@@ -81,7 +122,12 @@ class NavVisibilityAdminControllerIT extends AbstractIntegrationTest {
                 .content(
                     objectMapper.writeValueAsString(
                         new NavVisibilityUpdateRequest(
-                            Map.of("/admin/items", false), Map.of()))))
+                            Map.of("/admin/items", false),
+                            Map.of(),
+                            Map.of(),
+                            Map.of(),
+                            Map.of(),
+                            Map.of()))))
         .andExpect(status().isOk());
 
     mockMvc
@@ -91,7 +137,8 @@ class NavVisibilityAdminControllerIT extends AbstractIntegrationTest {
                 .contentType(APPLICATION_JSON)
                 .content(
                     objectMapper.writeValueAsString(
-                        new NavVisibilityUpdateRequest(Map.of(), Map.of()))))
+                        new NavVisibilityUpdateRequest(
+                            Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.admin").isEmpty())
         .andExpect(jsonPath("$.operator").isEmpty());

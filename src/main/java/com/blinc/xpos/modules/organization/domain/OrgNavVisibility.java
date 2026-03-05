@@ -41,6 +41,10 @@ public class OrgNavVisibility {
   @Column(name = "visibility_json", nullable = false)
   private JsonNode visibilityJson;
 
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "labels_json", nullable = false)
+  private JsonNode labelsJson;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 

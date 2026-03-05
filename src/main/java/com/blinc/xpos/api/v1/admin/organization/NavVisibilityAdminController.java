@@ -25,7 +25,13 @@ public class NavVisibilityAdminController {
   @GetMapping
   public NavVisibilityResponse get(@PathVariable UUID orgId) {
     var dto = navVisibilityService.getAll(orgId);
-    return new NavVisibilityResponse(dto.admin(), dto.operator());
+    return new NavVisibilityResponse(
+        dto.admin(),
+        dto.operator(),
+        dto.header(),
+        dto.adminLabels(),
+        dto.operatorLabels(),
+        dto.headerLabels());
   }
 
   @PutMapping
@@ -33,7 +39,17 @@ public class NavVisibilityAdminController {
       @PathVariable UUID orgId, @RequestBody NavVisibilityUpdateRequest request) {
     navVisibilityService.saveVisibility(orgId, "admin", request.admin());
     navVisibilityService.saveVisibility(orgId, "operator", request.operator());
+    navVisibilityService.saveVisibility(orgId, "header", request.header());
+    navVisibilityService.saveLabels(orgId, "admin", request.adminLabels());
+    navVisibilityService.saveLabels(orgId, "operator", request.operatorLabels());
+    navVisibilityService.saveLabels(orgId, "header", request.headerLabels());
     var dto = navVisibilityService.getAll(orgId);
-    return new NavVisibilityResponse(dto.admin(), dto.operator());
+    return new NavVisibilityResponse(
+        dto.admin(),
+        dto.operator(),
+        dto.header(),
+        dto.adminLabels(),
+        dto.operatorLabels(),
+        dto.headerLabels());
   }
 }
