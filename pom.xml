@@ -118,11 +118,10 @@
 			<artifactId>spring-boot-starter-cache</artifactId>
 		</dependency>
 
-		<!-- Kafka (optional) -->
+		<!-- Kafka (required at runtime when Kafka configured) -->
 		<dependency>
 			<groupId>org.springframework.kafka</groupId>
 			<artifactId>spring-kafka</artifactId>
-			<optional>true</optional>
 		</dependency>
 
 		<!-- MapStruct + Lombok -->

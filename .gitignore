@@ -45,6 +45,9 @@ build/
 .vscode/
 .cursor/
 
+### Deployment (secrets) ###
+deploy/.env
+
 ### Uploads (user content, not source) ###
 uploads/
 !uploads/items/.gitkeep
