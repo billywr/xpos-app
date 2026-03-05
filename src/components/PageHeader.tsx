@@ -1,0 +1,61 @@
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft } from "lucide-react";
+
+export interface PageHeaderProps {
+  title: string;
+  subtitle?: string;
+  /** Optional icon to show next to title */
+  icon?: React.ElementType;
+  /** Fallback when browser history is empty (e.g. direct link). */
+  fallbackTo?: string;
+  /** Extra class for the header container */
+  className?: string;
+  /** Skip default bottom margin (when used inside a custom flex layout) */
+  noMargin?: boolean;
+  /** Content below subtitle (e.g. filters, actions) */
+  children?: React.ReactNode;
+}
+
+export function PageHeader({
+  title,
+  subtitle,
+  icon: Icon,
+  fallbackTo,
+  className = "",
+  noMargin = false,
+  children,
+}: PageHeaderProps) {
+  const navigate = useNavigate();
+
+  const handleBack = () => {
+    if (fallbackTo && window.history.length <= 1) {
+      navigate(fallbackTo);
+      return;
+    }
+    navigate(-1);
+  };
+
+  const marginClass = noMargin ? "" : "mb-4 sm:mb-6";
+  return (
+    <header className={`flex items-start gap-2 ${marginClass} ${className}`}>
+      <button
+        type="button"
+        onClick={handleBack}
+        className="-ml-1 mt-0.5 flex shrink-0 rounded-lg p-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
+        aria-label="Go back"
+      >
+        <ChevronLeft className="h-6 w-6" />
+      </button>
+      <div className="min-w-0 flex-1">
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
+          {Icon && <Icon className="h-7 w-7 shrink-0" />}
+          {title}
+        </h1>
+        {subtitle && (
+          <p className="mt-1 text-slate-600 dark:text-slate-400">{subtitle}</p>
+        )}
+        {children}
+      </div>
+    </header>
+  );
+}

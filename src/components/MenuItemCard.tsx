@@ -1,6 +1,7 @@
 import { Plus, Minus } from "lucide-react";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getItemImageUrl } from "@/utils/itemImage";
+import { FLOATING_CARD } from "@/utils/floatingCardClasses";
 
 export interface MenuItemCardProps {
   /** Item name */
@@ -53,7 +54,7 @@ export function MenuItemCard({
       : "—";
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-slate-500">
+    <div className={`flex flex-col overflow-hidden ${FLOATING_CARD}`}>
       <div className="relative h-[84px] w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-700">
         {primaryImageUrl ? (
           <img

@@ -28,7 +28,8 @@ export function downloadStdStockCountPdf(
   totals: { unitsSold: number; amount: number },
   branchName?: string | null,
   orgName?: string | null,
-  includeSystemAndVariance = false
+  includeSystemAndVariance = false,
+  appName = "XPOS"
 ): void {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const margin = 12;
@@ -106,7 +107,7 @@ export function downloadStdStockCountPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.text(
-    `Generated ${new Date().toLocaleString("en-GB")} — XPOS Standard Stock Count`,
+    `Generated ${new Date().toLocaleString("en-GB")} — ${appName} Standard Stock Count`,
     margin,
     y
   );

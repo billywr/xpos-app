@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ShoppingCart, LayoutDashboard, Wallet, Lock, Unlock, ArrowDownToLine, ArrowUpFromLine, CalendarCheck } from "lucide-react";
+import { FLOATING_MENU_CARD } from "@/utils/floatingCardClasses";
+import { PageHeader } from "@/components/PageHeader";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import {
@@ -167,9 +169,10 @@ export function OperatorDashboard() {
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 text-2xl font-bold text-slate-900 dark:text-white">
-        Operator Dashboard
-      </h1>
+      <PageHeader
+        title="Operator Dashboard"
+        fallbackTo="/"
+      />
 
       {/* Shift panel */}
       {orgId && branchId && terminalId && (
@@ -349,10 +352,10 @@ export function OperatorDashboard() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Link
           to="/operator/menu-order"
-          className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm transition hover:border-primary-500 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
+          className={`${FLOATING_MENU_CARD} p-6 text-slate-900 dark:text-white`}
         >
           <div className="rounded-lg bg-primary-600 p-3">
             <ShoppingCart className="h-8 w-8 text-white" />
@@ -366,7 +369,7 @@ export function OperatorDashboard() {
         </Link>
         <Link
           to="/operator/analytics"
-          className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm transition hover:border-primary-500 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:border-primary-500 dark:hover:bg-slate-700"
+          className={`${FLOATING_MENU_CARD} p-6 text-slate-900 dark:text-white`}
         >
           <div className="rounded-lg bg-primary-600 p-3">
             <LayoutDashboard className="h-8 w-8 text-white" />

@@ -13,14 +13,18 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
+  selectOrgId,
   selectOrgName,
   selectBranchName,
   selectTerminalName,
 } from "@/store/selectors/orgContextSelectors";
+import { selectToken } from "@/store/selectors/authSelectors";
+import { fetchMe } from "@/api/me";
 import { clearCredentials } from "@/store/slices/authSlice";
 import { clearContext } from "@/store/slices/orgContextSlice";
 import { clearStoredAuth } from "@/utils/authStorage";
@@ -30,6 +34,7 @@ import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { isOperatorNavItemVisible } from "@/hooks/useOperatorNavVisibility";
 import { OPERATOR_NAV_ITEMS } from "@/config/operatorNavItems";
+import { APP_NAME_KEY } from "@/config/headerNavItems";
 
 const MANAGE_TABLE_SUB_ITEMS = [
   { to: "/operator/tables/booked", label: "Booked" },
@@ -46,20 +51,38 @@ function isVisible(
   return isOperatorNavItemVisible(path, canHide, visibilityState);
 }
 
+const ME_QUERY_KEY = "me";
+
 export function OperatorLayout() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { theme, toggleTheme } = useTheme();
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
+  const token = useAppSelector(selectToken);
+  const orgId = useAppSelector(selectOrgId);
   const orgName = useAppSelector(selectOrgName);
   const branchName = useAppSelector(selectBranchName);
   const terminalName = useAppSelector(selectTerminalName);
   const navVisibility = useNavVisibilityContextOrNull();
+
+  const { data: meData } = useQuery({
+    queryKey: [ME_QUERY_KEY, token, orgId],
+    queryFn: () => fetchMe(token, orgId!),
+    enabled: Boolean(token && orgId),
+  });
+
+  const displayName = meData?.profile?.displayName ?? meData?.username ?? "User";
+  const displayInitial = displayName.charAt(0).toUpperCase() || "U";
   const [globalError, setGlobalError] = useState<{ message: string; requestId: string } | null>(null);
   const [manageOpen, setManageOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
   const visibilityState = navVisibility?.operatorVisibility ?? null;
+  const getOperatorLabel = navVisibility?.getOperatorLabel ?? ((_, defaultLabel) => defaultLabel);
+  const getHeaderLabel = navVisibility?.getHeaderLabel ?? ((_, l) => l);
+  const getHeaderLogo = navVisibility?.getHeaderLogo ?? (() => null);
+  const appName = navVisibility ? getHeaderLabel(APP_NAME_KEY, "XPOS") : "XPOS";
+  const logoUrl = navVisibility ? getHeaderLogo() : null;
 
   const visibleMainNavItems = useMemo(
     () =>
@@ -101,16 +124,27 @@ export function OperatorLayout() {
     navigate("/login", { replace: true });
   };
 
+  const HEADER_HEIGHT = "3.5rem"; // h-14
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900 dark:bg-darkBg dark:text-white">
-      <header className="sticky top-0 z-30 flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-white/10 dark:bg-darkNav">
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-white/10 dark:bg-darkNav">
         <div className="flex items-center gap-3">
           <Link
             to="/operator"
             className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white"
           >
-            <Store className="h-8 w-8 rounded-lg bg-primary-500 p-1.5 text-white" />
-            <span className="hidden sm:inline">XPOS Cashier</span>
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt=""
+                className="h-8 w-8 rounded-lg object-contain"
+                aria-hidden
+              />
+            ) : (
+              <Store className="h-8 w-8 rounded-lg bg-primary-500 p-1.5 text-white" />
+            )}
+            <span className="hidden sm:inline">{appName} Cashier</span>
           </Link>
           <div className="hidden h-6 w-px bg-slate-300 dark:bg-slate-600 md:block" />
           <div className="flex items-center gap-2">
@@ -165,9 +199,11 @@ export function OperatorLayout() {
           </span>
           <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 dark:bg-darkSurface">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-300 text-sm font-medium text-slate-600 dark:bg-white/20 dark:text-white">
-              U
+              {displayInitial}
             </div>
-            <span className="hidden text-sm text-slate-700 sm:inline dark:text-white">User</span>
+            <span className="hidden text-sm text-slate-700 sm:inline dark:text-white">
+              {displayName}
+            </span>
           </div>
         </div>
       </header>
@@ -189,11 +225,12 @@ export function OperatorLayout() {
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
           className={`flex shrink-0 flex-col border-r border-slate-200 bg-white transition-[width] duration-200 dark:border-white/10 dark:bg-darkNav ${
             collapsed ? "w-[4.25rem]" : "w-56"
           }`}
+          style={{ minHeight: `calc(100vh - ${HEADER_HEIGHT})` }}
         >
           <div className="flex items-center justify-end border-b border-slate-200 p-2 dark:border-white/10">
             <button
@@ -210,25 +247,29 @@ export function OperatorLayout() {
             </button>
           </div>
           <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Main">
-            {visibleMainNavItems.map(({ to, label, icon: Icon }) => (
+            {visibleMainNavItems.map(({ to, label, icon: Icon, end }) => {
+              const displayLabel = getOperatorLabel(to, label);
+              return (
               <NavLink
                 key={to}
                 to={to}
-                title={collapsed ? label : undefined}
+                end={end}
+                title={displayLabel}
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                     collapsed ? "justify-center" : ""
                   } ${
                     isActive
-                      ? "bg-primary-600 text-white"
+                      ? "bg-indigo-600 text-white dark:bg-indigo-500"
                       : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
                   }`
                 }
               >
                 {Icon && <Icon className="h-5 w-5 shrink-0" />}
-                {!collapsed && <span>{label}</span>}
+                {!collapsed && <span>{displayLabel}</span>}
               </NavLink>
-            ))}
+            );
+            })}
             {!collapsed && (showManageTable || visibleOtherManageItems.length > 0) && (
               <>
                 <div className="my-2 border-t border-slate-200 dark:border-white/10" />
@@ -237,11 +278,12 @@ export function OperatorLayout() {
                     <button
                       type="button"
                       onClick={() => setManageOpen(!manageOpen)}
+                      title={getOperatorLabel("/operator/tables", "Manage Table")}
                       className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
                     >
                       <span className="flex items-center gap-3">
                         <UtensilsCrossed className="h-5 w-5 shrink-0" />
-                        Manage Table
+                        {getOperatorLabel("/operator/tables", "Manage Table")}
                       </span>
                       <ChevronDown
                         className={`h-4 w-4 transition ${manageOpen ? "rotate-180" : ""}`}
@@ -249,47 +291,56 @@ export function OperatorLayout() {
                     </button>
                     {manageOpen && (
                       <div className="ml-4 flex flex-col gap-1 border-l border-slate-200 pl-2 dark:border-white/10">
-                        {MANAGE_TABLE_SUB_ITEMS.map(({ to, label }) => (
+                        {MANAGE_TABLE_SUB_ITEMS.map(({ to, label }) => {
+                          const displayLabel = getOperatorLabel(to, label);
+                          return (
                           <NavLink
                             key={to}
                             to={to}
+                            title={displayLabel}
                             className={({ isActive }) =>
                               `rounded-lg px-2 py-1.5 text-sm ${
                                 isActive
-                                  ? "text-primary-600 dark:text-primary-400"
+                                  ? "bg-indigo-600 text-white dark:bg-indigo-500"
                                   : "text-slate-500 hover:text-slate-900 dark:text-white/80 dark:hover:text-white"
                               }`
                             }
                           >
-                            {label}
+                            {displayLabel}
                           </NavLink>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </>
                 )}
-                {visibleOtherManageItems.map(({ to, label, icon: Icon }) => (
+                {visibleOtherManageItems.map(({ to, label, icon: Icon }) => {
+                  const displayLabel = getOperatorLabel(to, label);
+                  return (
                   <NavLink
                     key={to}
                     to={to}
+                    title={displayLabel}
                     className={({ isActive }) =>
                       `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                         isActive
-                          ? "bg-primary-600 text-white"
+                          ? "bg-indigo-600 text-white dark:bg-indigo-500"
                           : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
                       }`
                     }
                   >
                     {Icon && <Icon className="h-5 w-5 shrink-0" />}
-                    {label}
+                    {displayLabel}
                   </NavLink>
-                ))}
+                  );
+                })}
               </>
             )}
             <div className="my-2 border-t border-slate-200 dark:border-white/10" />
             {!collapsed && (
               <Link
                 to="/settings"
+                title="Settings"
                 className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
               >
                 <Settings className="h-5 w-5 shrink-0" />
@@ -299,6 +350,7 @@ export function OperatorLayout() {
             <button
               type="button"
               onClick={handleLogout}
+              title="Logout"
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white ${collapsed ? "justify-center" : ""}`}
             >
               <LogOut className="h-5 w-5 shrink-0" />

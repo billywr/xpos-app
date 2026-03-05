@@ -1,17 +1,26 @@
 import { Link } from "react-router-dom";
 import { LayoutDashboard, ShoppingCart, Settings } from "lucide-react";
+import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
+import { APP_NAME_KEY } from "@/config/headerNavItems";
+import { FLOATING_MENU_CARD } from "@/utils/floatingCardClasses";
+import { PageHeader } from "@/components/PageHeader";
 
 export function HomePage() {
+  const navVisibility = useNavVisibilityContextOrNull();
+  const getHeaderLabel = navVisibility?.getHeaderLabel ?? ((_, l) => l);
+  const appName = navVisibility ? getHeaderLabel(APP_NAME_KEY, "XPOS") : "XPOS";
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="mb-2 text-2xl font-bold text-slate-800 dark:text-white">Welcome to XPOS</h1>
-      <p className="mb-8 text-slate-600 dark:text-slate-400">
-        Multi-vertical POS for Kenya. Choose Admin to manage org, catalog and staff, or Operator to run the till.
-      </p>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <PageHeader
+        title={`Welcome to ${appName}`}
+        subtitle="Multi-vertical POS for Kenya. Choose Admin to manage org, catalog and staff, or Operator to run the till."
+        fallbackTo="/"
+      />
+      <div className="mt-2 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Link
           to="/admin"
-          className="flex items-center gap-4 rounded-xl border border-sky-200/70 bg-white/90 p-6 shadow-sm transition hover:border-primary-300 hover:shadow-md dark:border-slate-600 dark:bg-slate-800/90"
+          className={`${FLOATING_MENU_CARD} p-6`}
         >
           <div className="rounded-xl bg-primary-100/80 p-3 dark:bg-primary-900/30">
             <Settings className="h-8 w-8 text-primary-600 dark:text-primary-400" />
@@ -23,7 +32,7 @@ export function HomePage() {
         </Link>
         <Link
           to="/operator"
-          className="flex items-center gap-4 rounded-xl border border-sky-200/70 bg-white/90 p-6 shadow-sm transition hover:border-primary-300 hover:shadow-md dark:border-slate-600 dark:bg-slate-800/90"
+          className={`${FLOATING_MENU_CARD} p-6`}
         >
           <div className="rounded-xl bg-primary-100/80 p-3 dark:bg-primary-900/30">
             <ShoppingCart className="h-8 w-8 text-primary-600 dark:text-primary-400" />
@@ -35,7 +44,7 @@ export function HomePage() {
         </Link>
         <Link
           to="/operator/analytics"
-          className="flex items-center gap-4 rounded-xl border border-sky-200/70 bg-white/90 p-6 shadow-sm transition hover:border-primary-300 hover:shadow-md dark:border-slate-600 dark:bg-slate-800/90"
+          className={`${FLOATING_MENU_CARD} p-6`}
         >
           <div className="rounded-xl bg-primary-100/80 p-3 dark:bg-primary-900/30">
             <LayoutDashboard className="h-8 w-8 text-primary-600 dark:text-primary-400" />

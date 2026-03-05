@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useLayoutEffect } from "react";
+import { Outlet, Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Store, LayoutDashboard, LogOut, Sun, Moon } from "lucide-react";
 import { ContextSelectDropdowns } from "@/components/ContextSelectDropdowns";
 import { useAppSelector } from "@/hooks/useAppSelector";
@@ -9,9 +9,19 @@ import { clearContext } from "@/store/slices/orgContextSlice";
 import { selectToken, selectIamUserId } from "@/store/selectors/authSelectors";
 import { useIdleLogout } from "@/hooks/useIdleLogout";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
+import { isHeaderNavItemVisible } from "@/hooks/useHeaderNavVisibility";
+import { APP_NAME_KEY } from "@/config/headerNavItems";
 import { set401Handler } from "@/api/client";
 import { clearStoredAuth } from "@/utils/authStorage";
 import { clearStoredContext } from "@/utils/contextStorage";
+
+const HEADER_NAV_LINKS = [
+  { to: "/", label: "Home", end: true },
+  { to: "/admin", label: "Admin" },
+  { to: "/operator", label: "Operator" },
+  { to: "/select-context", label: "Org", end: true },
+];
 
 const IDLE_LOGOUT_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -22,6 +32,16 @@ export function Layout() {
   const token = useAppSelector(selectToken);
   const iamUserId = useAppSelector(selectIamUserId);
   const { theme, toggleTheme } = useTheme();
+  const navVisibility = useNavVisibilityContextOrNull();
+  const headerVisibility = navVisibility?.headerVisibility ?? {};
+  const getHeaderLabel = navVisibility?.getHeaderLabel ?? ((_, l) => l);
+  const getHeaderLogo = navVisibility?.getHeaderLogo ?? (() => null);
+  const appName = navVisibility ? getHeaderLabel(APP_NAME_KEY, "XPOS") : "XPOS";
+  const logoUrl = navVisibility ? getHeaderLogo() : null;
+
+  useLayoutEffect(() => {
+    document.title = appName ? `${appName} — POS` : "XPOS";
+  }, [appName]);
 
   useEffect(() => {
     set401Handler(() => {
@@ -52,43 +72,46 @@ export function Layout() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-app">
-      <header className="border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-darkNav/95">
+    <div className="flex h-screen flex-col overflow-hidden bg-app">
+      <header className="sticky top-0 z-20 shrink-0 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-darkNav/95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-14">
             <Link
               to="/"
               className="flex items-center gap-2 font-semibold text-primary-700 dark:text-white"
             >
-              <Store className="h-7 w-7" />
-              <span>XPOS</span>
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt=""
+                  className="h-7 w-7 object-contain"
+                  aria-hidden
+                />
+              ) : (
+                <Store className="h-7 w-7" />
+              )}
+              <span>{appName}</span>
             </Link>
             <nav className="flex items-center gap-4">
-              <Link
-                to="/"
-                className="flex items-center gap-1.5 text-slate-600 hover:text-primary-600 dark:text-white/90 dark:hover:text-white"
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                Home
-              </Link>
-              <Link
-                to="/admin"
-                className="text-slate-600 hover:text-primary-600 dark:text-white/90 dark:hover:text-white"
-              >
-                Admin
-              </Link>
-              <Link
-                to="/operator"
-                className="text-slate-600 hover:text-primary-600 dark:text-white/90 dark:hover:text-white"
-              >
-                Operator
-              </Link>
-              <Link
-                to="/select-context"
-                className="text-slate-600 hover:text-primary-600 dark:text-white/90 dark:hover:text-white"
-              >
-                Org
-              </Link>
+              {HEADER_NAV_LINKS.filter((item) =>
+                isHeaderNavItemVisible(item.to, true, headerVisibility)
+              ).map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) =>
+                    `flex items-center gap-1.5 rounded-lg px-2 py-1.5 ${
+                      isActive
+                        ? "bg-primary-100 text-primary-700 font-semibold dark:bg-white/15 dark:text-white"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-primary-600 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
+                    }`
+                  }
+                >
+                  {item.to === "/" && <LayoutDashboard className="h-4 w-4" />}
+                  {getHeaderLabel(item.to, item.label)}
+                </NavLink>
+              ))}
               <ContextSelectDropdowns />
               <button
                 type="button"
@@ -114,7 +137,7 @@ export function Layout() {
           </div>
         </div>
       </header>
-      <main className="flex-1 overflow-auto">
+      <main className="min-h-0 flex-1 overflow-auto">
         <Outlet />
       </main>
     </div>

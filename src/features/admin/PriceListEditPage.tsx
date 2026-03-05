@@ -17,6 +17,7 @@ import type { Branch } from "@/types/org";
 import { filterNonDeletedBranches } from "@/types/org";
 import type { PriceListItem } from "@/types/sales";
 import type { Item } from "@/types/catalog";
+import { PageHeader } from "@/components/PageHeader";
 import { Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorCode, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -339,22 +340,14 @@ export function PriceListEditPage() {
     );
   }
 
-  const backHref = `/admin/price-lists?orgId=${orgId}`;
-
   return (
     <div className="min-h-0 flex-1 overflow-auto p-6">
-      <Link
-        to={backHref}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-slate-600 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to price lists
-      </Link>
+      <PageHeader
+        title={`Edit price list: ${priceList.name}`}
+        fallbackTo="/admin"
+      />
 
       <div className="mb-8 rounded-lg border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Edit price list: {priceList.name}
-        </h1>
         <form
           id="pl-form"
           onSubmit={handleSaveList}

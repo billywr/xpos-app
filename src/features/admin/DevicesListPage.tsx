@@ -14,6 +14,7 @@ import {
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { DeviceRegistration } from "@/types/org";
+import { PageHeader } from "@/components/PageHeader";
 import { SlideOver, ConfirmDialog, Pagination } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -220,9 +221,11 @@ export function DevicesListPage() {
   if (isLoading && selectedOrgId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Devices
-        </h1>
+        <PageHeader
+          title="Devices"
+          subtitle="Loading…"
+          fallbackTo="/admin"
+        />
         <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Loading…
         </div>
@@ -235,9 +238,10 @@ export function DevicesListPage() {
     const requestId = getApiErrorRequestId(error);
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Devices
-        </h1>
+        <PageHeader
+          title="Devices"
+          fallbackTo="/admin"
+        />
         <div
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
           role="alert"
@@ -258,16 +262,11 @@ export function DevicesListPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
-            Devices
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Register and manage devices per organization. Bind devices to terminals from Terminals.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Devices"
+        subtitle="Register and manage devices per organization. Bind devices to terminals from Terminals."
+        fallbackTo="/admin"
+      />
 
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <label

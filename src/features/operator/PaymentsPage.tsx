@@ -10,6 +10,7 @@ import {
 } from "@/store/selectors/orgContextSelectors";
 import { fetchOpenOrHeldSales, voidSale } from "@/api/sales";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { PageHeader } from "@/components/PageHeader";
 import { ConfirmDialog } from "@/components/ui";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
@@ -63,9 +64,12 @@ export function PaymentsPage() {
   if (isLoading) {
     return (
       <div className="min-h-0 flex-1 overflow-auto p-4">
-        <h1 className="mb-4 text-xl font-bold text-slate-900 dark:text-white">
-          Payments
-        </h1>
+        <PageHeader
+          title="Payments"
+          subtitle="Loading…"
+          icon={CreditCard}
+          fallbackTo="/operator"
+        />
         <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Loading…
         </div>
@@ -75,16 +79,12 @@ export function PaymentsPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-auto p-4">
-      <h1 className="mb-4 flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white">
-        <CreditCard className="h-6 w-6" />
-        Payments
-      </h1>
-      <p className="mb-6 text-slate-600 dark:text-slate-400">
-        Complete payments from the Menu Order screen. Add items to cart, then
-        click <strong>Proceed to payment</strong> to add tenders (Cash, M-Pesa,
-        etc.) and complete the sale. Click <strong>Cancel</strong> when the
-        customer changes their mind or items are out of stock.
-      </p>
+      <PageHeader
+        title="Payments"
+        subtitle="Complete payments from the Menu Order screen. Add items to cart, then click Proceed to payment to add tenders (Cash, M-Pesa, etc.) and complete the sale. Click Cancel when the customer changes their mind or items are out of stock."
+        icon={CreditCard}
+        fallbackTo="/operator"
+      />
 
       {sales.length > 0 && (
         <div className="mb-6">

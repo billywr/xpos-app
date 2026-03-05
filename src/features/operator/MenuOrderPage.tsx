@@ -38,6 +38,7 @@ import { fetchStockLevels } from "@/api/stockLevels";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getItemImageUrl } from "@/utils/itemImage";
 import { MenuItemCard } from "@/components/MenuItemCard";
+import { PageHeader } from "@/components/PageHeader";
 import { ModifierModal } from "@/components/ModifierModal";
 import { ReceiptModal } from "@/components/ReceiptModal";
 import { getApiErrorMessage } from "@/utils/apiError";
@@ -437,9 +438,13 @@ export function MenuOrderPage() {
     <div className="flex h-full min-h-0 touch-manipulation flex-col lg:flex-row">
       {/* Main content: categories + item grid */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
-        <h2 className="mb-2 shrink-0 text-lg font-semibold text-slate-900 dark:text-white">
-          Dish Menu
-        </h2>
+        <PageHeader
+          title="Menu Order"
+          subtitle="Select items and proceed to payment"
+          fallbackTo="/operator"
+          noMargin
+          className="mb-2 shrink-0"
+        />
         <div className="mb-2 flex shrink-0 flex-wrap gap-1.5">
           <button
             type="button"

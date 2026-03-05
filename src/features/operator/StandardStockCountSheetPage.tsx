@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { PageHeader } from "@/components/PageHeader";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import {
@@ -18,6 +19,8 @@ import {
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
+import { APP_NAME_KEY } from "@/config/headerNavItems";
 import {
   ChevronLeft,
   ChevronRight,
@@ -132,6 +135,10 @@ export function StandardStockCountSheetPage({
   const orgName = orgNameProp ?? contextOrgName;
   const queryClient = useQueryClient();
   const toast = useToast();
+  const navVisibility = useNavVisibilityContextOrNull();
+  const appName = navVisibility
+    ? navVisibility.getHeaderLabel(APP_NAME_KEY, "XPOS")
+    : "XPOS";
 
   const [dateStr, setDateStr] = useState(todayStr);
   const [searchQuery, setSearchQuery] = useState("");
@@ -274,7 +281,8 @@ export function StandardStockCountSheetPage({
       pdfTotals,
       branchName,
       orgName,
-      showSystemAndVariance
+      showSystemAndVariance,
+      appName
     );
     toast.success("PDF downloaded.", { title: "Stock Count Sheet" });
   }
@@ -317,18 +325,12 @@ export function StandardStockCountSheetPage({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
-      <div className="mb-4">
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-          <FileSpreadsheet className="h-7 w-7" />
-          Stock Count Sheet
-        </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Bar-style sheet at {branchName ?? "this branch"}. Opening + Added =
-            Total; Closing = physical count; Units Sold = Total − Closing.
-            {showSystemAndVariance &&
-              " System = inventory at start of day; Variance = Closing − System (positive = excess)."}
-          </p>
-      </div>
+      <PageHeader
+        title="Stock Count Sheet"
+        subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening + Added = Total; Closing = physical count; Units Sold = Total − Closing.${showSystemAndVariance ? " System = inventory at start of day; Variance = Closing − System (positive = excess)." : ""}`}
+        icon={FileSpreadsheet}
+        fallbackTo="/operator"
+      />
 
       <div className="mb-3 flex items-center gap-4">
         {sheet ? (
@@ -339,10 +341,10 @@ export function StandardStockCountSheetPage({
               placeholder="Filter by name or SKU"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 sm:max-w-xs"
+              className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 sm:max-w-xs"
             />
             {sheet.rows[0]?.lastSavedAt && (
-              <span className="hidden shrink-0 text-xs text-slate-500 dark:text-slate-400 sm:inline">
+              <span className="hidden shrink-0 text-sm text-slate-500 dark:text-slate-400 sm:inline">
                 Last saved: {new Date(sheet.rows[0].lastSavedAt).toLocaleString()}
               </span>
             )}
@@ -434,31 +436,31 @@ export function StandardStockCountSheetPage({
               <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700/80">
                 <tr>
                   <th
-                    className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300"
-                    title="Product name and SKU"
+                    className="px-4 py-3 text-left text-base font-medium text-slate-700 dark:text-slate-300"
+                    title="Product name"
                   >
                     Item
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
                     title="Closing of yesterday — stock at start of today"
                   >
                     Opening
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
                     title="Items added today (GRN, transfers in)"
                   >
                     Added
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
                     title="Opening + Added — expected stock before sales"
                   >
                     Total Stock
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
                     title="Physical count at end of day"
                   >
                     Closing
@@ -466,13 +468,13 @@ export function StandardStockCountSheetPage({
                   {showSystemAndVariance && (
                     <>
                       <th
-                        className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                        className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
                         title="Inventory system balance at start of today (current − added)"
                       >
                         System
                       </th>
                       <th
-                        className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                        className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
                         title="Closing − System (positive = excess/selling not in system, negative = short)"
                       >
                         Variance
@@ -480,19 +482,19 @@ export function StandardStockCountSheetPage({
                     </>
                   )}
                   <th
-                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
                     title="Total Stock − Closing (units sold)"
                   >
                     Units Sold
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
                     title="Selling price per unit from price list"
                   >
                     Selling Price
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
                     title="Units Sold × Selling Price (revenue value)"
                   >
                     Amount
@@ -505,19 +507,16 @@ export function StandardStockCountSheetPage({
                     key={r.itemId}
                     className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
                   >
-                    <td className="px-4 py-2 text-sm text-slate-900 dark:text-white">
-                      <span className="font-medium">
-                        {r.sku ? `${r.sku} · ` : ""}
-                        {r.name || "—"}
-                      </span>
+                    <td className="px-4 py-2 text-base font-bold text-slate-900 dark:text-white">
+                      {r.name || "—"}
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                    <td className="px-4 py-2 text-right text-base tabular-nums text-slate-700 dark:text-slate-300">
                       {r.openingStock}
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                    <td className="px-4 py-2 text-right text-base tabular-nums text-slate-700 dark:text-slate-300">
                       {r.addedStock}
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                    <td className="px-4 py-2 text-right text-base tabular-nums text-slate-700 dark:text-slate-300">
                       {r.totalStock}
                     </td>
                     <td className="px-4 py-2">
@@ -535,7 +534,7 @@ export function StandardStockCountSheetPage({
                             onChange={(e) =>
                               handleClosingChange(r.itemId, e.target.value)
                             }
-                            className={`w-20 rounded border px-2 py-1 text-right text-sm tabular-nums ${
+                            className={`w-20 rounded border px-2 py-1 text-right text-base tabular-nums ${
                               r.closingError
                                 ? "border-red-500 bg-red-50 dark:border-red-600 dark:bg-red-950/20"
                                 : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800"
@@ -548,18 +547,18 @@ export function StandardStockCountSheetPage({
                           )}
                         </div>
                       ) : (
-                        <span className="text-right tabular-nums">
+                        <span className="text-right text-base tabular-nums">
                           {r.closingStock}
                         </span>
                       )}
                     </td>
                     {showSystemAndVariance && (
                       <>
-                        <td className="px-4 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                        <td className="px-4 py-2 text-right text-base tabular-nums text-slate-700 dark:text-slate-300">
                           {r.systemCountBeforeToday}
                         </td>
                         <td
-                          className={`px-4 py-2 text-right tabular-nums ${
+                          className={`px-4 py-2 text-right text-base tabular-nums ${
                             r.variance > 0
                               ? "font-medium text-emerald-600 dark:text-emerald-400"
                               : r.variance < 0
@@ -579,13 +578,13 @@ export function StandardStockCountSheetPage({
                         </td>
                       </>
                     )}
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                    <td className="px-4 py-2 text-right text-base tabular-nums text-slate-700 dark:text-slate-300">
                       {r.unitsSold}
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                    <td className="px-4 py-2 text-right text-base tabular-nums text-slate-700 dark:text-slate-300">
                       {formatCurrency(r.sellingPrice)}
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums font-medium text-slate-900 dark:text-white">
+                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-900 dark:text-white">
                       {formatCurrency(r.amount)}
                     </td>
                   </tr>
@@ -613,7 +612,7 @@ export function StandardStockCountSheetPage({
               className="total-sales-badge inline-flex items-center gap-3 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 px-6 py-4 shadow-lg ring-2 ring-emerald-100/50 dark:border-emerald-800 dark:from-emerald-950/50 dark:to-teal-950/50 dark:ring-emerald-900/30"
               role="status"
             >
-              <span className="text-sm font-medium uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+              <span className="text-base font-medium uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                 Total Sales
               </span>
               <span className="text-2xl font-bold tabular-nums text-emerald-900 dark:text-emerald-100">

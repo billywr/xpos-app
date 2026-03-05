@@ -7,6 +7,7 @@ import { fetchBranches } from "@/api/branches";
 import { StandardStockCountSheetPage } from "@/features/operator/StandardStockCountSheetPage";
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
+import { PageHeader } from "@/components/PageHeader";
 import { FileSpreadsheet } from "lucide-react";
 
 export function StandardStockCountAdminPage() {
@@ -51,14 +52,12 @@ export function StandardStockCountAdminPage() {
   if (!selectedOrgId || !selectedBranchId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-          <FileSpreadsheet className="h-7 w-7" />
-          Standard Stock Count (Admin)
-        </h1>
-        <p className="mb-4 text-slate-600 dark:text-slate-400">
-          Bar-style sheet with System and Variance columns. Select organization
-          and branch.
-        </p>
+        <PageHeader
+          title="Standard Stock Count (Admin)"
+          subtitle="Bar-style sheet with System and Variance columns. Select organization and branch."
+          icon={FileSpreadsheet}
+          fallbackTo="/admin"
+        />
         <div className="mb-4 flex flex-wrap items-center gap-4">
           <label
             htmlFor="std-org-select"

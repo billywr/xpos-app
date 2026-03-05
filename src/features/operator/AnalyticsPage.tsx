@@ -44,6 +44,8 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { AnalyticsOrgBranchFilter } from "@/components/AnalyticsOrgBranchFilter";
+import { FLOATING_CARD } from "@/utils/floatingCardClasses";
+import { PageHeader } from "@/components/PageHeader";
 
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
 
@@ -209,13 +211,12 @@ export function AnalyticsPage() {
   return (
     <div className="min-h-0 flex-1 overflow-auto p-6">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Analytics
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Real-time view for {branchName ?? "this branch"}
-          </p>
+        <PageHeader
+          title="Analytics"
+          subtitle={`Real-time view for ${branchName ?? "this branch"}`}
+          fallbackTo="/operator"
+          noMargin
+        >
           <div className="mt-3 flex flex-wrap items-center gap-4">
             <AnalyticsOrgBranchFilter />
             <div className="flex items-center gap-2">
@@ -250,7 +251,7 @@ export function AnalyticsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </PageHeader>
         <div className="flex items-center gap-3">
           <span className="text-xs text-slate-500 dark:text-slate-400">
             Updated {lastUpdated} · Auto-refresh 5 mins
@@ -377,7 +378,7 @@ export function AnalyticsPage() {
 
       {/* Charts row */}
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+        <div className={`${FLOATING_CARD} p-4`}>
           <h2 className="mb-4 font-semibold text-slate-900 dark:text-white">
             Hourly revenue
           </h2>
@@ -415,7 +416,7 @@ export function AnalyticsPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+        <div className={`${FLOATING_CARD} p-4`}>
           <h2 className="mb-4 font-semibold text-slate-900 dark:text-white">
             7-day trend
           </h2>
@@ -470,7 +471,7 @@ export function AnalyticsPage() {
 
       {/* Bottom row: payment breakdown + top items */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+        <div className={`${FLOATING_CARD} p-4`}>
           <h2 className="mb-4 flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
             <CreditCard className="h-5 w-5" />
             Payment mix
@@ -528,7 +529,7 @@ export function AnalyticsPage() {
           )}
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+        <div className={`${FLOATING_CARD} p-4`}>
           <h2 className="mb-4 flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
             <Package className="h-5 w-5" />
             Top items
@@ -595,7 +596,7 @@ function KpiCard({
       : value;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+    <div className={`${FLOATING_CARD} p-5`}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -630,7 +631,7 @@ function ComparisonCard({
   const label = isToday ? "vs yesterday" : "vs previous period";
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+    <div className={`${FLOATING_CARD} p-5`}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">

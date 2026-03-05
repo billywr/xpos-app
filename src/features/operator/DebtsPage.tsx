@@ -32,6 +32,7 @@ import {
   Banknote,
   ChevronDown,
 } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 const PAGE_SIZE = 20;
 const STATUS_OPTIONS = [
@@ -301,13 +302,12 @@ export function DebtsPage() {
   return (
     <div className="min-h-0 flex-1 overflow-auto p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Customer Debts
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Record and view credit sales for {branchName ?? "this branch"}
-          </p>
+        <PageHeader
+          title="Customer Debts"
+          subtitle={`Record and view credit sales for ${branchName ?? "this branch"}`}
+          fallbackTo="/operator"
+          noMargin
+        >
           <div className="mt-3 flex items-center gap-2">
             <label
               htmlFor="debt-status-filter"
@@ -338,7 +338,7 @@ export function DebtsPage() {
               />
             </div>
           </div>
-        </div>
+        </PageHeader>
         <button
           type="button"
           onClick={() => setFormOpen(true)}

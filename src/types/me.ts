@@ -2,22 +2,21 @@
  * /api/v1/me and org context types.
  */
 
+export interface MeStaffProfileResponse {
+  displayName: string | null;
+  phone: string | null;
+  email: string | null;
+  employeeNo: string | null;
+  defaultBranchId: string | null;
+  status: string;
+}
+
 export interface MeResponse {
   orgId: string;
-  orgName: string;
-  staffUserId: string | null;
-  displayName: string | null;
-  branches: MeBranch[];
-}
-
-export interface MeBranch {
-  branchId: string;
-  branchName: string;
-  primary: boolean;
-  terminals: MeTerminal[];
-}
-
-export interface MeTerminal {
-  terminalId: string;
-  terminalCode: string;
+  iamUserId: string;
+  username: string;
+  staffUserId: string;
+  staffStatus: string;
+  profile: MeStaffProfileResponse | null;
+  primaryBranchId: string | null;
 }

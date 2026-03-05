@@ -23,6 +23,8 @@ export interface OperatorNavItemConfig {
   canHide: boolean;
   /** When true, represents a collapsible section (e.g. Manage Table with sub-items) */
   isGroup?: boolean;
+  /** If true, NavLink only active when path matches exactly (e.g. Dashboard at /operator) */
+  end?: boolean;
 }
 
 function navItem(
@@ -31,13 +33,14 @@ function navItem(
   group: string,
   canHide = true,
   icon?: React.ComponentType<{ className?: string }>,
-  isGroup?: boolean
+  isGroup?: boolean,
+  end?: boolean
 ): OperatorNavItemConfig {
-  return { to, label, icon, group, canHide, isGroup };
+  return { to, label, icon, group, canHide, isGroup, end };
 }
 
 export const OPERATOR_NAV_ITEMS: OperatorNavItemConfig[] = [
-  navItem("/operator", "Dashboard", "Main", false, LayoutDashboard),
+  navItem("/operator", "Dashboard", "Main", false, LayoutDashboard, false, true),
   navItem("/operator/menu-order", "Menu Order", "Main", true, ShoppingCart),
   navItem("/operator/receipts", "Receipts", "Main", true, Receipt),
   navItem("/operator/analytics", "Analytics", "Main", true, BarChart3),

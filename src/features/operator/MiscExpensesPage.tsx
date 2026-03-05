@@ -23,6 +23,7 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Receipt, Plus, Loader2, Pencil, XCircle } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 const PAGE_SIZE = 20;
 const EXPENSE_CATEGORIES: { value: MiscExpenseCategory; label: string }[] = [
@@ -210,14 +211,12 @@ export function MiscExpensesPage() {
   return (
     <div className="min-h-0 flex-1 overflow-auto p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Miscellaneous Expenses
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Record operational expenses for {branchName ?? "this branch"}
-          </p>
-        </div>
+        <PageHeader
+          title="Miscellaneous Expenses"
+          subtitle={`Record operational expenses for ${branchName ?? "this branch"}`}
+          fallbackTo="/operator"
+          noMargin
+        />
         <button
           type="button"
           onClick={() => setFormOpen(true)}

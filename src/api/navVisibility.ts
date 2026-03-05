@@ -3,11 +3,19 @@ import { apiFetch } from "./client";
 export interface NavVisibilityResponse {
   admin: Record<string, boolean>;
   operator: Record<string, boolean>;
+  header: Record<string, boolean>;
+  adminLabels: Record<string, string>;
+  operatorLabels: Record<string, string>;
+  headerLabels: Record<string, string>;
 }
 
 export interface NavVisibilityUpdateRequest {
   admin?: Record<string, boolean>;
   operator?: Record<string, boolean>;
+  header?: Record<string, boolean>;
+  adminLabels?: Record<string, string>;
+  operatorLabels?: Record<string, string>;
+  headerLabels?: Record<string, string>;
 }
 
 export async function fetchNavVisibility(
@@ -21,6 +29,10 @@ export async function fetchNavVisibility(
   return {
     admin: res.admin ?? {},
     operator: res.operator ?? {},
+    header: res.header ?? {},
+    adminLabels: res.adminLabels ?? {},
+    operatorLabels: res.operatorLabels ?? {},
+    headerLabels: res.headerLabels ?? {},
   };
 }
 
@@ -36,6 +48,10 @@ export async function updateNavVisibility(
       body: {
         admin: data.admin ?? {},
         operator: data.operator ?? {},
+        header: data.header ?? {},
+        adminLabels: data.adminLabels ?? {},
+        operatorLabels: data.operatorLabels ?? {},
+        headerLabels: data.headerLabels ?? {},
       },
       method: "PUT",
     }
@@ -43,5 +59,9 @@ export async function updateNavVisibility(
   return {
     admin: res.admin ?? {},
     operator: res.operator ?? {},
+    header: res.header ?? {},
+    adminLabels: res.adminLabels ?? {},
+    operatorLabels: res.operatorLabels ?? {},
+    headerLabels: res.headerLabels ?? {},
   };
 }

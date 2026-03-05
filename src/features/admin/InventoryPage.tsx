@@ -7,6 +7,7 @@ import { fetchBranches } from "@/api/branches";
 import { fetchInventoryReport, type InventoryReportLineResponse } from "@/api/inventoryReport";
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
+import { PageHeader } from "@/components/PageHeader";
 import { Pagination } from "@/components/ui";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { Package, TrendingDown, TrendingUp } from "lucide-react";
@@ -72,9 +73,12 @@ export function InventoryPage() {
   if (isLoading && selectedOrgId && selectedBranchId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Inventory
-        </h1>
+        <PageHeader
+          title="Inventory"
+          subtitle="Loading…"
+          icon={Package}
+          fallbackTo="/admin"
+        />
         <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Loading…
         </div>
@@ -85,9 +89,11 @@ export function InventoryPage() {
   if (isError && selectedOrgId && selectedBranchId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Inventory
-        </h1>
+        <PageHeader
+          title="Inventory"
+          icon={Package}
+          fallbackTo="/admin"
+        />
         <div
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
           role="alert"
@@ -100,18 +106,12 @@ export function InventoryPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-            <Package className="h-7 w-7" />
-            Inventory
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Track sold items versus remaining stock by branch. Select organization and
-            branch to view inventory.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Inventory"
+        subtitle="Track sold items versus remaining stock by branch. Select organization and branch to view inventory."
+        icon={Package}
+        fallbackTo="/admin"
+      />
 
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <label

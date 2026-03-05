@@ -17,7 +17,8 @@ function formatKsh(amount: number): string {
 export function generateStockCountPdf(
   session: StockCountSessionResponse,
   branchName?: string | null,
-  orgName?: string | null
+  orgName?: string | null,
+  appName = "XPOS"
 ): jsPDF {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const margin = 15;
@@ -137,7 +138,7 @@ export function generateStockCountPdf(
   y += 8;
   doc.setFontSize(9);
   doc.text(
-    `Generated ${new Date().toLocaleString("en-GB")} — XPOS Stock Count`,
+    `Generated ${new Date().toLocaleString("en-GB")} — ${appName} Stock Count`,
     margin,
     y
   );
@@ -148,9 +149,10 @@ export function generateStockCountPdf(
 export function downloadStockCountPdf(
   session: StockCountSessionResponse,
   branchName?: string | null,
-  orgName?: string | null
+  orgName?: string | null,
+  appName = "XPOS"
 ): void {
-  const doc = generateStockCountPdf(session, branchName, orgName);
+  const doc = generateStockCountPdf(session, branchName, orgName, appName);
   const date = new Date(session.startedAt).toISOString().slice(0, 10);
   const filename = `stock-count-${date}-${session.id.slice(0, 8)}.pdf`;
   doc.save(filename);
@@ -159,9 +161,10 @@ export function downloadStockCountPdf(
 export function shareStockCountPdf(
   session: StockCountSessionResponse,
   branchName?: string | null,
-  orgName?: string | null
+  orgName?: string | null,
+  appName = "XPOS"
 ): void {
-  const doc = generateStockCountPdf(session, branchName, orgName);
+  const doc = generateStockCountPdf(session, branchName, orgName, appName);
   const blob = doc.output("blob");
   const file = new File(
     [blob],
@@ -177,9 +180,9 @@ export function shareStockCountPdf(
         files: [file],
       })
       .catch(() => {
-        downloadStockCountPdf(session, branchName, orgName);
+        downloadStockCountPdf(session, branchName, orgName, appName);
       });
   } else {
-    downloadStockCountPdf(session, branchName, orgName);
+    downloadStockCountPdf(session, branchName, orgName, appName);
   }
 }

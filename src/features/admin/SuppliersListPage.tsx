@@ -11,6 +11,7 @@ import {
 import type { Org } from "@/types/org";
 import type { Supplier } from "@/api/suppliers";
 import { filterActiveOrgs } from "@/types/org";
+import { PageHeader } from "@/components/PageHeader";
 import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -199,9 +200,12 @@ export function SuppliersListPage() {
   if (isLoading && selectedOrgId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Suppliers
-        </h1>
+        <PageHeader
+          title="Suppliers"
+          subtitle="Loading…"
+          icon={Truck}
+          fallbackTo="/admin"
+        />
         <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Loading…
         </div>
@@ -212,9 +216,11 @@ export function SuppliersListPage() {
   if (isError && selectedOrgId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Suppliers
-        </h1>
+        <PageHeader
+          title="Suppliers"
+          icon={Truck}
+          fallbackTo="/admin"
+        />
         <div
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
           role="alert"
@@ -236,16 +242,13 @@ export function SuppliersListPage() {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-            <Truck className="h-7 w-7" />
-            Suppliers
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Manage suppliers for receiving goods. Add a supplier before creating
-            a Goods Receipt.
-          </p>
-        </div>
+        <PageHeader
+          title="Suppliers"
+          subtitle="Manage suppliers for receiving goods. Add a supplier before creating a Goods Receipt."
+          icon={Truck}
+          fallbackTo="/admin"
+          noMargin
+        />
         <button
           type="button"
           onClick={() => {

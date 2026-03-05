@@ -17,8 +17,11 @@ import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
+import { APP_NAME_KEY } from "@/config/headerNavItems";
 import { downloadStockCountPdf } from "@/utils/stockCountPdf";
 import { ClipboardList, Plus, Loader2, Trash2, Download } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 const PAGE_SIZE = 10;
 
@@ -27,6 +30,10 @@ export function StockCountSessionsPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
+  const navVisibility = useNavVisibilityContextOrNull();
+  const appName = navVisibility
+    ? navVisibility.getHeaderLabel(APP_NAME_KEY, "XPOS")
+    : "XPOS";
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
   const [page, setPage] = useState(0);
@@ -138,7 +145,7 @@ export function StockCountSessionsPage() {
       const branchName = filteredBranches.find(
         (b: Branch) => b.id === selectedBranchId
       )?.name;
-      downloadStockCountPdf(session, branchName, orgName);
+      downloadStockCountPdf(session, branchName, orgName, appName);
       toast.success("PDF downloaded.", { title: "Stock count" });
     } catch (err) {
       toast.error(getApiErrorMessage(err), {
@@ -162,17 +169,13 @@ export function StockCountSessionsPage() {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-            <ClipboardList className="h-7 w-7" />
-            Manual Stock Taking
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Manual and scheduled stock counts. Start a session, add counted lines
-            on the count page, then close to apply variances. Download or share
-            PDF reports.
-          </p>
-        </div>
+        <PageHeader
+          title="Manual Stock Taking"
+          subtitle="Manual and scheduled stock counts. Start a session, add counted lines on the count page, then close to apply variances. Download or share PDF reports."
+          icon={ClipboardList}
+          fallbackTo="/admin"
+          noMargin
+        />
         <div className="flex items-center gap-4">
           <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Organization

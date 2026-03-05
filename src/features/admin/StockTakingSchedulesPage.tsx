@@ -16,6 +16,7 @@ import {
 } from "@/api/stockTaking";
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
+import { PageHeader } from "@/components/PageHeader";
 import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -263,15 +264,13 @@ export function StockTakingSchedulesPage() {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-            <CalendarClock className="h-7 w-7" />
-            Stock Taking Schedules
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Configure daily or weekly automatic stock counts per branch.
-          </p>
-        </div>
+        <PageHeader
+          title="Stock Taking Schedules"
+          subtitle="Configure daily or weekly automatic stock counts per branch."
+          icon={CalendarClock}
+          fallbackTo="/admin"
+          noMargin
+        />
         <div className="flex items-center gap-4">
           <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Organization

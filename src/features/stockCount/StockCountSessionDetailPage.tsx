@@ -13,8 +13,11 @@ import {
   Trash2,
 } from "lucide-react";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { PageHeader } from "@/components/PageHeader";
 import { ConfirmDialog } from "@/components/ui";
 import { useToast } from "@/contexts/ToastContext";
+import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
+import { APP_NAME_KEY } from "@/config/headerNavItems";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import {
   downloadStockCountPdf,
@@ -75,6 +78,10 @@ export function StockCountSessionDetailPage({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const navVisibility = useNavVisibilityContextOrNull();
+  const appName = navVisibility
+    ? navVisibility.getHeaderLabel(APP_NAME_KEY, "XPOS")
+    : "XPOS";
 
   const [addLineItemId, setAddLineItemId] = useState("");
   const [addLineQty, setAddLineQty] = useState("");
@@ -189,13 +196,13 @@ export function StockCountSessionDetailPage({
 
   function handleDownloadPdf() {
     if (!session) return;
-    downloadStockCountPdf(session, branchName, orgName);
+    downloadStockCountPdf(session, branchName, orgName, appName);
     toast.success("PDF downloaded.", { title: "Stock count" });
   }
 
   function handleSharePdf() {
     if (!session) return;
-    shareStockCountPdf(session, branchName, orgName);
+    shareStockCountPdf(session, branchName, orgName, appName);
     toast.success("Report shared or downloaded.", { title: "Stock count" });
   }
 
@@ -280,24 +287,13 @@ export function StockCountSessionDetailPage({
   return (
     <div className="min-h-0 flex-1 overflow-auto p-6">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Link
-            to={backHref}
-            className="mb-2 inline-flex items-center gap-1 text-sm text-slate-600 hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to sessions
-          </Link>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-            <ClipboardList className="h-7 w-7" />
-            Stock count {session.status === "OPEN" ? "(open)" : "(closed)"}
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            {branchName ?? "Branch"} · Started{" "}
-            {new Date(session.startedAt).toLocaleString("en-GB")} ·{" "}
-            {session.sourceType}
-          </p>
-        </div>
+        <PageHeader
+          title={`Stock count ${session.status === "OPEN" ? "(open)" : "(closed)"}`}
+          subtitle={`${branchName ?? "Branch"} · Started ${new Date(session.startedAt).toLocaleString("en-GB")} · ${session.sourceType}`}
+          icon={ClipboardList}
+          fallbackTo="/operator"
+          noMargin
+        />
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"

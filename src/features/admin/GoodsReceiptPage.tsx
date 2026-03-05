@@ -17,6 +17,7 @@ import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { Item } from "@/types/catalog";
 import type { Supplier } from "@/api/suppliers";
+import { PageHeader } from "@/components/PageHeader";
 import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
@@ -294,9 +295,12 @@ export function GoodsReceiptPage() {
   if (isLoading && selectedOrgId && selectedBranchId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Goods Receipt
-        </h1>
+        <PageHeader
+          title="Goods Receipt"
+          subtitle="Loading…"
+          icon={PackagePlus}
+          fallbackTo="/admin"
+        />
         <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Loading…
         </div>
@@ -307,9 +311,11 @@ export function GoodsReceiptPage() {
   if (isError && selectedOrgId && selectedBranchId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Goods Receipt
-        </h1>
+        <PageHeader
+          title="Goods Receipt"
+          icon={PackagePlus}
+          fallbackTo="/admin"
+        />
         <div
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
           role="alert"
@@ -323,16 +329,13 @@ export function GoodsReceiptPage() {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-            <PackagePlus className="h-7 w-7" />
-            Goods Receipt
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Receive stock at a branch. Selecting branch and supplier, then add
-            items with quantities to increase inventory.
-          </p>
-        </div>
+        <PageHeader
+          title="Goods Receipt"
+          subtitle="Receive stock at a branch. Select branch and supplier, then add items with quantities to increase inventory."
+          icon={PackagePlus}
+          fallbackTo="/admin"
+          noMargin
+        />
         <button
           type="button"
           onClick={() => {

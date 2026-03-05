@@ -29,6 +29,7 @@ import type { Item } from "@/types/catalog";
 import type { Category } from "@/types/catalog";
 import type { ItemBarcode } from "@/types/catalog";
 import type { ItemModifierGroupLink } from "@/types/catalog";
+import { PageHeader } from "@/components/PageHeader";
 import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -500,9 +501,11 @@ export function ItemsListPage() {
   if (isLoading && selectedOrgId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Items
-        </h1>
+        <PageHeader
+          title="Items"
+          subtitle="Loading…"
+          fallbackTo="/admin"
+        />
         <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Loading…
         </div>
@@ -515,9 +518,10 @@ export function ItemsListPage() {
     const requestId = getApiErrorRequestId(error);
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Items
-        </h1>
+        <PageHeader
+          title="Items"
+          fallbackTo="/admin"
+        />
         <div
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
           role="alert"
@@ -538,16 +542,11 @@ export function ItemsListPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
-            Items
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Catalog items: products, menu items, and services. Add barcodes and modifier groups when editing.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Items"
+        subtitle="Catalog items: products, menu items, and services. Add barcodes and modifier groups when editing."
+        fallbackTo="/admin"
+      />
 
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <label

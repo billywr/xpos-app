@@ -14,6 +14,7 @@ import {
 import type { Org } from "@/types/org";
 import { filterActiveOrgs } from "@/types/org";
 import type { Branch } from "@/types/org";
+import { PageHeader } from "@/components/PageHeader";
 import { SlideOver, ConfirmDialog, Pagination } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -270,9 +271,11 @@ export function BranchesListPage() {
   if (isLoading && selectedOrgId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Branches
-        </h1>
+        <PageHeader
+          title="Branches"
+          subtitle="Loading…"
+          fallbackTo="/admin"
+        />
         <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Loading…
         </div>
@@ -285,9 +288,10 @@ export function BranchesListPage() {
     const requestId = getApiErrorRequestId(error);
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Branches
-        </h1>
+        <PageHeader
+          title="Branches"
+          fallbackTo="/admin"
+        />
         <div
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
           role="alert"
@@ -305,16 +309,11 @@ export function BranchesListPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
-            Branches
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Per-org branches. Select an organization to list and manage branches.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Branches"
+        subtitle="Per-org branches. Select an organization to list and manage branches."
+        fallbackTo="/admin"
+      />
 
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <label

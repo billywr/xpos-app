@@ -8,6 +8,7 @@ import { fetchShifts } from "@/api/adminShifts";
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { Shift } from "@/types/shift";
+import { PageHeader } from "@/components/PageHeader";
 import { Pagination } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
@@ -69,9 +70,12 @@ export function ShiftsListPage() {
   if (isLoading && selectedOrgId && selectedBranchId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Shifts
-        </h1>
+        <PageHeader
+          title="Shifts"
+          subtitle="Loading…"
+          icon={Wallet}
+          fallbackTo="/admin"
+        />
         <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
           Loading…
         </div>
@@ -84,9 +88,11 @@ export function ShiftsListPage() {
     const requestId = getApiErrorRequestId(error);
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Shifts
-        </h1>
+        <PageHeader
+          title="Shifts"
+          icon={Wallet}
+          fallbackTo="/admin"
+        />
         <div
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
           role="alert"
@@ -104,17 +110,12 @@ export function ShiftsListPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-            <Wallet className="h-7 w-7" />
-            Shifts
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            View shift history by branch. Select org and branch to list shifts.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Shifts"
+        subtitle="View shift history by branch. Select org and branch to list shifts."
+        icon={Wallet}
+        fallbackTo="/admin"
+      />
 
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <label

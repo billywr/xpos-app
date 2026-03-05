@@ -22,7 +22,7 @@ function groupNavItems(items: typeof ADMIN_NAV_ITEMS) {
 
 export function AdminLayout() {
   const [collapsed, toggle] = useSidebarCollapsed();
-  const { adminVisibility: visibilityState } = useNavVisibilityContext();
+  const { adminVisibility: visibilityState, getAdminLabel } = useNavVisibilityContext();
   const location = useLocation();
 
   const visibleNavItems = useMemo(
@@ -67,15 +67,18 @@ export function AdminLayout() {
     });
   };
 
+  const HEADER_HEIGHT = "3.5rem";
+
   return (
-    <div className="flex min-h-0 flex-1 items-start">
-      {/* Sidebar: sticky full viewport height, soft edge so it feels anchored not hanging */}
+    <div className="flex min-h-0 flex-1">
+      {/* Sidebar: fixed so it always extends to bottom regardless of page length */}
       <aside
-        className={`sticky top-0 z-10 flex shrink-0 flex-col bg-sidebar transition-[width] duration-200 ${
+        className={`fixed left-0 z-10 flex flex-col bg-sidebar transition-[width] duration-200 ${
           collapsed ? "w-[4.25rem]" : "w-56"
         }`}
         style={{
-          height: "calc(100vh - 3.5rem)",
+          top: HEADER_HEIGHT,
+          bottom: 0,
           boxShadow: "2px 0 16px -4px var(--sidebar-edge)",
         }}
       >
@@ -126,33 +129,40 @@ export function AdminLayout() {
                   </button>
                 ) : null}
                 {(collapsed || isOpen) &&
-                  groupItems.map(({ to, label, icon: Icon, end }) => (
+                  groupItems.map(({ to, label, icon: Icon, end }) => {
+                    const displayLabel = getAdminLabel(to, label);
+                    return (
                     <NavLink
                       key={to}
                       to={to}
                       end={end}
-                      title={collapsed ? label : undefined}
+                      title={displayLabel}
                       className={({ isActive }) =>
                         `flex items-center gap-3 rounded-lg py-2.5 text-sm font-medium transition ${
                           collapsed ? "justify-center px-3" : "pl-6 pr-3"
                         } ${
                           isActive
-                            ? "bg-primary-100 text-primary-800 dark:bg-white/15 dark:text-white"
+                            ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-500/30 dark:text-indigo-100"
                             : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
                         }`
                       }
                     >
                       <Icon className="h-5 w-5 shrink-0" />
-                      {!collapsed && <span>{label}</span>}
+                      {!collapsed && <span>{displayLabel}</span>}
                     </NavLink>
-                  ))}
+                  );
+                  })}
               </div>
             );
           })}
         </nav>
       </aside>
-      {/* Content area: at least viewport height so layout feels full; grows with content and scrolls when needed */}
-      <main className="min-h-[calc(100vh-3.5rem)] min-w-0 flex-1 overflow-auto bg-transparent p-6">
+      {/* Content area: offset by sidebar width so it doesn't sit under the fixed sidebar */}
+      <main
+        className={`min-h-[calc(100vh-3.5rem)] min-w-0 flex-1 overflow-auto bg-transparent p-6 transition-[margin] duration-200 ${
+          collapsed ? "ml-[4.25rem]" : "ml-56"
+        }`}
+      >
         <Outlet />
       </main>
     </div>

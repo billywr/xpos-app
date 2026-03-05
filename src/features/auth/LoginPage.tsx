@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
 import { setCredentials } from "@/store/slices/authSlice";
 import { loginWithPassword } from "@/api/auth";
 import { setStoredAuth } from "@/utils/authStorage";
+import { getStoredBranding } from "@/utils/brandingStorage";
 import { Store } from "lucide-react";
 
 export function LoginPage() {
@@ -13,6 +14,14 @@ export function LoginPage() {
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get("returnTo") ?? "/";
   const fromIdle = (location.state as { from?: string } | null)?.from === "idle";
+
+  const branding = getStoredBranding();
+  const appName = branding?.appName ?? "XPOS";
+  const logoUrl = branding?.logoDataUrl ?? null;
+
+  useEffect(() => {
+    document.title = appName ? `${appName} — Sign in` : "XPOS";
+  }, [appName]);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -58,8 +67,17 @@ export function LoginPage() {
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-lg dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-8 flex justify-center">
           <div className="flex items-center gap-2 text-primary-700 dark:text-primary-400">
-            <Store className="h-10 w-10" />
-            <span className="text-xl font-bold">XPOS</span>
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt=""
+                className="h-10 w-10 object-contain"
+                aria-hidden
+              />
+            ) : (
+              <Store className="h-10 w-10" />
+            )}
+            <span className="text-xl font-bold">{appName}</span>
           </div>
         </div>
         <h1 className="mb-2 text-center text-lg font-semibold text-slate-800 dark:text-white">

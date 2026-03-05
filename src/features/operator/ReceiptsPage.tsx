@@ -20,6 +20,7 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Receipt, Printer } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -146,17 +147,12 @@ export function ReceiptsPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-auto p-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-            <Receipt className="h-7 w-7" />
-            Receipts
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            View and reprint receipts for {branchName ?? "this branch"}.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Receipts"
+        subtitle={`View and reprint receipts for ${branchName ?? "this branch"}.`}
+        icon={Receipt}
+        fallbackTo="/operator"
+      />
 
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2">

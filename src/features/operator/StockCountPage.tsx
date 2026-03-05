@@ -19,8 +19,11 @@ import {
 import { Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
+import { APP_NAME_KEY } from "@/config/headerNavItems";
 import { downloadStockCountPdf } from "@/utils/stockCountPdf";
 import { ClipboardList, Plus, Loader2, Trash2, Download } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 const PAGE_SIZE = 10;
 
@@ -33,6 +36,10 @@ export function StockCountPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
+  const navVisibility = useNavVisibilityContextOrNull();
+  const appName = navVisibility
+    ? navVisibility.getHeaderLabel(APP_NAME_KEY, "XPOS")
+    : "XPOS";
   const [page, setPage] = useState(0);
   const [sessionToDelete, setSessionToDelete] =
     useState<StockCountSessionResponse | null>(null);
@@ -107,7 +114,12 @@ export function StockCountPage() {
         branchId,
         s.id
       );
-      downloadStockCountPdf(session, branchName ?? undefined, orgName ?? undefined);
+      downloadStockCountPdf(
+        session,
+        branchName ?? undefined,
+        orgName ?? undefined,
+        appName
+      );
       toast.success("PDF downloaded.", { title: "Stock count" });
     } catch (err) {
       toast.error(getApiErrorMessage(err), {
@@ -137,16 +149,13 @@ export function StockCountPage() {
   return (
     <div className="min-h-0 flex-1 overflow-auto p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-            <ClipboardList className="h-7 w-7" />
-            Manual Stock Taking
-          </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Stock counts at {branchName ?? "this branch"}. Start a session, add
-            counted quantities on the count page, then close to apply variances.
-          </p>
-        </div>
+        <PageHeader
+          title="Manual Stock Taking"
+          subtitle={`Stock counts at ${branchName ?? "this branch"}. Start a session, add counted quantities on the count page, then close to apply variances.`}
+          icon={ClipboardList}
+          fallbackTo="/operator"
+          noMargin
+        />
         <button
           type="button"
           onClick={() => startMutation.mutate()}
