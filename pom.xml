@@ -83,9 +83,11 @@
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
 
+		<!-- Spring Boot 4 requires spring-boot-starter-flyway for auto migrations at startup;
+		     flyway-core alone no longer triggers auto-configuration -->
 		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-core</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
 		</dependency>
 
 		<dependency>
@@ -185,10 +187,11 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Required for Flyway to support PostgreSQL at runtime (Flyway 11+ uses separate DB plugins) -->
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-database-postgresql</artifactId>
-			<scope>test</scope>
+			<scope>runtime</scope>
 		</dependency>
 
 		<dependency>

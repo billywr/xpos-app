@@ -110,4 +110,22 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
       @Param("branchId") UUID branchId,
       @Param("start") java.time.Instant start,
       @Param("end") java.time.Instant end);
+
+  /**
+   * Sum of IN movements (GRN, TRANSFER) per item for a branch within a date range. For std stock
+   * count addedStock.
+   */
+  @Query(
+      """
+      select s.item.id, sum(s.qty) from StockMovement s
+      where s.org.id = :orgId and s.branch.id = :branchId
+        and s.movementType = com.blinc.xpos.common.constants.enums.MovementType.IN
+        and s.createdAt >= :start and s.createdAt < :end
+      group by s.item.id
+      """)
+  List<Object[]> sumInQtyByItemIdForBranchAndDateRange(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("start") java.time.Instant start,
+      @Param("end") java.time.Instant end);
 }

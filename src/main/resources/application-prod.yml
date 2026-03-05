@@ -3,31 +3,70 @@ spring:
   application:
     name: xpos
 
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      pool-name: XposHikariPool
+
   jpa:
     hibernate:
       ddl-auto: validate
-    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          time_zone: UTC
     show-sql: false
+    open-in-view: false
 
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: true
+    out-of-order: false
 
   cache:
     type: redis
 
-  servlet:
-    multipart:
-      max-file-size: 5MB
-      max-request-size: 5MB
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      timeout: 5s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
 
   security:
     oauth2:
       resourceserver:
         jwt:
           jwk-set-uri: ${XPOS_KEYCLOAK_JWK_URI}
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      auto-offset-reset: latest
+      enable-auto-commit: false
+    listener:
+      ack-mode: manual
 
 server:
   port: 9003
@@ -54,11 +93,62 @@ logging:
   level:
     root: INFO
     org.springframework.security: WARN
+    org.hibernate.SQL: WARN
     com.blinc.xpos: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 
 xpos:
-  environment: prod
+  upload:
+    dir: ${XPOS_UPLOAD_DIR:/app/uploads}
+  outbox:
+    kafka:
+      topic: xpos-outbox-events
+      poll-interval-ms: 5000
+      batch-size: 50
   api:
     pagination:
       default-size: 25
       max-size: 200
+    cors:
+      enabled: false
+      allowed-origins: []
+
+  environment: prod
+
+  security:
+    require-device-binding: true
+    require-branch-scope: true
+    issuer: ${XPOS_KEYCLOAK_ISSUER:}
+    audience: ""
+
+  receipt:
+    block-size: 100
+    prefix: ""
+
+  shift:
+    blind-close-enabled: true
+    variance-threshold: 100.00
+
+  inventory:
+    allow-negative-stock: false
+    auto-post-consumption: true
+
+  audit:
+    hash-algorithm: SHA-256
+    verify-chain-on-startup: false
+
+  offline:
+    enabled: true
+    max-batch-size: 200
+    priority-order:
+      - SALE
+      - TENDER
+      - STOCK
+      - PROFILE
