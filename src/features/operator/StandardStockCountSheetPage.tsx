@@ -1,0 +1,635 @@
+import { useState, useMemo, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { useAppSelector } from "@/hooks/useAppSelector";
+import { selectToken } from "@/store/selectors/authSelectors";
+import {
+  selectOrgId,
+  selectBranchId,
+  selectBranchName,
+  selectOrgName,
+} from "@/store/selectors/orgContextSelectors";
+import {
+  fetchStdStockCountSheet,
+  saveStdStockCount,
+  type StdStockCountRowResponse,
+} from "@/api/stdStockCount";
+import { formatCurrency } from "@/utils/formatCurrency";
+import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import { useToast } from "@/contexts/ToastContext";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Save,
+  Loader2,
+  Search,
+  FileSpreadsheet,
+  Download,
+} from "lucide-react";
+import { downloadStdStockCountPdf } from "@/utils/stdStockCountPdf";
+import { Pagination } from "@/components/ui";
+
+function toDateStr(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function parseDateStr(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function todayStr(): string {
+  return toDateStr(new Date());
+}
+
+function yesterdayStr(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return toDateStr(d);
+}
+
+interface ComputedRow {
+  itemId: string;
+  sku: string;
+  name: string;
+  openingStock: number;
+  addedStock: number;
+  totalStock: number;
+  closingStock: number;
+  systemCountBeforeToday: number;
+  variance: number;
+  unitsSold: number;
+  sellingPrice: number;
+  amount: number;
+  lastSavedAt: string | null;
+  closingError?: string;
+}
+
+function computeRow(
+  row: StdStockCountRowResponse,
+  localClosing: number | undefined
+): ComputedRow {
+  const closing = localClosing ?? row.closingStock ?? 0;
+  const total = row.openingStock + row.addedStock;
+  const systemCount = row.systemCountBeforeToday ?? 0;
+  const variance = closing - systemCount;
+  const unitsSold = Math.max(0, total - closing);
+  const amount = unitsSold * (row.sellingPrice ?? 0);
+
+  let closingError: string | undefined;
+  if (closing < 0) {
+    closingError = "Must be ≥ 0";
+  } else if (closing > total) {
+    closingError = "Cannot exceed total stock";
+  }
+
+  return {
+    itemId: row.itemId,
+    sku: row.sku,
+    name: row.name,
+    openingStock: row.openingStock,
+    addedStock: row.addedStock,
+    totalStock: total,
+    closingStock: closing,
+    systemCountBeforeToday: systemCount,
+    variance,
+    unitsSold,
+    sellingPrice: row.sellingPrice,
+    amount,
+    lastSavedAt: row.lastSavedAt,
+    closingError,
+  };
+}
+
+export interface StandardStockCountSheetPageProps {
+  /** When true, show System and Variance columns (admin only) */
+  showSystemAndVariance?: boolean;
+  /** Override org context (for admin) */
+  orgId?: string;
+  /** Override branch context (for admin) */
+  branchId?: string;
+  branchName?: string;
+  orgName?: string;
+}
+
+export function StandardStockCountSheetPage({
+  showSystemAndVariance = false,
+  orgId: orgIdProp,
+  branchId: branchIdProp,
+  branchName: branchNameProp,
+  orgName: orgNameProp,
+}: StandardStockCountSheetPageProps = {}) {
+  const token = useAppSelector(selectToken);
+  const contextOrgId = useAppSelector(selectOrgId) ?? "";
+  const contextBranchId = useAppSelector(selectBranchId) ?? "";
+  const contextBranchName = useAppSelector(selectBranchName);
+  const contextOrgName = useAppSelector(selectOrgName);
+
+  const orgId = orgIdProp ?? contextOrgId;
+  const branchId = branchIdProp ?? contextBranchId;
+  const branchName = branchNameProp ?? contextBranchName;
+  const orgName = orgNameProp ?? contextOrgName;
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  const [dateStr, setDateStr] = useState(todayStr);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [localClosings, setLocalClosings] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(25);
+
+  const isToday = dateStr === todayStr();
+  const isYesterday = dateStr === yesterdayStr();
+  const canEdit = isToday || isYesterday;
+
+  const { data: sheet, isLoading, isError, error } = useQuery({
+    queryKey: ["std-stock-count", token, orgId, branchId, dateStr],
+    queryFn: () => fetchStdStockCountSheet(token, orgId, branchId, dateStr),
+    enabled: Boolean(token && orgId && branchId),
+  });
+
+  function parseClosing(itemId: string, row: StdStockCountRowResponse): number {
+    const s = localClosings[itemId];
+    if (s === undefined) return row.closingStock ?? 0;
+    if (s === "") return 0;
+    const n = parseInt(s, 10);
+    return Number.isNaN(n) ? 0 : n;
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: () => {
+      const rows = sheet?.rows ?? [];
+      const counts = rows.map((r) => ({
+        itemId: r.itemId,
+        closingStock: parseClosing(r.itemId, r),
+      }));
+      return saveStdStockCount(token, orgId, branchId, {
+        date: dateStr,
+        outletId: branchId,
+        counts,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["std-stock-count"] });
+      setLocalClosings({});
+      toast.success("Stock count saved.", { title: "Saved" });
+    },
+    onError: (err) => {
+      toast.error(getApiErrorMessage(err), {
+        detail: getApiErrorRequestId(err)
+          ? `Reference: ${getApiErrorRequestId(err)}`
+          : undefined,
+      });
+    },
+  });
+
+  const computedRows = useMemo(() => {
+    const rows = sheet?.rows ?? [];
+    const q = searchQuery.trim().toLowerCase();
+    const filtered = q
+      ? rows.filter(
+          (r) =>
+            (r.name || "").toLowerCase().includes(q) ||
+            (r.sku || "").toLowerCase().includes(q)
+        )
+      : rows;
+    return filtered.map((r) =>
+      computeRow(r, localClosings[r.itemId] !== undefined ? parseClosing(r.itemId, r) : undefined)
+    );
+  }, [sheet?.rows, searchQuery, localClosings]);
+
+  const paginatedRows = useMemo(() => {
+    const start = page * pageSize;
+    return computedRows.slice(start, start + pageSize);
+  }, [computedRows, page, pageSize]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(computedRows.length / pageSize) - 1);
+    setPage((p) => Math.min(p, maxPage));
+  }, [computedRows.length, pageSize]);
+
+  const totals = useMemo(() => {
+    return computedRows.reduce(
+      (acc, r) => ({
+        unitsSold: acc.unitsSold + r.unitsSold,
+        amount: acc.amount + r.amount,
+      }),
+      { unitsSold: 0, amount: 0 }
+    );
+  }, [computedRows]);
+
+  const allRowsForPdf = useMemo(() => {
+    const rows = sheet?.rows ?? [];
+    return rows.map((r) =>
+      computeRow(r, localClosings[r.itemId] !== undefined ? parseClosing(r.itemId, r) : undefined)
+    );
+  }, [sheet?.rows, localClosings]);
+
+  const pdfTotals = useMemo(
+    () =>
+      allRowsForPdf.reduce(
+        (acc, r) => ({
+          unitsSold: acc.unitsSold + r.unitsSold,
+          amount: acc.amount + r.amount,
+        }),
+        { unitsSold: 0, amount: 0 }
+      ),
+    [allRowsForPdf]
+  );
+
+  const hasErrors = computedRows.some((r) => r.closingError);
+
+  const hasChanges = useMemo(() => {
+    const rows = sheet?.rows ?? [];
+    return rows.some((r) => {
+      const s = localClosings[r.itemId];
+      if (s === undefined) return false;
+      const parsed = s === "" ? 0 : (parseInt(s, 10) || 0);
+      const server = r.closingStock ?? 0;
+      return parsed !== server;
+    });
+  }, [sheet?.rows, localClosings]);
+
+  function handleDownloadPdf() {
+    downloadStdStockCountPdf(
+      dateStr,
+      allRowsForPdf.map((r) => ({
+        sku: r.sku,
+        name: r.name,
+        openingStock: r.openingStock,
+        addedStock: r.addedStock,
+        totalStock: r.totalStock,
+        closingStock: r.closingStock,
+        systemCountBeforeToday: r.systemCountBeforeToday,
+        variance: r.variance,
+        unitsSold: r.unitsSold,
+        sellingPrice: r.sellingPrice,
+        amount: r.amount,
+      })),
+      pdfTotals,
+      branchName,
+      orgName,
+      showSystemAndVariance
+    );
+    toast.success("PDF downloaded.", { title: "Stock Count Sheet" });
+  }
+
+  function goPrevDay() {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() - 1);
+    setDateStr(toDateStr(d));
+  }
+
+  function goNextDay() {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + 1);
+    setDateStr(toDateStr(d));
+  }
+
+  function handleClosingChange(itemId: string, value: string) {
+    if (value === "" || /^\d+$/.test(value)) {
+      setLocalClosings((prev) => ({ ...prev, [itemId]: value }));
+    }
+  }
+
+  function handleSave() {
+    if (hasErrors) {
+      toast.error("Fix validation errors before saving.");
+      return;
+    }
+    saveMutation.mutate();
+  }
+
+  if (!orgId || !branchId) {
+    return (
+      <div className="p-6">
+        <p className="text-slate-600 dark:text-slate-400">
+          Select organization and branch context for the stock count sheet.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
+      <div className="mb-4">
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
+          <FileSpreadsheet className="h-7 w-7" />
+          Stock Count Sheet
+        </h1>
+          <p className="mt-1 text-slate-600 dark:text-slate-400">
+            Bar-style sheet at {branchName ?? "this branch"}. Opening + Added =
+            Total; Closing = physical count; Units Sold = Total − Closing.
+            {showSystemAndVariance &&
+              " System = inventory at start of day; Variance = Closing − System (positive = excess)."}
+          </p>
+      </div>
+
+      <div className="mb-3 flex items-center gap-4">
+        {sheet ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <Search className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+            <input
+              type="search"
+              placeholder="Filter by name or SKU"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 sm:max-w-xs"
+            />
+            {sheet.rows[0]?.lastSavedAt && (
+              <span className="hidden shrink-0 text-xs text-slate-500 dark:text-slate-400 sm:inline">
+                Last saved: {new Date(sheet.rows[0].lastSavedAt).toLocaleString()}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="min-w-0 flex-1" />
+        )}
+        <div className="flex shrink-0 flex-nowrap items-center gap-2">
+          <button
+            type="button"
+            onClick={goPrevDay}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            aria-label="Previous day"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <DatePicker
+            selected={dateStr ? parseDateStr(dateStr) : null}
+            onChange={(d: Date | null) => setDateStr(d ? toDateStr(d) : todayStr())}
+            maxDate={new Date()}
+            dateFormat="dd/MM/yyyy"
+            showPopperArrow={false}
+            placeholderText="Select date"
+            className="w-32 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+          />
+          <button
+            type="button"
+            onClick={goNextDay}
+            disabled={isToday}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            aria-label="Next day"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+          <span className="mx-1 h-4 w-px bg-slate-300 dark:bg-slate-600" aria-hidden />
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={!sheet}
+            className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            aria-label="Download PDF"
+          >
+            <Download className="h-4 w-4" />
+            PDF
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saveMutation.isPending || hasErrors || !canEdit || !hasChanges}
+            className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+          >
+            {saveMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            Save
+          </button>
+        </div>
+      </div>
+
+      {!canEdit && (
+        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+          Viewing past date. Edits are disabled; only today and yesterday are
+          editable (yesterday for testing).
+        </p>
+      )}
+
+      {isLoading && (
+        <div className="flex flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+          Loading…
+        </div>
+      )}
+
+      {isError && (
+        <div
+          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+          role="alert"
+        >
+          <p>{getApiErrorMessage(error)}</p>
+        </div>
+      )}
+
+      {!isLoading && !isError && sheet && (
+        <>
+          <div className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+            <div className="max-h-[55vh] min-h-0 overflow-auto">
+              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
+              <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700/80">
+                <tr>
+                  <th
+                    className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300"
+                    title="Product name and SKU"
+                  >
+                    Item
+                  </th>
+                  <th
+                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    title="Closing of yesterday — stock at start of today"
+                  >
+                    Opening
+                  </th>
+                  <th
+                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    title="Items added today (GRN, transfers in)"
+                  >
+                    Added
+                  </th>
+                  <th
+                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    title="Opening + Added — expected stock before sales"
+                  >
+                    Total Stock
+                  </th>
+                  <th
+                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    title="Physical count at end of day"
+                  >
+                    Closing
+                  </th>
+                  {showSystemAndVariance && (
+                    <>
+                      <th
+                        className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                        title="Inventory system balance at start of today (current − added)"
+                      >
+                        System
+                      </th>
+                      <th
+                        className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                        title="Closing − System (positive = excess/selling not in system, negative = short)"
+                      >
+                        Variance
+                      </th>
+                    </>
+                  )}
+                  <th
+                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    title="Total Stock − Closing (units sold)"
+                  >
+                    Units Sold
+                  </th>
+                  <th
+                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    title="Selling price per unit from price list"
+                  >
+                    Selling Price
+                  </th>
+                  <th
+                    className="px-4 py-3 text-right text-sm font-medium text-slate-700 dark:text-slate-300"
+                    title="Units Sold × Selling Price (revenue value)"
+                  >
+                    Amount
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
+                {paginatedRows.map((r) => (
+                  <tr
+                    key={r.itemId}
+                    className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
+                  >
+                    <td className="px-4 py-2 text-sm text-slate-900 dark:text-white">
+                      <span className="font-medium">
+                        {r.sku ? `${r.sku} · ` : ""}
+                        {r.name || "—"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                      {r.openingStock}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                      {r.addedStock}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                      {r.totalStock}
+                    </td>
+                    <td className="px-4 py-2">
+                      {canEdit ? (
+                        <div className="flex flex-col items-end">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={
+                              r.itemId in localClosings
+                                ? localClosings[r.itemId]
+                                : String(r.closingStock ?? "")
+                            }
+                            onChange={(e) =>
+                              handleClosingChange(r.itemId, e.target.value)
+                            }
+                            className={`w-20 rounded border px-2 py-1 text-right text-sm tabular-nums ${
+                              r.closingError
+                                ? "border-red-500 bg-red-50 dark:border-red-600 dark:bg-red-950/20"
+                                : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800"
+                            } text-slate-900 dark:text-white`}
+                          />
+                          {r.closingError && (
+                            <span className="mt-0.5 text-xs text-red-600 dark:text-red-400">
+                              {r.closingError}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-right tabular-nums">
+                          {r.closingStock}
+                        </span>
+                      )}
+                    </td>
+                    {showSystemAndVariance && (
+                      <>
+                        <td className="px-4 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                          {r.systemCountBeforeToday}
+                        </td>
+                        <td
+                          className={`px-4 py-2 text-right tabular-nums ${
+                            r.variance > 0
+                              ? "font-medium text-emerald-600 dark:text-emerald-400"
+                              : r.variance < 0
+                                ? "font-medium text-red-600 dark:text-red-400"
+                                : "text-slate-700 dark:text-slate-300"
+                          }`}
+                          title={
+                            r.variance > 0
+                              ? "Excess: selling not in system"
+                              : r.variance < 0
+                                ? "Short"
+                                : undefined
+                          }
+                        >
+                          {r.variance > 0 ? "+" : ""}
+                          {r.variance}
+                        </td>
+                      </>
+                    )}
+                    <td className="px-4 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                      {r.unitsSold}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
+                      {formatCurrency(r.sellingPrice)}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums font-medium text-slate-900 dark:text-white">
+                      {formatCurrency(r.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+            {computedRows.length > 0 && (
+              <Pagination
+              page={page}
+              size={pageSize}
+              totalElements={computedRows.length}
+              onPageChange={setPage}
+              onSizeChange={(s) => {
+                setPageSize(s);
+                setPage(0);
+              }}
+              sizeOptions={[10, 25, 50, 100]}
+              />
+            )}
+          </div>
+
+          <div className="mt-4 flex justify-end">
+            <div
+              className="total-sales-badge inline-flex items-center gap-3 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 px-6 py-4 shadow-lg ring-2 ring-emerald-100/50 dark:border-emerald-800 dark:from-emerald-950/50 dark:to-teal-950/50 dark:ring-emerald-900/30"
+              role="status"
+            >
+              <span className="text-sm font-medium uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                Total Sales
+              </span>
+              <span className="text-2xl font-bold tabular-nums text-emerald-900 dark:text-emerald-100">
+                {formatCurrency(totals.amount)}
+              </span>
+            </div>
+          </div>
+
+          {computedRows.length === 0 && (
+            <p className="mt-4 text-center text-slate-500 dark:text-slate-400">
+              No items in price list for this branch. Add items to a price list
+              and assign it to the branch.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

@@ -125,3 +125,67 @@ body {
   background: #000;
   min-width: 1px;
 }
+
+/* react-datepicker: solid background + stacking above table */
+.react-datepicker-popper {
+  z-index: 9999;
+}
+.react-datepicker {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  opacity: 1;
+}
+
+/* react-datepicker dark mode */
+.dark .react-datepicker {
+  background-color: #1e293b !important;
+  border-color: #475569;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+.dark .react-datepicker__header {
+  background-color: #334155;
+  border-color: #475569;
+}
+.dark .react-datepicker__current-month,
+.dark .react-datepicker__day-name,
+.dark .react-datepicker__day {
+  color: #e2e8f0;
+}
+.dark .react-datepicker__day:hover,
+.dark .react-datepicker__day--keyboard-selected {
+  background-color: #475569;
+  color: #fff;
+}
+.dark .react-datepicker__day--disabled {
+  color: #64748b;
+}
+.dark .react-datepicker__day--outside-month {
+  color: #64748b;
+}
+
+/* Hide number input spinners (makes typing easier) */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Total sales badge animation */
+@keyframes badge-fade-slide {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.total-sales-badge {
+  animation: badge-fade-slide 0.4s ease-out forwards;
+}

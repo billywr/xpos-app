@@ -7,6 +7,7 @@ import { clearContext } from "@/store/slices/orgContextSlice";
 import { clearStoredContext } from "@/utils/contextStorage";
 import { Layout } from "@/components/Layout";
 import { AdminLayout } from "@/components/AdminLayout";
+import { NavVisibilityProvider } from "@/components/NavVisibilityProvider";
 import { OperatorLayout } from "@/components/OperatorLayout";
 import { OperatorContextGuard } from "@/components/OperatorContextGuard";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -42,7 +43,10 @@ import { DebtsPage } from "@/features/operator/DebtsPage";
 import { MiscExpensesPage } from "@/features/operator/MiscExpensesPage";
 import { StockCountPage } from "@/features/operator/StockCountPage";
 import { StockCountSessionPage } from "@/features/operator/StockCountSessionPage";
+import { StandardStockCountSheetPage } from "@/features/operator/StandardStockCountSheetPage";
 import { StockCountSessionDetailAdminPage } from "@/features/admin/StockCountSessionDetailAdminPage";
+import { StandardStockCountAdminPage } from "@/features/admin/StandardStockCountAdminPage";
+import { AdminSettingsPage } from "@/features/admin/AdminSettingsPage";
 import { MenuOrderPage } from "@/features/operator/MenuOrderPage";
 import { OperatorDashboard } from "@/features/operator/OperatorDashboard";
 import { PaymentsPage } from "@/features/operator/PaymentsPage";
@@ -71,12 +75,17 @@ function App() {
         element={
           <ProtectedRoute>
             <RestoreContext />
-            <Layout />
+            <NavVisibilityProvider>
+              <Layout />
+            </NavVisibilityProvider>
           </ProtectedRoute>
         }
       >
         <Route index element={<HomePage />} />
-        <Route path="admin" element={<AdminLayout />}>
+        <Route
+          path="admin"
+          element={<AdminLayout />}
+        >
           <Route index element={<AdminDashboard />} />
           <Route path="orgs" element={<OrgsListPage />} />
           <Route path="businesses" element={<BusinessesListPage />} />
@@ -106,8 +115,13 @@ function App() {
             path="stock-count-sessions/:sessionId"
             element={<StockCountSessionDetailAdminPage />}
           />
+          <Route
+            path="standard-stock-count"
+            element={<StandardStockCountAdminPage />}
+          />
           <Route path="revenue" element={<RevenueDashboardPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="settings" element={<AdminSettingsPage />} />
         </Route>
         <Route path="select-context" element={<SelectContextPage />} />
         <Route
@@ -129,6 +143,10 @@ function App() {
           <Route
             path="stock-count/:sessionId"
             element={<StockCountSessionPage />}
+          />
+          <Route
+            path="inventory/stock-count"
+            element={<StandardStockCountSheetPage />}
           />
           <Route path="withdrawal" element={<div className="p-6 text-slate-600 dark:text-slate-400">Withdrawal (TODO)</div>} />
           <Route path="dishes" element={<div className="p-4 text-white">Dishes (TODO)</div>} />

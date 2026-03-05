@@ -1,28 +1,18 @@
 import { Outlet, Link, NavLink, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard,
-  ShoppingCart,
-  BarChart3,
-  Wallet,
-  UtensilsCrossed,
-  ChefHat,
-  CreditCard,
-  Receipt,
-  Settings,
-  LogOut,
-  Store,
   ChevronDown,
-  RefreshCw,
-  Search,
+  LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  RefreshCw,
+  Search,
+  Settings,
+  Store,
   Sun,
   Moon,
-  HandCoins,
-  ReceiptText,
-  ClipboardList,
+  UtensilsCrossed,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -37,25 +27,24 @@ import { clearStoredAuth } from "@/utils/authStorage";
 import { clearStoredContext } from "@/utils/contextStorage";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
+import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
+import { isOperatorNavItemVisible } from "@/hooks/useOperatorNavVisibility";
+import { OPERATOR_NAV_ITEMS } from "@/config/operatorNavItems";
 
-const navItems = [
-  { to: "/operator", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/operator/menu-order", label: "Menu Order", icon: ShoppingCart },
-  { to: "/operator/receipts", label: "Receipts", icon: Receipt },
-  { to: "/operator/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/operator/debts", label: "Customer Debts", icon: HandCoins },
-  { to: "/operator/misc-expenses", label: "Misc Expenses", icon: ReceiptText },
-  { to: "/operator/stock-count", label: "Manual Stock Taking", icon: ClipboardList },
-  { to: "/operator/withdrawal", label: "Withdrawal", icon: Wallet },
+const MANAGE_TABLE_SUB_ITEMS = [
+  { to: "/operator/tables/booked", label: "Booked" },
+  { to: "/operator/tables/active", label: "Active" },
+  { to: "/operator/tables/running", label: "Running Order" },
 ];
 
-const manageItems = [
-  { to: "/operator/tables/booked", label: "Booked", parent: "Manage Table" },
-  { to: "/operator/tables/active", label: "Active", parent: "Manage Table" },
-  { to: "/operator/tables/running", label: "Running Order", parent: "Manage Table" },
-  { to: "/operator/dishes", label: "Manage Dish", icon: ChefHat },
-  { to: "/operator/payments", label: "Manage Payment", icon: CreditCard },
-];
+function isVisible(
+  path: string,
+  canHide: boolean,
+  visibilityState: Record<string, boolean> | null
+): boolean {
+  if (!visibilityState) return true;
+  return isOperatorNavItemVisible(path, canHide, visibilityState);
+}
 
 export function OperatorLayout() {
   const navigate = useNavigate();
@@ -65,9 +54,44 @@ export function OperatorLayout() {
   const orgName = useAppSelector(selectOrgName);
   const branchName = useAppSelector(selectBranchName);
   const terminalName = useAppSelector(selectTerminalName);
+  const navVisibility = useNavVisibilityContextOrNull();
   const [globalError, setGlobalError] = useState<{ message: string; requestId: string } | null>(null);
   const [manageOpen, setManageOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const visibilityState = navVisibility?.operatorVisibility ?? null;
+
+  const visibleMainNavItems = useMemo(
+    () =>
+      OPERATOR_NAV_ITEMS.filter(
+        (item) =>
+          item.group === "Main" &&
+          !item.isGroup &&
+          isVisible(item.to, item.canHide, visibilityState)
+      ),
+    [visibilityState]
+  );
+
+  const showManageTable = useMemo(
+    () =>
+      isVisible(
+        "/operator/tables",
+        true,
+        visibilityState
+      ),
+    [visibilityState]
+  );
+
+  const visibleOtherManageItems = useMemo(
+    () =>
+      OPERATOR_NAV_ITEMS.filter(
+        (item) =>
+          item.group === "Manage" &&
+          !item.isGroup &&
+          isVisible(item.to, item.canHide, visibilityState)
+      ),
+    [visibilityState]
+  );
 
   const handleLogout = () => {
     clearStoredAuth();
@@ -186,7 +210,7 @@ export function OperatorLayout() {
             </button>
           </div>
           <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Main">
-            {navItems.map(({ to, label, icon: Icon }) => (
+            {visibleMainNavItems.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -201,65 +225,65 @@ export function OperatorLayout() {
                   }`
                 }
               >
-                <Icon className="h-5 w-5 shrink-0" />
+                {Icon && <Icon className="h-5 w-5 shrink-0" />}
                 {!collapsed && <span>{label}</span>}
               </NavLink>
             ))}
-            {!collapsed && (
+            {!collapsed && (showManageTable || visibleOtherManageItems.length > 0) && (
               <>
                 <div className="my-2 border-t border-slate-200 dark:border-white/10" />
-                <button
-                  type="button"
-                  onClick={() => setManageOpen(!manageOpen)}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
-                >
-                  <span className="flex items-center gap-3">
-                    <UtensilsCrossed className="h-5 w-5 shrink-0" />
-                    Manage Table
-                  </span>
-                  <ChevronDown
-                    className={`h-4 w-4 transition ${manageOpen ? "rotate-180" : ""}`}
-                  />
-                </button>
-                {manageOpen && (
-                  <div className="ml-4 flex flex-col gap-1 border-l border-slate-200 pl-2 dark:border-white/10">
-                    {manageItems
-                      .filter((i) => i.parent === "Manage Table")
-                      .map(({ to, label }) => (
-                        <NavLink
-                          key={to}
-                          to={to}
-                          className={({ isActive }) =>
-                            `rounded-lg px-2 py-1.5 text-sm ${
-                              isActive
-                                ? "text-primary-600 dark:text-primary-400"
-                                : "text-slate-500 hover:text-slate-900 dark:text-white/80 dark:hover:text-white"
-                            }`
-                          }
-                        >
-                          {label}
-                        </NavLink>
-                      ))}
-                  </div>
-                )}
-                {manageItems
-                  .filter((i) => !i.parent)
-                  .map(({ to, label, icon: Icon }) => (
-                    <NavLink
-                      key={to}
-                      to={to}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                          isActive
-                            ? "bg-primary-600 text-white"
-                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
-                        }`
-                      }
+                {showManageTable && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setManageOpen(!manageOpen)}
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
                     >
-                      {Icon && <Icon className="h-5 w-5 shrink-0" />}
-                      {label}
-                    </NavLink>
-                  ))}
+                      <span className="flex items-center gap-3">
+                        <UtensilsCrossed className="h-5 w-5 shrink-0" />
+                        Manage Table
+                      </span>
+                      <ChevronDown
+                        className={`h-4 w-4 transition ${manageOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
+                    {manageOpen && (
+                      <div className="ml-4 flex flex-col gap-1 border-l border-slate-200 pl-2 dark:border-white/10">
+                        {MANAGE_TABLE_SUB_ITEMS.map(({ to, label }) => (
+                          <NavLink
+                            key={to}
+                            to={to}
+                            className={({ isActive }) =>
+                              `rounded-lg px-2 py-1.5 text-sm ${
+                                isActive
+                                  ? "text-primary-600 dark:text-primary-400"
+                                  : "text-slate-500 hover:text-slate-900 dark:text-white/80 dark:hover:text-white"
+                              }`
+                            }
+                          >
+                            {label}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+                {visibleOtherManageItems.map(({ to, label, icon: Icon }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                        isActive
+                          ? "bg-primary-600 text-white"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
+                      }`
+                    }
+                  >
+                    {Icon && <Icon className="h-5 w-5 shrink-0" />}
+                    {label}
+                  </NavLink>
+                ))}
               </>
             )}
             <div className="my-2 border-t border-slate-200 dark:border-white/10" />

@@ -1,107 +1,39 @@
 import { useState, useMemo, useEffect } from "react";
-import type React from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import {
-  BarChart3,
-  Building2,
-  Briefcase,
-  ChevronDown,
-  ChevronRight,
-  ClipboardList,
-  CreditCard,
-  FileText,
-  FolderTree,
-  LayoutDashboard,
-  MapPin,
-  Monitor,
-  Package,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Receipt,
-  ShoppingCart,
-  Smartphone,
-  TrendingUp,
-  Users,
-  Ruler,
-  UtensilsCrossed,
-  Wallet,
-  Truck,
-  PackagePlus,
-  CalendarClock,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
+import { useNavVisibilityContext } from "@/contexts/NavVisibilityContext";
+import { isNavItemVisible } from "@/hooks/useAdminNavVisibility";
+import { ADMIN_NAV_ITEMS, ADMIN_GROUP_ORDER } from "@/config/adminNavItems";
 
-interface NavItemConfig {
-  to: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  group: string;
-  end: boolean;
-}
-
-const navItem = (
-  to: string,
-  label: string,
-  icon: React.ComponentType<{ className?: string }>,
-  group: string,
-  end?: boolean
-): NavItemConfig => ({ to, label, icon, group, end: end ?? false });
-
-const allNavItems = [
-  navItem("/admin", "Dashboard", LayoutDashboard, "Overview", true),
-  navItem("/admin/orgs", "Organizations", Building2, "Organization"),
-  navItem("/admin/businesses", "Businesses", Briefcase, "Organization"),
-  navItem("/admin/branches", "Branches", MapPin, "Organization"),
-  navItem("/admin/terminals", "Terminals", Monitor, "Organization"),
-  navItem("/admin/devices", "Devices", Smartphone, "Organization"),
-  navItem("/admin/staff", "Staff", Users, "Organization"),
-  navItem("/admin/catalog", "Catalog", FolderTree, "Catalog"),
-  navItem("/admin/uoms", "Units (UOM)", Ruler, "Catalog"),
-  navItem("/admin/items", "Items", Package, "Catalog"),
-  navItem("/admin/price-lists", "Price lists", Receipt, "Catalog"),
-  navItem("/admin/tender-types", "Tender types", CreditCard, "Sales"),
-  navItem("/admin/tables", "Tables", UtensilsCrossed, "Sales"),
-  navItem("/admin/sales", "Sales", ShoppingCart, "Sales"),
-  navItem("/admin/shifts", "Shifts", Wallet, "Sales"),
-  navItem("/admin/z-report", "Z-Report", FileText, "Sales"),
-  navItem("/admin/suppliers", "Suppliers", Truck, "Inventory"),
-  navItem("/admin/goods-receipt", "Goods Receipt", PackagePlus, "Inventory"),
-  navItem("/admin/inventory", "Inventory", Package, "Inventory"),
-  navItem("/admin/stock-taking-schedules", "Stock Taking", CalendarClock, "Inventory"),
-  navItem("/admin/stock-count-sessions", "Manual Stock Taking", ClipboardList, "Inventory"),
-  navItem("/admin/revenue", "Revenue & P&L", TrendingUp, "Reports"),
-  navItem("/admin/analytics", "Analytics", BarChart3, "Reports"),
-];
-
-const GROUP_ORDER = [
-  "Overview",
-  "Organization",
-  "Catalog",
-  "Sales",
-  "Inventory",
-  "Reports",
-  "Other",
-];
-
-function groupNavItems() {
-  const byGroup = new Map<string, NavItemConfig[]>();
-  for (const item of allNavItems) {
+function groupNavItems(items: typeof ADMIN_NAV_ITEMS) {
+  const byGroup = new Map<string, typeof ADMIN_NAV_ITEMS>();
+  for (const item of items) {
     const group = item.group ?? "Other";
     const list = byGroup.get(group) ?? [];
     list.push(item);
     byGroup.set(group, list);
   }
-  return GROUP_ORDER.filter((g) => byGroup.has(g)).map((group) => ({
+  return ADMIN_GROUP_ORDER.filter((g) => byGroup.has(g)).map((group) => ({
     label: group,
     items: byGroup.get(group) ?? [],
   }));
 }
 
-const navGroups = groupNavItems();
-
 export function AdminLayout() {
   const [collapsed, toggle] = useSidebarCollapsed();
+  const { adminVisibility: visibilityState } = useNavVisibilityContext();
   const location = useLocation();
+
+  const visibleNavItems = useMemo(
+    () =>
+      ADMIN_NAV_ITEMS.filter((item) =>
+        isNavItemVisible(item.to, item.canHide, visibilityState)
+      ),
+    [visibilityState]
+  );
+
+  const navGroups = useMemo(() => groupNavItems(visibleNavItems), [visibleNavItems]);
 
   const activeGroupLabels = useMemo(() => {
     const path = location.pathname;
@@ -114,7 +46,7 @@ export function AdminLayout() {
       if (hasActive) set.add(g.label);
     }
     return set;
-  }, [location.pathname]);
+  }, [location.pathname, navGroups]);
 
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => activeGroupLabels);
 
