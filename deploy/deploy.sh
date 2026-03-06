@@ -18,7 +18,7 @@ fi
 
 # Default ports (override via .env or export)
 export XPOS_PORT="${XPOS_PORT:-9003}"
-export XPOS_UI_PORT="${XPOS_UI_PORT:-80}"
+export XPOS_UI_PORT="${XPOS_UI_PORT:-9011}"
 while IFS= read -r line || [[ -n "$line" ]]; do
   [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
   if [[ "$line" =~ ^XPOS_PORT= ]]; then XPOS_PORT="${line#*=}"; fi

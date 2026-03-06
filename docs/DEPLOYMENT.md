@@ -84,7 +84,7 @@ Containers reach host services via `host.docker.internal` (Docker 20.10+ provide
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `XPOS_PORT` | Host port for backend | `9003` |
-| `XPOS_UI_PORT` | Host port for frontend | `80` |
+| `XPOS_UI_PORT` | Host port for frontend | `9011` |
 
 ### Frontend Build-Time Variables
 

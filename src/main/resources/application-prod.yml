@@ -117,8 +117,16 @@ xpos:
       default-size: 25
       max-size: 200
     cors:
-      enabled: false
-      allowed-origins: []
+      enabled: ${XPOS_CORS_ENABLED:true}
+      allowed-origins:
+        - http://localhost:9011
+        - http://localhost:80
+        - http://127.0.0.1:9011
+        - http://127.0.0.1:80
+        - https://xpos.com
+        - http://xpos.com
+        - https://www.xpos.com
+        - http://www.xpos.com
 
   environment: prod
 
@@ -152,3 +160,4 @@ xpos:
       - TENDER
       - STOCK
       - PROFILE
+

@@ -23,7 +23,7 @@ services:
   xpos-ui:
     image: ${XPOS_UI_IMAGE:-ghcr.io/your-org/xpos-ui:dev}
     ports:
-      - "${XPOS_UI_PORT:-80}:80"
-    depends_on:                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
- - xpos
+      - "${XPOS_UI_PORT:-9011}:80"
+    depends_on:
+      - xpos
     restart: unless-stopped
