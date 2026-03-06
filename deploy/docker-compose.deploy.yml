@@ -1,104 +1,29 @@
-# XPOS deployment - assumes images are pushed to a registry
+# XPOS deployment - assumes Postgres, Redis, Kafka, Keycloak already running on host
 # Run: ./deploy.sh up
-# Or: docker compose -f deploy/docker-compose.deploy.yml --env-file deploy/.env up -d
+# Prereqs: Docker, and external Postgres, Redis, Kafka, Keycloak reachable from host
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-xpos}
-    ports:
-      - "${POSTGRES_PORT:-5433}:5432"
-    volumes:
-      - xpos_postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "${REDIS_PORT:-6380}:6379"
-    volumes:
-      - xpos_redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-  kafka:
-    image: apache/kafka:3.9.0
-    ports:
-      - "${KAFKA_PORT:-9093}:9092"
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-    healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 2>/dev/null || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
-
-  keycloak:
-    image: quay.io/keycloak/keycloak:25.0
-    command: ["start-dev"]
-    environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-      KC_HTTP_PORT: "8080"
-      KC_HEALTH_ENABLED: "true"
-    ports:
-      - "${KEYCLOAK_PORT:-8080}:8080"
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3 || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 15
-      start_period: 45s
-
   xpos:
-    image: ${XPOS_IMAGE:-ghcr.io/your-org/xpos:latest}
+    image: ${XPOS_IMAGE:-ghcr.io/your-org/xpos:dev}
     ports:
       - "${XPOS_PORT:-9003}:9003"
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-xpos}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${POSTGRES_HOST:-host.docker.internal}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-xpos}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: "6379"
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      XPOS_KEYCLOAK_JWK_URI: http://keycloak:8080/realms/${KEYCLOAK_REALM:-master}/protocol/openid-connect/certs
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      keycloak:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
+      SPRING_DATA_REDIS_PORT: "${REDIS_PORT:-6379}"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-host.docker.internal:9092}
+      XPOS_KEYCLOAK_JWK_URI: ${XPOS_KEYCLOAK_JWK_URI}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
 
   xpos-ui:
-    image: ${XPOS_UI_IMAGE:-ghcr.io/your-org/xpos-ui:latest}
+    image: ${XPOS_UI_IMAGE:-ghcr.io/your-org/xpos-ui:dev}
     ports:
       - "${XPOS_UI_PORT:-80}:80"
-    depends_on:
-      - xpos
-
-volumes:
-  xpos_postgres_data:
-  xpos_redis_data:
+    depends_on:                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+ - xpos
+    restart: unless-stopped
