@@ -13,6 +13,12 @@ services:
     image: ghcr.io/billywr/xpos:dev
     ports:
       - "9003:9005"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9005/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/xpos

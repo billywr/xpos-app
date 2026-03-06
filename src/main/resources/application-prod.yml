@@ -40,8 +40,8 @@ spring:
   data:
     redis:
       host: ${SPRING_DATA_REDIS_HOST}
-      port: ${SPRING_DATA_REDIS_PORT:6379}
-      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      port: ${SPRING_DATA_REDIS_PORT}
+      password: ${SPRING_DATA_REDIS_PASSWORD}
       timeout: 5s
       lettuce:
         pool:
@@ -69,7 +69,7 @@ spring:
       ack-mode: manual
 
 server:
-  port: 9003
+  port: ${SERVER_PORT}
   shutdown: graceful
   error:
     include-message: always
