@@ -8,16 +8,12 @@ RUN npm ci
 
 COPY . .
 
-# Build-time env (baked into bundle). Defaults = xpos.com; override with --build-arg if needed.
-ARG VITE_API_BASE_URL=http://api.xpos.com
-ARG VITE_KEYCLOAK_URL=http://auth.xpos.com
-ARG VITE_KEYCLOAK_REALM=master
-ARG VITE_KEYCLOAK_CLIENT_ID=xpos-client-api
-
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
-    VITE_KEYCLOAK_URL=$VITE_KEYCLOAK_URL \
-    VITE_KEYCLOAK_REALM=$VITE_KEYCLOAK_REALM \
-    VITE_KEYCLOAK_CLIENT_ID=$VITE_KEYCLOAK_CLIENT_ID
+# Build-time env (baked into bundle). Hardcoded so the image always has valid URLs.
+# Ports match typical host mapping (backend 9003, Keycloak 8080). For localhost test, use http://localhost:9003 and http://localhost:8088.
+ENV VITE_API_BASE_URL=http://localhost:9003 \
+    VITE_KEYCLOAK_URL=http://localhost:8088 \
+    VITE_KEYCLOAK_REALM=xpos \
+    VITE_KEYCLOAK_CLIENT_ID=xpos-client-api
 
 RUN npm run build
 
