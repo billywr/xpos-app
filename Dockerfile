@@ -8,10 +8,10 @@ RUN npm ci
 
 COPY . .
 
-# Build-time env (baked into bundle)
-ARG VITE_API_BASE_URL=
-ARG VITE_KEYCLOAK_URL=
-ARG VITE_KEYCLOAK_REALM=xpos
+# Build-time env (baked into bundle). Defaults = xpos.com; override with --build-arg if needed.
+ARG VITE_API_BASE_URL=http://api.xpos.com
+ARG VITE_KEYCLOAK_URL=http://auth.xpos.com
+ARG VITE_KEYCLOAK_REALM=master
 ARG VITE_KEYCLOAK_CLIENT_ID=xpos-client-api
 
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
