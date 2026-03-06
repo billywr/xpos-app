@@ -8,6 +8,19 @@ On push to `main`/`master`, the workflow builds and pushes the image to GitHub C
 
 ## Build
 
+**Prod** (backend on port 9005):
+
+```bash
+docker build -t xpos-ui:latest \
+  --build-arg VITE_API_BASE_URL=http://localhost:9005 \
+  --build-arg VITE_KEYCLOAK_URL=https://auth.example.com \
+  --build-arg VITE_KEYCLOAK_REALM=xpos \
+  --build-arg VITE_KEYCLOAK_CLIENT_ID=xpos-client-api \
+  .
+```
+
+**Remote prod** (replace with your API domain):
+
 ```bash
 docker build -t xpos-ui:latest \
   --build-arg VITE_API_BASE_URL=https://api.example.com \
