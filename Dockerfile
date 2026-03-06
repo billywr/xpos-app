@@ -9,9 +9,10 @@ RUN npm ci
 COPY . .
 
 # Build-time env (baked into bundle). Hardcoded so the image always has valid URLs.
-# Ports match typical host mapping (backend 9003, Keycloak 8080). For localhost test, use http://localhost:9003 and http://localhost:8088.
-ENV VITE_API_BASE_URL=http://localhost:9003 \
-    VITE_KEYCLOAK_URL=http://localhost:8088 \
+# Use xpos.com hostnames; add to /etc/hosts: 127.0.0.1 xpos.com api.xpos.com auth.xpos.com
+# Keycloak on host port 8088, backend on 9003.
+ENV VITE_API_BASE_URL=http://api.xpos.com:9005 \
+    VITE_KEYCLOAK_URL=http://auth.xpos.com:8088 \
     VITE_KEYCLOAK_REALM=xpos \
     VITE_KEYCLOAK_CLIENT_ID=xpos-client-api
 
