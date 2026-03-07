@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { Toast, type ToastItem, type ToastVariant } from "@/components/ui/Toast";
+import { generateUuid } from "@/utils/uuid";
 
 const DEFAULT_SUCCESS_DURATION = 5_000;
 const DEFAULT_ERROR_DURATION = 7_000;
@@ -52,7 +53,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const add = useCallback(
     (variant: ToastVariant, message: string, options?: ToastOptions) => {
-      const id = crypto.randomUUID();
+      const id = generateUuid();
       const title = options?.title ?? (variant === "success" ? "Success" : "Error");
       const duration =
         options?.duration ??

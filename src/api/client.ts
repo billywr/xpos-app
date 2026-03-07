@@ -1,4 +1,5 @@
 import type { ApiError } from "@/types/api";
+import { generateUuid } from "@/utils/uuid";
 
 const REQUEST_ID_HEADER = "X-Request-Id";
 
@@ -23,7 +24,7 @@ function getBaseUrl(): string {
 }
 
 function getRequestId(): string {
-  return crypto.randomUUID();
+  return generateUuid();
 }
 
 export interface RequestConfig {
