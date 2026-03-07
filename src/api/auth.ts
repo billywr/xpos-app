@@ -21,19 +21,27 @@ export interface LoginParams {
  * Login via Keycloak password grant. POST x-www-form-urlencoded to
  * {keycloakUrl}/realms/{realm}/protocol/openid-connect/token.
  * No client_secret (public/frontend client).
- * In dev we use the Vite proxy (/keycloak -> Keycloak) to avoid CORS.
+ * In dev we use the Vite proxy (/keycloak -> Keycloak). In production we use
+ * same-origin /keycloak proxy when VITE_USE_KEYCLOAK_PROXY is set, to avoid CORS.
  */
 export async function loginWithPassword(params: LoginParams): Promise<{
   token: string;
   iamUserId: string;
   expiresAt: number | null;
 }> {
+  const useProxy =
+    (typeof window !== "undefined" && window.location?.origin
+      ? String(import.meta.env.VITE_USE_KEYCLOAK_PROXY ?? "").toLowerCase() ===
+        "true"
+      : false);
   const baseUrl =
     typeof import.meta.env.DEV !== "undefined" && import.meta.env.DEV
       ? typeof window !== "undefined"
         ? `${window.location.origin}/keycloak`
         : ""
-      : params.keycloakUrl.replace(/\/$/, "");
+      : useProxy && typeof window !== "undefined"
+        ? `${window.location.origin}/keycloak`
+        : params.keycloakUrl.replace(/\/$/, "");
   const url = `${baseUrl}/realms/${params.realm}${TOKEN_PATH}`;
   const body = new URLSearchParams({
     grant_type: "password",
