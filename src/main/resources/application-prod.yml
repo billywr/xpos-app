@@ -125,8 +125,10 @@ xpos:
         - http://127.0.0.1:80
         - https://xpos.com
         - http://xpos.com
+        - http://xpos.com:9011
         - https://www.xpos.com
         - http://www.xpos.com
+        - http://www.xpos.com:9011
 
   environment: prod
 

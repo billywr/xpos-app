@@ -1,209 +1,274 @@
 # XPOS Deployment Guide
 
-Deploy XPOS (frontend + backend) on a machine where **Docker, Postgres, Redis, Kafka, and Keycloak are already running**. The deploy process only starts the xpos and xpos-ui containers and connects them to the existing infrastructure.
+This guide explains how to deploy the XPOS frontend and backend so that anyone can run and troubleshoot the stack.
 
-## Prerequisites
+---
 
-### Already Running on Host
+## Table of contents
 
-- **PostgreSQL** (e.g. port 5432)
-- **Redis** (e.g. port 6379)
-- **Kafka** (e.g. port 9092)
-- **Keycloak** (e.g. port 8080 or 8088 on host)
+1. [How deployment works](#1-how-deployment-works)
+2. [Ways to deploy](#2-ways-to-deploy)
+3. [Full compose (Keycloak + xpos in one stack)](#3-full-compose-keycloak--xpos-in-one-stack)
+4. [Deploy stack (external Postgres, Redis, Kafka, Keycloak)](#4-deploy-stack-external-postgres-redis-kafka-keycloak)
+5. [Custom domain (e.g. xpos.com)](#5-custom-domain-eg-xposcom)
+6. [Troubleshooting](#6-troubleshooting)
+7. [Reference](#7-reference)
 
-### Required for Deploy
+---
 
-- **Docker** and **Docker Compose** v2
-- **curl** (for health checks)
-- **nc** (optional, for `./deploy.sh check`)
+## 1. How deployment works
 
-Ports **9003** and **9011** must be free for xpos and xpos-ui (or configure via `.env`).
+- **Backend (xpos-api):** Spring Boot app. Needs PostgreSQL, Redis, Kafka, and Keycloak. Exposed on a host port (e.g. 9005).
+- **Frontend (xpos-ui):** Static SPA served by nginx. The app calls the backend API and Keycloak for login. Exposed on a host port (e.g. 9011).
+- **Login:** The UI uses Keycloak’s “password” grant. To avoid browser CORS issues, the frontend image can **proxy** Keycloak at `/keycloak`, so the browser only talks to the frontend origin (same-origin). Nginx then forwards `/keycloak/` to the real Keycloak server.
 
-## Quick Start
+**Important:** The frontend is built with API and Keycloak URLs **baked in** at build time. The Keycloak proxy target is set at **runtime** via the `KEYCLOAK_PROXY_PASS` environment variable.
 
-```bash
-# 1. Ensure Postgres, Redis, Kafka, Keycloak are running on the host
+---
 
-# 2. Enter deploy directory
-cd xpos/deploy
+## 2. Ways to deploy
 
-# 3. Create .env from example and configure connection details
-cp .env.example .env
-# Edit .env: image names, Postgres/Redis/Kafka/Keycloak URLs, credentials
-
-# 4. Verify prerequisites (optional)
-./deploy.sh check
-
-# 5. Deploy
-./deploy.sh up
-```
-
-When ready:
-
-```
-XPOS is ready:
-  Frontend: http://localhost:9011
-  Backend:  http://localhost:9003
-```
-
-## Deployment Artifacts
-
-| File | Purpose |
-|------|---------|
-| `deploy/docker-compose.deploy.yml` | Compose stack (xpos + xpos-ui only) |
-| `deploy/.env.example` | Example configuration (copy to `.env`) |
-| `deploy/deploy.sh` | Script: up, down, status, health, check, logs |
-
-## Configuration
-
-### Required Environment Variables (`.env`)
-
-| Variable | Description |
+| Scenario | When to use |
 |----------|-------------|
-| `XPOS_IMAGE` | Backend image (e.g. `ghcr.io/myorg/xpos:latest`) |
-| `XPOS_UI_IMAGE` | Frontend image (e.g. `ghcr.io/myorg/xpos-ui:latest`) |
-| `POSTGRES_PASSWORD` | Postgres password |
-| `XPOS_KEYCLOAK_JWK_URI` | Full JWK URI (e.g. `http://host.docker.internal:8088/realms/xpos/protocol/openid-connect/certs`; use your Keycloak host port) |
+| **Full compose** | Keycloak, Postgres, Redis, Kafka, xpos-api, and xpos-ui all in one Docker Compose file. |
+| **Deploy stack** | Postgres, Redis, Kafka, Keycloak already run on the host; you only start xpos and xpos-ui with `deploy/docker-compose.deploy.yml` and `deploy/deploy.sh`. |
 
-### External Services (Host Reachability)
+The rest of this doc covers both and the main pitfalls.
 
-Containers reach host services via `host.docker.internal` (Docker 20.10+ provides `host-gateway`). Override if services run elsewhere:
+---
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `POSTGRES_HOST` | Postgres host (for container) | `host.docker.internal` |
-| `POSTGRES_PORT` | Postgres port | `5432` |
-| `POSTGRES_USER` | Postgres user | `postgres` |
-| `POSTGRES_DB` | Postgres database | `xpos` |
-| `REDIS_HOST` | Redis host | `host.docker.internal` |
-| `REDIS_PORT` | Redis port | `6379` |
-| `KAFKA_BOOTSTRAP_SERVERS` | Kafka bootstrap (host:port) | `host.docker.internal:9092` |
+## 3. Full compose (Keycloak + xpos in one stack)
 
-### Ports for xpos and xpos-ui
+Use this when Keycloak and xpos run as **services in the same Docker Compose** (e.g. shared network).
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `XPOS_PORT` | Host port for backend | `9003` |
-| `XPOS_UI_PORT` | Host port for frontend | `9011` |
+### 3.1 Backend (xpos-api)
 
-### Frontend Build-Time Variables
+- Image: your backend image (e.g. `${XPOS_IMAGE}`).
+- Port: e.g. `9005:9005` (host 9005 → container 9005).
+- Environment: point to Postgres, Redis, Kafka, and Keycloak by **service name** (e.g. `postgres-common:5432`, `redis-common:6379`, `kafka-common:9092`, `XPOS_KEYCLOAK_JWK_URI` with Keycloak’s internal URL, e.g. `http://keycloak:8080/realms/xpos/protocol/openid-connect/certs`).
+- Healthcheck: e.g. `wget` or `curl` to `http://127.0.0.1:9005/actuator/health`.
 
-The frontend image bakes in API and Keycloak URLs at build time. The **xpos-ui** Dockerfile hardcodes defaults for `xpos.com` (see `xpos-ui/Dockerfile` and `xpos-ui/.env.production`). To override, rebuild with:
+### 3.2 Frontend (xpos-ui) – critical settings
 
-```bash
-docker build -t xpos-ui:latest \
-  --build-arg VITE_API_BASE_URL=http://api.xpos.com:9003 \
-  --build-arg VITE_KEYCLOAK_URL=http://auth.xpos.com:8088 \
-  --build-arg VITE_KEYCLOAK_REALM=master \
-  --build-arg VITE_KEYCLOAK_CLIENT_ID=xpos-client-api \
-  .
-```
+**Port mapping**
 
-Use the **Keycloak host port** (e.g. 8088 if Keycloak is mapped to 8088 on the host).
-
-## Local testing with custom domain (e.g. xpos.com)
-
-To test using hostnames like `xpos.com` instead of `localhost`, point those names at your machine via `/etc/hosts`, then build/run the frontend so it calls `api.xpos.com` and `auth.xpos.com` (with the correct ports).
-
-### 1. Edit hosts (Ubuntu/Linux)
-
-```bash
-sudo nano /etc/hosts
-```
-
-Add at the end (adjust subdomains if needed):
-
-```
-127.0.0.1   xpos.com
-127.0.0.1   api.xpos.com
-127.0.0.1   auth.xpos.com
-```
-
-Save (Ctrl+O, Enter) and exit (Ctrl+X).
-
-### 2. Reload / apply changes
-
-- **Usually no reload needed.** The resolver reads `/etc/hosts` on each lookup.
-- If hostnames don’t resolve, flush the cache and use a **new browser tab**:
-  ```bash
-  sudo systemd-resolve --flush-caches
+- Nginx **inside** the container listens on **port 80**.
+- Map the **host** port (e.g. 9011) to **container port 80**:
+  ```yaml
+  ports:
+    - "9011:80"
   ```
-  Or on newer systems: `sudo resolvectl flush-caches`
+- Using `"9011:9011"` is wrong: nothing listens on 9011 in the container, so the frontend will be unreachable.
 
-### 3. Ports (use in URLs and frontend build)
+**Keycloak proxy (avoids CORS)**
 
-- **Frontend:** `http://xpos.com:9011`
-- **Backend:** `http://api.xpos.com:9003` (or your backend host port)
-- **Keycloak:** `http://auth.xpos.com:8088` (or your Keycloak host port, e.g. 8088 not 8080 if that’s how it’s mapped)
+- The image proxies Keycloak at `/keycloak`. The browser calls `http://your-host:9011/keycloak/...` (same origin), so Keycloak CORS is not needed.
+- Nginx needs to know **where Keycloak is**. That is set with **`KEYCLOAK_PROXY_PASS`** at runtime.
 
-Without the port, the browser uses port 80; your containers won’t be reached unless you use a reverse proxy on 80.
+When Keycloak is a **service in the same compose** (e.g. service name `keycloak`):
 
-### 4. Keycloak: same-origin proxy (recommended, no CORS)
+- Use the **service name** and the **port inside the Keycloak container** (Keycloak listens on **8080** inside the container).
+- Compose port mapping `"8088:8080"` means: host 8088 → container 8080. **Container-to-container** traffic uses the **container port**, so use **8080**:
+  ```yaml
+  environment:
+    KEYCLOAK_PROXY_PASS: keycloak:8080
+  ```
+- **Why 8080 and not 8088?** 8088 is only the **host** port. From another container you talk to `keycloak:8080` (service name + port the process listens on inside the container).
 
-So the browser can call Keycloak from `http://xpos.com:9011`, configure the Keycloak client used by the app:
+If you **omit** `KEYCLOAK_PROXY_PASS`, the entrypoint defaults to `host.docker.internal:8088`. That hostname often does **not** exist in a typical compose network, so nginx fails with:
 
-1. **Keycloak Admin** → realm (e.g. **xpos**) → **Clients** → your client (e.g. **xpos-client-api**) → **Settings**.
-2. If **Valid redirect URIs** and **Web origins** are missing (Keycloak 25 with only “Direct access grants”): enable **Standard flow** temporarily, **Save**, then the fields appear.
-3. Set:
-   - **Valid redirect URIs:** `http://xpos.com:9011/*`
-   - **Web origins:** `http://xpos.com:9011` (or `+` to use redirect URIs as origins)
-4. **Save**. Restart Keycloak if CORS still fails: `docker restart <keycloak-container>`.
+```text
+host not found in upstream "host.docker.internal" in /etc/nginx/conf.d/default.conf
+```
 
-## Deploy Script Commands
+So when Keycloak is in the same compose, **always** set:
+
+```yaml
+KEYCLOAK_PROXY_PASS: keycloak:8080
+```
+
+(Replace `keycloak` with your Keycloak service name if different, e.g. `keycloak-common:8080`.)
+
+### 3.3 Example xpos-ui block (full compose)
+
+```yaml
+xpos-ui:
+  image: ghcr.io/billywr/xpos-ui:dev
+  container_name: xpos-ui
+  pull_policy: always
+  ports:
+    - "9011:80"
+  environment:
+    KEYCLOAK_PROXY_PASS: keycloak:8080
+  depends_on:
+    xpos-api:
+      condition: service_healthy
+  networks:
+    - internal-srv-network
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "curl -sf http://localhost/health || exit 1"]
+    interval: 10s
+    timeout: 5s
+    retries: 3
+```
+
+After deploy, open the app at **http://localhost:9011** (or your host/IP and port).
+
+---
+
+## 4. Deploy stack (external Postgres, Redis, Kafka, Keycloak)
+
+Use this when Postgres, Redis, Kafka, and Keycloak already run **on the host** (or elsewhere). Only xpos and xpos-ui are started via the deploy stack.
+
+- Copy `deploy/.env.example` to `deploy/.env` and set image names, `POSTGRES_PASSWORD`, `XPOS_KEYCLOAK_JWK_URI`, etc.
+- Run: `./deploy.sh up` (from `xpos/deploy`).
+- Frontend default port: 9011. Backend default: 9003 (overridable via `.env`).
+
+When Keycloak is **on the host** (e.g. port 8088), the xpos-ui container must resolve `host.docker.internal` to reach it. Add to the **xpos-ui** service in your compose (or use `deploy/docker-compose.deploy.yml`, which is set up for host services):
+
+```yaml
+extra_hosts:
+  - "host.docker.internal:host-gateway"
+environment:
+  KEYCLOAK_PROXY_PASS: host.docker.internal:8088
+```
+
+Then the proxy target is the host’s Keycloak on port 8088.
+
+---
+
+## 5. Custom domain (e.g. xpos.com)
+
+To use a hostname like `xpos.com` instead of `localhost` (e.g. for testing or a custom domain):
+
+1. **Edit hosts (Ubuntu/Linux):**
+   ```bash
+   sudo nano /etc/hosts
+   ```
+   Add (adjust if you use different names):
+   ```text
+   127.0.0.1   xpos.com
+   127.0.0.1   api.xpos.com
+   127.0.0.1   auth.xpos.com
+   ```
+   Save and exit.
+
+2. **Apply changes:** Usually no reload is needed. If the new hostnames don’t resolve, flush the resolver cache and try in a new browser tab:
+   ```bash
+   sudo systemd-resolve --flush-caches
+   # or
+   sudo resolvectl flush-caches
+   ```
+
+3. **Use the port in the URL:** The frontend is on port 9011, so open:
+   - **http://xpos.com:9011**
+   Without the port, the browser uses 80 and won’t reach your container unless you put a reverse proxy on 80.
+
+4. **Backend / Keycloak ports:** Use the ports your backend and Keycloak are actually on (e.g. backend 9005, Keycloak 8088 on the host). The frontend image is built with those URLs (see `xpos-ui/Dockerfile` and build args).
+
+---
+
+## 6. Troubleshooting
+
+Problems we hit and how to fix them.
+
+### Frontend not reachable / blank page
+
+| Cause | Fix |
+|-------|-----|
+| Wrong port mapping | Nginx listens on **80** in the container. Use **`9011:80`**, not `9011:9011`. |
+| Container exiting on start | Check `docker logs xpos-ui`. If you see “host not found in upstream” → set `KEYCLOAK_PROXY_PASS` (see below). If you see “envsubst: not found” → rebuild the image (Dockerfile should install `gettext-envsubst`). |
+
+### "crypto.randomUUID is not a function" (red error on page)
+
+- **Meaning:** The browser or context (e.g. HTTP production) does not provide `crypto.randomUUID()`, which the app uses for request IDs and toast IDs.
+- **Fix:** The frontend uses a safe UUID helper (`src/utils/uuid.ts`) that falls back to `crypto.getRandomValues()` or a random fallback when `crypto.randomUUID` is missing. Ensure you deploy a build that includes this (current codebase). Rebuild and redeploy the xpos-ui image if you were on an older build.
+
+### “host not found in upstream” (host.docker.internal)
+
+- **Meaning:** Nginx is trying to proxy to `host.docker.internal:8088` but that hostname doesn’t resolve inside the container.
+- **When Keycloak is in the same compose:** Set the proxy to the Keycloak **service** and **container port**:
+  ```yaml
+  environment:
+    KEYCLOAK_PROXY_PASS: keycloak:8080
+  ```
+  Use your real Keycloak service name; use **8080** (container port), not 8088 (host port).
+- **When Keycloak is on the host:** Add `extra_hosts: - "host.docker.internal:host-gateway"` to the xpos-ui service and keep `KEYCLOAK_PROXY_PASS: host.docker.internal:8088` (or whatever port Keycloak uses on the host).
+
+### Why 8080 vs 8088 for Keycloak?
+
+- **8088** = port on the **host** (e.g. `ports: "8088:8080"`).
+- **8080** = port **inside** the Keycloak container.
+- From **another container** you must use the **service name + container port**: `keycloak:8080`. Using `keycloak:8088` is wrong because nothing listens on 8088 inside the Keycloak container.
+
+### “Login is not configured (missing VITE_KEYCLOAK_URL)”
+
+- The frontend reads `VITE_KEYCLOAK_URL` at **build time**. If the image was built without it (or with an empty value), you get this error.
+- **Fix:** Rebuild the frontend image so the Dockerfile (or build args) set `VITE_KEYCLOAK_URL` and related vars. The repo Dockerfile hardcodes defaults (e.g. `http://auth.xpos.com:8088`). Rebuild and redeploy the image.
+
+### CORS blocking Keycloak token request
+
+- **Preferred:** Use the **same-origin proxy**. The image is built with `VITE_USE_KEYCLOAK_PROXY=true`; the browser calls `http://your-host:9011/keycloak/...` and nginx proxies to Keycloak. No CORS needed. Ensure `KEYCLOAK_PROXY_PASS` is set correctly (see above).
+- **Alternative:** In Keycloak, open your client → Settings. Set **Valid redirect URIs** (e.g. `http://xpos.com:9011/*`) and **Web origins** (e.g. `http://xpos.com:9011`). In Keycloak 25, if those fields are hidden, enable **Standard flow** temporarily, save, set them, then save again. Restart Keycloak if needed.
+
+### auth.xpos.com:8080 not reachable
+
+- If Keycloak is on the host and mapped as **8088:8080**, use **8088** in URLs that you open from the **browser** (e.g. `http://auth.xpos.com:8088`). The frontend build (VITE_KEYCLOAK_URL) and `/etc/hosts` must match. Use **8080** only for **container-to-container** proxy (`KEYCLOAK_PROXY_PASS: keycloak:8080`).
+
+### "Cannot reach server. Check that the backend is running and VITE_API_BASE_URL is correct."
+
+- **Meaning:** The browser could not reach the backend API (e.g. "Failed to fetch"). The frontend shows this message and a **Reference** ID (requestId); keep that ID when reporting the issue.
+- **Checks:**
+  1. **Backend running:** Ensure the xpos-api container (or backend process) is up and healthy. Run `docker ps` or `./deploy.sh status` and check backend logs.
+  2. **VITE_API_BASE_URL:** The API URL is **baked in at build time**. The browser calls whatever URL was set when the frontend image was built (e.g. `http://api.xpos.com:9005` or `http://localhost:9005`). If you use a custom domain, the URL must be reachable **from the user’s browser** (same machine or correct DNS/hosts).
+  3. **Host and port:** Confirm the backend is listening on the host/port in that URL. For example, if the URL is `http://api.xpos.com:9005`, ensure the backend is exposed on port 9005 and that `api.xpos.com` resolves (e.g. `/etc/hosts` or DNS) to the host where the backend runs.
+  4. **Network / CORS:** Requests go from the **browser** to the backend. Firewall, VPN, or CORS misconfiguration can block them. Backend CORS must allow the frontend origin **including port** (e.g. `http://xpos.com:9011`). If **Postman** can reach the API but the **browser** shows "Cannot reach server", add your frontend URL (e.g. `http://xpos.com:9011`) to `xpos.api.cors.allowed-origins` in `application-prod.yml` (or via env) and restart the backend.
+- **Fix:** Rebuild the frontend image with the correct `VITE_API_BASE_URL` for your environment, then redeploy. If the backend runs on a different host/port than what was baked in, update the build and rebuild. For browser "Cannot reach server" while Postman works, add the frontend origin to CORS and restart the backend.
+
+### Backend / other
+
+| Issue | Fix |
+|-------|-----|
+| `./deploy.sh check` fails | Ensure Postgres, Redis, Kafka, Keycloak are reachable on the ports in `.env`. Set `KEYCLOAK_HOST` / `KEYCLOAK_PORT` if Keycloak is not on localhost:8080. |
+| Backend `ClassNotFoundException: KafkaTemplate` | Ensure `spring-kafka` is not `<optional>true</optional>` in `pom.xml`. Rebuild backend image. |
+| Wrong API URL in frontend | API URL is baked in at build time. Rebuild frontend with correct `VITE_API_BASE_URL` (e.g. `http://api.xpos.com:9005`). |
+
+---
+
+## 7. Reference
+
+### Deploy script (when using deploy stack)
 
 | Command | Description |
 |---------|-------------|
 | `./deploy.sh check` | Verify Postgres, Redis, Kafka, Keycloak are reachable |
 | `./deploy.sh up` | Start xpos + xpos-ui, wait for backend health |
 | `./deploy.sh down` | Stop and remove containers |
-| `./deploy.sh status` | Show container status |
-| `./deploy.sh health` | Curl backend and frontend health endpoints |
-| `./deploy.sh logs [service]` | Tail logs (optional: xpos or xpos-ui) |
+| `./deploy.sh status` | Container status |
+| `./deploy.sh health` | Curl backend and frontend health |
+| `./deploy.sh logs [service]` | Tail logs |
 
-## Architecture
+### Files
 
-```
-  Host machine (Postgres, Redis, Kafka, Keycloak already running)
-  ─────────────────────────────────────────────────────────────
+| File | Purpose |
+|------|---------|
+| `deploy/docker-compose.deploy.yml` | Compose for xpos + xpos-ui (external infra) |
+| `deploy/.env.example` | Example env; copy to `.env` |
+| `deploy/deploy.sh` | up / down / status / health / check / logs |
+| `compose-frontend.yml` | Frontend-only compose (backend already running) |
+| `docs/DEPLOYMENT_COMPOSE_SNIPPET.md` | Copy-paste xpos-ui block for your compose |
 
-    ┌─────────────────────────────────────────────────────┐
-    │  Docker                                              │
-    │                                                     │
-    │    ┌─────────────┐         ┌─────────────────────┐  │
-    │    │  xpos-ui    │ :9011   │       xpos          │  │  :9003
-    │    │  (Nginx)    │────────▶│  (Spring Boot)      │  │
-    │    └─────────────┘         └──────────┬──────────┘  │
-    │                                       │             │
-    │                         host.docker.internal        │
-    └───────────────────────────────────────┼─────────────┘
-                                            │
-                    ┌───────────────────────┼───────────────────────┐
-                    │                       │                       │
-              ┌─────▼─────┐           ┌──────▼──────┐         ┌─────▼─────┐
-              │ Postgres  │           │   Redis     │         │   Kafka   │
-              │  :5432    │           │   :6379    │         │   :9092  │
-              └───────────┘           └────────────┘         └──────────┘
-                                                    │
-                                              ┌─────▼─────┐
-                                              │ Keycloak  │  :8080 (or :8088 on host)
-                                              └───────────┘
-```
+### Ports (typical)
 
-## Troubleshooting
+| Service | Container port | Host port (example) |
+|---------|----------------|---------------------|
+| xpos-ui (nginx) | 80 | 9011 |
+| xpos-api | 9005 | 9005 |
+| Keycloak | 8080 | 8088 |
 
-| Issue | Solution |
-|-------|----------|
-| `host.docker.internal` not resolved | Use Docker 20.10+; Linux uses `host-gateway` in `extra_hosts`. |
-| `./deploy.sh check` fails | Ensure Postgres, Redis, Kafka, Keycloak listen on expected ports. Set `KEYCLOAK_HOST`, `KEYCLOAK_PORT` in `.env` if Keycloak is not on localhost:8080 (e.g. use 8088). |
-| Backend cannot connect to Postgres | Verify `POSTGRES_HOST`, `POSTGRES_PORT`, credentials. For same-host, `host.docker.internal` maps to host. |
-| Backend exits with `ClassNotFoundException: KafkaTemplate` | Ensure `spring-kafka` is not `<optional>true</optional>` in `pom.xml`. |
-| Frontend shows wrong API URL or “missing VITE_KEYCLOAK_URL” | Rebuild frontend image; URLs are baked in at build time. See Frontend Build-Time Variables and `xpos-ui/Dockerfile`. |
-| CORS blocking Keycloak token from xpos.com:9011 | **Preferred:** Use the frontend’s **same-origin Keycloak proxy**. The app is built with `VITE_USE_KEYCLOAK_PROXY=true`; nginx proxies `/keycloak/` to Keycloak. Run the frontend container with `extra_hosts: host.docker.internal:host-gateway` (see `compose-frontend.yml`) so the proxy can reach Keycloak on the host (e.g. port 8088). No Keycloak CORS config needed. **Alternative:** In Keycloak client set Web origins to `http://xpos.com:9011`, enable **Standard flow**, save, restart Keycloak. |
-| auth.xpos.com:8080 not reachable | Use the host port Keycloak is actually on (e.g. **8088**). In frontend Dockerfile / build use `VITE_KEYCLOAK_URL=http://auth.xpos.com:8088`. Ensure `/etc/hosts` has `127.0.0.1 auth.xpos.com`. |
+### Production notes
 
-## Production Notes
-
-- Use strong passwords and TLS for Postgres, Redis, Kafka, Keycloak.
-- If services run on different hosts, set `POSTGRES_HOST`, `REDIS_HOST`, `KAFKA_BOOTSTRAP_SERVERS`, and `XPOS_KEYCLOAK_JWK_URI` to the actual endpoints.
-- Configure Keycloak realm, client, and users before use. For a custom domain (e.g. xpos.com), set the client’s **Valid redirect URIs** and **Web origins** to your frontend URL so CORS works.
-- Flyway migrations run automatically on first backend startup.
+- Use strong passwords and TLS where appropriate.
+- Configure Keycloak realm, client, and users. For custom domains, set the client’s **Valid redirect URIs** and **Web origins** if you are not using the `/keycloak` proxy.
+- Flyway runs on first backend startup.
