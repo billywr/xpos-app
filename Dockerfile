@@ -22,7 +22,8 @@ RUN npm run build
 # Runtime stage
 FROM nginx:1.27-alpine
 
-RUN rm -rf /usr/share/nginx/html/*
+RUN apk add --no-cache gettext-envsubst \
+    && rm -rf /usr/share/nginx/html/*
 
 COPY --from=builder /build/dist /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/conf.d/default.conf.template
