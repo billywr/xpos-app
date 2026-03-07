@@ -1,10 +1,25 @@
-# Compose snippet for xpos-ui
+# Compose snippets (xpos-ui and xpos-api)
 
-Quick reference for wiring **xpos-ui** into your own Docker Compose. For full deployment flow and troubleshooting, see **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+Quick reference for wiring **xpos-ui** and **xpos-api** into your own Docker Compose when Keycloak is in the same stack. For full deployment flow and troubleshooting, see **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 
 ---
 
-## Port mapping
+## Backend (xpos-api) – Keycloak env
+
+When Keycloak is a **service** in the same compose (e.g. `keycloak`), set these on the **backend** so it can validate JWTs (confirmed working):
+
+```bash
+XPOS_KEYCLOAK_JWK_URI=http://keycloak:8080/realms/xpos/protocol/openid-connect/certs
+XPOS_KEYCLOAK_ISSUER=http://keycloak:8080/realms/xpos
+```
+
+Use your Keycloak service name if different (e.g. `keycloak-common:8080`). Do not use `auth.xpos.com:8088` for the backend—that hostname is for the browser; the backend must use the internal service name.
+
+---
+
+## Frontend (xpos-ui)
+
+### Port mapping
 
 - Nginx listens on **port 80** inside the container.
 - Map host 9011 → container 80: use **`"9011:80"`** (not `9011:9011`).

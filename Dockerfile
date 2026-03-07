@@ -21,6 +21,9 @@ WORKDIR /app
 
 COPY --from=builder /build/target/app.jar ./app.jar
 
+# Item image uploads (xpos.upload.dir default /app/uploads); must be writable by xpos
+RUN mkdir -p /app/uploads && chown -R xpos:xpos /app/uploads
+
 USER xpos
 
 EXPOSE 9005

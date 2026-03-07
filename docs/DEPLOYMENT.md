@@ -45,7 +45,15 @@ Use this when Keycloak and xpos run as **services in the same Docker Compose** (
 
 - Image: your backend image (e.g. `${XPOS_IMAGE}`).
 - Port: e.g. `9005:9005` (host 9005 → container 9005).
-- Environment: point to Postgres, Redis, Kafka, and Keycloak by **service name** (e.g. `postgres-common:5432`, `redis-common:6379`, `kafka-common:9092`, `XPOS_KEYCLOAK_JWK_URI` with Keycloak’s internal URL, e.g. `http://keycloak:8080/realms/xpos/protocol/openid-connect/certs`).
+- Environment: point to Postgres, Redis, Kafka, and Keycloak by **service name** (e.g. `postgres-common:5432`, `redis-common:6379`, `kafka-common:9092`).
+- **Keycloak (JWT validation):** When Keycloak is in the same compose, the backend must use the Keycloak **service name and container port** so it can reach Keycloak from inside its container. This configuration is required for token validation and works in production:
+
+  ```bash
+  XPOS_KEYCLOAK_JWK_URI=http://keycloak:8080/realms/xpos/protocol/openid-connect/certs
+  XPOS_KEYCLOAK_ISSUER=http://keycloak:8080/realms/xpos
+  ```
+
+  Use your Keycloak service name if different (e.g. `keycloak-common:8080`). Do **not** use `auth.xpos.com:8088` here—the backend container cannot rely on that hostname in a typical compose network.
 - Healthcheck: e.g. `wget` or `curl` to `http://127.0.0.1:9005/actuator/health`.
 
 ### 3.2 Frontend (xpos-ui) – critical settings
@@ -230,10 +238,10 @@ Problems we hit and how to fix them.
 
 - **Meaning:** The API returns 401 when calling admin/operator endpoints. Either no valid Bearer token is sent, or the backend cannot validate the token (wrong/unreachable Keycloak URLs or issuer mismatch).
 - **Backend Keycloak URLs:** `XPOS_KEYCLOAK_JWK_URI` and `XPOS_KEYCLOAK_ISSUER` are used **by the backend** to validate JWTs. The backend must be able to **reach** the JWK URI from inside its container.
-  - **Keycloak in the same Docker Compose:** Use the **service name and container port**, not `auth.xpos.com`:
+  - **Keycloak in the same Docker Compose:** Use the **service name and container port** (confirmed working):
     - `XPOS_KEYCLOAK_JWK_URI=http://keycloak:8080/realms/xpos/protocol/openid-connect/certs`
     - `XPOS_KEYCLOAK_ISSUER=http://keycloak:8080/realms/xpos`
-    (Replace `keycloak` with your Keycloak service name if different.) The backend container often cannot resolve `auth.xpos.com`; using the service name fixes that.
+    (Replace `keycloak` with your Keycloak service name if different.) The backend container often cannot resolve `auth.xpos.com`; using the service name fixes that. See §3.1 for the full backend Keycloak env.
   - **Keycloak on the host:** Use `http://host.docker.internal:8088/realms/xpos/...` and ensure the backend container has `extra_hosts: host.docker.internal:host-gateway`.
 - **Issuer must match the token:** The JWT's `iss` claim must **exactly** match `XPOS_KEYCLOAK_ISSUER`. If users log in via the frontend proxy (`http://xpos.com:9011/keycloak`), Keycloak may set `iss` to `http://xpos.com:9011/keycloak/realms/xpos`. Then set `XPOS_KEYCLOAK_ISSUER=http://xpos.com:9011/keycloak/realms/xpos`. Decode your access token at [jwt.io](https://jwt.io) and set `XPOS_KEYCLOAK_ISSUER` to the exact `iss` value.
 - **Postman:** You must send a valid token. Get one: `POST` to `http://auth.xpos.com:8088/realms/xpos/protocol/openid-connect/token` (or your Keycloak URL) with `grant_type=password`, `client_id=xpos-client-api`, `username`, `password`. Use the response's `access_token` in the request: `Authorization: Bearer <access_token>`. If you send a token and still get 401, the backend cannot validate it (fix JWK URI and issuer as above and restart the backend).
@@ -245,6 +253,7 @@ Problems we hit and how to fix them.
 | `./deploy.sh check` fails | Ensure Postgres, Redis, Kafka, Keycloak are reachable on the ports in `.env`. Set `KEYCLOAK_HOST` / `KEYCLOAK_PORT` if Keycloak is not on localhost:8080. |
 | Backend `ClassNotFoundException: KafkaTemplate` | Ensure `spring-kafka` is not `<optional>true</optional>` in `pom.xml`. Rebuild backend image. |
 | Wrong API URL in frontend | API URL is baked in at build time. Rebuild frontend with correct `VITE_API_BASE_URL` (e.g. `http://api.xpos.com:9005`). |
+| `AccessDeniedException: /app/uploads` when uploading item images | The backend runs as a non-root user and needs a writable upload directory. Rebuild the backend image (the Dockerfile creates `/app/uploads` and chowns it to the app user). Or set `XPOS_UPLOAD_DIR` to a path that exists and is writable in the container, or mount a volume at `/app/uploads`. |
 
 ---
 
@@ -284,3 +293,4 @@ Problems we hit and how to fix them.
 - Use strong passwords and TLS where appropriate.
 - Configure Keycloak realm, client, and users. For custom domains, set the client’s **Valid redirect URIs** and **Web origins** if you are not using the `/keycloak` proxy.
 - Flyway runs on first backend startup.
+- **Item image uploads:** The backend stores images under `xpos.upload.dir` (default in prod: `/app/uploads`). The backend image creates `/app/uploads` and makes it writable by the app process. For **persistence** across container restarts, mount a volume at `/app/uploads` (or set `XPOS_UPLOAD_DIR` to a path that has a volume mounted).

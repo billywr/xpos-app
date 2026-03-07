@@ -53,7 +53,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: http://keycloak:8080/realms/xpos/protocol/openid-connect/certs
+          jwk-set-uri: ${XPOS_KEYCLOAK_JWK_URI}
 
   servlet:
     multipart:
@@ -135,7 +135,7 @@ xpos:
   security:
     require-device-binding: true
     require-branch-scope: true
-    issuer: http://auth.xpos.com:8088/realms/xpos
+    issuer: ${XPOS_KEYCLOAK_ISSUER:}
     audience: ""
 
   receipt:
