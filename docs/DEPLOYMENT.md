@@ -226,6 +226,18 @@ Problems we hit and how to fix them.
   4. **Network / CORS:** Requests go from the **browser** to the backend. Firewall, VPN, or CORS misconfiguration can block them. Backend CORS must allow the frontend origin **including port** (e.g. `http://xpos.com:9011`). If **Postman** can reach the API but the **browser** shows "Cannot reach server", add your frontend URL (e.g. `http://xpos.com:9011`) to `xpos.api.cors.allowed-origins` in `application-prod.yml` (or via env) and restart the backend.
 - **Fix:** Rebuild the frontend image with the correct `VITE_API_BASE_URL` for your environment, then redeploy. If the backend runs on a different host/port than what was baked in, update the build and rebuild. For browser "Cannot reach server" while Postman works, add the frontend origin to CORS and restart the backend.
 
+### 401 Unauthorized (backend can't validate token or no token sent)
+
+- **Meaning:** The API returns 401 when calling admin/operator endpoints. Either no valid Bearer token is sent, or the backend cannot validate the token (wrong/unreachable Keycloak URLs or issuer mismatch).
+- **Backend Keycloak URLs:** `XPOS_KEYCLOAK_JWK_URI` and `XPOS_KEYCLOAK_ISSUER` are used **by the backend** to validate JWTs. The backend must be able to **reach** the JWK URI from inside its container.
+  - **Keycloak in the same Docker Compose:** Use the **service name and container port**, not `auth.xpos.com`:
+    - `XPOS_KEYCLOAK_JWK_URI=http://keycloak:8080/realms/xpos/protocol/openid-connect/certs`
+    - `XPOS_KEYCLOAK_ISSUER=http://keycloak:8080/realms/xpos`
+    (Replace `keycloak` with your Keycloak service name if different.) The backend container often cannot resolve `auth.xpos.com`; using the service name fixes that.
+  - **Keycloak on the host:** Use `http://host.docker.internal:8088/realms/xpos/...` and ensure the backend container has `extra_hosts: host.docker.internal:host-gateway`.
+- **Issuer must match the token:** The JWT's `iss` claim must **exactly** match `XPOS_KEYCLOAK_ISSUER`. If users log in via the frontend proxy (`http://xpos.com:9011/keycloak`), Keycloak may set `iss` to `http://xpos.com:9011/keycloak/realms/xpos`. Then set `XPOS_KEYCLOAK_ISSUER=http://xpos.com:9011/keycloak/realms/xpos`. Decode your access token at [jwt.io](https://jwt.io) and set `XPOS_KEYCLOAK_ISSUER` to the exact `iss` value.
+- **Postman:** You must send a valid token. Get one: `POST` to `http://auth.xpos.com:8088/realms/xpos/protocol/openid-connect/token` (or your Keycloak URL) with `grant_type=password`, `client_id=xpos-client-api`, `username`, `password`. Use the response's `access_token` in the request: `Authorization: Bearer <access_token>`. If you send a token and still get 401, the backend cannot validate it (fix JWK URI and issuer as above and restart the backend).
+
 ### Backend / other
 
 | Issue | Fix |
