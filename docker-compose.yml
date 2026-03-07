@@ -67,7 +67,7 @@ services:
   xpos:
     build: .
     ports:
-      - "9003:9003"
+      - "9005:9005"
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/xpos

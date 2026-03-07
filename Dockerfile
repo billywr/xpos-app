@@ -23,7 +23,7 @@ COPY --from=builder /build/target/app.jar ./app.jar
 
 USER xpos
 
-EXPOSE 9003
+EXPOSE 9005
 
 ENV SPRING_PROFILES_ACTIVE=prod
 ENTRYPOINT ["java", "-jar", "app.jar"]
