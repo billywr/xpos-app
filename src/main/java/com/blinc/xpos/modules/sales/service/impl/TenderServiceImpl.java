@@ -90,6 +90,25 @@ public class TenderServiceImpl implements TenderService {
     return tenderRepository.findBySaleIdOrderByCapturedAtWithTenderTypeAndStaff(sale.getId());
   }
 
+  @Override
+  @Transactional
+  public void removeTender(UUID orgId, UUID saleId, UUID tenderId) {
+    Sale sale = requireOpenSale(orgId, saleId);
+    Tender tender =
+        tenderRepository
+            .findById(tenderId)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "TENDER_NOT_FOUND", "Tender not found: " + tenderId));
+    if (!tender.getSale().getId().equals(sale.getId())
+        || !tender.getOrg().getId().equals(orgId)) {
+      throw new NotFoundException(
+          "TENDER_NOT_FOUND", "Tender not found for this sale: " + tenderId);
+    }
+    tenderRepository.delete(tender);
+  }
+
   private Sale requireOpenSale(UUID orgId, UUID saleId) {
     Sale sale =
         saleRepository

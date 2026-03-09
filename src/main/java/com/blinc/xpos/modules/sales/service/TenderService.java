@@ -20,4 +20,9 @@ public interface TenderService {
       UUID staffUserId);
 
   List<Tender> listBySale(UUID orgId, UUID saleId);
+
+  /**
+   * Removes a tender from an open sale. Sale must be OPEN and tender must belong to that sale.
+   */
+  void removeTender(UUID orgId, UUID saleId, UUID tenderId);
 }

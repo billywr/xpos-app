@@ -9,6 +9,7 @@ public record GrnLineResponse(
     UUID grnId,
     UUID itemId,
     String itemName,
+    String barcode,
     BigDecimal qty,
     UUID uomId,
     BigDecimal receivedUnitCost,

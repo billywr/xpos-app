@@ -3,6 +3,7 @@ package com.blinc.xpos.api.v1.admin.catalog.dto;
 import com.blinc.xpos.common.constants.enums.ItemType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 public record ItemUpdateRequest(
@@ -14,4 +15,7 @@ public record ItemUpdateRequest(
     UUID taxProfileId,
     boolean trackInventory,
     boolean active,
+    BigDecimal buyingPrice,
+    BigDecimal defaultSellingPrice,
+    UUID defaultPriceListId,
     String imageUrl) {}

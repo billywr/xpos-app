@@ -456,10 +456,13 @@ public class OrgContextServiceImpl implements OrgContextService {
         i.getTaxProfile() != null ? i.getTaxProfile().getId() : null,
         i.getTrackInventory(),
         i.getActive(),
+        i.getBuyingPrice(),
+        i.getDefaultSellingPrice(),
         primaryImageUrl,
         hasPurchaseHistory,
         i.getCreatedAt(),
-        i.getUpdatedAt());
+        i.getUpdatedAt(),
+        null);
   }
 
   private DeviceResponse toDeviceResponse(DeviceRegistration d) {

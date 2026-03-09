@@ -10,8 +10,10 @@ import com.blinc.xpos.modules.catalog.service.CategoryService;
 import com.blinc.xpos.modules.catalog.service.ItemService;
 import com.blinc.xpos.modules.catalog.service.UomService;
 import com.blinc.xpos.modules.organization.service.OrgService;
+import com.blinc.xpos.common.error.BadRequestException;
 import com.blinc.xpos.modules.pricing.domain.TaxProfile;
 import com.blinc.xpos.modules.pricing.service.TaxProfileService;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;
@@ -57,7 +59,10 @@ public class ItemServiceImpl implements ItemService {
       UUID baseUomId,
       UUID taxProfileId,
       boolean trackInventory,
-      boolean active) {
+      boolean active,
+      BigDecimal buyingPrice,
+      BigDecimal defaultSellingPrice) {
+    validateBuyingAndSellingPrice(buyingPrice, defaultSellingPrice);
     var org = orgService.require(orgId);
     Item item = new Item();
     item.setOrg(org);
@@ -84,10 +89,23 @@ public class ItemServiceImpl implements ItemService {
     }
     item.setTrackInventory(trackInventory);
     item.setActive(active);
+    item.setBuyingPrice(buyingPrice);
+    item.setDefaultSellingPrice(defaultSellingPrice);
     Instant now = Instant.now(clock);
     item.setCreatedAt(now);
     item.setUpdatedAt(now);
     return itemRepository.save(item);
+  }
+
+  private static void validateBuyingAndSellingPrice(
+      BigDecimal buyingPrice, BigDecimal defaultSellingPrice) {
+    if (buyingPrice != null
+        && defaultSellingPrice != null
+        && defaultSellingPrice.compareTo(buyingPrice) < 0) {
+      throw new BadRequestException(
+          "SELLING_PRICE_BELOW_BUYING",
+          "Default selling price cannot be less than buying price.");
+    }
   }
 
   @Override
@@ -117,7 +135,10 @@ public class ItemServiceImpl implements ItemService {
       UUID baseUomId,
       UUID taxProfileId,
       boolean trackInventory,
-      boolean active) {
+      boolean active,
+      BigDecimal buyingPrice,
+      BigDecimal defaultSellingPrice) {
+    validateBuyingAndSellingPrice(buyingPrice, defaultSellingPrice);
     Item item = require(orgId, itemId);
     item.setSku(sku);
     item.setName(name);
@@ -139,6 +160,8 @@ public class ItemServiceImpl implements ItemService {
     }
     item.setTrackInventory(trackInventory);
     item.setActive(active);
+    item.setBuyingPrice(buyingPrice);
+    item.setDefaultSellingPrice(defaultSellingPrice);
     item.setUpdatedAt(Instant.now(clock));
     return itemRepository.save(item);
   }

@@ -5,14 +5,18 @@ import com.blinc.xpos.api.v1.admin.catalog.dto.ItemIdsWithPricesResponse;
 import com.blinc.xpos.api.v1.admin.catalog.dto.ItemResponse;
 import com.blinc.xpos.api.v1.admin.catalog.dto.ItemUpdateRequest;
 import com.blinc.xpos.common.web.paging.PageRequestFactory;
+import com.blinc.xpos.common.error.NotFoundException;
 import com.blinc.xpos.modules.catalog.domain.Item;
 import com.blinc.xpos.modules.catalog.domain.ItemImage;
+import com.blinc.xpos.modules.catalog.service.ItemBarcodeService;
 import com.blinc.xpos.modules.catalog.service.ItemImageService;
 import com.blinc.xpos.modules.catalog.service.ItemService;
 import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
 import com.blinc.xpos.modules.pricing.repository.PriceListItemRepository;
+import com.blinc.xpos.modules.pricing.service.PriceListItemService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -34,31 +38,58 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/admin/orgs/{orgId}/items")
 public class ItemAdminController {
 
+  private static final String DEFAULT_CURRENCY = "KES";
+
   private final ItemService itemService;
+  private final ItemBarcodeService itemBarcodeService;
   private final ItemImageService itemImageService;
   private final PageRequestFactory pageRequestFactory;
   private final StockMovementRepository stockMovementRepository;
   private final PriceListItemRepository priceListItemRepository;
+  private final PriceListItemService priceListItemService;
 
   public ItemAdminController(
       ItemService itemService,
+      ItemBarcodeService itemBarcodeService,
       ItemImageService itemImageService,
       PageRequestFactory pageRequestFactory,
       StockMovementRepository stockMovementRepository,
-      PriceListItemRepository priceListItemRepository) {
+      PriceListItemRepository priceListItemRepository,
+      PriceListItemService priceListItemService) {
     this.itemService = Objects.requireNonNull(itemService, "itemService");
+    this.itemBarcodeService =
+        Objects.requireNonNull(itemBarcodeService, "itemBarcodeService");
     this.itemImageService = Objects.requireNonNull(itemImageService, "itemImageService");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
     this.stockMovementRepository =
         Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
     this.priceListItemRepository =
         Objects.requireNonNull(priceListItemRepository, "priceListItemRepository");
+    this.priceListItemService =
+        Objects.requireNonNull(priceListItemService, "priceListItemService");
   }
 
   @GetMapping("/ids-with-prices")
   public ItemIdsWithPricesResponse itemIdsWithPrices(@PathVariable UUID orgId) {
     List<UUID> ids = priceListItemRepository.findDistinctItemIdsByOrgId(orgId);
     return new ItemIdsWithPricesResponse(ids);
+  }
+
+  @GetMapping("/by-barcode")
+  public ItemResponse getByBarcode(
+      @PathVariable UUID orgId, @RequestParam String barcode) {
+    Item item =
+        itemBarcodeService
+            .findItemByBarcode(orgId, barcode)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "ITEM_NOT_FOUND_BY_BARCODE",
+                        "No item found for barcode: " + barcode));
+    String primaryImageUrl = resolvePrimaryImageUrl(orgId, item.getId());
+    boolean hasHistory =
+        stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, item.getId()) != null;
+    return toResponse(item, primaryImageUrl, hasHistory, resolveFirstBarcode(orgId, item.getId()));
   }
 
   @PostMapping
@@ -75,12 +106,22 @@ public class ItemAdminController {
             request.baseUomId(),
             request.taxProfileId(),
             request.trackInventory(),
-            request.active());
+            request.active(),
+            request.buyingPrice(),
+            request.defaultSellingPrice());
     if (request.imageUrl() != null && !request.imageUrl().isBlank()) {
       itemImageService.add(orgId, item.getId(), request.imageUrl().trim(), 0, true);
     }
+    if (request.defaultPriceListId() != null && request.defaultSellingPrice() != null) {
+      priceListItemService.ensureInPriceList(
+          orgId,
+          request.defaultPriceListId(),
+          item.getId(),
+          request.defaultSellingPrice(),
+          DEFAULT_CURRENCY);
+    }
     String primaryImageUrl = resolvePrimaryImageUrl(orgId, item.getId());
-    return toResponse(item, primaryImageUrl, false);
+    return toResponse(item, primaryImageUrl, false, null);
   }
 
   @GetMapping
@@ -95,12 +136,14 @@ public class ItemAdminController {
     var primaryUrls = itemImageService.findPrimaryUrlsByItemIds(orgId, itemIds);
     var idsWithHistory =
         new java.util.HashSet<>(stockMovementRepository.findItemIdsWithPurchaseHistoryByOrgId(orgId));
+    Map<UUID, String> itemIdToBarcode = itemBarcodeService.getFirstBarcodeByItemIds(orgId, itemIds);
     return page.map(
         item ->
             toResponse(
                 item,
                 primaryUrls.get(item.getId()),
-                idsWithHistory.contains(item.getId())));
+                idsWithHistory.contains(item.getId()),
+                itemIdToBarcode.get(item.getId())));
   }
 
   @GetMapping("/{itemId}")
@@ -109,7 +152,7 @@ public class ItemAdminController {
     String primaryImageUrl = resolvePrimaryImageUrl(orgId, itemId);
     boolean hasHistory =
         stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, itemId) != null;
-    return toResponse(item, primaryImageUrl, hasHistory);
+    return toResponse(item, primaryImageUrl, hasHistory, resolveFirstBarcode(orgId, itemId));
   }
 
   @PatchMapping("/{itemId}")
@@ -128,17 +171,27 @@ public class ItemAdminController {
             request.baseUomId(),
             request.taxProfileId(),
             request.trackInventory(),
-            request.active());
+            request.active(),
+            request.buyingPrice(),
+            request.defaultSellingPrice());
     if (request.imageUrl() != null && !request.imageUrl().isBlank()) {
       for (ItemImage existing : itemImageService.listByItem(orgId, itemId)) {
         itemImageService.remove(orgId, itemId, existing.getId());
       }
       itemImageService.add(orgId, itemId, request.imageUrl().trim(), 0, true);
     }
+    if (request.defaultPriceListId() != null && request.defaultSellingPrice() != null) {
+      priceListItemService.ensureInPriceList(
+          orgId,
+          request.defaultPriceListId(),
+          itemId,
+          request.defaultSellingPrice(),
+          DEFAULT_CURRENCY);
+    }
     String primaryImageUrl = resolvePrimaryImageUrl(orgId, itemId);
     boolean hasHistory =
         stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, itemId) != null;
-    return toResponse(updated, primaryImageUrl, hasHistory);
+    return toResponse(updated, primaryImageUrl, hasHistory, resolveFirstBarcode(orgId, itemId));
   }
 
   @DeleteMapping("/{itemId}")
@@ -155,7 +208,16 @@ public class ItemAdminController {
         .orElse(null);
   }
 
-  private ItemResponse toResponse(Item item, String primaryImageUrl, boolean hasPurchaseHistory) {
+  private String resolveFirstBarcode(UUID orgId, UUID itemId) {
+    var list = itemBarcodeService.listByItem(orgId, itemId);
+    return list.isEmpty() ? null : list.get(0).getBarcode();
+  }
+
+  private ItemResponse toResponse(
+      Item item,
+      String primaryImageUrl,
+      boolean hasPurchaseHistory,
+      String barcode) {
     return new ItemResponse(
         item.getId(),
         item.getOrg().getId(),
@@ -167,9 +229,12 @@ public class ItemAdminController {
         item.getTaxProfile() != null ? item.getTaxProfile().getId() : null,
         item.getTrackInventory(),
         item.getActive(),
+        item.getBuyingPrice(),
+        item.getDefaultSellingPrice(),
         primaryImageUrl,
         hasPurchaseHistory,
         item.getCreatedAt(),
-        item.getUpdatedAt());
+        item.getUpdatedAt(),
+        barcode);
   }
 }

@@ -105,13 +105,15 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
         if (req.qty() == null || req.qty().compareTo(BigDecimal.ZERO) <= 0) {
           throw new IllegalArgumentException("Line qty must be positive");
         }
+        BigDecimal unitCost =
+            item.getBuyingPrice() != null ? item.getBuyingPrice() : req.receivedUnitCost();
         GrnLine line = new GrnLine();
         line.setOrg(grn.getOrg());
         line.setGrn(grn);
         line.setItem(item);
         line.setQty(req.qty());
         line.setUom(uom);
-        line.setReceivedUnitCost(req.receivedUnitCost());
+        line.setReceivedUnitCost(unitCost);
         line.setCreatedAt(now);
         grnLineRepository.save(line);
 
@@ -122,7 +124,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
         mov.setMovementType(MovementType.IN);
         mov.setQty(req.qty());
         mov.setUom(uom);
-        mov.setUnitCost(req.receivedUnitCost());
+        mov.setUnitCost(unitCost);
         mov.setSourceType(SourceType.GRN);
         mov.setSourceId(grn.getId());
         mov.setCreatedBy(staffUser);
@@ -158,7 +160,13 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
   @Override
   @Transactional
   public GoodsReceiptNote update(
-      UUID orgId, UUID grnId, UUID supplierId, Instant receivedAt, Boolean active) {
+      UUID orgId,
+      UUID grnId,
+      UUID supplierId,
+      Instant receivedAt,
+      Boolean active,
+      List<GrnLineRequest> lines,
+      UUID updatedByStaffUserId) {
     GoodsReceiptNote grn = require(orgId, grnId);
     if (supplierId != null) {
       grn.setSupplier(supplierService.require(orgId, supplierId));
@@ -169,6 +177,70 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
     if (active != null) {
       grn.setActive(active);
     }
-    return grnRepository.save(grn);
+    grn = grnRepository.save(grn);
+
+    if (lines != null) {
+      if (updatedByStaffUserId == null) {
+        throw new IllegalArgumentException("updatedByStaffUserId required when updating GRN lines");
+      }
+      StaffUser staffUser = staffUserService.require(orgId, updatedByStaffUserId);
+      Instant now = Instant.now(clock);
+      List<GrnLine> existingLines =
+          grnLineRepository.findByGrnIdOrderByCreatedAt(grn.getId());
+      for (GrnLine line : existingLines) {
+        StockMovement outMov = new StockMovement();
+        outMov.setOrg(grn.getOrg());
+        outMov.setBranch(grn.getBranch());
+        outMov.setItem(line.getItem());
+        outMov.setMovementType(MovementType.OUT);
+        outMov.setQty(line.getQty());
+        outMov.setUom(line.getUom());
+        outMov.setUnitCost(line.getReceivedUnitCost());
+        outMov.setSourceType(SourceType.GRN);
+        outMov.setSourceId(grn.getId());
+        outMov.setCreatedBy(staffUser);
+        outMov.setCreatedAt(now);
+        stockMovementRepository.save(outMov);
+        inventoryItemService.decrementOnHand(
+            grn.getOrg().getId(), grn.getBranch().getId(), line.getItem().getId(), line.getQty());
+      }
+      grnLineRepository.deleteAll(existingLines);
+
+      for (GrnLineRequest req : lines) {
+        var item = itemService.require(orgId, req.itemId());
+        var uom = (req.uomId() != null) ? uomService.require(orgId, req.uomId()) : null;
+        if (req.qty() == null || req.qty().compareTo(BigDecimal.ZERO) <= 0) {
+          throw new IllegalArgumentException("Line qty must be positive");
+        }
+        BigDecimal unitCost =
+            item.getBuyingPrice() != null ? item.getBuyingPrice() : req.receivedUnitCost();
+        GrnLine line = new GrnLine();
+        line.setOrg(grn.getOrg());
+        line.setGrn(grn);
+        line.setItem(item);
+        line.setQty(req.qty());
+        line.setUom(uom);
+        line.setReceivedUnitCost(unitCost);
+        line.setCreatedAt(now);
+        grnLineRepository.save(line);
+
+        StockMovement mov = new StockMovement();
+        mov.setOrg(grn.getOrg());
+        mov.setBranch(grn.getBranch());
+        mov.setItem(item);
+        mov.setMovementType(MovementType.IN);
+        mov.setQty(req.qty());
+        mov.setUom(uom);
+        mov.setUnitCost(unitCost);
+        mov.setSourceType(SourceType.GRN);
+        mov.setSourceId(grn.getId());
+        mov.setCreatedBy(staffUser);
+        mov.setCreatedAt(now);
+        stockMovementRepository.save(mov);
+        inventoryItemService.incrementOnHand(
+            grn.getOrg().getId(), grn.getBranch().getId(), item.getId(), req.qty());
+      }
+    }
+    return grn;
   }
 }

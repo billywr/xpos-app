@@ -14,6 +14,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Getter;
@@ -63,6 +64,12 @@ public class Item {
 
   @Column(name = "active", nullable = false)
   private Boolean active;
+
+  @Column(name = "buying_price", precision = 18, scale = 2)
+  private BigDecimal buyingPrice;
+
+  @Column(name = "default_selling_price", precision = 18, scale = 2)
+  private BigDecimal defaultSellingPrice;
 
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;

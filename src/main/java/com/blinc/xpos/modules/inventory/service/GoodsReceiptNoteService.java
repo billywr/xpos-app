@@ -27,7 +27,9 @@ public interface GoodsReceiptNoteService {
       UUID grnId,
       UUID supplierId,
       java.time.Instant receivedAt,
-      Boolean active);
+      Boolean active,
+      List<GrnLineRequest> lines,
+      UUID updatedByStaffUserId);
 
   record GrnLineRequest(UUID itemId, BigDecimal qty, UUID uomId, BigDecimal receivedUnitCost) {}
 }

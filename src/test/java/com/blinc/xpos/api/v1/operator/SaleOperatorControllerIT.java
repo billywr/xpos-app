@@ -2,6 +2,7 @@ package com.blinc.xpos.api.v1.operator;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -303,6 +304,88 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.tenders[0].tenderTypeCode").exists())
         .andExpect(jsonPath("$.tenders[0].amount").value(200))
         .andExpect(jsonPath("$.tenders[0].currency").value("KES"));
+  }
+
+  @Test
+  void removeTenderFromOpenSale() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID terminalId = createTerminal(orgId, branchId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    openShift(orgId, branchId, terminalId);
+    UUID priceListId = createPriceList(orgId);
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
+    addItemToPriceList(orgId, priceListId, itemId);
+    UUID tenderTypeId = getCashTenderTypeId(orgId);
+
+    String base =
+        "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/terminals/" + terminalId;
+
+    MvcResult createSaleResult =
+        mockMvc
+            .perform(
+                post(base + "/sales")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"priceListId\":\"" + priceListId + "\"}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+    UUID saleId =
+        UUID.fromString(
+            objectMapper.readTree(createSaleResult.getResponse().getContentAsString()).get("id").asText());
+
+    mockMvc
+        .perform(
+            post(base + "/sales/" + saleId + "/lines")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(
+                    "{\"itemId\":\"" + itemId + "\",\"qty\":1,\"uomId\":null,\"unitPriceOverride\":null}"))
+        .andExpect(status().isOk());
+
+    String addTenderBody =
+        """
+        {"tenderTypeId":"%s","amount":100,"currency":"KES"}
+        """
+            .formatted(tenderTypeId);
+    mockMvc
+        .perform(
+            post(base + "/sales/" + saleId + "/tenders")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(addTenderBody))
+        .andExpect(status().isCreated());
+
+    MvcResult getSaleResult =
+        mockMvc
+            .perform(get(base + "/sales/" + saleId).with(jwt().jwt(j -> j.subject("admin"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.tenders.length()").value(1))
+            .andReturn();
+    UUID tenderId =
+        UUID.fromString(
+            objectMapper
+                .readTree(getSaleResult.getResponse().getContentAsString())
+                .get("tenders")
+                .get(0)
+                .get("id")
+                .asText());
+
+    mockMvc
+        .perform(
+            delete(base + "/sales/" + saleId + "/tenders/" + tenderId)
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isNoContent());
+
+    mockMvc
+        .perform(get(base + "/sales/" + saleId).with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.tenders").isArray())
+        .andExpect(jsonPath("$.tenders.length()").value(0));
   }
 
   @Test

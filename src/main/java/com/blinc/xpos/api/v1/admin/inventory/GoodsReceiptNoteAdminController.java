@@ -6,6 +6,7 @@ import com.blinc.xpos.api.v1.admin.inventory.dto.GrnUpdateRequest;
 import com.blinc.xpos.api.v1.admin.inventory.dto.GoodsReceiptNoteResponse;
 import com.blinc.xpos.common.security.CurrentPrincipalResolver;
 import com.blinc.xpos.common.web.paging.PageRequestFactory;
+import com.blinc.xpos.modules.catalog.service.ItemBarcodeService;
 import com.blinc.xpos.modules.inventory.domain.GoodsReceiptNote;
 import com.blinc.xpos.modules.inventory.domain.GrnLine;
 import com.blinc.xpos.modules.inventory.repository.GrnLineRepository;
@@ -13,6 +14,7 @@ import com.blinc.xpos.modules.inventory.service.GoodsReceiptNoteService;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -36,6 +38,7 @@ public class GoodsReceiptNoteAdminController {
 
   private final GoodsReceiptNoteService grnService;
   private final GrnLineRepository grnLineRepository;
+  private final ItemBarcodeService itemBarcodeService;
   private final PageRequestFactory pageRequestFactory;
   private final CurrentPrincipalResolver principalResolver;
   private final StaffAuthorizationService staffAuthorizationService;
@@ -43,11 +46,14 @@ public class GoodsReceiptNoteAdminController {
   public GoodsReceiptNoteAdminController(
       GoodsReceiptNoteService grnService,
       GrnLineRepository grnLineRepository,
+      ItemBarcodeService itemBarcodeService,
       PageRequestFactory pageRequestFactory,
       CurrentPrincipalResolver principalResolver,
       StaffAuthorizationService staffAuthorizationService) {
     this.grnService = Objects.requireNonNull(grnService, "grnService");
     this.grnLineRepository = Objects.requireNonNull(grnLineRepository, "grnLineRepository");
+    this.itemBarcodeService =
+        Objects.requireNonNull(itemBarcodeService, "itemBarcodeService");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
     this.principalResolver = Objects.requireNonNull(principalResolver, "principalResolver");
     this.staffAuthorizationService =
@@ -97,13 +103,27 @@ public class GoodsReceiptNoteAdminController {
       @PathVariable UUID orgId,
       @PathVariable UUID grnId,
       @Valid @RequestBody GrnUpdateRequest request) {
+    var staffUser = staffAuthorizationService.requireStaffUser(
+        orgId, principalResolver.require().iamUserId());
+    List<GoodsReceiptNoteService.GrnLineRequest> lineReqs = null;
+    if (request.lines() != null) {
+      lineReqs =
+          request.lines().stream()
+              .map(
+                  l ->
+                      new GoodsReceiptNoteService.GrnLineRequest(
+                          l.itemId(), l.qty(), l.uomId(), l.receivedUnitCost()))
+              .toList();
+    }
     GoodsReceiptNote grn =
         grnService.update(
             orgId,
             grnId,
             request.supplierId(),
             request.receivedAt(),
-            request.active());
+            request.active(),
+            lineReqs,
+            staffUser.getId());
     return toResponse(grn);
   }
 
@@ -115,7 +135,13 @@ public class GoodsReceiptNoteAdminController {
 
   private GoodsReceiptNoteResponse toResponse(GoodsReceiptNote grn) {
     List<GrnLine> lines = grnLineRepository.findByGrnIdOrderByCreatedAt(grn.getId());
-    List<GrnLineResponse> lineResponses = lines.stream().map(this::toLineResponse).toList();
+    List<UUID> itemIds = lines.stream().map(l -> l.getItem().getId()).toList();
+    Map<UUID, String> itemIdToBarcode =
+        itemBarcodeService.getFirstBarcodeByItemIds(grn.getOrg().getId(), itemIds);
+    List<GrnLineResponse> lineResponses =
+        lines.stream()
+            .map(l -> toLineResponse(l, itemIdToBarcode.get(l.getItem().getId())))
+            .toList();
     return new GoodsReceiptNoteResponse(
         grn.getId(),
         grn.getOrg().getId(),
@@ -130,12 +156,13 @@ public class GoodsReceiptNoteAdminController {
         lineResponses);
   }
 
-  private GrnLineResponse toLineResponse(GrnLine l) {
+  private GrnLineResponse toLineResponse(GrnLine l, String barcode) {
     return new GrnLineResponse(
         l.getId(),
         l.getGrn().getId(),
         l.getItem().getId(),
         l.getItem().getName(),
+        barcode,
         l.getQty(),
         l.getUom() != null ? l.getUom().getId() : null,
         l.getReceivedUnitCost(),

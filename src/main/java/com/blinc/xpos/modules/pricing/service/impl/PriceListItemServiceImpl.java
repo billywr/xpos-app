@@ -15,6 +15,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -62,7 +63,9 @@ public class PriceListItemServiceImpl implements PriceListItemService {
     BigDecimal sellingPrice = price != null ? price : BigDecimal.ZERO;
     BigDecimal maxUnitCost =
         stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, itemId);
-
+    if (maxUnitCost == null && item.getBuyingPrice() != null) {
+      maxUnitCost = item.getBuyingPrice();
+    }
     if (maxUnitCost == null) {
       throw new BadRequestException(
           "ITEM_NOT_SUPPLIED",
@@ -85,6 +88,24 @@ public class PriceListItemServiceImpl implements PriceListItemService {
     line.setCurrency(currency != null && !currency.isBlank() ? currency : DEFAULT_CURRENCY);
     line.setCreatedAt(Instant.now(clock));
     return priceListItemRepository.save(line);
+  }
+
+  @Override
+  @Transactional
+  public PriceListItem ensureInPriceList(
+      UUID orgId, UUID priceListId, UUID itemId, BigDecimal price, String currency) {
+    Optional<PriceListItem> existing =
+        priceListItemRepository.findByPriceListIdAndItemIdAndOrgId(
+            priceListId, itemId, orgId);
+    if (existing.isPresent()) {
+      return update(
+          orgId,
+          priceListId,
+          existing.get().getId(),
+          price,
+          currency != null && !currency.isBlank() ? currency : DEFAULT_CURRENCY);
+    }
+    return add(orgId, priceListId, itemId, price, currency);
   }
 
   @Override
@@ -115,9 +136,12 @@ public class PriceListItemServiceImpl implements PriceListItemService {
     PriceListItem line = requireInPriceList(orgId, priceListId, priceListItemId);
 
     BigDecimal sellingPrice = price != null ? price : BigDecimal.ZERO;
+    Item lineItem = line.getItem();
     BigDecimal maxUnitCost =
-        stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, line.getItem().getId());
-
+        stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, lineItem.getId());
+    if (maxUnitCost == null && lineItem.getBuyingPrice() != null) {
+      maxUnitCost = lineItem.getBuyingPrice();
+    }
     if (maxUnitCost == null) {
       throw new BadRequestException(
           "ITEM_NOT_SUPPLIED",

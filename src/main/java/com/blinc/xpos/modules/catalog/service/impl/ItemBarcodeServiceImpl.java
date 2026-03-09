@@ -8,8 +8,11 @@ import com.blinc.xpos.modules.catalog.service.ItemBarcodeService;
 import com.blinc.xpos.modules.catalog.service.ItemService;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,5 +73,30 @@ public class ItemBarcodeServiceImpl implements ItemBarcodeService {
   public void remove(UUID orgId, UUID itemId, UUID barcodeId) {
     ItemBarcode barcode = requireInItem(orgId, itemId, barcodeId);
     itemBarcodeRepository.delete(barcode);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<Item> findItemByBarcode(UUID orgId, String barcode) {
+    if (barcode == null || barcode.isBlank()) {
+      return Optional.empty();
+    }
+    return itemBarcodeRepository
+        .findByOrgIdAndBarcode(orgId, barcode.trim())
+        .map(ItemBarcode::getItem);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Map<UUID, String> getFirstBarcodeByItemIds(UUID orgId, List<UUID> itemIds) {
+    if (itemIds == null || itemIds.isEmpty()) {
+      return Map.of();
+    }
+    List<ItemBarcode> list = itemBarcodeRepository.findByOrgIdAndItemIdIn(orgId, itemIds);
+    Map<UUID, String> result = new LinkedHashMap<>();
+    for (ItemBarcode b : list) {
+      result.putIfAbsent(b.getItem().getId(), b.getBarcode());
+    }
+    return result;
   }
 }
