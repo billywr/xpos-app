@@ -84,6 +84,10 @@ export async function apiFetch<T>(
     throw { status: 0, data: apiError };
   }
 
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
   const contentType = res.headers.get("Content-Type") ?? "";
   const isJson = contentType.includes("application/json");
   const data = isJson ? await res.json() : await res.text();

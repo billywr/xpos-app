@@ -6,6 +6,7 @@ export interface GrnLineResponse {
   grnId: string;
   itemId: string;
   itemName: string;
+  barcode?: string | null;
   qty: number;
   uomId: string | null;
   receivedUnitCost: number | null;
@@ -30,6 +31,8 @@ export interface GrnUpdateBody {
   supplierId: string;
   receivedAt: string;
   active?: boolean;
+  /** When present, replaces GRN lines and adjusts stock. Omit to leave lines unchanged. */
+  lines?: GrnLineRequest[];
 }
 
 export interface GrnLineRequest {
@@ -115,6 +118,7 @@ export async function updateGoodsReceiptNote(
         supplierId: body.supplierId,
         receivedAt: body.receivedAt,
         active: body.active,
+        ...(body.lines != null && { lines: body.lines }),
       },
     }
   );

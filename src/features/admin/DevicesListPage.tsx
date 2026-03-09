@@ -23,11 +23,15 @@ import { Plus, Power, PowerOff, Trash2 } from "lucide-react";
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
 
-export function DevicesListPage() {
+export interface DevicesListPageProps {
+  initialOrgId?: string;
+}
+
+export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+  const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [slideOpen, setSlideOpen] = useState(false);
@@ -153,10 +157,12 @@ export function DevicesListPage() {
   const totalElements = devicesData?.totalElements ?? 0;
 
   useEffect(() => {
-    if (!selectedOrgId && orgs.length > 0) {
+    if (initialOrgId) {
+      setSelectedOrgId(initialOrgId);
+    } else if (!selectedOrgId && orgs.length > 0) {
       setSelectedOrgId(orgs[0].id);
     }
-  }, [orgs, selectedOrgId]);
+  }, [initialOrgId, orgs, selectedOrgId]);
 
   useEffect(() => {
     if (slideOpen && branches.length > 0 && !formBranchId) {

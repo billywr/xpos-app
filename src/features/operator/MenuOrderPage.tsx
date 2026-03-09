@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
@@ -19,13 +19,14 @@ import {
   selectTerminalId,
 } from "@/store/selectors/orgContextSelectors";
 import { fetchCategories } from "@/api/categories";
-import { fetchItems, fetchItemModifierGroups } from "@/api/items";
+import { fetchItems, fetchItemByBarcode, fetchItemModifierGroups } from "@/api/items";
 import { fetchPriceListItems } from "@/api/priceLists";
 import { fetchOperatorTables } from "@/api/tables";
 import {
   createSale,
   addSaleLine,
   addTender,
+  removeTender,
   completeSale,
   completeSaleWithDebt,
   fetchReceiptDetails,
@@ -39,13 +40,22 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { getItemImageUrl } from "@/utils/itemImage";
 import { MenuItemCard } from "@/components/MenuItemCard";
 import { PageHeader } from "@/components/PageHeader";
+import { BarcodeCaptureInput } from "@/components/BarcodeCaptureInput";
 import { ModifierModal } from "@/components/ModifierModal";
 import { ReceiptModal } from "@/components/ReceiptModal";
 import { getApiErrorMessage } from "@/utils/apiError";
+import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
+import {
+  MENU_ORDER_SHOW_ORDER_TYPE,
+  MENU_ORDER_SHOW_TABLE_SELECT,
+  MENU_ORDER_SHOW_ITEM_LIST,
+  isMenuOrderOptionVisible,
+} from "@/config/menuOrderVisibility";
+import { BARCODE_MENU_ORDER, isBarcodeVisible } from "@/config/barcodeVisibility";
 import type { Item } from "@/types/catalog";
 import type { CartLine, CartModifier } from "@/store/slices/cartSlice";
 import type { ReceiptDetailResponse, Sale, Tender } from "@/types/sales";
-import { Minus, Plus, Trash2, CreditCard, X } from "lucide-react";
+import { Minus, Plus, Trash2, CreditCard, X, Search, ChevronDown } from "lucide-react";
 
 function usePriceMap(orgId: string | null, priceListId: string | null, token: string | null) {
   const { data: priceItemsPage } = useQuery({
@@ -76,6 +86,39 @@ export function MenuOrderPage() {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [itemSearchOpen, setItemSearchOpen] = useState(false);
+  const [itemSearchQuery, setItemSearchQuery] = useState("");
+  const itemSearchRef = useRef<HTMLDivElement>(null);
+  const searchListScrollRef = useRef<HTMLDivElement>(null);
+  const [searchListScrollTop, setSearchListScrollTop] = useState(0);
+  const [searchListHeight, setSearchListHeight] = useState(320);
+
+  const SEARCH_ROW_HEIGHT = 36;
+  const SEARCH_ROW_OVERSCAN = 8;
+  const SEARCH_ROW_BG_PALETTE = [
+    "bg-slate-50 dark:bg-slate-800/90",
+    "bg-blue-50/80 dark:bg-slate-700/85",
+    "bg-primary-50/60 dark:bg-primary-900/25",
+    "bg-slate-100/80 dark:bg-slate-800/80",
+    "bg-blue-50/60 dark:bg-slate-700/80",
+    "bg-primary-50/40 dark:bg-primary-900/20",
+  ];
+  const navContext = useNavVisibilityContextOrNull();
+  const operatorVisibility = navContext?.operatorVisibility ?? {};
+  const showOrderType = isMenuOrderOptionVisible(
+    operatorVisibility,
+    MENU_ORDER_SHOW_ORDER_TYPE
+  );
+  const showTableSelect = isMenuOrderOptionVisible(
+    operatorVisibility,
+    MENU_ORDER_SHOW_TABLE_SELECT
+  );
+  const showItemList = isMenuOrderOptionVisible(
+    operatorVisibility,
+    MENU_ORDER_SHOW_ITEM_LIST
+  );
+  const showBarcode = isBarcodeVisible(operatorVisibility, BARCODE_MENU_ORDER);
+
   const cartLines = useAppSelector((s) => s.cart.lines);
   const priceListId = useAppSelector((s) => s.cart.priceListId);
   const tableId = useAppSelector((s) => s.cart.tableId);
@@ -212,6 +255,34 @@ export function MenuOrderPage() {
     },
   });
 
+  const removeTenderMutation = useMutation({
+    mutationFn: async (tenderId: string) => {
+      if (!token || !orgId || !branchId || !terminalId || !saleForPayment) {
+        throw new Error("Missing context");
+      }
+      await removeTender(
+        token,
+        orgId,
+        branchId,
+        terminalId,
+        saleForPayment.id,
+        tenderId
+      );
+      return fetchSale(token, orgId, branchId, terminalId, saleForPayment.id);
+    },
+    onSuccess: (sale) => {
+      setSaleForPayment(sale);
+      const tendered = (sale.tenders ?? []).reduce(
+        (s, t) => s + (Number(t.amount) || 0),
+        0
+      );
+      const total = Number(sale.total) || 0;
+      const remainder = total - tendered;
+      setAddTenderAmount(remainder > 0 ? String(remainder) : "");
+      setAddTenderTypeId(cashTenderTypeId ?? tenderTypes[0]?.id ?? "");
+    },
+  });
+
   const completePaymentMutation = useMutation({
     mutationFn: async () => {
       if (!token || !orgId || !branchId || !terminalId || !saleForPayment) {
@@ -342,13 +413,19 @@ export function MenuOrderPage() {
     return list.filter((i: Item) => i.categoryId === selectedCategoryId);
   }, [itemsData?.content, selectedCategoryId]);
 
+  const [scannedItemsForCart, setScannedItemsForCart] = useState<Item[]>([]);
+  const [barcodeScanError, setBarcodeScanError] = useState<string | null>(null);
+
   const itemMap = useMemo(() => {
     const map = new Map<string, Item>();
     for (const i of itemsData?.content ?? []) {
       map.set(i.id, i);
     }
+    for (const i of scannedItemsForCart) {
+      if (!map.has(i.id)) map.set(i.id, i);
+    }
     return map;
-  }, [itemsData?.content]);
+  }, [itemsData?.content, scannedItemsForCart]);
 
   const { hasInsufficientStock, insufficientStockMessage } = useMemo(() => {
     const seen = new Set<string>();
@@ -380,7 +457,7 @@ export function MenuOrderPage() {
   }, [cartLines]);
   const total = cartSubtotal;
 
-  const handleAddToCart = async (item: Item) => {
+  const handleAddToCart = async (item: Item): Promise<boolean> => {
     const price = priceMap.get(item.id) ?? 0;
     const links =
       orgId && token
@@ -396,10 +473,29 @@ export function MenuOrderPage() {
           unitPrice: price,
         })
       );
-    } else {
-      setModifierModalItem({ item, price });
+      return false;
     }
+    setModifierModalItem({ item, price });
+    return true;
   };
+
+  const handleBarcodeScan = useCallback(
+    async (barcode: string) => {
+      if (!token || !orgId || !barcode.trim()) return;
+      setBarcodeScanError(null);
+      try {
+        const item = await fetchItemByBarcode(token, orgId, barcode.trim());
+        setScannedItemsForCart((prev) =>
+          prev.some((i) => i.id === item.id) ? prev : [...prev, item]
+        );
+        const openedModifierModal = await handleAddToCart(item);
+        if (openedModifierModal) setBarcodeScanError(null);
+      } catch (err) {
+        setBarcodeScanError(getApiErrorMessage(err));
+      }
+    },
+    [token, orgId]
+  );
 
   const handleReduceFromCart = (itemId: string) => {
     const line = cartLines.find(
@@ -433,6 +529,73 @@ export function MenuOrderPage() {
     setModifierModalItem(null);
   };
 
+  const allItemsForSearch = itemsData?.content ?? [];
+  const searchFilteredItems = useMemo(() => {
+    const q = itemSearchQuery.trim().toLowerCase();
+    if (!q) return allItemsForSearch;
+    return allItemsForSearch.filter((i: Item) =>
+      i.name.toLowerCase().includes(q)
+    );
+  }, [allItemsForSearch, itemSearchQuery]);
+
+  const searchVirtualSlice = useMemo(() => {
+    const n = searchFilteredItems.length;
+    if (n === 0) return { start: 0, end: 0, totalHeight: 0 };
+    const totalHeight = n * SEARCH_ROW_HEIGHT;
+    const start = Math.max(
+      0,
+      Math.floor(searchListScrollTop / SEARCH_ROW_HEIGHT) - SEARCH_ROW_OVERSCAN
+    );
+    const visibleCount = Math.ceil(searchListHeight / SEARCH_ROW_HEIGHT);
+    const end = Math.min(
+      n,
+      start + visibleCount + SEARCH_ROW_OVERSCAN * 2
+    );
+    return { start, end: Math.max(start, end), totalHeight };
+  }, [
+    searchFilteredItems.length,
+    searchListScrollTop,
+    searchListHeight,
+  ]);
+
+  useLayoutEffect(() => {
+    if (!itemSearchOpen || searchFilteredItems.length === 0) return;
+    const el = searchListScrollRef.current;
+    if (el) setSearchListHeight(el.clientHeight);
+  }, [itemSearchOpen, searchFilteredItems.length]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        itemSearchRef.current &&
+        !itemSearchRef.current.contains(e.target as Node)
+      ) {
+        setItemSearchOpen(false);
+      }
+    };
+    if (itemSearchOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [itemSearchOpen]);
+
+  const handleSearchItemCheck = async (item: Item, checked: boolean) => {
+    if (checked) {
+      const price = priceMap.get(item.id) ?? 0;
+      const onHand = item.trackInventory
+        ? (stockMap.get(item.id) ?? 0)
+        : Infinity;
+      const available =
+        item.active && (item.trackInventory ? onHand > 0 : true);
+      const priceSet = price > 0;
+      if (!available || !priceSet) return;
+      const openedModifierModal = await handleAddToCart(item);
+      if (openedModifierModal) setItemSearchOpen(false);
+    } else {
+      handleReduceFromCart(item.id);
+    }
+  };
+
   return (
     <>
     <div className="flex h-full min-h-0 touch-manipulation flex-col lg:flex-row">
@@ -445,7 +608,9 @@ export function MenuOrderPage() {
           noMargin
           className="mb-2 shrink-0"
         />
-        <div className="mb-2 flex shrink-0 flex-wrap gap-1.5">
+        {showItemList ? (
+        <>
+        <div className="mb-2 flex shrink-0 flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => setSelectedCategoryId(null)}
@@ -474,6 +639,140 @@ export function MenuOrderPage() {
                   {itemsData?.content?.filter((i: Item) => i.categoryId === cat.id).length ?? 0})
                 </button>
               ))}
+          <div ref={itemSearchRef} className="relative z-10 ml-auto shrink-0 mr-[3cm]">
+            <button
+              type="button"
+              onClick={() => setItemSearchOpen((o) => !o)}
+              className="flex min-h-[28px] min-w-0 touch-manipulation items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-left text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              aria-expanded={itemSearchOpen}
+              aria-haspopup="listbox"
+              aria-label="Search and select items"
+            >
+              <Search className="h-3.5 w-3.5 shrink-0 text-slate-500 dark:text-slate-400" />
+              <span className="max-w-[140px] truncate sm:max-w-[180px]">
+                {itemSearchOpen ? "Search items…" : "Search & add items…"}
+              </span>
+              <ChevronDown
+                className={`h-3.5 w-3.5 shrink-0 text-slate-500 transition dark:text-slate-400 ${
+                  itemSearchOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {itemSearchOpen && (
+              <div
+                className="absolute right-0 top-full mt-1 w-full min-w-[280px] max-w-md max-h-[min(60vh,400px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-600 dark:bg-slate-800"
+              role="listbox"
+              aria-multiselectable
+              aria-label="Sellable items"
+            >
+              <div className="border-b border-slate-200 p-2 pl-2 pr-4 dark:border-slate-600">
+                <input
+                  type="search"
+                  value={itemSearchQuery}
+                  onChange={(e) => setItemSearchQuery(e.target.value)}
+                  placeholder="Type to search…"
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:placeholder:text-slate-400"
+                  aria-label="Filter items"
+                  autoFocus
+                />
+              </div>
+              <div
+                ref={searchListScrollRef}
+                onScroll={() =>
+                  setSearchListScrollTop(searchListScrollRef.current?.scrollTop ?? 0)
+                }
+                className="max-h-[min(45vh,320px)] overflow-y-auto p-1.5"
+              >
+                {searchFilteredItems.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                    No items match
+                  </p>
+                ) : (
+                  <div
+                    style={{ minHeight: searchVirtualSlice.totalHeight }}
+                    className="relative"
+                  >
+                    <div
+                      style={{
+                        height: searchVirtualSlice.start * SEARCH_ROW_HEIGHT,
+                      }}
+                      aria-hidden
+                    />
+                    {searchFilteredItems
+                      .slice(searchVirtualSlice.start, searchVirtualSlice.end)
+                      .map((item: Item, i: number) => {
+                        const index = searchVirtualSlice.start + i;
+                        const onHand = item.trackInventory
+                          ? (stockMap.get(item.id) ?? 0)
+                          : Infinity;
+                        const price = priceMap.get(item.id) ?? 0;
+                        const available =
+                          item.active &&
+                          (item.trackInventory ? onHand > 0 : true);
+                        const priceSet = price > 0;
+                        const canSelect = available && priceSet;
+                        const qtyInCart = getQtyInCart(item.id);
+                        const isChecked = qtyInCart > 0;
+                        const rowBg =
+                          SEARCH_ROW_BG_PALETTE[
+                            index % SEARCH_ROW_BG_PALETTE.length
+                          ];
+                        return (
+                          <label
+                            key={item.id}
+                            className={`flex touch-manipulation cursor-pointer items-center gap-2 rounded-lg px-2 text-sm transition ${rowBg} ${
+                              canSelect
+                                ? "hover:bg-primary-100 dark:hover:bg-primary-700/50"
+                                : "cursor-not-allowed opacity-60"
+                            }`}
+                            style={{
+                              minHeight: SEARCH_ROW_HEIGHT,
+                              height: SEARCH_ROW_HEIGHT,
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) =>
+                                handleSearchItemCheck(item, e.target.checked)
+                              }
+                              disabled={!canSelect}
+                              className="h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+                              aria-label={`${item.name}, ${formatCurrency(price)}`}
+                            />
+                            <span className="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-white">
+                              {item.name}
+                            </span>
+                            <span className="shrink-0 tabular-nums text-slate-600 dark:text-slate-300">
+                              <span className="text-slate-500 dark:text-slate-400">
+                                Price{" "}
+                              </span>
+                              {formatCurrency(price)}
+                            </span>
+                            {item.trackInventory && (
+                              <span className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
+                                {onHand > 0
+                                  ? `${Math.floor(onHand)} in stock`
+                                  : "Out"}
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })}
+                    <div
+                      style={{
+                        height:
+                          (searchFilteredItems.length - searchVirtualSlice.end) *
+                          SEARCH_ROW_HEIGHT,
+                      }}
+                      aria-hidden
+                    />
+                  </div>
+                )}
+              </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
@@ -510,6 +809,12 @@ export function MenuOrderPage() {
               })}
           </div>
         </div>
+        </>
+        ) : (
+          <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+            Item list is hidden. Change in Admin → Settings → Menu order.
+          </p>
+        )}
       </div>
 
       {/* Order summary sidebar */}
@@ -521,12 +826,38 @@ export function MenuOrderPage() {
             </h2>
             <span className="text-sm text-slate-500">#—</span>
           </div>
+          {showBarcode && (
+            <div className="mb-2 shrink-0">
+              <BarcodeCaptureInput
+                onScan={handleBarcodeScan}
+                placeholder="Scan barcode to add…"
+                compact
+                disabled={!token || !orgId}
+              />
+              {barcodeScanError && (
+                <p className="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">
+                  {barcodeScanError}
+                </p>
+              )}
+            </div>
+          )}
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden">
             {cartLines.length === 0 ? (
               <p className="py-4 text-center text-slate-500">No items yet</p>
             ) : (
               cartLines.map((line: CartLine) => (
-                <OrderLineRow key={line.tempId} line={line} />
+                <OrderLineRow
+                  key={line.tempId}
+                  line={line}
+                  stockOnHand={
+                    (() => {
+                      const item = itemMap.get(line.itemId);
+                      if (!item?.trackInventory) return undefined;
+                      return stockMap.get(line.itemId) ?? 0;
+                    })()
+                  }
+                  trackInventory={itemMap.get(line.itemId)?.trackInventory ?? false}
+                />
               ))
             )}
           </div>
@@ -541,35 +872,39 @@ export function MenuOrderPage() {
             </div>
           </div>
           <div className="mt-1.5 shrink-0 flex flex-col gap-2">
-            <select
-              value={orderType}
-              onChange={(e) =>
-                dispatch(
-                  setOrderType(e.target.value as "DINE_IN" | "TAKEAWAY" | "DELIVERY")
-                )
-              }
-              className="min-h-[48px] touch-manipulation rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-base text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              aria-label="Order type"
-            >
-              <option value="DINE_IN">Dine-in</option>
-              <option value="TAKEAWAY">Takeaway</option>
-              <option value="DELIVERY">Delivery</option>
-            </select>
-            <select
-              value={tableId ?? ""}
-              onChange={(e) =>
-                dispatch(setTableId(e.target.value || null))
-              }
-              className="min-h-[48px] touch-manipulation rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-base text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              aria-label="Select table"
-            >
-              <option value="">Select table</option>
-              {tables.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+            {showOrderType && (
+              <select
+                value={orderType}
+                onChange={(e) =>
+                  dispatch(
+                    setOrderType(e.target.value as "DINE_IN" | "TAKEAWAY" | "DELIVERY")
+                  )
+                }
+                className="min-h-[48px] touch-manipulation rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-base text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                aria-label="Order type"
+              >
+                <option value="DINE_IN">Dine-in</option>
+                <option value="TAKEAWAY">Takeaway</option>
+                <option value="DELIVERY">Delivery</option>
+              </select>
+            )}
+            {showTableSelect && (
+              <select
+                value={tableId ?? ""}
+                onChange={(e) =>
+                  dispatch(setTableId(e.target.value || null))
+                }
+                className="min-h-[48px] touch-manipulation rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-base text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                aria-label="Select table"
+              >
+                <option value="">Select table</option>
+                {tables.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         <button
           type="button"
@@ -624,13 +959,18 @@ export function MenuOrderPage() {
               addTenderMutation.mutate({ tenderTypeId: addTenderTypeId, amount: amt });
             }
           }}
+          onRemoveTender={(tenderId) => removeTenderMutation.mutate(tenderId)}
           onComplete={handleCompletePayment}
           onCompleteWithDebt={handleCompleteWithDebt}
           onClose={() => setSaleForPayment(null)}
           isAddingTender={addTenderMutation.isPending}
+          isRemovingTender={removeTenderMutation.isPending}
           isCompleting={completePaymentMutation.isPending}
           isCompletingWithDebt={completeWithDebtMutation.isPending}
           addTenderError={addTenderMutation.isError ? getApiErrorMessage(addTenderMutation.error) : null}
+          removeTenderError={
+            removeTenderMutation.isError ? getApiErrorMessage(removeTenderMutation.error) : null
+          }
           completeError={
             completePaymentMutation.isError ? getApiErrorMessage(completePaymentMutation.error) : null
           }
@@ -673,13 +1013,16 @@ function PaymentModal({
   addTenderTypeId,
   setAddTenderTypeId,
   onAddTender,
+  onRemoveTender,
   onComplete,
   onCompleteWithDebt,
   onClose,
   isAddingTender,
+  isRemovingTender,
   isCompleting,
   isCompletingWithDebt,
   addTenderError,
+  removeTenderError,
   completeError,
   completeWithDebtError,
 }: {
@@ -692,6 +1035,7 @@ function PaymentModal({
   addTenderTypeId: string;
   setAddTenderTypeId: (v: string) => void;
   onAddTender: () => void;
+  onRemoveTender: (tenderId: string) => void;
   onComplete: () => void;
   onCompleteWithDebt?: (body: {
     customerName: string;
@@ -700,9 +1044,11 @@ function PaymentModal({
   }) => void;
   onClose: () => void;
   isAddingTender: boolean;
+  isRemovingTender: boolean;
   isCompleting: boolean;
   isCompletingWithDebt?: boolean;
   addTenderError: string | null;
+  removeTenderError: string | null;
   completeError: string | null;
   completeWithDebtError?: string | null;
 }) {
@@ -766,69 +1112,91 @@ function PaymentModal({
           {sale.tenders && sale.tenders.length > 0 && (
             <div>
               <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                Payments added
+                Payment added
               </h3>
               <ul className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-600 dark:bg-slate-700/30">
                 {sale.tenders.map((t: Tender) => (
                   <li
                     key={t.id}
-                    className="flex justify-between text-sm text-slate-800 dark:text-white"
+                    className="flex items-center justify-between gap-2 text-sm text-slate-800 dark:text-white"
                   >
-                    <span>{t.tenderTypeCode ?? "—"}</span>
-                    <span className="tabular-nums">{formatCurrency(t.amount)}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="font-medium">{t.tenderTypeCode ?? "—"}</span>
+                      <span className="ml-2 tabular-nums">{formatCurrency(t.amount)}</span>
+                    </span>
+                    <button
+                      type="button"
+                      disabled={isRemovingTender}
+                      onClick={() => onRemoveTender(t.id)}
+                      className="shrink-0 rounded-lg p-2 text-slate-500 transition hover:bg-red-100 hover:text-red-700 disabled:opacity-50 dark:hover:bg-red-600/30 dark:hover:text-red-300"
+                      aria-label={`Remove ${t.tenderTypeCode ?? "payment"} ${formatCurrency(t.amount)}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </li>
                 ))}
               </ul>
+              {removeTenderError && (
+                <p className="mt-2 text-sm text-red-400" role="alert">
+                  {removeTenderError}
+                </p>
+              )}
             </div>
           )}
 
-          <div>
-            <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-              Add payment
-            </h3>
-            <div className="flex gap-2">
-              <select
-                value={addTenderTypeId}
-                onChange={(e) => setAddTenderTypeId(e.target.value)}
-                className="min-h-[48px] flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                aria-label="Payment type"
-              >
-                {tenderTypes.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.code})
-                  </option>
-                ))}
-              </select>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={addTenderAmount}
-                onChange={(e) => setAddTenderAmount(e.target.value)}
-                placeholder="Amount"
-                className="min-h-[48px] w-28 rounded-xl border border-slate-300 bg-white px-3 py-2 text-right tabular-nums text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                aria-label="Amount"
-              />
-              <button
-                type="button"
-                disabled={
-                  isAddingTender ||
-                  !addTenderTypeId ||
-                  !addTenderAmount ||
-                  parseFloat(addTenderAmount) <= 0
-                }
-                onClick={onAddTender}
-                className="min-h-[48px] shrink-0 rounded-xl bg-primary-600 px-4 py-2 font-medium text-white transition hover:bg-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isAddingTender ? "…" : "Add"}
-              </button>
+          {(!sale.tenders || sale.tenders.length === 0) ? (
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                Add payment
+              </h3>
+              <div className="flex gap-2">
+                <select
+                  value={addTenderTypeId}
+                  onChange={(e) => setAddTenderTypeId(e.target.value)}
+                  className="min-h-[48px] flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  aria-label="Payment type"
+                >
+                  {tenderTypes.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.code})
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={addTenderAmount}
+                  onChange={(e) => setAddTenderAmount(e.target.value)}
+                  placeholder="Amount"
+                  className="min-h-[48px] w-28 rounded-xl border border-slate-300 bg-white px-3 py-2 text-right tabular-nums text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  aria-label="Amount"
+                />
+                <button
+                  type="button"
+                  disabled={
+                    isAddingTender ||
+                    !addTenderTypeId ||
+                    !addTenderAmount ||
+                    parseFloat(addTenderAmount) <= 0
+                  }
+                  onClick={onAddTender}
+                  className="min-h-[48px] shrink-0 rounded-xl bg-primary-600 px-4 py-2 font-medium text-white transition hover:bg-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isAddingTender ? "…" : "Add"}
+                </button>
+              </div>
+              {addTenderError && (
+                <p className="mt-2 text-sm text-red-400" role="alert">
+                  {addTenderError}
+                </p>
+              )}
             </div>
-            {addTenderError && (
-              <p className="mt-2 text-sm text-red-400" role="alert">
-                {addTenderError}
-              </p>
-            )}
-          </div>
+          ) : (
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Only one payment at a time. Remove the payment above to add a different one.
+            </p>
+          )}
         </div>
         <div className="border-t border-slate-200 p-4 dark:border-slate-600">
           {remainder > 0 && totalTendered > 0 && onCompleteWithDebt ? (
@@ -910,11 +1278,25 @@ function PaymentModal({
   );
 }
 
-function OrderLineRow({ line }: { line: CartLine }) {
+function OrderLineRow({
+  line,
+  stockOnHand,
+  trackInventory,
+}: {
+  line: CartLine;
+  stockOnHand?: number;
+  trackInventory?: boolean;
+}) {
   const dispatch = useAppDispatch();
   const lineTotal =
     line.unitPrice * line.qty +
     line.modifiers.reduce((s, m) => s + m.unitPriceDelta * m.qty, 0);
+
+  const maxQty =
+    trackInventory && typeof stockOnHand === "number"
+      ? Math.max(0, Math.floor(stockOnHand))
+      : undefined;
+  const canAddMore = maxQty === undefined || line.qty < maxQty;
 
   const handleReduce = () => {
     if (line.qty <= 1) {
@@ -925,6 +1307,7 @@ function OrderLineRow({ line }: { line: CartLine }) {
   };
 
   const handleAdd = () => {
+    if (!canAddMore) return;
     dispatch(updateLineQty({ tempId: line.tempId, qty: line.qty + 1 }));
   };
 
@@ -977,8 +1360,18 @@ function OrderLineRow({ line }: { line: CartLine }) {
           <button
             type="button"
             onClick={handleAdd}
-            className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-r-xl text-slate-700 transition hover:bg-slate-100 active:scale-95 dark:text-slate-200 dark:hover:bg-slate-600"
-            aria-label={`Increase quantity of ${line.itemName}`}
+            disabled={!canAddMore}
+            title={
+              !canAddMore && maxQty !== undefined
+                ? `Only ${maxQty} in stock`
+                : undefined
+            }
+            className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-r-xl text-slate-700 transition hover:bg-slate-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-600"
+            aria-label={
+              canAddMore
+                ? `Increase quantity of ${line.itemName}`
+                : `Cannot add more; ${maxQty ?? 0} in stock`
+            }
           >
             <Plus className="h-6 w-6" />
           </button>

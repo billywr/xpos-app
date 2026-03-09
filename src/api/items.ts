@@ -45,6 +45,19 @@ export async function fetchItem(
   );
 }
 
+/** Find item by barcode in this org. 404 if no item has this barcode. */
+export async function fetchItemByBarcode(
+  token: string | null,
+  orgId: string,
+  barcode: string
+): Promise<Item> {
+  const params = new URLSearchParams({ barcode: barcode.trim() });
+  return apiFetch<Item>(
+    `/api/v1/admin/orgs/${orgId}/items/by-barcode?${params.toString()}`,
+    { token }
+  );
+}
+
 export interface CreateItemBody {
   sku?: string | null;
   name: string;
@@ -54,6 +67,9 @@ export interface CreateItemBody {
   taxProfileId?: string | null;
   trackInventory?: boolean;
   active?: boolean;
+  buyingPrice?: number | null;
+  defaultSellingPrice?: number | null;
+  defaultPriceListId?: string | null;
   imageUrl?: string | null;
 }
 
@@ -74,6 +90,9 @@ export async function createItem(
       taxProfileId: body.taxProfileId ?? null,
       trackInventory: body.trackInventory ?? false,
       active: body.active ?? true,
+      buyingPrice: body.buyingPrice ?? null,
+      defaultSellingPrice: body.defaultSellingPrice ?? null,
+      defaultPriceListId: body.defaultPriceListId ?? null,
       imageUrl: body.imageUrl ?? null,
     },
   });
@@ -88,6 +107,9 @@ export interface UpdateItemBody {
   taxProfileId?: string | null;
   trackInventory?: boolean;
   active?: boolean;
+  buyingPrice?: number | null;
+  defaultSellingPrice?: number | null;
+  defaultPriceListId?: string | null;
   imageUrl?: string | null;
 }
 
@@ -122,6 +144,9 @@ export async function updateItem(
         taxProfileId: body.taxProfileId ?? null,
         trackInventory: body.trackInventory ?? false,
         active: body.active ?? true,
+        buyingPrice: body.buyingPrice ?? null,
+        defaultSellingPrice: body.defaultSellingPrice ?? null,
+        defaultPriceListId: body.defaultPriceListId ?? null,
         imageUrl: body.imageUrl ?? null,
       },
     }

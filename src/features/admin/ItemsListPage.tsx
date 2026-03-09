@@ -33,19 +33,32 @@ import { PageHeader } from "@/components/PageHeader";
 import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import { formatCurrency } from "@/utils/formatCurrency";
 import { getItemImageUrl, getItemImageName } from "@/utils/itemImage";
 import { resizeImageTo400x400 } from "@/utils/imageResize";
 import { Plus, Pencil, Trash2, Upload, Banknote, ChevronDown } from "lucide-react";
+import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
+import { BARCODE_ITEMS, isBarcodeVisible } from "@/config/barcodeVisibility";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
 const ITEM_TYPES = ["STOCK", "SERVICE", "MENU", "BUNDLE"] as const;
 
-export function ItemsListPage() {
+export interface ItemsListPageProps {
+  initialOrgId?: string;
+  onOrgChange?: (orgId: string) => void;
+}
+
+export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps = {}) {
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+  const navContext = useNavVisibilityContextOrNull();
+  const showBarcode = isBarcodeVisible(
+    navContext?.adminVisibility ?? {},
+    BARCODE_ITEMS
+  );
+  const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
   const [categoryFilterQuery, setCategoryFilterQuery] = useState("");
@@ -78,7 +91,7 @@ export function ItemsListPage() {
   const [formActive, setFormActive] = useState(true);
   const [formImageUrl, setFormImageUrl] = useState("");
   const [imageUploading, setImageUploading] = useState(false);
-  const [newBarcode, setNewBarcode] = useState("");
+  const [formBarcode, setFormBarcode] = useState("");
   const [newModifierGroupId, setNewModifierGroupId] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -121,6 +134,7 @@ export function ItemsListPage() {
     queryKey: ["admin-categories", token, selectedOrgId],
     queryFn: () => fetchCategories(token, selectedOrgId, { size: 500 }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
+    refetchOnMount: "always",
   });
 
   const { data: uomsData } = useQuery({
@@ -188,6 +202,9 @@ export function ItemsListPage() {
       taxProfileId: string | null;
       trackInventory: boolean;
       active: boolean;
+      buyingPrice: number | null;
+      defaultSellingPrice: number | null;
+      defaultPriceListId: string | null;
       imageUrl: string | null;
     }) => createItem(token, selectedOrgId, body),
     onSuccess: () => {
@@ -220,6 +237,9 @@ export function ItemsListPage() {
       taxProfileId: string | null;
       trackInventory: boolean;
       active: boolean;
+      buyingPrice: number | null;
+      defaultSellingPrice: number | null;
+      defaultPriceListId: string | null;
       imageUrl: string | null;
     }) =>
       updateItem(token, selectedOrgId, body.itemId, {
@@ -231,6 +251,9 @@ export function ItemsListPage() {
         taxProfileId: body.taxProfileId,
         trackInventory: body.trackInventory,
         active: body.active,
+        buyingPrice: body.buyingPrice,
+        defaultSellingPrice: body.defaultSellingPrice,
+        defaultPriceListId: body.defaultPriceListId,
         imageUrl: body.imageUrl,
       }),
     onSuccess: () => {
@@ -246,41 +269,6 @@ export function ItemsListPage() {
     },
     onError: (err) => {
       setSubmitLoading(false);
-      const requestId = getApiErrorRequestId(err);
-      toast.error(getApiErrorMessage(err), {
-        detail: requestId ? `Reference: ${requestId}` : undefined,
-      });
-    },
-  });
-
-  const addBarcodeMutation = useMutation({
-    mutationFn: (barcode: string) =>
-      addItemBarcode(token, selectedOrgId, editingItem!.id, barcode),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["admin-item-barcodes", token, selectedOrgId, editingItem?.id],
-      });
-      setNewBarcode("");
-      toast.success("Barcode added.", { title: "Added" });
-    },
-    onError: (err) => {
-      const requestId = getApiErrorRequestId(err);
-      toast.error(getApiErrorMessage(err), {
-        detail: requestId ? `Reference: ${requestId}` : undefined,
-      });
-    },
-  });
-
-  const deleteBarcodeMutation = useMutation({
-    mutationFn: (barcodeId: string) =>
-      deleteItemBarcode(token, selectedOrgId, editingItem!.id, barcodeId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["admin-item-barcodes", token, selectedOrgId, editingItem?.id],
-      });
-      toast.success("Barcode removed.", { title: "Removed" });
-    },
-    onError: (err) => {
       const requestId = getApiErrorRequestId(err);
       toast.error(getApiErrorMessage(err), {
         detail: requestId ? `Reference: ${requestId}` : undefined,
@@ -371,10 +359,12 @@ export function ItemsListPage() {
   );
 
   useEffect(() => {
-    if (!selectedOrgId && orgs.length > 0) {
+    if (initialOrgId) {
+      setSelectedOrgId(initialOrgId);
+    } else if (!selectedOrgId && orgs.length > 0) {
       setSelectedOrgId(orgs[0].id);
     }
-  }, [orgs, selectedOrgId]);
+  }, [initialOrgId, orgs, selectedOrgId]);
 
   useEffect(() => {
     if (editingItemData) {
@@ -390,6 +380,12 @@ export function ItemsListPage() {
     }
   }, [editingItemData]);
 
+  useEffect(() => {
+    if (editingItem && barcodesData !== undefined) {
+      setFormBarcode(barcodesData?.[0]?.barcode ?? "");
+    }
+  }, [editingItem, barcodesData]);
+
   function resetForm() {
     setFormSku("");
     setFormName("");
@@ -400,8 +396,8 @@ export function ItemsListPage() {
     setFormTrackInventory(false);
     setFormActive(true);
     setFormImageUrl("");
+    setFormBarcode("");
     setFormError(null);
-    setNewBarcode("");
     setNewModifierGroupId("");
   }
 
@@ -414,7 +410,7 @@ export function ItemsListPage() {
   const openEdit = (item: Item) => {
     setEditingItem(item);
     setFormError(null);
-    setNewBarcode("");
+    setFormBarcode("");
     setNewModifierGroupId("");
     setSlideOpen(true);
   };
@@ -433,6 +429,7 @@ export function ItemsListPage() {
       setFormError("Name is required.");
       return;
     }
+    const itemBuyingPrice = editingItem?.buyingPrice ?? null;
     const payload = {
       sku: formSku.trim() || null,
       name: trimmed,
@@ -442,24 +439,87 @@ export function ItemsListPage() {
       taxProfileId: formTaxProfileId || null,
       trackInventory: formTrackInventory,
       active: formActive,
+      buyingPrice: editingItem ? (itemBuyingPrice ?? null) : null,
+      defaultSellingPrice: editingItem?.defaultSellingPrice ?? null,
+      defaultPriceListId: null,
       imageUrl: formImageUrl.trim() || null,
     };
     setSubmitLoading(true);
     if (editingItem) {
-      updateMutation.mutate(
-        { ...payload, itemId: editingItem.id },
-        { onSettled: () => setSubmitLoading(false) }
-      );
+      (async () => {
+        try {
+          await updateMutation.mutateAsync({
+            ...payload,
+            itemId: editingItem.id,
+          });
+          if (showBarcode) {
+            const desiredBarcode = formBarcode.trim();
+            const currentBarcodes = barcodes;
+            for (const b of currentBarcodes) {
+              await deleteItemBarcode(token, selectedOrgId, editingItem.id, b.id);
+            }
+            if (desiredBarcode) {
+              await addItemBarcode(token, selectedOrgId, editingItem.id, desiredBarcode);
+            }
+          }
+          queryClient.invalidateQueries({
+            queryKey: ["admin-items", token, selectedOrgId],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["admin-item-barcodes", token, selectedOrgId, editingItem.id],
+          });
+          queryClient.invalidateQueries({ queryKey: ["items", selectedOrgId] });
+        } catch (err: unknown) {
+          const requestId = getApiErrorRequestId(err);
+          toast.error(getApiErrorMessage(err), {
+            detail: requestId ? `Reference: ${requestId}` : undefined,
+          });
+        } finally {
+          setSubmitLoading(false);
+        }
+      })();
     } else {
-      createMutation.mutate(payload, { onSettled: () => setSubmitLoading(false) });
+      (async () => {
+        try {
+          const created = await createMutation.mutateAsync(payload);
+          queryClient.invalidateQueries({
+            queryKey: ["admin-items", token, selectedOrgId],
+          });
+          queryClient.invalidateQueries({ queryKey: ["items", selectedOrgId] });
+          setSlideOpen(false);
+          setEditingItem(null);
+          resetForm();
+          toast.success("Item created.", { title: "Created" });
+          if (showBarcode) {
+            const barcodeToAdd = formBarcode.trim();
+            if (barcodeToAdd && token && selectedOrgId) {
+            try {
+              await addItemBarcode(token, selectedOrgId, created.id, barcodeToAdd);
+              queryClient.invalidateQueries({
+                queryKey: ["admin-item-barcodes", token, selectedOrgId, created.id],
+              });
+              queryClient.invalidateQueries({
+                queryKey: ["admin-items", token, selectedOrgId],
+              });
+              toast.success("Barcode added to item.", { title: "Barcode" });
+            } catch (barcodeErr) {
+              toast.error(
+                `Barcode could not be added: ${getApiErrorMessage(barcodeErr)}`,
+                { detail: getApiErrorRequestId(barcodeErr) ? `Reference: ${getApiErrorRequestId(barcodeErr)}` : undefined }
+              );
+            }
+            }
+          }
+        } catch (err) {
+          const requestId = getApiErrorRequestId(err);
+          toast.error(getApiErrorMessage(err), {
+            detail: requestId ? `Reference: ${requestId}` : undefined,
+          });
+        } finally {
+          setSubmitLoading(false);
+        }
+      })();
     }
-  };
-
-  const handleAddBarcode = (e: React.FormEvent) => {
-    e.preventDefault();
-    const b = newBarcode.trim();
-    if (!b || !editingItem) return;
-    addBarcodeMutation.mutate(b);
   };
 
   const handleAddModifierGroup = (e: React.FormEvent) => {
@@ -559,9 +619,11 @@ export function ItemsListPage() {
           id="item-org-select"
           value={selectedOrgId}
           onChange={(e) => {
-            setSelectedOrgId(e.target.value);
+            const next = e.target.value;
+            setSelectedOrgId(next);
             setSelectedCategoryId("");
             setPage(0);
+            onOrgChange?.(next);
           }}
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
         >
@@ -592,6 +654,8 @@ export function ItemsListPage() {
                 }}
                 readOnly={!categoryFilterOpen}
                 placeholder="Filter by category…"
+                autoComplete="off"
+                data-form-type="other"
                 className="w-48 rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
               <button
@@ -685,11 +749,25 @@ export function ItemsListPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       SKU
                     </th>
+                    {showBarcode && (
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                        Barcode
+                      </th>
+                    )}
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Type
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Active
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      Buying (KES)
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      Selling (KES)
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      Price list
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Image name
@@ -703,7 +781,7 @@ export function ItemsListPage() {
                   {items.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={showBarcode ? 10 : 9}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
                         No items yet. Add one to build your catalog.
@@ -730,6 +808,11 @@ export function ItemsListPage() {
                           <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                             {item.sku ?? "—"}
                           </td>
+                          {showBarcode && (
+                            <td className="px-4 py-3 font-mono text-sm text-slate-600 dark:text-slate-300">
+                              {item.barcode ?? "—"}
+                            </td>
+                          )}
                           <td className="px-4 py-3">
                             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                               {item.itemType}
@@ -742,6 +825,25 @@ export function ItemsListPage() {
                               </span>
                             ) : (
                               <span className="text-slate-500">No</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-300">
+                            {item.buyingPrice != null
+                              ? formatCurrency(item.buyingPrice)
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-300">
+                            {item.defaultSellingPrice != null
+                              ? formatCurrency(item.defaultSellingPrice)
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {itemIdsWithPrices.has(item.id) ? (
+                              <span className="text-emerald-600 dark:text-emerald-400">
+                                Yes
+                              </span>
+                            ) : (
+                              <span className="text-slate-500">—</span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
@@ -851,6 +953,28 @@ export function ItemsListPage() {
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 />
               </div>
+              {showBarcode && (
+                <div>
+                  <label
+                    htmlFor="item-barcode"
+                    className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    Barcode (optional)
+                  </label>
+                  <input
+                    id="item-barcode"
+                    type="text"
+                    value={formBarcode}
+                    onChange={(e) => setFormBarcode(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.preventDefault();
+                    }}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    placeholder="e.g. 5901234123457 or scan"
+                    autoComplete="off"
+                  />
+                </div>
+              )}
               <div>
                 <label
                   htmlFor="item-type"
@@ -1035,57 +1159,6 @@ export function ItemsListPage() {
 
               {editingItem && (
                 <>
-                  <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
-                    <h3 className="mb-2 text-sm font-semibold text-slate-800 dark:text-white">
-                      Barcodes
-                    </h3>
-                    {barcodes.length === 0 ? (
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        No barcodes.
-                      </p>
-                    ) : (
-                      <ul className="mb-2 space-y-1">
-                        {barcodes.map((b: ItemBarcode) => (
-                          <li
-                            key={b.id}
-                            className="flex items-center justify-between rounded bg-slate-50 px-2 py-1 text-sm dark:bg-slate-700/50"
-                          >
-                            <code>{b.barcode}</code>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                deleteBarcodeMutation.mutate(b.id)
-                              }
-                              className="rounded p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
-                              title={`Remove ${b.barcode}`}
-                              aria-label={`Remove ${b.barcode}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <form
-                      onSubmit={handleAddBarcode}
-                      className="flex gap-2"
-                    >
-                      <input
-                        type="text"
-                        value={newBarcode}
-                        onChange={(e) => setNewBarcode(e.target.value)}
-                        placeholder="New barcode"
-                        className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                      />
-                      <button
-                        type="submit"
-                        disabled={!newBarcode.trim()}
-                        className="rounded-lg bg-slate-600 px-3 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-500 dark:hover:bg-slate-600"
-                      >
-                        Add
-                      </button>
-                    </form>
-                  </div>
                   <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
                     <h3 className="mb-2 text-sm font-semibold text-slate-800 dark:text-white">
                       Modifier groups

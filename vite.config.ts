@@ -10,6 +10,9 @@ export default defineConfig({
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
   },
+  optimizeDeps: {
+    include: ["jsbarcode"],
+  },
   test: {
     environment: "jsdom",
     globals: true,

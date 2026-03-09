@@ -43,7 +43,13 @@ export function MenuItemCard({
   onAdd,
 }: MenuItemCardProps) {
   const available = active && stockOnHand > 0;
-  const addDisabled = trackInventory && quantityInCart >= stockOnHand;
+  const priceNotSet = price <= 0;
+  const addDisabled =
+    (trackInventory && quantityInCart >= stockOnHand) || priceNotSet;
+  const addTooltip =
+    priceNotSet && available
+      ? "Price should be set before selling (Admin → Catalog → Price list items)"
+      : undefined;
 
   const stockLabel = trackInventory
     ? available
@@ -94,8 +100,9 @@ export function MenuItemCard({
                   type="button"
                   onClick={onAdd}
                   disabled={addDisabled}
-                  className="flex min-h-[40px] w-full shrink-0 touch-manipulation items-center justify-center rounded-lg bg-emerald-600 transition hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-emerald-600 sm:min-h-[44px] sm:min-w-[44px] sm:w-auto dark:bg-emerald-600 dark:hover:bg-emerald-500"
-                  aria-label={`Add more ${name}`}
+                  title={addTooltip}
+                  className="flex min-h-[40px] w-full shrink-0 touch-manipulation items-center justify-center rounded-lg bg-emerald-600 transition hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600 sm:min-h-[44px] sm:min-w-[44px] sm:w-auto dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                  aria-label={addTooltip ?? `Add more ${name}`}
                 >
                   <Plus className="h-4 w-4 text-white sm:h-5 sm:w-5" />
                 </button>
@@ -105,8 +112,9 @@ export function MenuItemCard({
                 type="button"
                 onClick={onAdd}
                 disabled={addDisabled}
-                className="flex w-full min-h-[40px] touch-manipulation items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-2 text-xs font-medium text-white transition hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-50 disabled:hover:bg-emerald-600 sm:min-h-[44px] sm:text-sm sm:px-3 dark:bg-emerald-600 dark:hover:bg-emerald-500"
-                aria-label={`Add ${name} to cart`}
+                title={addTooltip}
+                className="flex w-full min-h-[40px] touch-manipulation items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-2 text-xs font-medium text-white transition hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600 sm:min-h-[44px] sm:text-sm sm:px-3 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                aria-label={addTooltip ?? `Add ${name} to cart`}
               >
                 <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
                 Add

@@ -16,12 +16,14 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { SelectContextPage } from "@/features/context/SelectContextPage";
 import { HomePage } from "@/features/home/HomePage";
 import { AdminDashboard } from "@/features/admin/AdminDashboard";
+import { OrgSetupPage } from "@/features/admin/OrgSetupPage";
 import { OrgsListPage } from "@/features/admin/OrgsListPage";
 import { BusinessesListPage } from "@/features/admin/BusinessesListPage";
 import { BranchesListPage } from "@/features/admin/BranchesListPage";
 import { TerminalsListPage } from "@/features/admin/TerminalsListPage";
 import { DevicesListPage } from "@/features/admin/DevicesListPage";
 import { StaffListPage } from "@/features/admin/StaffListPage";
+import { CatalogPage } from "@/features/admin/CatalogPage";
 import { CategoriesListPage } from "@/features/admin/CategoriesListPage";
 import { UomsListPage } from "@/features/admin/UomsListPage";
 import { ItemsListPage } from "@/features/admin/ItemsListPage";
@@ -32,9 +34,7 @@ import { SalesListPage } from "@/features/admin/SalesListPage";
 import { ShiftsListPage } from "@/features/admin/ShiftsListPage";
 import { ZReportPage } from "@/features/admin/ZReportPage";
 import { AdminTablesPage } from "@/features/admin/AdminTablesPage";
-import { SuppliersListPage } from "@/features/admin/SuppliersListPage";
-import { GoodsReceiptPage } from "@/features/admin/GoodsReceiptPage";
-import { InventoryPage } from "@/features/admin/InventoryPage";
+import { InventoryReceivingPage } from "@/features/admin/InventoryReceivingPage";
 import { RevenueDashboardPage } from "@/features/admin/RevenueDashboardPage";
 import { StockTakingSchedulesPage } from "@/features/admin/StockTakingSchedulesPage";
 import { StockCountSessionsPage } from "@/features/admin/StockCountSessionsPage";
@@ -47,6 +47,7 @@ import { StandardStockCountSheetPage } from "@/features/operator/StandardStockCo
 import { StockCountSessionDetailAdminPage } from "@/features/admin/StockCountSessionDetailAdminPage";
 import { StandardStockCountAdminPage } from "@/features/admin/StandardStockCountAdminPage";
 import { AdminSettingsPage } from "@/features/admin/AdminSettingsPage";
+import { BarcodeScannerPage } from "@/features/admin/BarcodeScannerPage";
 import { MenuOrderPage } from "@/features/operator/MenuOrderPage";
 import { OperatorDashboard } from "@/features/operator/OperatorDashboard";
 import { PaymentsPage } from "@/features/operator/PaymentsPage";
@@ -87,13 +88,15 @@ function App() {
           element={<AdminLayout />}
         >
           <Route index element={<AdminDashboard />} />
+          <Route path="org-setup" element={<OrgSetupPage />} />
           <Route path="orgs" element={<OrgsListPage />} />
           <Route path="businesses" element={<BusinessesListPage />} />
           <Route path="branches" element={<BranchesListPage />} />
           <Route path="terminals" element={<TerminalsListPage />} />
           <Route path="devices" element={<DevicesListPage />} />
           <Route path="staff" element={<StaffListPage />} />
-          <Route path="catalog" element={<CategoriesListPage />} />
+          <Route path="catalog" element={<CatalogPage />} />
+          <Route path="categories" element={<CategoriesListPage />} />
           <Route path="uoms" element={<UomsListPage />} />
           <Route path="items" element={<ItemsListPage />} />
           <Route path="price-lists" element={<PriceListsListPage />} />
@@ -106,9 +109,9 @@ function App() {
           <Route path="tables" element={<AdminTablesPage />} />
           <Route path="shifts" element={<ShiftsListPage />} />
           <Route path="z-report" element={<ZReportPage />} />
-          <Route path="suppliers" element={<SuppliersListPage />} />
-          <Route path="goods-receipt" element={<GoodsReceiptPage />} />
-          <Route path="inventory" element={<InventoryPage />} />
+          <Route path="suppliers" element={<Navigate to="/admin/inventory?tab=suppliers" replace />} />
+          <Route path="goods-receipt" element={<Navigate to="/admin/inventory?tab=goods-receipt" replace />} />
+          <Route path="inventory" element={<InventoryReceivingPage />} />
           <Route path="stock-taking-schedules" element={<StockTakingSchedulesPage />} />
           <Route path="stock-count-sessions" element={<StockCountSessionsPage />} />
           <Route
@@ -121,6 +124,7 @@ function App() {
           />
           <Route path="revenue" element={<RevenueDashboardPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="barcode-scanner" element={<BarcodeScannerPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
         </Route>
         <Route path="select-context" element={<SelectContextPage />} />

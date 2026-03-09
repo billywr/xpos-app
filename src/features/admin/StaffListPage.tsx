@@ -32,12 +32,16 @@ import { Plus, Pencil, Power, PowerOff, Trash2 } from "lucide-react";
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
 
-export function StaffListPage() {
+export interface StaffListPageProps {
+  initialOrgId?: string;
+}
+
+export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
   const token = useAppSelector(selectToken);
   const iamUserId = useAppSelector(selectIamUserId);
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+  const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [registerSlideOpen, setRegisterSlideOpen] = useState(false);
@@ -263,10 +267,12 @@ export function StaffListPage() {
     isApiFetchError(profileError);
 
   useEffect(() => {
-    if (!selectedOrgId && orgs.length > 0) {
+    if (initialOrgId) {
+      setSelectedOrgId(initialOrgId);
+    } else if (!selectedOrgId && orgs.length > 0) {
       setSelectedOrgId(orgs[0].id);
     }
-  }, [orgs, selectedOrgId]);
+  }, [initialOrgId, orgs, selectedOrgId]);
 
   useEffect(() => {
     if (profile) {

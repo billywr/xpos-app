@@ -6,3 +6,5 @@ export { Pagination } from "./Pagination";
 export type { PaginationProps } from "./Pagination";
 export { Toast } from "./Toast";
 export type { ToastItem, ToastProps, ToastVariant } from "./Toast";
+export { AdminTabList, AdminTabPanel } from "./AdminTabs";
+export type { AdminTabItem, AdminTabListProps, AdminTabPanelProps } from "./AdminTabs";

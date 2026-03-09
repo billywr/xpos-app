@@ -25,11 +25,15 @@ const MAX_PAGE_SIZE = 100;
 const DEFAULT_TIMEZONE = "Africa/Nairobi";
 const DEFAULT_CURRENCY = "KES";
 
-export function BranchesListPage() {
+export interface BranchesListPageProps {
+  initialOrgId?: string;
+}
+
+export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+  const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [slideOpen, setSlideOpen] = useState(false);
@@ -257,10 +261,12 @@ export function BranchesListPage() {
   const selectedOrg = orgs.find((o: Org) => o.id === selectedOrgId);
 
   useEffect(() => {
-    if (!selectedOrgId && orgs.length > 0) {
+    if (initialOrgId) {
+      setSelectedOrgId(initialOrgId);
+    } else if (!selectedOrgId && orgs.length > 0) {
       setSelectedOrgId(orgs[0].id);
     }
-  }, [orgs, selectedOrgId]);
+  }, [initialOrgId, orgs, selectedOrgId]);
 
   useEffect(() => {
     if (slideOpen && !editingBranch && businesses.length > 0 && !formBusinessId) {

@@ -80,6 +80,21 @@ export async function addTender(
   );
 }
 
+/** Operator: remove a tender from an open sale. Only one payment allowed at a time; remove before adding another. */
+export async function removeTender(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  terminalId: string,
+  saleId: string,
+  tenderId: string
+): Promise<void> {
+  await apiFetch<void>(
+    `${salesPath(orgId, branchId, terminalId)}/${saleId}/tenders/${tenderId}`,
+    { token, method: "DELETE" as RequestInit["method"] }
+  );
+}
+
 export async function completeSale(
   token: string | null,
   orgId: string,

@@ -16,11 +16,16 @@ import { Plus, Pencil, Ruler, Trash2 } from "lucide-react";
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
 
-export function UomsListPage() {
+export interface UomsListPageProps {
+  initialOrgId?: string;
+  onOrgChange?: (orgId: string) => void;
+}
+
+export function UomsListPage({ initialOrgId, onOrgChange }: UomsListPageProps = {}) {
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+  const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [slideOpen, setSlideOpen] = useState(false);
@@ -113,10 +118,12 @@ export function UomsListPage() {
   const totalElements = uomsData?.totalElements ?? 0;
 
   useEffect(() => {
-    if (!selectedOrgId && orgs.length > 0) {
+    if (initialOrgId) {
+      setSelectedOrgId(initialOrgId);
+    } else if (!selectedOrgId && orgs.length > 0) {
       setSelectedOrgId(orgs[0].id);
     }
-  }, [orgs, selectedOrgId]);
+  }, [initialOrgId, orgs, selectedOrgId]);
 
   function resetForm() {
     setFormName("");
@@ -236,8 +243,10 @@ export function UomsListPage() {
           id="uom-org-select"
           value={selectedOrgId}
           onChange={(e) => {
-            setSelectedOrgId(e.target.value);
+            const next = e.target.value;
+            setSelectedOrgId(next);
             setPage(0);
+            onOrgChange?.(next);
           }}
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
         >

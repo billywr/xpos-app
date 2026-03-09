@@ -25,8 +25,11 @@ export interface Item {
   taxProfileId: string | null;
   trackInventory: boolean;
   active: boolean;
+  buyingPrice: number | null;
+  defaultSellingPrice: number | null;
   primaryImageUrl: string | null;
   hasPurchaseHistory?: boolean;
+  barcode?: string | null;
   createdAt: string;
   updatedAt: string;
 }

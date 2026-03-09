@@ -6,6 +6,18 @@ import { isHeaderNavItemVisible } from "@/hooks/useHeaderNavVisibility";
 import { ADMIN_NAV_ITEMS, ADMIN_GROUP_ORDER } from "@/config/adminNavItems";
 import { OPERATOR_NAV_ITEMS, OPERATOR_GROUP_ORDER } from "@/config/operatorNavItems";
 import { HEADER_NAV_ITEMS } from "@/config/headerNavItems";
+import {
+  MENU_ORDER_SHOW_ORDER_TYPE,
+  MENU_ORDER_SHOW_TABLE_SELECT,
+  MENU_ORDER_SHOW_ITEM_LIST,
+  isMenuOrderOptionVisible,
+} from "@/config/menuOrderVisibility";
+import {
+  BARCODE_GOODS_RECEIPT,
+  BARCODE_ITEMS,
+  BARCODE_MENU_ORDER,
+  isBarcodeVisible,
+} from "@/config/barcodeVisibility";
 import { Settings, Upload, Trash2, Store } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { resizeImageForLogo } from "@/utils/logoResize";
@@ -225,6 +237,34 @@ function NavItemRow({
   );
 }
 
+function MenuOrderVisibilityRow({
+  label,
+  visible,
+  onToggle,
+}: {
+  label: string;
+  visible: boolean;
+  onToggle: (visible: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <span className="text-sm text-slate-700 dark:text-slate-300">{label}</span>
+      <label className="relative flex shrink-0 cursor-pointer items-center gap-2">
+        <input
+          type="checkbox"
+          checked={visible}
+          onChange={(e) => onToggle(e.target.checked)}
+          className="peer sr-only"
+        />
+        <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:bg-slate-600 dark:after:border-slate-500 dark:peer-focus:ring-primary-800" />
+        <span className="text-sm text-slate-600 dark:text-slate-400">
+          {visible ? "Visible" : "Hidden"}
+        </span>
+      </label>
+    </div>
+  );
+}
+
 export function AdminSettingsPage() {
   const {
     adminVisibility: visibilityState,
@@ -436,6 +476,92 @@ export function AdminSettingsPage() {
             >
               Reset labels to default
             </button>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+            Menu order (operator)
+          </h2>
+          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+            Show or hide elements on the operator Menu Order screen: order type
+            (Dine-in / Takeaway / Delivery), table selector, and the item list
+            (categories and search).
+          </p>
+          <div className="min-w-[280px] max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+            <div className="space-y-4">
+              <MenuOrderVisibilityRow
+                label="Order type (Dine-in / Takeaway / Delivery)"
+                visible={isMenuOrderOptionVisible(
+                  opVisibilityState,
+                  MENU_ORDER_SHOW_ORDER_TYPE
+                )}
+                onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_ORDER_TYPE, v)}
+              />
+              <MenuOrderVisibilityRow
+                label="Table selector"
+                visible={isMenuOrderOptionVisible(
+                  opVisibilityState,
+                  MENU_ORDER_SHOW_TABLE_SELECT
+                )}
+                onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_TABLE_SELECT, v)}
+              />
+              <MenuOrderVisibilityRow
+                label="Item list (categories and search)"
+                visible={isMenuOrderOptionVisible(
+                  opVisibilityState,
+                  MENU_ORDER_SHOW_ITEM_LIST
+                )}
+                onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_ITEM_LIST, v)}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+            Barcode (per screen)
+          </h2>
+          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+            Show or hide barcode scan / barcode field on each screen. When
+            hidden, the barcode input is not shown on that screen.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="min-w-[280px] rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Admin
+              </h3>
+              <div className="space-y-4">
+                <MenuOrderVisibilityRow
+                  label="Goods receipt: barcode scan"
+                  visible={isBarcodeVisible(
+                    visibilityState,
+                    BARCODE_GOODS_RECEIPT
+                  )}
+                  onToggle={(v) => setVisible(BARCODE_GOODS_RECEIPT, v)}
+                />
+                <MenuOrderVisibilityRow
+                  label="Catalog (Items): barcode field"
+                  visible={isBarcodeVisible(visibilityState, BARCODE_ITEMS)}
+                  onToggle={(v) => setVisible(BARCODE_ITEMS, v)}
+                />
+              </div>
+            </div>
+            <div className="min-w-[280px] rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Operator
+              </h3>
+              <div className="space-y-4">
+                <MenuOrderVisibilityRow
+                  label="Menu order: barcode scan"
+                  visible={isBarcodeVisible(
+                    opVisibilityState,
+                    BARCODE_MENU_ORDER
+                  )}
+                  onToggle={(v) => opSetVisible(BARCODE_MENU_ORDER, v)}
+                />
+              </div>
+            </div>
           </div>
         </section>
       </div>

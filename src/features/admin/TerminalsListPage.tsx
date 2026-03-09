@@ -27,11 +27,15 @@ import { Plus, Pencil, Smartphone, Trash2 } from "lucide-react";
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
 
-export function TerminalsListPage() {
+export interface TerminalsListPageProps {
+  initialOrgId?: string;
+}
+
+export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {}) {
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
+  const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
@@ -184,10 +188,12 @@ export function TerminalsListPage() {
   const selectedBranch = branches.find((b: Branch) => b.id === selectedBranchId);
 
   useEffect(() => {
-    if (!selectedOrgId && orgs.length > 0) {
+    if (initialOrgId) {
+      setSelectedOrgId(initialOrgId);
+    } else if (!selectedOrgId && orgs.length > 0) {
       setSelectedOrgId(orgs[0].id);
     }
-  }, [orgs, selectedOrgId]);
+  }, [initialOrgId, orgs, selectedOrgId]);
 
   useEffect(() => {
     if (selectedOrgId) {

@@ -19,10 +19,22 @@ function formatQty(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(2);
 }
 
-export function InventoryPage() {
+export interface InventoryPageProps {
+  initialOrgId?: string;
+  initialBranchId?: string;
+  onOrgChange?: (orgId: string) => void;
+  onBranchChange?: (branchId: string) => void;
+}
+
+export function InventoryPage({
+  initialOrgId,
+  initialBranchId,
+  onOrgChange,
+  onBranchChange,
+}: InventoryPageProps = {}) {
   const token = useAppSelector(selectToken);
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
-  const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+  const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(initialBranchId ?? "");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
 
@@ -58,16 +70,20 @@ export function InventoryPage() {
   const lines = reportData?.content ?? [];
 
   useEffect(() => {
-    if (!selectedOrgId && filteredOrgs.length > 0) {
+    if (initialOrgId) {
+      setSelectedOrgId(initialOrgId);
+    } else if (!selectedOrgId && filteredOrgs.length > 0) {
       setSelectedOrgId(filteredOrgs[0].id);
     }
-  }, [filteredOrgs, selectedOrgId]);
+  }, [initialOrgId, filteredOrgs, selectedOrgId]);
 
   useEffect(() => {
-    if (selectedOrgId && !selectedBranchId && filteredBranches.length > 0) {
+    if (initialBranchId) {
+      setSelectedBranchId(initialBranchId);
+    } else if (selectedOrgId && !selectedBranchId && filteredBranches.length > 0) {
       setSelectedBranchId(filteredBranches[0].id);
     }
-  }, [selectedOrgId, filteredBranches, selectedBranchId]);
+  }, [initialBranchId, selectedOrgId, filteredBranches, selectedBranchId]);
   const totalElements = reportData?.totalElements ?? 0;
 
   if (isLoading && selectedOrgId && selectedBranchId) {
@@ -124,8 +140,10 @@ export function InventoryPage() {
           id="inv-org-select"
           value={selectedOrgId}
           onChange={(e) => {
-            setSelectedOrgId(e.target.value);
+            const next = e.target.value;
+            setSelectedOrgId(next);
             setSelectedBranchId("");
+            onOrgChange?.(next);
           }}
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
         >
@@ -146,8 +164,10 @@ export function InventoryPage() {
           id="inv-branch-select"
           value={selectedBranchId}
           onChange={(e) => {
-            setSelectedBranchId(e.target.value);
+            const next = e.target.value;
+            setSelectedBranchId(next);
             setPage(0);
+            onBranchChange?.(next);
           }}
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
         >

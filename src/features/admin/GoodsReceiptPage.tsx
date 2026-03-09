@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import { fetchOrgs } from "@/api/orgs";
 import { fetchBranches } from "@/api/branches";
 import { fetchSuppliers } from "@/api/suppliers";
-import { fetchItems } from "@/api/items";
+import { fetchItems, fetchItemByBarcode } from "@/api/items";
 import {
   fetchGoodsReceiptNotes,
   createGoodsReceiptNote,
@@ -24,6 +24,12 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { useToast } from "@/contexts/ToastContext";
 import { Link } from "react-router-dom";
 import { Plus, PackagePlus, Trash2, Pencil } from "lucide-react";
+import { BarcodeCaptureInput } from "@/components/BarcodeCaptureInput";
+import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
+import {
+  BARCODE_GOODS_RECEIPT,
+  isBarcodeVisible,
+} from "@/config/barcodeVisibility";
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -35,12 +41,29 @@ interface GrnLineForm {
   receivedUnitCost: string;
 }
 
-export function GoodsReceiptPage() {
+export interface GoodsReceiptPageProps {
+  initialOrgId?: string;
+  initialBranchId?: string;
+  onOrgChange?: (orgId: string) => void;
+  onBranchChange?: (branchId: string) => void;
+}
+
+export function GoodsReceiptPage({
+  initialOrgId,
+  initialBranchId,
+  onOrgChange,
+  onBranchChange,
+}: GoodsReceiptPageProps = {}) {
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
-  const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+  const navContext = useNavVisibilityContextOrNull();
+  const showBarcode = isBarcodeVisible(
+    navContext?.adminVisibility ?? {},
+    BARCODE_GOODS_RECEIPT
+  );
+  const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(initialBranchId ?? "");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [slideOpen, setSlideOpen] = useState(false);
@@ -54,6 +77,11 @@ export function GoodsReceiptPage() {
   const [confirmDeactivate, setConfirmDeactivate] =
     useState<GoodsReceiptNoteResponse | null>(null);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
+  const [barcodeScanMessage, setBarcodeScanMessage] = useState<{
+    type: "error" | "info";
+    text: string;
+  } | null>(null);
+  const [scannedItems, setScannedItems] = useState<Item[]>([]);
 
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
@@ -135,16 +163,21 @@ export function GoodsReceiptPage() {
       supplierId: string;
       receivedAt: string;
       active?: boolean;
+      lines?: Array<{ itemId: string; qty: number; uomId?: string | null; receivedUnitCost?: number | null }>;
     }) =>
       updateGoodsReceiptNote(token, selectedOrgId, body.grnId, {
         supplierId: body.supplierId,
         receivedAt: body.receivedAt,
         active: body.active,
+        lines: body.lines,
       }),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["admin-grns", token, selectedOrgId, selectedBranchId],
       });
+      if (variables.lines != null) {
+        queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
+      }
       setSlideOpen(false);
       setEditingGrn(null);
       setConfirmDeactivate(null);
@@ -166,21 +199,40 @@ export function GoodsReceiptPage() {
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
   const suppliers = suppliersData?.content ?? [];
-  const items = (itemsData?.content ?? []) as Item[];
+  const items = useMemo(() => {
+    const fromApi = (itemsData?.content ?? []) as Item[];
+    const seen = new Set(fromApi.map((i: Item) => i.id));
+    const extra = scannedItems.filter((s) => !seen.has(s.id));
+    return [...fromApi, ...extra];
+  }, [itemsData?.content, scannedItems]);
   const grns = grnsData?.content ?? [];
   const totalElements = grnsData?.totalElements ?? 0;
 
-  useEffect(() => {
-    if (!selectedOrgId && orgs.length > 0) {
-      setSelectedOrgId(orgs[0].id);
-    }
-  }, [orgs, selectedOrgId]);
+  const grnsTotalAmount = grns.reduce(
+    (sum, grn) =>
+      sum +
+      grn.lines.reduce(
+        (s, l) => s + l.qty * (l.receivedUnitCost ?? 0),
+        0
+      ),
+    0
+  );
 
   useEffect(() => {
-    if (selectedOrgId && !selectedBranchId && branches.length > 0) {
+    if (initialOrgId) {
+      setSelectedOrgId(initialOrgId);
+    } else if (!selectedOrgId && orgs.length > 0) {
+      setSelectedOrgId(orgs[0].id);
+    }
+  }, [initialOrgId, orgs, selectedOrgId]);
+
+  useEffect(() => {
+    if (initialBranchId) {
+      setSelectedBranchId(initialBranchId);
+    } else if (selectedOrgId && !selectedBranchId && branches.length > 0) {
       setSelectedBranchId(branches[0].id);
     }
-  }, [selectedOrgId, branches, selectedBranchId]);
+  }, [initialBranchId, selectedOrgId, branches, selectedBranchId]);
 
   const handleAddLine = () => {
     setLines((prev) => [
@@ -202,10 +254,56 @@ export function GoodsReceiptPage() {
       if (field === "itemId") {
         const item = items.find((i) => i.id === value);
         next[idx].itemName = item?.name ?? "";
+        if (item?.buyingPrice != null) {
+          next[idx].receivedUnitCost = String(item.buyingPrice);
+        }
       }
       return next;
     });
   };
+
+  const handleBarcodeScan = useCallback(
+    async (barcode: string) => {
+      if (!token || !selectedOrgId || !barcode.trim()) return;
+      setBarcodeScanMessage(null);
+      try {
+        const item = await fetchItemByBarcode(token, selectedOrgId, barcode.trim());
+        setScannedItems((prev) =>
+          prev.some((i) => i.id === item.id) ? prev : [...prev, item]
+        );
+        setLines((prev) => {
+          const emptyIdx = prev.findIndex((l) => !l.itemId);
+          const idx = emptyIdx >= 0 ? emptyIdx : prev.length;
+          const newLine = {
+            itemId: item.id,
+            itemName: item.name,
+            qty: idx < prev.length ? prev[idx].qty : "1",
+            uomId: "",
+            receivedUnitCost:
+              item.buyingPrice != null ? String(item.buyingPrice) : "",
+          };
+          if (idx < prev.length) {
+            const next = [...prev];
+            next[idx] = newLine;
+            return next;
+          }
+          return [...prev, newLine];
+        });
+      } catch (err) {
+        const msg = getApiErrorMessage(err);
+        const isNotFound =
+          (err as { data?: { code?: string } })?.data?.code === "ITEM_NOT_FOUND_BY_BARCODE" ||
+          /not found|no item/i.test(msg);
+        setBarcodeScanMessage({
+          type: isNotFound ? "info" : "error",
+          text: isNotFound
+            ? `No item linked to barcode "${barcode.trim()}". Create the item in Catalog (Items) and add this barcode in the item's Barcode field, or select an item from the list below.`
+            : msg,
+        });
+      }
+    },
+    [token, selectedOrgId]
+  );
 
   const handleRemoveLine = (idx: number) => {
     setLines((prev) => prev.filter((_, i) => i !== idx));
@@ -224,11 +322,24 @@ export function GoodsReceiptPage() {
         setFormError("Received at is required");
         return;
       }
+      const validLines = lines.filter(
+        (l) => l.itemId && l.qty && parseFloat(l.qty) > 0
+      );
+      if (validLines.length === 0) {
+        setFormError("At least one line with item and quantity is required");
+        return;
+      }
       setSubmitLoading(true);
       updateMutation.mutate({
         grnId: editingGrn.id,
         supplierId,
-        receivedAt: rt,
+        receivedAt: toISOReceivedAt(rt),
+        lines: validLines.map((l) => ({
+          itemId: l.itemId,
+          qty: parseFloat(l.qty),
+          uomId: l.uomId || null,
+          receivedUnitCost: l.receivedUnitCost ? parseFloat(l.receivedUnitCost) : null,
+        })),
       });
       return;
     }
@@ -260,13 +371,36 @@ export function GoodsReceiptPage() {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
+  /** Convert datetime-local value to ISO-8601 for API (Instant expects seconds + timezone). */
+  const toISOReceivedAt = (datetimeLocal: string): string => {
+    const s = datetimeLocal.trim();
+    if (!s) return s;
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) {
+      return new Date(s + ":00").toISOString();
+    }
+    return new Date(s).toISOString();
+  };
+
   const handleEdit = (grn: GoodsReceiptNoteResponse) => {
     setEditingGrn(grn);
     setSupplierId(grn.supplierId);
     setReceivedAt(
       grn.receivedAt ? formatDatetimeLocal(grn.receivedAt) : formatDatetimeLocal(new Date().toISOString())
     );
+    setLines(
+      grn.lines.length > 0
+        ? grn.lines.map((l) => ({
+            itemId: l.itemId,
+            itemName: l.itemName,
+            qty: String(l.qty),
+            uomId: l.uomId ?? "",
+            receivedUnitCost:
+              l.receivedUnitCost != null ? String(l.receivedUnitCost) : "",
+          }))
+        : [{ itemId: "", itemName: "", qty: "", uomId: "", receivedUnitCost: "" }]
+    );
     setFormError(null);
+    setBarcodeScanMessage(null);
     setSlideOpen(true);
   };
 
@@ -345,6 +479,8 @@ export function GoodsReceiptPage() {
             setSupplierId(suppliers[0]?.id ?? "");
             setReceivedAt(formatDatetimeLocal(new Date().toISOString()));
             setLines([{ itemId: "", itemName: "", qty: "", uomId: "", receivedUnitCost: "" }]);
+            setBarcodeScanMessage(null);
+            setScannedItems([]);
           }}
           disabled={!selectedOrgId || !selectedBranchId || suppliers.length === 0}
           title={
@@ -370,8 +506,10 @@ export function GoodsReceiptPage() {
           id="grn-org-select"
           value={selectedOrgId}
           onChange={(e) => {
-            setSelectedOrgId(e.target.value);
+            const next = e.target.value;
+            setSelectedOrgId(next);
             setSelectedBranchId("");
+            onOrgChange?.(next);
           }}
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
         >
@@ -391,7 +529,11 @@ export function GoodsReceiptPage() {
         <select
           id="grn-branch-select"
           value={selectedBranchId}
-          onChange={(e) => setSelectedBranchId(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setSelectedBranchId(next);
+            onBranchChange?.(next);
+          }}
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
         >
           <option value="">Select branch…</option>
@@ -451,7 +593,19 @@ export function GoodsReceiptPage() {
                       Supplier
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Lines
+                      Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      Barcode
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      Qty
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      Buying price
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                      Total
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       Actions
@@ -462,7 +616,7 @@ export function GoodsReceiptPage() {
                   {grns.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={8}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
                         {includeInactive
@@ -485,9 +639,32 @@ export function GoodsReceiptPage() {
                           {grn.supplierName}
                         </td>
                         <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                          {grn.lines.map((l) => l.itemName).join(", ")}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-sm text-slate-600 dark:text-slate-300">
+                          {grn.lines.map((l) => l.barcode ?? "—").join(", ")}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                          {grn.lines.map((l) => l.qty).join(", ")}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300 tabular-nums">
                           {grn.lines
-                            .map((l) => `${l.itemName} × ${l.qty}`)
+                            .map((l) =>
+                              l.receivedUnitCost != null
+                                ? formatCurrency(l.receivedUnitCost)
+                                : "—"
+                            )
                             .join(", ")}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300 tabular-nums">
+                          {formatCurrency(
+                            grn.lines.reduce(
+                              (sum, l) =>
+                                sum +
+                                l.qty * (l.receivedUnitCost ?? 0),
+                              0
+                            )
+                          )}
                         </td>
                         <td className="px-4 py-3 text-left">
                           {grn.active ? (
@@ -541,6 +718,25 @@ export function GoodsReceiptPage() {
               />
             )}
           </div>
+
+          {grns.length > 0 && (
+            <div
+              className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-4 dark:border-slate-600 dark:bg-slate-900"
+              aria-label="Total goods receipt amount summary"
+            >
+              <div className="flex justify-end">
+                <span
+                  className="inline-flex cursor-default items-center gap-2 rounded-2xl border-2 border-primary-200 bg-gradient-to-br from-primary-50 to-primary-100 px-5 py-3 text-lg font-bold tabular-nums text-primary-800 shadow-md transition-shadow hover:shadow-lg dark:border-primary-700 dark:from-primary-900/40 dark:to-primary-800/40 dark:text-primary-100"
+                  aria-label={`Total goods receipt amount: ${formatCurrency(grnsTotalAmount)}`}
+                >
+                  <span className="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-300">
+                    Total
+                  </span>
+                  <span className="text-2xl">{formatCurrency(grnsTotalAmount)}</span>
+                </span>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -626,21 +822,43 @@ export function GoodsReceiptPage() {
             </div>
           )}
 
-          {!editingGrn && (
-            <>
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Items to receive
-                </label>
-                <button
-                  type="button"
-                  onClick={handleAddLine}
-                  className="text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              {editingGrn ? "Receipt lines" : "Items to receive"}
+            </label>
+            <button
+              type="button"
+              onClick={handleAddLine}
+              className="text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
+            >
+              + Add line
+            </button>
+          </div>
+          {showBarcode && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-600 dark:bg-slate-800/50">
+              <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                Scan barcode to add item
+              </label>
+              <BarcodeCaptureInput
+                onScan={handleBarcodeScan}
+                placeholder="Scan or type barcode…"
+                disabled={!token || !selectedOrgId}
+              />
+              {barcodeScanMessage && (
+                <p
+                  className={`mt-1.5 text-sm ${
+                    barcodeScanMessage.type === "error"
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-slate-600 dark:text-slate-400"
+                  }`}
+                  role={barcodeScanMessage.type === "error" ? "alert" : "status"}
                 >
-                  + Add line
-                </button>
-              </div>
-              <div className="space-y-3">
+                  {barcodeScanMessage.text}
+                </p>
+              )}
+            </div>
+          )}
+          <div className="space-y-3">
             {lines.map((line, idx) => (
               <div
                 key={idx}
@@ -682,7 +900,12 @@ export function GoodsReceiptPage() {
                 </div>
                 <div className="w-24">
                   <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                    Unit cost (opt)
+                    Unit cost
+                    {items.find((i) => i.id === line.itemId)?.buyingPrice != null && (
+                      <span className="ml-1 text-slate-500 dark:text-slate-400">
+                        (from item)
+                      </span>
+                    )}
                   </label>
                   <input
                     type="number"
@@ -693,7 +916,15 @@ export function GoodsReceiptPage() {
                       handleUpdateLine(idx, "receivedUnitCost", e.target.value)
                     }
                     placeholder="—"
-                    className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm tabular-nums dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    readOnly={
+                      items.find((i) => i.id === line.itemId)?.buyingPrice != null
+                    }
+                    title={
+                      items.find((i) => i.id === line.itemId)?.buyingPrice != null
+                        ? "Unit cost is set from item buying price and cannot be changed here."
+                        : undefined
+                    }
+                    className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm tabular-nums dark:border-slate-600 dark:bg-slate-700 dark:text-white disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div className="w-28">
@@ -726,9 +957,7 @@ export function GoodsReceiptPage() {
                 </button>
               </div>
             ))}
-              </div>
-            </>
-          )}
+          </div>
 
           <div className="flex justify-end gap-2 pt-4">
             <button
