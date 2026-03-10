@@ -27,7 +27,6 @@ import type { Org } from "@/types/org";
 import { filterActiveOrgs } from "@/types/org";
 import type { Item } from "@/types/catalog";
 import type { Category } from "@/types/catalog";
-import type { ItemBarcode } from "@/types/catalog";
 import type { ItemModifierGroupLink } from "@/types/catalog";
 import { PageHeader } from "@/components/PageHeader";
 import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
