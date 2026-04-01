@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
@@ -40,6 +48,7 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { getItemImageUrl } from "@/utils/itemImage";
 import { MenuItemCard } from "@/components/MenuItemCard";
 import { PageHeader } from "@/components/PageHeader";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { BarcodeCaptureInput } from "@/components/BarcodeCaptureInput";
 import { ModifierModal } from "@/components/ModifierModal";
 import { ReceiptModal } from "@/components/ReceiptModal";
@@ -55,16 +64,46 @@ import { BARCODE_MENU_ORDER, isBarcodeVisible } from "@/config/barcodeVisibility
 import type { Item } from "@/types/catalog";
 import type { CartLine, CartModifier } from "@/store/slices/cartSlice";
 import type { ReceiptDetailResponse, Sale, Tender } from "@/types/sales";
-import { Minus, Plus, Trash2, CreditCard, X, Search, ChevronDown } from "lucide-react";
+import {
+  Minus,
+  Plus,
+  Trash2,
+  CreditCard,
+  X,
+  Search,
+  ChevronDown,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+
+function isItemOutOfStock(item: Item, stockMap: Map<string, number>): boolean {
+  if (!item.trackInventory) {
+    return false;
+  }
+  const onHand = stockMap.get(item.id) ?? 0;
+  return Math.max(0, Math.floor(onHand)) <= 0;
+}
+
+function filterOutOfStockItems(
+  list: Item[],
+  stockMap: Map<string, number>,
+  hideOutOfStock: boolean
+): Item[] {
+  if (!hideOutOfStock) {
+    return list;
+  }
+  return list.filter((i) => !isItemOutOfStock(i, stockMap));
+}
 
 function usePriceMap(orgId: string | null, priceListId: string | null, token: string | null) {
-  const { data: priceItemsPage } = useQuery({
+  const enabled = Boolean(orgId && priceListId && token);
+  const { data: priceItemsPage, isSuccess } = useQuery({
     queryKey: ["priceListItems", orgId, priceListId],
     queryFn: () =>
       fetchPriceListItems(token!, orgId!, priceListId!, { page: 0, size: 2000 }),
-    enabled: Boolean(orgId && priceListId && token),
+    enabled,
   });
-  return useMemo(() => {
+  const priceMap = useMemo(() => {
     const map = new Map<string, number>();
     const items = priceItemsPage?.content ?? [];
     for (const p of items) {
@@ -73,6 +112,8 @@ function usePriceMap(orgId: string | null, priceListId: string | null, token: st
     }
     return map;
   }, [priceItemsPage]);
+  const priceListLoaded = !enabled || isSuccess;
+  return { priceMap, priceListLoaded };
 }
 
 export function MenuOrderPage() {
@@ -86,6 +127,7 @@ export function MenuOrderPage() {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [hideOutOfStock, setHideOutOfStock] = useState(false);
   const [itemSearchOpen, setItemSearchOpen] = useState(false);
   const [itemSearchQuery, setItemSearchQuery] = useState("");
   const itemSearchRef = useRef<HTMLDivElement>(null);
@@ -135,7 +177,8 @@ export function MenuOrderPage() {
     (branchId
       ? priceLists.find((pl) => pl.branchId === branchId)?.id ?? firstPriceListId
       : firstPriceListId);
-  const priceMap = usePriceMap(orgId, effectivePriceListId, token);
+  const priceListQueryEnabled = Boolean(orgId && effectivePriceListId && token);
+  const { priceMap, priceListLoaded } = usePriceMap(orgId, effectivePriceListId, token);
 
   const { data: tables = [] } = useQuery({
     queryKey: ["operatorTables", orgId, branchId],
@@ -149,6 +192,23 @@ export function MenuOrderPage() {
     enabled: Boolean(orgId && token),
   });
   const cashTenderTypeId = tenderTypes.find((t) => t.code === "CASH")?.id ?? tenderTypes[0]?.id;
+
+  const orderTypeSelectOptions = useMemo(
+    () => [
+      { value: "DINE_IN", label: "Dine-in" },
+      { value: "TAKEAWAY", label: "Takeaway" },
+      { value: "DELIVERY", label: "Delivery" },
+    ],
+    []
+  );
+
+  const operatorTableSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select table" },
+      ...tables.map((t) => ({ value: t.id, label: t.name })),
+    ],
+    [tables]
+  );
 
   const { data: currentShift } = useQuery({
     queryKey: ["operator-current-shift", orgId, branchId, terminalId],
@@ -296,6 +356,7 @@ export function MenuOrderPage() {
       queryClient.invalidateQueries({ queryKey: ["openOrHeldSales"] });
       queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
       queryClient.invalidateQueries({ queryKey: ["operator-debts"] });
+      queryClient.invalidateQueries({ queryKey: ["operator-debts-pending-total"] });
     },
   });
 
@@ -323,6 +384,7 @@ export function MenuOrderPage() {
       queryClient.invalidateQueries({ queryKey: ["openOrHeldSales"] });
       queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
       queryClient.invalidateQueries({ queryKey: ["operator-debts"] });
+      queryClient.invalidateQueries({ queryKey: ["operator-debts-pending-total"] });
     },
   });
 
@@ -382,12 +444,20 @@ export function MenuOrderPage() {
     enabled: Boolean(orgId && token),
   });
 
+  const catalogItemsForPos = useMemo(() => {
+    const raw = itemsData?.content ?? [];
+    if (!priceListQueryEnabled || !priceListLoaded) {
+      return raw;
+    }
+    return raw.filter((i) => priceMap.has(i.id));
+  }, [itemsData?.content, priceListQueryEnabled, priceListLoaded, priceMap]);
+
   const trackedItemIds = useMemo(
     () =>
-      (itemsData?.content ?? [])
+      catalogItemsForPos
         .filter((i: Item) => i.trackInventory)
         .map((i: Item) => i.id),
-    [itemsData?.content]
+    [catalogItemsForPos]
   );
 
   const { data: stockLevels = [] } = useQuery({
@@ -408,10 +478,33 @@ export function MenuOrderPage() {
 
   const categories = categoriesData?.content ?? [];
   const items = useMemo(() => {
-    const list = itemsData?.content ?? [];
-    if (!selectedCategoryId) return list;
-    return list.filter((i: Item) => i.categoryId === selectedCategoryId);
-  }, [itemsData?.content, selectedCategoryId]);
+    const byCategory =
+      selectedCategoryId === null
+        ? catalogItemsForPos
+        : catalogItemsForPos.filter((i: Item) => i.categoryId === selectedCategoryId);
+    return filterOutOfStockItems(byCategory, stockMap, hideOutOfStock);
+  }, [catalogItemsForPos, selectedCategoryId, stockMap, hideOutOfStock]);
+
+  const visibleCountForCategory = useCallback(
+    (categoryId: string | null) => {
+      const base =
+        categoryId === null
+          ? catalogItemsForPos
+          : catalogItemsForPos.filter((i: Item) => i.categoryId === categoryId);
+      return filterOutOfStockItems(base, stockMap, hideOutOfStock).length;
+    },
+    [catalogItemsForPos, stockMap, hideOutOfStock]
+  );
+
+  const canSellOnPos = useCallback(
+    (item: Item) => {
+      if (!priceListQueryEnabled || !priceListLoaded) {
+        return true;
+      }
+      return priceMap.has(item.id);
+    },
+    [priceListQueryEnabled, priceListLoaded, priceMap]
+  );
 
   const [scannedItemsForCart, setScannedItemsForCart] = useState<Item[]>([]);
   const [barcodeScanError, setBarcodeScanError] = useState<string | null>(null);
@@ -458,6 +551,9 @@ export function MenuOrderPage() {
   const total = cartSubtotal;
 
   const handleAddToCart = async (item: Item): Promise<boolean> => {
+    if (!canSellOnPos(item)) {
+      return false;
+    }
     const price = priceMap.get(item.id) ?? 0;
     const links =
       orgId && token
@@ -485,6 +581,10 @@ export function MenuOrderPage() {
       setBarcodeScanError(null);
       try {
         const item = await fetchItemByBarcode(token, orgId, barcode.trim());
+        if (!canSellOnPos(item)) {
+          setBarcodeScanError("Item is not on this branch menu.");
+          return;
+        }
         setScannedItemsForCart((prev) =>
           prev.some((i) => i.id === item.id) ? prev : [...prev, item]
         );
@@ -494,7 +594,7 @@ export function MenuOrderPage() {
         setBarcodeScanError(getApiErrorMessage(err));
       }
     },
-    [token, orgId]
+    [token, orgId, canSellOnPos]
   );
 
   const handleReduceFromCart = (itemId: string) => {
@@ -529,14 +629,15 @@ export function MenuOrderPage() {
     setModifierModalItem(null);
   };
 
-  const allItemsForSearch = itemsData?.content ?? [];
+  const allItemsForSearch = catalogItemsForPos;
   const searchFilteredItems = useMemo(() => {
     const q = itemSearchQuery.trim().toLowerCase();
-    if (!q) return allItemsForSearch;
-    return allItemsForSearch.filter((i: Item) =>
-      i.name.toLowerCase().includes(q)
-    );
-  }, [allItemsForSearch, itemSearchQuery]);
+    const byQuery =
+      !q
+        ? allItemsForSearch
+        : allItemsForSearch.filter((i: Item) => i.name.toLowerCase().includes(q));
+    return filterOutOfStockItems(byQuery, stockMap, hideOutOfStock);
+  }, [allItemsForSearch, itemSearchQuery, stockMap, hideOutOfStock]);
 
   const searchVirtualSlice = useMemo(() => {
     const n = searchFilteredItems.length;
@@ -602,7 +703,7 @@ export function MenuOrderPage() {
       {/* Main content: categories + item grid */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
         <PageHeader
-          title="Menu Order"
+          title="POS"
           subtitle="Select items and proceed to payment"
           fallbackTo="/operator"
           noMargin
@@ -620,7 +721,7 @@ export function MenuOrderPage() {
                 : "bg-slate-200 text-slate-700 hover:bg-slate-300 active:scale-[0.98] dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
             }`}
           >
-            All ({itemsData?.totalElements ?? 0})
+            All ({visibleCountForCategory(null)})
           </button>
           {categoriesLoading
             ? null
@@ -635,10 +736,39 @@ export function MenuOrderPage() {
                       : "bg-slate-200 text-slate-700 hover:bg-slate-300 active:scale-[0.98] dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
                   }`}
                 >
-                  {cat.name} (
-                  {itemsData?.content?.filter((i: Item) => i.categoryId === cat.id).length ?? 0})
+                  {cat.name} ({visibleCountForCategory(cat.id)})
                 </button>
               ))}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={hideOutOfStock}
+            aria-label={
+              hideOutOfStock
+                ? "Out-of-stock items are hidden. Show them in the menu."
+                : "Hide out-of-stock items from the menu."
+            }
+            onClick={() => setHideOutOfStock((v) => !v)}
+            className={`ml-1 flex min-h-[28px] touch-manipulation items-center gap-1 rounded-md border px-2 py-1.5 text-xs font-medium transition active:scale-[0.98] ${
+              hideOutOfStock
+                ? "border-primary-500 bg-primary-600/15 text-primary-700 dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-200"
+                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+            }`}
+            title={
+              hideOutOfStock
+                ? "Out-of-stock items are hidden. Click to show them."
+                : "All items shown. Click to hide out-of-stock."
+            }
+          >
+            {hideOutOfStock ? (
+              <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            ) : (
+              <EyeOff className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            )}
+            <span className="max-w-[9rem] truncate sm:max-w-none">
+              {hideOutOfStock ? "Show OOS" : "Hide OOS"}
+            </span>
+          </button>
           <div ref={itemSearchRef} className="relative z-10 ml-auto shrink-0 mr-[3cm]">
             <button
               type="button"
@@ -812,7 +942,7 @@ export function MenuOrderPage() {
         </>
         ) : (
           <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-            Item list is hidden. Change in Admin → Settings → Menu order.
+            Item list is hidden. Change in Admin → Settings → POS.
           </p>
         )}
       </div>
@@ -873,37 +1003,28 @@ export function MenuOrderPage() {
           </div>
           <div className="mt-1.5 shrink-0 flex flex-col gap-2">
             {showOrderType && (
-              <select
+              <SearchableSelect
+                options={orderTypeSelectOptions}
                 value={orderType}
-                onChange={(e) =>
-                  dispatch(
-                    setOrderType(e.target.value as "DINE_IN" | "TAKEAWAY" | "DELIVERY")
-                  )
+                onChange={(v) =>
+                  dispatch(setOrderType(v as "DINE_IN" | "TAKEAWAY" | "DELIVERY"))
                 }
-                className="min-h-[48px] touch-manipulation rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-base text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                placeholder="Search order type…"
+                className="min-h-[48px] touch-manipulation"
+                controlClassName="min-h-[48px] rounded-xl border-slate-300 bg-slate-50 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
                 aria-label="Order type"
-              >
-                <option value="DINE_IN">Dine-in</option>
-                <option value="TAKEAWAY">Takeaway</option>
-                <option value="DELIVERY">Delivery</option>
-              </select>
+              />
             )}
             {showTableSelect && (
-              <select
+              <SearchableSelect
+                options={operatorTableSelectOptions}
                 value={tableId ?? ""}
-                onChange={(e) =>
-                  dispatch(setTableId(e.target.value || null))
-                }
-                className="min-h-[48px] touch-manipulation rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-base text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                onChange={(v) => dispatch(setTableId(v || null))}
+                placeholder="Search table…"
+                className="min-h-[48px] touch-manipulation"
+                controlClassName="min-h-[48px] rounded-xl border-slate-300 bg-slate-50 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
                 aria-label="Select table"
-              >
-                <option value="">Select table</option>
-                {tables.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
+              />
             )}
           </div>
         <button
@@ -1058,6 +1179,15 @@ function PaymentModal({
   const [debtCustomerPhone, setDebtCustomerPhone] = useState("");
   const [debtDueDate, setDebtDueDate] = useState("");
 
+  const paymentTenderTypeOptions = useMemo(
+    () =>
+      tenderTypes.map((t) => ({
+        value: t.id,
+        label: `${t.name} (${t.code})`,
+      })),
+    [tenderTypes]
+  );
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
@@ -1084,6 +1214,68 @@ function PaymentModal({
           </button>
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
+          {(sale.lines?.length ?? 0) > 0 && (
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                Items to pay
+              </h3>
+              <div
+                className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600"
+                role="region"
+                aria-label="Sale line items and subtotals"
+              >
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-slate-200 bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500 dark:border-slate-600 dark:bg-slate-700/40 dark:text-slate-400">
+                    <tr>
+                      <th className="px-3 py-2">Item</th>
+                      <th className="px-3 py-2 text-right">Qty</th>
+                      <th className="hidden px-3 py-2 text-right sm:table-cell">Unit</th>
+                      <th className="px-3 py-2 text-right">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
+                    {(sale.lines ?? []).map((line) => (
+                      <Fragment key={line.id}>
+                        <tr className="text-slate-800 dark:text-white">
+                          <td className="max-w-[10rem] px-3 py-2 align-top">
+                            <span className="font-medium leading-snug">{line.itemName}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums align-top">{line.qty}</td>
+                          <td className="hidden px-3 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300 sm:table-cell align-top">
+                            {formatCurrency(line.unitPrice)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums font-semibold align-top">
+                            {formatCurrency(line.lineTotal)}
+                          </td>
+                        </tr>
+                        {(line.modifiers ?? []).map((m) => {
+                          const modAmt = m.unitPriceDelta * m.qty;
+                          return (
+                            <tr
+                              key={`${line.id}-mod-${m.id}`}
+                              className="bg-slate-50/80 text-xs text-slate-600 dark:bg-slate-800/40 dark:text-slate-400"
+                            >
+                              <td className="px-3 py-1.5 pl-6" colSpan={2}>
+                                + {m.modifierOptionName}
+                                {m.qty > 1 ? ` × ${m.qty}` : ""}
+                              </td>
+                              <td className="hidden px-3 py-1.5 text-right tabular-nums sm:table-cell">
+                                {modAmt !== 0 ? formatCurrency(m.unitPriceDelta) : "—"}
+                              </td>
+                              <td className="px-3 py-1.5 text-right tabular-nums">
+                                {modAmt !== 0 ? formatCurrency(modAmt) : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl bg-slate-100 p-4 dark:bg-slate-700/50">
             <div className="flex justify-between text-slate-600 dark:text-slate-300">
               <span>Total due</span>
@@ -1150,18 +1342,16 @@ function PaymentModal({
                 Add payment
               </h3>
               <div className="flex gap-2">
-                <select
+                <SearchableSelect
+                  options={paymentTenderTypeOptions}
                   value={addTenderTypeId}
-                  onChange={(e) => setAddTenderTypeId(e.target.value)}
-                  className="min-h-[48px] flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  onChange={setAddTenderTypeId}
+                  placeholder="Search payment type…"
+                  matchOptionValue
+                  className="min-h-[48px] min-w-0 flex-1"
+                  controlClassName="min-h-[48px] rounded-xl border-slate-300 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500 dark:border-slate-600"
                   aria-label="Payment type"
-                >
-                  {tenderTypes.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.code})
-                    </option>
-                  ))}
-                </select>
+                />
                 <input
                   type="number"
                   min="0"

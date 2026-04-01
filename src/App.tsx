@@ -44,6 +44,7 @@ import { MiscExpensesPage } from "@/features/operator/MiscExpensesPage";
 import { StockCountPage } from "@/features/operator/StockCountPage";
 import { StockCountSessionPage } from "@/features/operator/StockCountSessionPage";
 import { StandardStockCountSheetPage } from "@/features/operator/StandardStockCountSheetPage";
+import { ManualStockCountSheetPage } from "@/features/operator/ManualStockCountSheetPage";
 import { StockCountSessionDetailAdminPage } from "@/features/admin/StockCountSessionDetailAdminPage";
 import { StandardStockCountAdminPage } from "@/features/admin/StandardStockCountAdminPage";
 import { AdminSettingsPage } from "@/features/admin/AdminSettingsPage";
@@ -110,7 +111,7 @@ function App() {
           <Route path="shifts" element={<ShiftsListPage />} />
           <Route path="z-report" element={<ZReportPage />} />
           <Route path="suppliers" element={<Navigate to="/admin/inventory?tab=suppliers" replace />} />
-          <Route path="goods-receipt" element={<Navigate to="/admin/inventory?tab=goods-receipt" replace />} />
+          <Route path="goods-receipt" element={<Navigate to="/admin/inventory?tab=stock" replace />} />
           <Route path="inventory" element={<InventoryReceivingPage />} />
           <Route path="stock-taking-schedules" element={<StockTakingSchedulesPage />} />
           <Route path="stock-count-sessions" element={<StockCountSessionsPage />} />
@@ -151,6 +152,10 @@ function App() {
           <Route
             path="inventory/stock-count"
             element={<StandardStockCountSheetPage />}
+          />
+          <Route
+            path="manual-stock-sheet"
+            element={<ManualStockCountSheetPage />}
           />
           <Route path="withdrawal" element={<div className="p-6 text-slate-600 dark:text-slate-400">Withdrawal (TODO)</div>} />
           <Route path="dishes" element={<div className="p-4 text-white">Dishes (TODO)</div>} />

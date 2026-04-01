@@ -22,6 +22,7 @@ import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { TrendingUp, DollarSign, Receipt, Percent, Package, CircleDollarSign } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 function useDateRange(days = 30) {
   const end = new Date();
@@ -159,6 +160,25 @@ export function RevenueDashboardPage() {
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
 
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
+    ],
+    [orgs]
+  );
+
+  const branchSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select branch…" },
+      ...branches.map((branch: Branch) => ({
+        value: branch.id,
+        label: branch.name,
+      })),
+    ],
+    [branches]
+  );
+
   useEffect(() => {
     if (!selectedOrgId && orgs.length > 0) setSelectedOrgId(orgs[0].id);
   }, [orgs, selectedOrgId]);
@@ -234,43 +254,43 @@ export function RevenueDashboardPage() {
       </div>
 
       <form onSubmit={handleLoad} className="mb-6 flex flex-wrap items-end gap-4">
-        <label className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+        <label
+          htmlFor="revenue-dash-org"
+          className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
+        >
           Organization
         </label>
-        <select
+        <SearchableSelect
+          id="revenue-dash-org"
+          options={orgSelectOptions}
           value={selectedOrgId}
-          onChange={(e) => {
-            setSelectedOrgId(e.target.value);
+          onChange={(next) => {
+            setSelectedOrgId(next);
             setSelectedBranchId("");
             setSubmittedRange(null);
           }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+          placeholder="Search organization…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
+        <label
+          htmlFor="revenue-dash-branch"
+          className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
         >
-          <option value="">Select organization…</option>
-          {orgs.map((org: Org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
-        <label className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
           Branch
         </label>
-        <select
+        <SearchableSelect
+          id="revenue-dash-branch"
+          options={branchSelectOptions}
           value={selectedBranchId}
-          onChange={(e) => {
-            setSelectedBranchId(e.target.value);
+          onChange={(next) => {
+            setSelectedBranchId(next);
             setSubmittedRange(null);
           }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select branch…</option>
-          {branches.map((branch: Branch) => (
-            <option key={branch.id} value={branch.id}>
-              {branch.name}
-            </option>
-          ))}
-        </select>
+          placeholder="Search branch…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
         <label className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
           Start date
         </label>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -16,6 +16,7 @@ import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Truck, Pencil, Trash2 } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -146,6 +147,14 @@ export function SuppliersListPage({
     }
   }, [initialOrgId, orgs, selectedOrgId]);
 
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
+    ],
+    [orgs]
+  );
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -254,7 +263,7 @@ export function SuppliersListPage({
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <PageHeader
           title="Suppliers"
-          subtitle="Manage suppliers for receiving goods. Add a supplier before creating a Goods Receipt."
+          subtitle="Manage suppliers for receiving stock. Add a supplier before recording stock receipts."
           icon={Truck}
           fallbackTo="/admin"
           noMargin
@@ -273,31 +282,29 @@ export function SuppliersListPage({
         </button>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-4">
-        <label
-          htmlFor="suppliers-org-select"
-          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Organization
-        </label>
-        <select
-          id="suppliers-org-select"
-          value={selectedOrgId}
-          onChange={(e) => {
-            const next = e.target.value;
-            setSelectedOrgId(next);
-            setPage(0);
-            onOrgChange?.(next);
-          }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select organization…</option>
-          {orgs.map((org: Org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
+      <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <label
+            htmlFor="suppliers-org-select"
+            className="shrink-0 text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Organization
+          </label>
+          <SearchableSelect
+            id="suppliers-org-select"
+            options={orgSelectOptions}
+            value={selectedOrgId}
+            onChange={(next) => {
+              setSelectedOrgId(next);
+              setPage(0);
+              onOrgChange?.(next);
+            }}
+            placeholder="Search organization…"
+            compact
+            className="w-44 min-w-[10rem] max-w-[min(100%,16rem)]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
+        </div>
         <label className="flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"
@@ -441,7 +448,7 @@ export function SuppliersListPage({
         onClose={() => setConfirmDeactivate(null)}
         onConfirm={handleDeactivate}
         title="Deactivate supplier"
-        message={`Deactivate "${confirmDeactivate?.name}"? They will be hidden from Goods Receipt. You can reactivate later.`}
+        message={`Deactivate "${confirmDeactivate?.name}"? They will be hidden from receive stock. You can reactivate later.`}
         confirmLabel="Deactivate"
         variant="danger"
         loading={deactivateLoading}

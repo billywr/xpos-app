@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
+import { fetchOrgs } from "@/api/orgs";
 import { fetchPriceLists } from "@/api/priceLists";
 import {
   fetchPriceListItems,
@@ -10,14 +11,17 @@ import {
   updatePriceListItem,
   deletePriceListItem,
 } from "@/api/priceLists";
-import { fetchItems } from "@/api/items";
+import { fetchAllOrgItems } from "@/api/items";
 import type { Item } from "@/types/catalog";
+import { filterActiveOrgs } from "@/types/org";
 import type { PriceListItem } from "@/types/sales";
 import { Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorCode, getApiErrorRequestId } from "@/utils/apiError";
+import { messageIfSellingAtOrBelowBuyingPrice } from "@/utils/priceListSellingValidation";
 import { useToast } from "@/contexts/ToastContext";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Pencil, Trash2, Plus, Loader2, ListChecks } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -41,9 +45,17 @@ export function PriceListItemsListPage({
   const [newItemId, setNewItemId] = useState("");
   const [newPrice, setNewPrice] = useState("");
   const [newCurrency, setNewCurrency] = useState(DEFAULT_CURRENCY);
+  const [addItemPriceError, setAddItemPriceError] = useState<string | null>(null);
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [editingPrice, setEditingPrice] = useState("");
   const [deleteConfirmLine, setDeleteConfirmLine] = useState<PriceListItem | null>(null);
+
+  const { data: orgsData } = useQuery({
+    queryKey: ["admin-orgs", token],
+    queryFn: () => fetchOrgs(token, { size: 200 }),
+    enabled: Boolean(token),
+  });
+  const orgs = filterActiveOrgs(orgsData?.content ?? []);
 
   const { data: priceListsData } = useQuery({
     queryKey: ["admin-price-lists", token, selectedOrgId],
@@ -51,9 +63,9 @@ export function PriceListItemsListPage({
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
 
-  const { data: itemsData } = useQuery({
-    queryKey: ["admin-items", token, selectedOrgId],
-    queryFn: () => fetchItems(token, selectedOrgId, { size: 500 }),
+  const { data: catalogItems, isLoading: catalogItemsLoading } = useQuery({
+    queryKey: ["admin-catalog-items-all", token, selectedOrgId],
+    queryFn: () => fetchAllOrgItems(token, selectedOrgId),
     enabled: Boolean(token) && Boolean(selectedOrgId) && Boolean(selectedPriceListId),
   });
 
@@ -99,16 +111,20 @@ export function PriceListItemsListPage({
   const assignedItemIds = new Set(
     (allAssignedData?.content ?? []).map((pli) => pli.itemId)
   );
-  const items = itemsData?.content ?? [];
-  const availableItems = items.filter((i: Item) => !assignedItemIds.has(i.id));
+  const items = catalogItems ?? [];
+  const unassignedCatalogItems = items.filter((i: Item) => !assignedItemIds.has(i.id));
   const selectedPriceList = priceLists.find((pl) => pl.id === selectedPriceListId);
 
   useEffect(() => {
     if (initialOrgId) {
-      setSelectedOrgId(initialOrgId);
-      setSelectedPriceListId("");
+      if (selectedOrgId !== initialOrgId) {
+        setSelectedOrgId(initialOrgId);
+        setSelectedPriceListId("");
+      }
+    } else if (!selectedOrgId && orgs.length > 0) {
+      setSelectedOrgId(orgs[0].id);
     }
-  }, [initialOrgId]);
+  }, [initialOrgId, orgs, selectedOrgId]);
 
   useEffect(() => {
     const lists = priceListsData?.content ?? [];
@@ -116,6 +132,22 @@ export function PriceListItemsListPage({
       setSelectedPriceListId(lists[0].id);
     }
   }, [priceListsData?.content, selectedPriceListId]);
+
+  const priceListSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select a price list…" },
+      ...priceLists.map((pl) => ({ value: pl.id, label: pl.name })),
+    ],
+    [priceLists]
+  );
+
+  const pliNewItemOptions = useMemo(
+    () => [
+      { value: "", label: "Select item…" },
+      ...unassignedCatalogItems.map((i: Item) => ({ value: i.id, label: i.name })),
+    ],
+    [unassignedCatalogItems]
+  );
 
   const addItemMutation = useMutation({
     mutationFn: (payload: { itemId: string; price: number; currency: string }) =>
@@ -143,14 +175,20 @@ export function PriceListItemsListPage({
       const code = getApiErrorCode(err);
       const requestId = getApiErrorRequestId(err);
       toast.error(getApiErrorMessage(err), {
+        title:
+          code === "SELLING_PRICE_BELOW_COST"
+            ? "Selling price too low"
+            : code === "ITEM_NOT_SUPPLIED"
+              ? "Item not supplied"
+              : undefined,
         detail: requestId ? `Reference: ${requestId}` : undefined,
         action:
           code === "ITEM_NOT_SUPPLIED"
             ? {
-                label: "Go to Goods Receipt",
+                label: "Go to receive stock",
                 href: selectedOrgId
-                  ? `/admin/goods-receipt?orgId=${selectedOrgId}`
-                  : "/admin/goods-receipt",
+                  ? `/admin/inventory?orgId=${selectedOrgId}&tab=stock`
+                  : "/admin/inventory?tab=stock",
               }
             : undefined,
       });
@@ -172,8 +210,11 @@ export function PriceListItemsListPage({
       toast.success("Price updated.", { title: "Saved" });
     },
     onError: (err) => {
+      const code = getApiErrorCode(err);
       const requestId = getApiErrorRequestId(err);
       toast.error(getApiErrorMessage(err), {
+        title:
+          code === "SELLING_PRICE_BELOW_COST" ? "Selling price too low" : undefined,
         detail: requestId ? `Reference: ${requestId}` : undefined,
       });
     },
@@ -206,9 +247,21 @@ export function PriceListItemsListPage({
     if (!newItemId) return;
     const priceNum = Number.parseFloat(newPrice);
     if (Number.isNaN(priceNum) || priceNum < 0) {
+      setAddItemPriceError(null);
       toast.error("Enter a valid selling price (number ≥ 0).");
       return;
     }
+    const catalogItem = items.find((i) => i.id === newItemId);
+    const buyingMsg = messageIfSellingAtOrBelowBuyingPrice(
+      priceNum,
+      catalogItem?.buyingPrice
+    );
+    if (buyingMsg) {
+      setAddItemPriceError(buyingMsg);
+      toast.error(buyingMsg, { title: "Selling price too low" });
+      return;
+    }
+    setAddItemPriceError(null);
     addItemMutation.mutate({
       itemId: newItemId,
       price: priceNum,
@@ -220,6 +273,16 @@ export function PriceListItemsListPage({
     const priceNum = Number.parseFloat(editingPrice);
     if (Number.isNaN(priceNum) || priceNum < 0) {
       toast.error("Enter a valid price (number ≥ 0).");
+      return;
+    }
+    const line = priceListItems.find((p) => p.id === lineId);
+    const catalogItem = line ? items.find((i) => i.id === line.itemId) : undefined;
+    const buyingMsg = messageIfSellingAtOrBelowBuyingPrice(
+      priceNum,
+      catalogItem?.buyingPrice
+    );
+    if (buyingMsg) {
+      toast.error(buyingMsg, { title: "Selling price too low" });
       return;
     }
     updateItemMutation.mutate({ lineId, price: priceNum });
@@ -240,24 +303,21 @@ export function PriceListItemsListPage({
           >
             Price list
           </label>
-          <select
+          <SearchableSelect
             id="pli-price-list"
+            options={priceListSelectOptions}
             value={selectedPriceListId}
-            onChange={(e) => {
-              setSelectedPriceListId(e.target.value);
+            onChange={(next) => {
+              setSelectedPriceListId(next);
               setItemsPage(0);
               setEditingLineId(null);
               setDeleteConfirmLine(null);
             }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white min-w-[220px]"
-          >
-            <option value="">Select a price list…</option>
-            {priceLists.map((pl) => (
-              <option key={pl.id} value={pl.id}>
-                {pl.name}
-              </option>
-            ))}
-          </select>
+            placeholder="Search price list…"
+            compact
+            className="min-w-[220px]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
           {selectedPriceListId && selectedPriceList && (
             <Link
               to={`/admin/price-lists/${selectedPriceListId}?orgId=${selectedOrgId}`}
@@ -407,11 +467,16 @@ export function PriceListItemsListPage({
             <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
               Add item
             </h3>
-            {items.length === 0 ? (
+            {catalogItemsLoading ? (
+              <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                Loading catalog items…
+              </p>
+            ) : items.length === 0 ? (
               <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
                 No catalog items yet. Add items in the <strong>Items</strong> tab first.
               </p>
-            ) : availableItems.length === 0 ? (
+            ) : unassignedCatalogItems.length === 0 ? (
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 All catalog items already have prices in this list.
               </p>
@@ -424,19 +489,18 @@ export function PriceListItemsListPage({
                   >
                     Item
                   </label>
-                  <select
+                  <SearchableSelect
                     id="pli-new-item"
+                    options={pliNewItemOptions}
                     value={newItemId}
-                    onChange={(e) => setNewItemId(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  >
-                    <option value="">Select item…</option>
-                    {availableItems.map((i: Item) => (
-                      <option key={i.id} value={i.id}>
-                        {i.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => {
+                      setNewItemId(v);
+                      setAddItemPriceError(null);
+                    }}
+                    placeholder="Search item…"
+                    className="w-full"
+                    controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                  />
                 </div>
                 <div className="min-w-[120px]">
                   <label
@@ -451,10 +515,30 @@ export function PriceListItemsListPage({
                     min={0}
                     step="0.01"
                     value={newPrice}
-                    onChange={(e) => setNewPrice(e.target.value)}
+                    onChange={(e) => {
+                      setNewPrice(e.target.value);
+                      setAddItemPriceError(null);
+                    }}
                     placeholder="0.00"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    aria-invalid={Boolean(addItemPriceError)}
+                    aria-describedby={
+                      addItemPriceError ? "pli-new-price-error" : undefined
+                    }
+                    className={`w-full rounded-lg border bg-white px-3 py-2 text-slate-900 dark:bg-slate-700 dark:text-white ${
+                      addItemPriceError
+                        ? "border-red-500 focus:border-red-500 focus:ring-red-500 dark:border-red-500"
+                        : "border-slate-300 dark:border-slate-600"
+                    }`}
                   />
+                  {addItemPriceError ? (
+                    <p
+                      id="pli-new-price-error"
+                      className="mt-1 max-w-sm text-sm text-red-600 dark:text-red-400"
+                      role="alert"
+                    >
+                      {addItemPriceError}
+                    </p>
+                  ) : null}
                 </div>
                 <button
                   type="button"

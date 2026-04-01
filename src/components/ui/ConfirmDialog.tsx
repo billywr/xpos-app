@@ -10,6 +10,12 @@ export interface ConfirmDialogProps {
   cancelLabel?: string;
   variant?: "danger" | "primary" | "default";
   loading?: boolean;
+  /** Optional second action (e.g. permanent delete next to soft delete). Renders after primary confirm. */
+  trailingDangerAction?: {
+    label: string;
+    onClick: () => void;
+    loading?: boolean;
+  };
 }
 
 /**
@@ -26,8 +32,12 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   variant = "danger",
   loading = false,
+  trailingDangerAction,
 }: ConfirmDialogProps) {
   if (!open) return null;
+
+  const anyLoading =
+    loading || Boolean(trailingDangerAction?.loading);
 
   const confirmButtonClass =
     variant === "danger"
@@ -49,7 +59,7 @@ export function ConfirmDialog({
         aria-hidden
         onClick={onClose}
       />
-      <div className="relative z-10 w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+      <div className="relative z-10 w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-slate-800">
         <h3
           id="confirm-dialog-title"
           className="text-lg font-semibold text-slate-900 dark:text-white"
@@ -62,11 +72,11 @@ export function ConfirmDialog({
         >
           {message}
         </p>
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            disabled={loading}
+            disabled={anyLoading}
             className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
           >
             {cancelLabel}
@@ -74,11 +84,21 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            disabled={loading}
+            disabled={anyLoading}
             className={`rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-slate-800 ${confirmButtonClass}`}
           >
             {loading ? "…" : confirmLabel}
           </button>
+          {trailingDangerAction ? (
+            <button
+              type="button"
+              onClick={trailingDangerAction.onClick}
+              disabled={anyLoading}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-offset-slate-800"
+            >
+              {trailingDangerAction.loading ? "…" : trailingDangerAction.label}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

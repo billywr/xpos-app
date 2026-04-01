@@ -36,6 +36,7 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { getItemImageUrl, getItemImageName } from "@/utils/itemImage";
 import { resizeImageTo400x400 } from "@/utils/imageResize";
 import { Plus, Pencil, Trash2, Upload, Banknote, ChevronDown } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { BARCODE_ITEMS, isBarcodeVisible } from "@/config/barcodeVisibility";
 
@@ -357,6 +358,60 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     (mg: { id: string }) => !assignedModifierGroupIds.has(mg.id)
   );
 
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...orgs.map((o: Org) => ({ value: o.id, label: o.name })),
+    ],
+    [orgs]
+  );
+
+  const itemTypeOptions = useMemo(
+    () => ITEM_TYPES.map((t) => ({ value: t, label: t })),
+    []
+  );
+
+  const itemCategoryOptions = useMemo(
+    () => [
+      { value: "", label: "None" },
+      ...categories.map((c: Category) => ({ value: c.id, label: c.name })),
+    ],
+    [categories]
+  );
+
+  const itemUomOptions = useMemo(
+    () => [
+      { value: "", label: "None" },
+      ...uoms.map((u: { id: string; name: string; symbol: string }) => ({
+        value: u.id,
+        label: `${u.name} (${u.symbol})`,
+      })),
+    ],
+    [uoms]
+  );
+
+  const itemTaxProfileOptions = useMemo(
+    () => [
+      { value: "", label: "None" },
+      ...taxProfiles.map((t: { id: string; name: string }) => ({
+        value: t.id,
+        label: t.name,
+      })),
+    ],
+    [taxProfiles]
+  );
+
+  const modifierGroupAddOptions = useMemo(
+    () => [
+      { value: "", label: "Select modifier group…" },
+      ...availableModifierGroups.map((mg: { id: string; name: string }) => ({
+        value: mg.id,
+        label: mg.name,
+      })),
+    ],
+    [availableModifierGroups]
+  );
+
   useEffect(() => {
     if (initialOrgId) {
       setSelectedOrgId(initialOrgId);
@@ -614,25 +669,20 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
         >
           Organization
         </label>
-        <select
+        <SearchableSelect
           id="item-org-select"
+          options={orgSelectOptions}
           value={selectedOrgId}
-          onChange={(e) => {
-            const next = e.target.value;
+          onChange={(next) => {
             setSelectedOrgId(next);
             setSelectedCategoryId("");
             setPage(0);
             onOrgChange?.(next);
           }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select organization…</option>
-          {orgs.map((o: Org) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
+          placeholder="Search organization…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
         {selectedOrgId && (
           <>
             <div ref={categoryFilterRef} className="relative">
@@ -797,7 +847,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                           }
                           title={
                             item.hasPurchaseHistory === false
-                              ? "No purchase history—record a Goods Receipt first before adding to price lists."
+                              ? "No purchase history—receive stock first before adding to price lists."
                               : undefined
                           }
                         >
@@ -981,18 +1031,15 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 >
                   Type
                 </label>
-                <select
+                <SearchableSelect
                   id="item-type"
+                  options={itemTypeOptions}
                   value={formItemType}
-                  onChange={(e) => setFormItemType(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                >
-                  {ITEM_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFormItemType}
+                  placeholder="Search type…"
+                  className="w-full"
+                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                />
               </div>
               <div>
                 <label
@@ -1001,19 +1048,15 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 >
                   Category
                 </label>
-                <select
+                <SearchableSelect
                   id="item-category"
+                  options={itemCategoryOptions}
                   value={formCategoryId}
-                  onChange={(e) => setFormCategoryId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                >
-                  <option value="">None</option>
-                  {categories.map((c: Category) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFormCategoryId}
+                  placeholder="Search category…"
+                  className="w-full"
+                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                />
               </div>
               <div>
                 <label
@@ -1022,19 +1065,15 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 >
                   Base UoM
                 </label>
-                <select
+                <SearchableSelect
                   id="item-uom"
+                  options={itemUomOptions}
                   value={formBaseUomId}
-                  onChange={(e) => setFormBaseUomId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                >
-                  <option value="">None</option>
-                  {uoms.map((u: { id: string; name: string; symbol: string }) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.symbol})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFormBaseUomId}
+                  placeholder="Search UoM…"
+                  className="w-full"
+                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                />
               </div>
               <div>
                 <label
@@ -1043,19 +1082,15 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 >
                   Tax profile
                 </label>
-                <select
+                <SearchableSelect
                   id="item-tax"
+                  options={itemTaxProfileOptions}
                   value={formTaxProfileId}
-                  onChange={(e) => setFormTaxProfileId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                >
-                  <option value="">None</option>
-                  {taxProfiles.map((t: { id: string; name: string }) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFormTaxProfileId}
+                  placeholder="Search tax profile…"
+                  className="w-full"
+                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                />
               </div>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
@@ -1196,22 +1231,16 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                         onSubmit={handleAddModifierGroup}
                         className="flex gap-2"
                       >
-                        <select
+                        <SearchableSelect
+                          id="item-add-modifier-group"
+                          options={modifierGroupAddOptions}
                           value={newModifierGroupId}
-                          onChange={(e) =>
-                            setNewModifierGroupId(e.target.value)
-                          }
-                          className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                        >
-                          <option value="">Select modifier group…</option>
-                          {availableModifierGroups.map(
-                            (mg: { id: string; name: string }) => (
-                              <option key={mg.id} value={mg.id}>
-                                {mg.name}
-                              </option>
-                            )
-                          )}
-                        </select>
+                          onChange={setNewModifierGroupId}
+                          placeholder="Search modifier group…"
+                          compact
+                          className="min-w-0 flex-1"
+                          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                        />
                         <button
                           type="submit"
                           disabled={!newModifierGroupId}

@@ -4,6 +4,34 @@ import type { ItemBarcode } from "@/types/catalog";
 import type { ItemModifierGroupLink } from "@/types/catalog";
 import type { PageResponse } from "@/types/api";
 
+/** Matches backend `api.pagination.max-size` (see xpos PageRequestFactory). */
+const CATALOG_LIST_PAGE_SIZE = 200;
+
+/**
+ * Loads every catalog item for an org by paging (for admin dropdowns that must match the Items tab).
+ */
+export async function fetchAllOrgItems(
+  token: string | null,
+  orgId: string,
+  options?: { categoryId?: string | null }
+): Promise<Item[]> {
+  const all: Item[] = [];
+  let page = 0;
+  for (;;) {
+    const res = await fetchItems(token, orgId, {
+      page,
+      size: CATALOG_LIST_PAGE_SIZE,
+      categoryId: options?.categoryId,
+    });
+    all.push(...res.content);
+    if (res.last || res.content.length === 0) {
+      break;
+    }
+    page += 1;
+  }
+  return all;
+}
+
 export async function fetchItems(
   token: string | null,
   orgId: string,

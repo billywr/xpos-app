@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -17,6 +17,7 @@ import { SlideOver, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Trash2, CreditCard } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 export function TenderTypesListPage() {
   const token = useAppSelector(selectToken);
@@ -134,6 +135,22 @@ export function TenderTypesListPage() {
       setSelectedOrgId(orgs[0].id);
     }
   }, [orgs, selectedOrgId]);
+
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...orgs.map((o: Org) => ({ value: o.id, label: o.name })),
+    ],
+    [orgs]
+  );
+
+  const tenderActiveOptions = useMemo(
+    () => [
+      { value: "true", label: "Yes" },
+      { value: "false", label: "No" },
+    ],
+    []
+  );
 
   function resetForm() {
     setFormCode("");
@@ -255,19 +272,15 @@ export function TenderTypesListPage() {
         >
           Organization
         </label>
-        <select
+        <SearchableSelect
           id="tender-type-org-select"
+          options={orgSelectOptions}
           value={selectedOrgId}
-          onChange={(e) => setSelectedOrgId(e.target.value)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select organization…</option>
-          {orgs.map((o: Org) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
+          onChange={setSelectedOrgId}
+          placeholder="Search organization…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
         {selectedOrgId && (
           <button
             type="button"
@@ -424,15 +437,15 @@ export function TenderTypesListPage() {
                   >
                     Active
                   </label>
-                  <select
+                  <SearchableSelect
                     id="tender-type-active"
+                    options={tenderActiveOptions}
                     value={formActive ? "true" : "false"}
-                    onChange={(e) => setFormActive(e.target.value === "true")}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  >
-                    <option value="true">Yes</option>
-                    <option value="false">No</option>
-                  </select>
+                    onChange={(v) => setFormActive(v === "true")}
+                    placeholder="Search…"
+                    className="w-full"
+                    controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                  />
                 </div>
               )}
               <div className="flex justify-end gap-3 pt-4">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -12,6 +12,7 @@ import { Pagination } from "@/components/ui";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { Package, TrendingDown, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -86,6 +87,25 @@ export function InventoryPage({
   }, [initialBranchId, selectedOrgId, filteredBranches, selectedBranchId]);
   const totalElements = reportData?.totalElements ?? 0;
 
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...filteredOrgs.map((org: Org) => ({ value: org.id, label: org.name })),
+    ],
+    [filteredOrgs]
+  );
+
+  const branchSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select branch…" },
+      ...filteredBranches.map((branch: Branch) => ({
+        value: branch.id,
+        label: branch.name,
+      })),
+    ],
+    [filteredBranches]
+  );
+
   if (isLoading && selectedOrgId && selectedBranchId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
@@ -129,55 +149,49 @@ export function InventoryPage({
         fallbackTo="/admin"
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-4">
-        <label
-          htmlFor="inv-org-select"
-          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Organization
-        </label>
-        <select
-          id="inv-org-select"
-          value={selectedOrgId}
-          onChange={(e) => {
-            const next = e.target.value;
-            setSelectedOrgId(next);
-            setSelectedBranchId("");
-            onOrgChange?.(next);
-          }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select organization…</option>
-          {filteredOrgs.map((org: Org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
-        <label
-          htmlFor="inv-branch-select"
-          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Branch
-        </label>
-        <select
-          id="inv-branch-select"
-          value={selectedBranchId}
-          onChange={(e) => {
-            const next = e.target.value;
-            setSelectedBranchId(next);
-            setPage(0);
-            onBranchChange?.(next);
-          }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select branch…</option>
-          {filteredBranches.map((branch: Branch) => (
-            <option key={branch.id} value={branch.id}>
-              {branch.name}
-            </option>
-          ))}
-        </select>
+      <div className="mb-4 flex flex-row flex-wrap items-end gap-x-6 gap-y-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <label
+            htmlFor="inv-org-select"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Organization
+          </label>
+          <SearchableSelect
+            id="inv-org-select"
+            options={orgSelectOptions}
+            value={selectedOrgId}
+            onChange={(next) => {
+              setSelectedOrgId(next);
+              setSelectedBranchId("");
+              onOrgChange?.(next);
+            }}
+            placeholder="Search organization…"
+            className="w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
+        </div>
+        <div className="flex min-w-0 flex-col gap-1">
+          <label
+            htmlFor="inv-branch-select"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Branch
+          </label>
+          <SearchableSelect
+            id="inv-branch-select"
+            options={branchSelectOptions}
+            value={selectedBranchId}
+            onChange={(next) => {
+              setSelectedBranchId(next);
+              setPage(0);
+              onBranchChange?.(next);
+            }}
+            placeholder="Search branch…"
+            className="w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
+        </div>
       </div>
 
       {!selectedOrgId || !selectedBranchId ? (
@@ -223,10 +237,10 @@ export function InventoryPage({
                       >
                         No inventory at this branch yet.{" "}
                         <Link
-                          to="/admin/goods-receipt"
+                          to="/admin/inventory?tab=stock"
                           className="font-medium text-primary-600 underline hover:no-underline dark:text-primary-400"
                         >
-                          Receive goods
+                          Receive stock
                         </Link>{" "}
                         to add stock.
                       </td>

@@ -18,6 +18,21 @@ export interface CustomerDebtResponse {
   createdAt: string;
 }
 
+export interface DebtPendingTotalResponse {
+  totalPending: number;
+}
+
+export async function fetchDebtPendingTotal(
+  token: string | null,
+  orgId: string,
+  branchId: string
+): Promise<DebtPendingTotalResponse> {
+  return apiFetch<DebtPendingTotalResponse>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/debts/pending-total`,
+    { token }
+  );
+}
+
 export interface CustomerDebtCreateRequest {
   customerId: string;
   amount: number;
@@ -26,6 +41,10 @@ export interface CustomerDebtCreateRequest {
 }
 
 export interface CustomerDebtUpdateRequest {
+  /** Reassign debt to another customer (same org). Rare; omit for normal edits. */
+  customerId?: string;
+  customerName?: string;
+  customerPhone?: string;
   amount?: number;
   outstanding?: number;
   dueDate?: string;
@@ -36,14 +55,27 @@ export async function fetchDebts(
   token: string | null,
   orgId: string,
   branchId: string,
-  params?: { page?: number; size?: number; sort?: string; status?: string }
+  params?: {
+    page?: number;
+    size?: number;
+    sort?: string;
+    /** Single status or multiple (e.g. OPEN + PARTIAL for “still owed”). */
+    status?: string | readonly string[];
+  }
 ): Promise<PageResponse<CustomerDebtResponse>> {
   const search = new URLSearchParams();
   const p = params ?? {};
   if (p.page !== undefined) search.set("page", String(p.page));
   if (p.size !== undefined) search.set("size", String(p.size));
   if (p.sort) search.set("sort", p.sort);
-  if (p.status) search.set("status", p.status);
+  if (p.status !== undefined && p.status !== "") {
+    const list = Array.isArray(p.status) ? p.status : [p.status];
+    for (const s of list) {
+      if (s !== "") {
+        search.append("status", s);
+      }
+    }
+  }
   const query = search.toString();
   return apiFetch<PageResponse<CustomerDebtResponse>>(
     `/api/v1/operator/orgs/${orgId}/branches/${branchId}/debts${query ? `?${query}` : ""}`,

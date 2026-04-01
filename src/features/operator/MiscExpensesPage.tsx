@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -24,6 +24,24 @@ import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Receipt, Plus, Loader2, Pencil, XCircle } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { SearchableSelect } from "@/components/SearchableSelect";
+
+function MiscExpensesTotalBadge(props: { totalAmount: number }) {
+  const { totalAmount } = props;
+  return (
+    <div
+      className="inline-flex max-w-full items-center justify-between gap-4 rounded-full border-2 border-emerald-500 bg-slate-900 px-6 py-3 shadow-md shadow-emerald-950/40 dark:border-emerald-400 dark:shadow-emerald-950/60"
+      role="status"
+    >
+      <span className="text-xs font-bold uppercase tracking-widest text-emerald-500 dark:text-emerald-400">
+        Total
+      </span>
+      <span className="text-right text-lg font-bold tabular-nums text-white dark:text-white">
+        {formatCurrency(totalAmount)}
+      </span>
+    </div>
+  );
+}
 
 const PAGE_SIZE = 20;
 const EXPENSE_CATEGORIES: { value: MiscExpenseCategory; label: string }[] = [
@@ -64,6 +82,11 @@ export function MiscExpensesPage() {
   const [cancelDialogExpense, setCancelDialogExpense] =
     useState<MiscExpenseResponse | null>(null);
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
+
+  const expenseCategoryOptions = useMemo(
+    () => EXPENSE_CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
+    []
+  );
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["operator-misc-expenses", token, orgId, branchId, page],
@@ -242,25 +265,25 @@ export function MiscExpensesPage() {
       )}
 
       {!isLoading && !isError && (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          {expenses.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <Receipt className="h-12 w-12 text-slate-400 dark:text-slate-500" />
-              <p className="mt-4 text-slate-500 dark:text-slate-400">
-                No expenses recorded yet. Record expenses such as utilities,
-                supplies, or maintenance.
-              </p>
-              <button
-                type="button"
-                onClick={() => setFormOpen(true)}
-                className="mt-4 inline-flex items-center gap-2 rounded-lg border border-primary-500 bg-transparent px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30"
-              >
-                <Plus className="h-4 w-4" />
-                Record expense
-              </button>
-            </div>
-          ) : (
-            <>
+        <>
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            {expenses.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Receipt className="h-12 w-12 text-slate-400 dark:text-slate-500" />
+                <p className="mt-4 text-slate-500 dark:text-slate-400">
+                  No expenses recorded yet. Record expenses such as utilities,
+                  supplies, or maintenance.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setFormOpen(true)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg border border-primary-500 bg-transparent px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30"
+                >
+                  <Plus className="h-4 w-4" />
+                  Record expense
+                </button>
+              </div>
+            ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
                   <thead>
@@ -337,31 +360,26 @@ export function MiscExpensesPage() {
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="border-t-2 border-slate-200 dark:border-slate-600">
-                    <tr>
-                      <td
-                        colSpan={1}
-                        className="px-4 py-3 text-left text-sm font-medium text-slate-500 dark:text-slate-400"
-                      >
-                        Total
-                      </td>
-                      <td className="px-4 py-3 text-left text-sm font-bold text-slate-900 dark:text-white">
-                        {formatCurrency(totalAmount)}
-                      </td>
-                      <td colSpan={5} />
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
-              <Pagination
-                page={data?.number ?? 0}
-                size={PAGE_SIZE}
-                totalElements={totalElements}
-                onPageChange={setPage}
-              />
-            </>
-          )}
-        </div>
+            )}
+            {expenses.length > 0 ? (
+              <div className="border-t border-slate-200 bg-slate-50/90 px-4 py-4 dark:border-slate-600 dark:bg-slate-900/50">
+                <Pagination
+                  page={data?.number ?? 0}
+                  size={PAGE_SIZE}
+                  totalElements={totalElements}
+                  onPageChange={setPage}
+                />
+              </div>
+            ) : null}
+          </div>
+          {expenses.length > 0 ? (
+            <div className="mt-3 flex justify-end">
+              <MiscExpensesTotalBadge totalAmount={totalAmount} />
+            </div>
+          ) : null}
+        </>
       )}
 
       <SlideOver
@@ -404,21 +422,15 @@ export function MiscExpensesPage() {
             >
               Category *
             </label>
-            <select
+            <SearchableSelect
               id="category"
-              required
+              options={expenseCategoryOptions}
               value={formCategory}
-              onChange={(e) =>
-                setFormCategory(e.target.value as MiscExpenseCategory)
-              }
-              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-            >
-              {EXPENSE_CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setFormCategory(v as MiscExpenseCategory)}
+              placeholder="Search category…"
+              className="mt-1 block w-full"
+              controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            />
           </div>
           <div>
             <label
@@ -534,21 +546,15 @@ export function MiscExpensesPage() {
               >
                 Category *
               </label>
-              <select
+              <SearchableSelect
                 id="editCategory"
-                required
+                options={expenseCategoryOptions}
                 value={editCategory}
-                onChange={(e) =>
-                  setEditCategory(e.target.value as MiscExpenseCategory)
-                }
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-              >
-                {EXPENSE_CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setEditCategory(v as MiscExpenseCategory)}
+                placeholder="Search category…"
+                className="mt-1 block w-full"
+                controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
             </div>
             <div>
               <label

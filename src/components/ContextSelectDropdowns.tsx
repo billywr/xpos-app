@@ -17,7 +17,7 @@ import {
   filterNonDeletedBranches,
 } from "@/types/org";
 import { setStoredAdminContext } from "@/utils/contextStorage";
-import { ChevronDown } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 /**
  * Org and branch dropdowns for the header. Shown only when there is more
@@ -82,16 +82,14 @@ export function ContextSelectDropdowns() {
 
   if (!token || !orgId) return null;
 
-  const handleOrgChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = e.target.value;
+  const handleOrgChange = (id: string) => {
     const org = orgs.find((o) => o.id === id);
     if (org) {
       dispatch(setOrg({ orgId: org.id, orgName: org.name }));
     }
   };
 
-  const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = e.target.value;
+  const handleBranchChange = (id: string) => {
     const branch = branches.find((b) => b.id === id);
     if (branch) {
       dispatch(setBranch({ branchId: branch.id, branchName: branch.name }));
@@ -107,24 +105,15 @@ export function ContextSelectDropdowns() {
   return (
     <div className="flex items-center gap-2">
       {showOrgDropdown ? (
-        <div className="relative">
-          <select
-            value={orgId ?? ""}
-            onChange={handleOrgChange}
-            aria-label="Select organization"
-            className="appearance-none rounded-lg border border-slate-200 bg-white px-3 py-1.5 pr-8 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-primary-400 dark:focus:ring-primary-400"
-          >
-            {orgs.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
-            aria-hidden
-          />
-        </div>
+        <SearchableSelect
+          aria-label="Select organization"
+          options={orgs.map((o) => ({ value: o.id, label: o.name }))}
+          value={orgId ?? ""}
+          onChange={handleOrgChange}
+          compact
+          className="min-w-[140px] max-w-[220px]"
+          controlClassName="border-slate-200 dark:border-slate-600 dark:bg-slate-800"
+        />
       ) : orgName ? (
         <span className="text-sm text-slate-600 dark:text-slate-400">
           {orgName}
@@ -136,24 +125,15 @@ export function ContextSelectDropdowns() {
       )}
 
       {showBranchDropdown ? (
-        <div className="relative">
-          <select
-            value={branchId ?? ""}
-            onChange={handleBranchChange}
-            aria-label="Select branch"
-            className="appearance-none rounded-lg border border-slate-200 bg-white px-3 py-1.5 pr-8 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-primary-400 dark:focus:ring-primary-400"
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
-            aria-hidden
-          />
-        </div>
+        <SearchableSelect
+          aria-label="Select branch"
+          options={branches.map((b) => ({ value: b.id, label: b.name }))}
+          value={branchId ?? ""}
+          onChange={handleBranchChange}
+          compact
+          className="min-w-[140px] max-w-[220px]"
+          controlClassName="border-slate-200 dark:border-slate-600 dark:bg-slate-800"
+        />
       ) : branchName && orgId ? (
         <span className="text-sm text-slate-600 dark:text-slate-400">
           {branchName}

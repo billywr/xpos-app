@@ -23,8 +23,6 @@ const HEADER_NAV_LINKS = [
   { to: "/select-context", label: "Org", end: true },
 ];
 
-const IDLE_LOGOUT_MS = 5 * 60 * 1000; // 5 minutes
-
 export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -60,7 +58,7 @@ export function Layout() {
     dispatch(clearCredentials());
     dispatch(clearContext());
     navigate("/login", { replace: true, state: { from: "idle" } });
-  }, IDLE_LOGOUT_MS);
+  });
 
   const handleLogout = () => {
     clearStoredAuth();

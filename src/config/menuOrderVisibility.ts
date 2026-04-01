@@ -1,5 +1,5 @@
 /**
- * Keys used in operator visibility settings for Menu Order screen options.
+ * Keys used in operator visibility settings for POS screen options.
  * When value is true or key is missing, the option is shown. When false, hidden.
  */
 export const MENU_ORDER_SHOW_ORDER_TYPE = "menuOrder.showOrderType";

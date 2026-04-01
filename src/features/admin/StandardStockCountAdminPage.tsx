@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -9,6 +9,7 @@ import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
 import { FileSpreadsheet } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 export function StandardStockCountAdminPage() {
   const token = useAppSelector(selectToken);
@@ -49,6 +50,25 @@ export function StandardStockCountAdminPage() {
     }
   }, [selectedOrgId, filteredBranches, selectedBranchId]);
 
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...filteredOrgs.map((org: Org) => ({ value: org.id, label: org.name })),
+    ],
+    [filteredOrgs]
+  );
+
+  const branchSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select branch…" },
+      ...filteredBranches.map((branch: Branch) => ({
+        value: branch.id,
+        label: branch.name,
+      })),
+    ],
+    [filteredBranches]
+  );
+
   if (!selectedOrgId || !selectedBranchId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
@@ -65,41 +85,33 @@ export function StandardStockCountAdminPage() {
           >
             Organization
           </label>
-          <select
+          <SearchableSelect
             id="std-org-select"
+            options={orgSelectOptions}
             value={selectedOrgId}
-            onChange={(e) => {
-              setSelectedOrgId(e.target.value);
+            onChange={(next) => {
+              setSelectedOrgId(next);
               setSelectedBranchId("");
             }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-          >
-            <option value="">Select organization…</option>
-            {filteredOrgs.map((org: Org) => (
-              <option key={org.id} value={org.id}>
-                {org.name}
-              </option>
-            ))}
-          </select>
+            placeholder="Search organization…"
+            className="min-w-[12rem]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
           <label
             htmlFor="std-branch-select"
             className="text-sm font-medium text-slate-700 dark:text-slate-300"
           >
             Branch
           </label>
-          <select
+          <SearchableSelect
             id="std-branch-select"
+            options={branchSelectOptions}
             value={selectedBranchId}
-            onChange={(e) => setSelectedBranchId(e.target.value)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-          >
-            <option value="">Select branch…</option>
-            {filteredBranches.map((branch: Branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </select>
+            onChange={setSelectedBranchId}
+            placeholder="Search branch…"
+            className="min-w-[12rem]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
         </div>
         <div className="rounded-xl border border-sky-200/70 bg-white/90 p-8 text-center text-slate-500 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400">
           Select organization and branch to view the standard stock count sheet

@@ -13,6 +13,7 @@ interface StdStockCountPdfRow {
   unitsSold: number;
   sellingPrice: number;
   amount: number;
+  comments: string;
 }
 
 function formatKsh(amount: number): string {
@@ -60,6 +61,7 @@ export function downloadStdStockCountPdf(
       "Units Sold",
       "Selling Price",
       "Amount",
+      "comments",
     ];
     const tableData: string[][] = rows.map((r) => {
       const base = [
@@ -72,7 +74,12 @@ export function downloadStdStockCountPdf(
       const middle = includeSystemAndVariance
         ? [String(r.systemCountBeforeToday), r.variance > 0 ? `+${r.variance}` : String(r.variance)]
         : [];
-      const tail = [String(r.unitsSold), formatKsh(r.sellingPrice), formatKsh(r.amount)];
+      const tail = [
+        String(r.unitsSold),
+        formatKsh(r.sellingPrice),
+        formatKsh(r.amount),
+        r.comments.trim() ? r.comments : "—",
+      ];
       return [...base, ...middle, ...tail];
     });
 

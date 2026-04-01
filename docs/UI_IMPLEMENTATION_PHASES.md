@@ -155,7 +155,7 @@ Status legend: ✅ Done, 🔲 Pending. See detailed phase sections below.
 | Stock levels on items | 🔲 | Menu Order: show "X in stock" or "Out of stock" for items with `trackInventory`. Fetch via `GET .../items/stock-levels` or items response enrichment. |
 | Block sale when out of stock | 🔲 | Disable or gray out items with 0 stock; show "Hakuna stock" / "Out of stock" badge. Prevent add-to-cart when qty &gt; available. |
 | Proceed to payment validation | 🔲 | Before create sale: if any cart line has insufficient stock, show error: "Insufficient stock for [item]. Only [available] remaining." User-friendly, Kenya Swahili option: "Hakuna stock ya [item]. Ni [available] peke yake." |
-| Receiving (GRN) admin UI | ✅ | Admin → Goods Receipt: create GRN with lines; increases stock. Suppliers page for managing suppliers. |
+| Receiving (GRN) admin UI | ✅ | Admin → Inventory → Stock: receive stock with lines; increases inventory. Suppliers page for managing suppliers. |
 | Stock count admin UI | ✅ | Admin → Stock Taking Schedules (DAILY/WEEKLY), Stock Count Sessions; Operator → Stock Count (manual). |
 | Inventory balance view (admin) | 🔲 | Admin → Inventory → Stock levels: per-branch, per-item on-hand qty. |
 

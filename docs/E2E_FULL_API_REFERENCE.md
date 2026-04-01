@@ -441,7 +441,7 @@ Base URL: **http://localhost:9003**. All requests (except health) need: `Authori
 
 ---
 
-## Inventory – Goods receipt notes
+## Inventory – Stock receipts (goods-receipt-notes API)
 
 | Method | Path | Body / query |
 |--------|------|----------------|

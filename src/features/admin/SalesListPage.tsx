@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect } from "react";
+import { Fragment, useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -16,9 +16,12 @@ import { Pagination } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Receipt, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
+/** Admin API clamps page size; use for summing all sales in range. */
+const ADMIN_SUM_PAGE_SIZE = 200;
 
 function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -65,6 +68,45 @@ export function SalesListPage() {
   });
 
   const sales = salesData?.content ?? [];
+  const totalElements = salesData?.totalElements ?? 0;
+
+  const { data: totalSalesSum = 0 } = useQuery({
+    queryKey: [
+      "admin-sales-sum",
+      token,
+      selectedOrgId,
+      selectedBranchId,
+      fromDate,
+      toDate,
+      totalElements,
+    ],
+    queryFn: async () => {
+      if (!token || !selectedOrgId || !selectedBranchId || totalElements === 0) {
+        return 0;
+      }
+      const pages = Math.ceil(totalElements / ADMIN_SUM_PAGE_SIZE);
+      let sum = 0;
+      for (let p = 0; p < pages; p++) {
+        const res = await fetchAdminSales(token, selectedOrgId, selectedBranchId, {
+          page: p,
+          size: ADMIN_SUM_PAGE_SIZE,
+          status: "COMPLETED",
+          fromDate,
+          toDate,
+        });
+        for (const row of res.content) {
+          sum += row.total;
+        }
+      }
+      return sum;
+    },
+    enabled:
+      Boolean(token) &&
+      Boolean(selectedOrgId) &&
+      Boolean(selectedBranchId) &&
+      totalElements > 0,
+  });
+
   const expandedSale = sales.find((s: SaleSummary) => s.id === expandedSaleId);
   const { data: receiptDetails, isLoading: receiptLoading } = useQuery({
     queryKey: [
@@ -93,8 +135,6 @@ export function SalesListPage() {
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
-  const totalElements = salesData?.totalElements ?? 0;
-
   const handleSizeChange = (newSize: number) => {
     setSize(Math.min(newSize, MAX_PAGE_SIZE));
     setPage(0);
@@ -113,6 +153,25 @@ export function SalesListPage() {
       setSelectedBranchId(branches[0].id);
     }
   }, [selectedOrgId, branches, selectedBranchId]);
+
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
+    ],
+    [orgs]
+  );
+
+  const branchSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select branch…" },
+      ...branches.map((branch: Branch) => ({
+        value: branch.id,
+        label: branch.name,
+      })),
+    ],
+    [branches]
+  );
 
   if (isLoading && selectedOrgId && selectedBranchId) {
     return (
@@ -154,7 +213,7 @@ export function SalesListPage() {
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto">
+    <div className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
@@ -167,84 +226,86 @@ export function SalesListPage() {
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-4">
-        <label
-          htmlFor="sales-org-select"
-          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Organization
-        </label>
-        <select
-          id="sales-org-select"
-          value={selectedOrgId}
-          onChange={(e) => {
-            setSelectedOrgId(e.target.value);
-            setSelectedBranchId("");
-            setPage(0);
-          }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select organization…</option>
-          {orgs.map((org: Org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
-        <label
-          htmlFor="sales-branch-select"
-          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Branch
-        </label>
-        <select
-          id="sales-branch-select"
-          value={selectedBranchId}
-          onChange={(e) => {
-            setSelectedBranchId(e.target.value);
-            setPage(0);
-          }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select branch…</option>
-          {branches.map((branch: Branch) => (
-            <option key={branch.id} value={branch.id}>
-              {branch.name}
-            </option>
-          ))}
-        </select>
-        <label
-          htmlFor="sales-from-date"
-          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          From
-        </label>
-        <input
-          id="sales-from-date"
-          type="date"
-          value={fromDate}
-          onChange={(e) => {
-            setFromDate(e.target.value);
-            setPage(0);
-          }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        />
-        <label
-          htmlFor="sales-to-date"
-          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          To
-        </label>
-        <input
-          id="sales-to-date"
-          type="date"
-          value={toDate}
-          onChange={(e) => {
-            setToDate(e.target.value);
-            setPage(0);
-          }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        />
+      <div className="mb-4 flex flex-row flex-wrap items-end gap-x-6 gap-y-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <label
+            htmlFor="sales-org-select"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Organization
+          </label>
+          <SearchableSelect
+            id="sales-org-select"
+            options={orgSelectOptions}
+            value={selectedOrgId}
+            onChange={(next) => {
+              setSelectedOrgId(next);
+              setSelectedBranchId("");
+              setPage(0);
+            }}
+            placeholder="Search organization…"
+            className="w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
+        </div>
+        <div className="flex min-w-0 flex-col gap-1">
+          <label
+            htmlFor="sales-branch-select"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Branch
+          </label>
+          <SearchableSelect
+            id="sales-branch-select"
+            options={branchSelectOptions}
+            value={selectedBranchId}
+            onChange={(next) => {
+              setSelectedBranchId(next);
+              setPage(0);
+            }}
+            placeholder="Search branch…"
+            className="w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
+        </div>
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="sales-from-date"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              From
+            </label>
+            <input
+              id="sales-from-date"
+              type="date"
+              value={fromDate}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+                setPage(0);
+              }}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="sales-to-date"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              To
+            </label>
+            <input
+              id="sales-to-date"
+              type="date"
+              value={toDate}
+              onChange={(e) => {
+                setToDate(e.target.value);
+                setPage(0);
+              }}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+            />
+          </div>
+        </div>
       </div>
 
       {!selectedOrgId || !selectedBranchId ? (
@@ -394,6 +455,22 @@ export function SalesListPage() {
               />
             )}
           </div>
+
+          {totalElements > 0 && (
+            <div className="mt-4 flex justify-end">
+              <div
+                className="sales-total-chip inline-flex flex-col items-end gap-0.5 rounded-2xl border border-slate-200/90 bg-white px-5 py-3 shadow-md ring-1 ring-slate-200/50 hover:shadow-lg dark:border-slate-600/70 dark:bg-slate-800 dark:ring-slate-700/50 dark:hover:shadow-black/30"
+                aria-label={`Total sales for selected range: ${formatCurrency(totalSalesSum)}`}
+              >
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Total sales
+                </span>
+                <span className="text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
+                  {formatCurrency(totalSalesSum)}
+                </span>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

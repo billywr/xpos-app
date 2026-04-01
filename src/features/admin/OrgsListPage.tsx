@@ -9,9 +9,15 @@ import { SlideOver, ConfirmDialog, Pagination } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Ban, Trash2 } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
+
+const ORG_STATUS_OPTIONS = [
+  { value: "ACTIVE", label: "ACTIVE" },
+  { value: "INACTIVE", label: "INACTIVE" },
+];
 
 export function OrgsListPage() {
   const token = useAppSelector(selectToken);
@@ -374,15 +380,15 @@ export function OrgsListPage() {
               >
                 Status
               </label>
-              <select
+              <SearchableSelect
                 id="org-status"
+                options={ORG_STATUS_OPTIONS}
                 value={formStatus}
-                onChange={(e) => setFormStatus(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-              </select>
+                onChange={setFormStatus}
+                placeholder="Search status…"
+                className="w-full"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
             </div>
           )}
           <div className="flex justify-end gap-3 pt-4">

@@ -8,7 +8,7 @@ interface OperatorContextGuardProps {
 
 /**
  * Redirects to /select-context when operator context (org, branch, terminal) is missing.
- * Use around operator routes so Menu Order etc. have context.
+ * Use around operator routes so POS etc. have context.
  */
 export function OperatorContextGuard({ children }: OperatorContextGuardProps) {
   const hasContext = useAppSelector(selectHasOperatorContext);

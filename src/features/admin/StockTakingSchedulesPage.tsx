@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -28,6 +28,7 @@ import {
   Pencil,
   Loader2,
 } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const PAGE_SIZE = 20;
 const DAYS = [
@@ -113,6 +114,39 @@ export function StockTakingSchedulesPage() {
       setSelectedOrgId(filteredOrgs[0].id);
     }
   }, [filteredOrgs, selectedOrgId]);
+
+  const stockScheduleOrgOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...filteredOrgs.map((org: Org) => ({ value: org.id, label: org.name })),
+    ],
+    [filteredOrgs]
+  );
+
+  const scheduleBranchFormOptions = useMemo(
+    () => [
+      { value: "", label: "Select branch…" },
+      ...filteredBranches.map((b: Branch) => ({ value: b.id, label: b.name })),
+    ],
+    [filteredBranches]
+  );
+
+  const frequencyOptions = useMemo(
+    () => [
+      { value: "DAILY", label: "Daily" },
+      { value: "WEEKLY", label: "Weekly" },
+    ],
+    []
+  );
+
+  const dayOfWeekOptions = useMemo(
+    () =>
+      DAYS.map((d) => ({
+        value: String(d.value),
+        label: d.label,
+      })),
+    []
+  );
 
   const createMutation = useMutation({
     mutationFn: (body: StockTakingScheduleCreateRequest) =>
@@ -272,24 +306,24 @@ export function StockTakingSchedulesPage() {
           noMargin
         />
         <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label
+            htmlFor="stock-schedule-org"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
             Organization
           </label>
-          <select
+          <SearchableSelect
+            id="stock-schedule-org"
+            options={stockScheduleOrgOptions}
             value={selectedOrgId}
-            onChange={(e) => {
-              setSelectedOrgId(e.target.value);
+            onChange={(next) => {
+              setSelectedOrgId(next);
               setPage(0);
             }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-          >
-            <option value="">Select organization…</option>
-            {filteredOrgs.map((org: Org) => (
-              <option key={org.id} value={org.id}>
-                {org.name}
-              </option>
-            ))}
-          </select>
+            placeholder="Search organization…"
+            className="min-w-[12rem]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
           <button
             type="button"
             onClick={openCreate}
@@ -449,55 +483,58 @@ export function StockTakingSchedulesPage() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {!editingSchedule && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              <label
+                htmlFor="stock-schedule-branch"
+                className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
                 Branch *
               </label>
-              <select
+              <SearchableSelect
+                id="stock-schedule-branch"
+                options={scheduleBranchFormOptions}
                 value={branchId}
-                onChange={(e) => setBranchId(e.target.value)}
-                required
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              >
-                <option value="">Select branch…</option>
-                {filteredBranches.map((b: Branch) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setBranchId}
+                placeholder="Search branch…"
+                className="w-full"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
             </div>
           )}
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label
+              htmlFor="stock-schedule-frequency"
+              className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
               Frequency
             </label>
-            <select
+            <SearchableSelect
+              id="stock-schedule-frequency"
+              options={frequencyOptions}
               value={frequency}
-              onChange={(e) =>
-                setFrequency(e.target.value as "DAILY" | "WEEKLY")
-              }
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            >
-              <option value="DAILY">Daily</option>
-              <option value="WEEKLY">Weekly</option>
-            </select>
+              onChange={(v) => setFrequency(v as "DAILY" | "WEEKLY")}
+              placeholder="Search…"
+              className="w-full"
+              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            />
           </div>
           {frequency === "WEEKLY" && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              <label
+                htmlFor="stock-schedule-dow"
+                className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
                 Day of week
               </label>
-              <select
-                value={dayOfWeek}
-                onChange={(e) => setDayOfWeek(Number(e.target.value))}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              >
-                {DAYS.map((d) => (
-                  <option key={d.value} value={d.value}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
+              <SearchableSelect
+                id="stock-schedule-dow"
+                options={dayOfWeekOptions}
+                value={String(dayOfWeek)}
+                onChange={(v) => setDayOfWeek(Number(v))}
+                placeholder="Search day…"
+                matchOptionValue
+                className="w-full"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">

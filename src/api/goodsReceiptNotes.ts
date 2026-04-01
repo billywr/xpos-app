@@ -123,3 +123,15 @@ export async function updateGoodsReceiptNote(
     }
   );
 }
+
+/** Hard delete: reverses GRN stock movements, removes lines and receipt. Fails if stock was consumed. */
+export async function deleteGoodsReceiptNotePermanently(
+  token: string | null,
+  orgId: string,
+  grnId: string
+): Promise<void> {
+  await apiFetch<void>(
+    `/api/v1/admin/orgs/${orgId}/goods-receipt-notes/${grnId}`,
+    { token, method: "DELETE" }
+  );
+}

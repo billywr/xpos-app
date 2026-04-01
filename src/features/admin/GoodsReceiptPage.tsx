@@ -10,7 +10,9 @@ import {
   fetchGoodsReceiptNotes,
   createGoodsReceiptNote,
   updateGoodsReceiptNote,
+  deleteGoodsReceiptNotePermanently,
   type GrnLineRequest,
+  type GrnLineResponse,
   type GoodsReceiptNoteResponse,
 } from "@/api/goodsReceiptNotes";
 import type { Org, Branch } from "@/types/org";
@@ -30,8 +32,52 @@ import {
   BARCODE_GOODS_RECEIPT,
   isBarcodeVisible,
 } from "@/config/barcodeVisibility";
+import { ItemSearchCombobox } from "@/components/ItemSearchCombobox";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { isSameLocalCalendarDay } from "@/utils/calendarDay";
 
 const DEFAULT_PAGE_SIZE = 10;
+/** Recent active receipts while slide-over is open (to hide items already received today elsewhere). */
+const GRN_RECEIVE_CONTEXT_PAGE_SIZE = 400;
+
+function formatDatetimeLocal(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Parse datetime-local field value; returns null if empty/invalid. */
+function parseDatetimeLocalToDate(datetimeLocal: string): Date | null {
+  const s = datetimeLocal.trim();
+  if (!s) {
+    return null;
+  }
+  const d = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)
+    ? new Date(s + ":00")
+    : new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Convert datetime-local value to ISO-8601 for API (Instant expects seconds + timezone). */
+function toISOReceivedAt(datetimeLocal: string): string {
+  const s = datetimeLocal.trim();
+  if (!s) {
+    return s;
+  }
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) {
+    return new Date(s + ":00").toISOString();
+  }
+  return new Date(s).toISOString();
+}
+
+function grnLineResponseToRequest(line: GrnLineResponse): GrnLineRequest {
+  return {
+    itemId: line.itemId,
+    qty: line.qty,
+    uomId: line.uomId,
+    receivedUnitCost: line.receivedUnitCost,
+  };
+}
 
 interface GrnLineForm {
   itemId: string;
@@ -68,15 +114,20 @@ export function GoodsReceiptPage({
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [slideOpen, setSlideOpen] = useState(false);
   const [editingGrn, setEditingGrn] = useState<GoodsReceiptNoteResponse | null>(null);
-  const [includeInactive, setIncludeInactive] = useState(false);
+  /** When set, slide-over edits only this line; save merges with other lines on the receipt. */
+  const [editingSingleLineId, setEditingSingleLineId] = useState<string | null>(null);
   const [supplierId, setSupplierId] = useState<string>("");
   const [receivedAt, setReceivedAt] = useState<string>("");
   const [lines, setLines] = useState<GrnLineForm[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
-  const [confirmDeactivate, setConfirmDeactivate] =
+  const [confirmDeleteReceipt, setConfirmDeleteReceipt] =
     useState<GoodsReceiptNoteResponse | null>(null);
-  const [deactivateLoading, setDeactivateLoading] = useState(false);
+  const [confirmDeleteLine, setConfirmDeleteLine] = useState<{
+    grn: GoodsReceiptNoteResponse;
+    line: GrnLineResponse;
+  } | null>(null);
+  const [permanentDeleteLoading, setPermanentDeleteLoading] = useState(false);
   const [barcodeScanMessage, setBarcodeScanMessage] = useState<{
     type: "error" | "info";
     text: string;
@@ -107,6 +158,26 @@ export function GoodsReceiptPage({
     enabled: Boolean(token) && Boolean(selectedOrgId) && slideOpen,
   });
 
+  const { data: grnsReceiveContextData } = useQuery({
+    queryKey: [
+      "admin-grns-receive-context",
+      token,
+      selectedOrgId,
+      selectedBranchId,
+    ],
+    queryFn: () =>
+      fetchGoodsReceiptNotes(token, selectedOrgId, selectedBranchId, {
+        page: 0,
+        size: GRN_RECEIVE_CONTEXT_PAGE_SIZE,
+        includeInactive: false,
+      }),
+    enabled:
+      Boolean(token) &&
+      Boolean(selectedOrgId) &&
+      Boolean(selectedBranchId) &&
+      slideOpen,
+  });
+
   const { data: grnsData, isLoading, isError, error } = useQuery({
     queryKey: [
       "admin-grns",
@@ -115,13 +186,12 @@ export function GoodsReceiptPage({
       selectedBranchId,
       page,
       size,
-      includeInactive,
     ],
     queryFn: () =>
       fetchGoodsReceiptNotes(token, selectedOrgId, selectedBranchId, {
         page,
         size,
-        includeInactive,
+        includeInactive: false,
       }),
     enabled:
       Boolean(token) &&
@@ -139,14 +209,23 @@ export function GoodsReceiptPage({
       queryClient.invalidateQueries({
         queryKey: ["admin-grns", token, selectedOrgId, selectedBranchId],
       });
+      queryClient.invalidateQueries({
+        queryKey: [
+          "admin-grns-receive-context",
+          token,
+          selectedOrgId,
+          selectedBranchId,
+        ],
+      });
       queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
       setSlideOpen(false);
       setEditingGrn(null);
+      setEditingSingleLineId(null);
       setSupplierId("");
       setLines([]);
       setFormError(null);
       setSubmitLoading(false);
-      toast.success("Goods receipt created. Stock updated.", { title: "Received" });
+      toast.success("Stock received. Inventory updated.", { title: "Received" });
     },
     onError: (err) => {
       setSubmitLoading(false);
@@ -162,33 +241,70 @@ export function GoodsReceiptPage({
       grnId: string;
       supplierId: string;
       receivedAt: string;
-      active?: boolean;
       lines?: Array<{ itemId: string; qty: number; uomId?: string | null; receivedUnitCost?: number | null }>;
     }) =>
       updateGoodsReceiptNote(token, selectedOrgId, body.grnId, {
         supplierId: body.supplierId,
         receivedAt: body.receivedAt,
-        active: body.active,
         lines: body.lines,
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["admin-grns", token, selectedOrgId, selectedBranchId],
       });
+      queryClient.invalidateQueries({
+        queryKey: [
+          "admin-grns-receive-context",
+          token,
+          selectedOrgId,
+          selectedBranchId,
+        ],
+      });
       if (variables.lines != null) {
         queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
       }
       setSlideOpen(false);
       setEditingGrn(null);
-      setConfirmDeactivate(null);
-      setDeactivateLoading(false);
+      setEditingSingleLineId(null);
+      setConfirmDeleteLine(null);
       setFormError(null);
       setSubmitLoading(false);
-      toast.success("Receipt updated.", { title: "Saved" });
+      toast.success("Stock receipt updated.", { title: "Saved" });
     },
     onError: (err) => {
       setSubmitLoading(false);
-      setDeactivateLoading(false);
+      const requestId = getApiErrorRequestId(err);
+      toast.error(getApiErrorMessage(err), {
+        detail: requestId ? `Reference: ${requestId}` : undefined,
+      });
+    },
+  });
+
+  const permanentDeleteMutation = useMutation({
+    mutationFn: (grnId: string) =>
+      deleteGoodsReceiptNotePermanently(token, selectedOrgId, grnId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin-grns", token, selectedOrgId, selectedBranchId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [
+          "admin-grns-receive-context",
+          token,
+          selectedOrgId,
+          selectedBranchId,
+        ],
+      });
+      queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
+      setConfirmDeleteReceipt(null);
+      setPermanentDeleteLoading(false);
+      toast.success(
+        "Receipt and its stock movements were removed. Inventory was adjusted.",
+        { title: "Receipt deleted" }
+      );
+    },
+    onError: (err) => {
+      setPermanentDeleteLoading(false);
       const requestId = getApiErrorRequestId(err);
       toast.error(getApiErrorMessage(err), {
         detail: requestId ? `Reference: ${requestId}` : undefined,
@@ -199,12 +315,71 @@ export function GoodsReceiptPage({
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
   const suppliers = suppliersData?.content ?? [];
+
   const items = useMemo(() => {
     const fromApi = (itemsData?.content ?? []) as Item[];
     const seen = new Set(fromApi.map((i: Item) => i.id));
     const extra = scannedItems.filter((s) => !seen.has(s.id));
     return [...fromApi, ...extra];
   }, [itemsData?.content, scannedItems]);
+
+  /**
+   * Calendar day used for “one item per branch per day across receipts” rule.
+   * New receipt: today. Edit: form “Received at” date, or original receipt time if invalid.
+   */
+  const grnDuplicateRuleReferenceDate = useMemo((): Date => {
+    if (editingGrn) {
+      const parsed = parseDatetimeLocalToDate(receivedAt);
+      if (parsed) {
+        return parsed;
+      }
+      return new Date(editingGrn.receivedAt);
+    }
+    return new Date();
+  }, [editingGrn, receivedAt]);
+
+  /**
+   * Items on another active receipt for the same supplier, same local calendar day as this draft
+   * (excludes the receipt being edited). Different suppliers may GRN the same item the same day.
+   */
+  const itemIdsReceivedTodayOtherGrns = useMemo(() => {
+    const ids = new Set<string>();
+    const currentGrnId = editingGrn?.id ?? null;
+    const ruleSupplierId = (supplierId.trim() || editingGrn?.supplierId || "").trim();
+    for (const grn of grnsReceiveContextData?.content ?? []) {
+      if (!grn.active) {
+        continue;
+      }
+      if (ruleSupplierId && grn.supplierId !== ruleSupplierId) {
+        continue;
+      }
+      if (!isSameLocalCalendarDay(grn.receivedAt, grnDuplicateRuleReferenceDate)) {
+        continue;
+      }
+      if (currentGrnId != null && String(grn.id) === String(currentGrnId)) {
+        continue;
+      }
+      for (const line of grn.lines) {
+        ids.add(line.itemId);
+      }
+    }
+    return ids;
+  }, [
+    grnsReceiveContextData?.content,
+    editingGrn?.id,
+    editingGrn?.supplierId,
+    grnDuplicateRuleReferenceDate,
+    supplierId,
+  ]);
+
+  /** Item IDs already on the GRN being edited (snapshot from server). Used to allow saves when another receipt shares the same day+supplier. */
+  const originalGrnItemIds = useMemo(() => {
+    if (!editingGrn) {
+      return new Set<string>();
+    }
+    return new Set(editingGrn.lines.map((line) => line.itemId));
+  }, [editingGrn?.id, editingGrn?.lines]);
+
   const grns = grnsData?.content ?? [];
   const totalElements = grnsData?.totalElements ?? 0;
 
@@ -268,10 +443,22 @@ export function GoodsReceiptPage({
       setBarcodeScanMessage(null);
       try {
         const item = await fetchItemByBarcode(token, selectedOrgId, barcode.trim());
-        setScannedItems((prev) =>
-          prev.some((i) => i.id === item.id) ? prev : [...prev, item]
-        );
+        if (
+          itemIdsReceivedTodayOtherGrns.has(item.id) &&
+          !(editingGrn && originalGrnItemIds.has(item.id))
+        ) {
+          setBarcodeScanMessage({
+            type: "info",
+            text: `"${item.name}" was already received today from this supplier on another receipt with the same received date. Edit that receipt to change it, or use a different calendar day (or another supplier).`,
+          });
+          return;
+        }
+        let duplicate = false;
         setLines((prev) => {
+          if (prev.some((l) => l.itemId === item.id)) {
+            duplicate = true;
+            return prev;
+          }
           const emptyIdx = prev.findIndex((l) => !l.itemId);
           const idx = emptyIdx >= 0 ? emptyIdx : prev.length;
           const newLine = {
@@ -289,6 +476,16 @@ export function GoodsReceiptPage({
           }
           return [...prev, newLine];
         });
+        if (duplicate) {
+          setBarcodeScanMessage({
+            type: "info",
+            text: `"${item.name}" is already on a line. Each item can only appear once per receipt.`,
+          });
+          return;
+        }
+        setScannedItems((s) =>
+          s.some((i) => i.id === item.id) ? s : [...s, item]
+        );
       } catch (err) {
         const msg = getApiErrorMessage(err);
         const isNotFound =
@@ -302,7 +499,13 @@ export function GoodsReceiptPage({
         });
       }
     },
-    [token, selectedOrgId]
+    [
+      token,
+      selectedOrgId,
+      itemIdsReceivedTodayOtherGrns,
+      editingGrn,
+      originalGrnItemIds,
+    ]
   );
 
   const handleRemoveLine = (idx: number) => {
@@ -329,17 +532,59 @@ export function GoodsReceiptPage({
         setFormError("At least one line with item and quantity is required");
         return;
       }
+      const mapFormToReq = (l: (typeof validLines)[number]): GrnLineRequest => ({
+        itemId: l.itemId,
+        qty: parseFloat(l.qty),
+        uomId: l.uomId || null,
+        receivedUnitCost: l.receivedUnitCost ? parseFloat(l.receivedUnitCost) : null,
+      });
+
+      let mergedForPatch: GrnLineRequest[];
+      if (editingSingleLineId) {
+        if (validLines.length !== 1) {
+          setFormError("Edit one line at a time.");
+          return;
+        }
+        const otherLines = editingGrn.lines
+          .filter((l) => l.id !== editingSingleLineId)
+          .map(grnLineResponseToRequest);
+        const updated = mapFormToReq(validLines[0]);
+        const seenIds = new Set<string>(otherLines.map((l) => l.itemId));
+        if (seenIds.has(updated.itemId)) {
+          setFormError("Another line on this receipt already uses this item.");
+          return;
+        }
+        mergedForPatch = [...otherLines, updated];
+      } else {
+        const seenIds = new Set<string>();
+        for (const l of validLines) {
+          if (seenIds.has(l.itemId)) {
+            setFormError("Each item can only appear once on this receipt.");
+            return;
+          }
+          seenIds.add(l.itemId);
+        }
+        mergedForPatch = validLines.map(mapFormToReq);
+      }
+
+      for (const l of mergedForPatch) {
+        if (
+          itemIdsReceivedTodayOtherGrns.has(l.itemId) &&
+          !originalGrnItemIds.has(l.itemId)
+        ) {
+          setFormError(
+            "Cannot add items that already appear on another stock receipt from this supplier at this branch with the same received date."
+          );
+          return;
+        }
+      }
+
       setSubmitLoading(true);
       updateMutation.mutate({
         grnId: editingGrn.id,
         supplierId,
         receivedAt: toISOReceivedAt(rt),
-        lines: validLines.map((l) => ({
-          itemId: l.itemId,
-          qty: parseFloat(l.qty),
-          uomId: l.uomId || null,
-          receivedUnitCost: l.receivedUnitCost ? parseFloat(l.receivedUnitCost) : null,
-        })),
+        lines: mergedForPatch,
       });
       return;
     }
@@ -357,6 +602,22 @@ export function GoodsReceiptPage({
       setFormError("Add at least one line with item and quantity");
       return;
     }
+    const seenCreateIds = new Set<string>();
+    for (const l of validLines) {
+      if (seenCreateIds.has(l.itemId)) {
+        setFormError("Each item can only appear once on this receipt.");
+        return;
+      }
+      seenCreateIds.add(l.itemId);
+    }
+    for (const l of validLines) {
+      if (itemIdsReceivedTodayOtherGrns.has(l.itemId)) {
+        setFormError(
+          "One or more items were already received today from this supplier on another stock receipt at this branch."
+        );
+        return;
+      }
+    }
     setSubmitLoading(true);
     createMutation.mutate({
       branchId: selectedBranchId,
@@ -365,24 +626,9 @@ export function GoodsReceiptPage({
     });
   };
 
-  const formatDatetimeLocal = (iso: string) => {
-    const d = new Date(iso);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-
-  /** Convert datetime-local value to ISO-8601 for API (Instant expects seconds + timezone). */
-  const toISOReceivedAt = (datetimeLocal: string): string => {
-    const s = datetimeLocal.trim();
-    if (!s) return s;
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) {
-      return new Date(s + ":00").toISOString();
-    }
-    return new Date(s).toISOString();
-  };
-
   const handleEdit = (grn: GoodsReceiptNoteResponse) => {
     setEditingGrn(grn);
+    setEditingSingleLineId(null);
     setSupplierId(grn.supplierId);
     setReceivedAt(
       grn.receivedAt ? formatDatetimeLocal(grn.receivedAt) : formatDatetimeLocal(new Date().toISOString())
@@ -404,24 +650,47 @@ export function GoodsReceiptPage({
     setSlideOpen(true);
   };
 
-  const handleDeactivate = () => {
-    if (!confirmDeactivate) return;
-    setDeactivateLoading(true);
-    updateMutation.mutate({
-      grnId: confirmDeactivate.id,
-      supplierId: confirmDeactivate.supplierId,
-      receivedAt: confirmDeactivate.receivedAt,
-      active: false,
-    });
+  const handleEditLine = (grn: GoodsReceiptNoteResponse, line: GrnLineResponse) => {
+    setEditingGrn(grn);
+    setEditingSingleLineId(line.id);
+    setSupplierId(grn.supplierId);
+    setReceivedAt(
+      grn.receivedAt
+        ? formatDatetimeLocal(grn.receivedAt)
+        : formatDatetimeLocal(new Date().toISOString())
+    );
+    setLines([
+      {
+        itemId: line.itemId,
+        itemName: line.itemName,
+        qty: String(line.qty),
+        uomId: line.uomId ?? "",
+        receivedUnitCost:
+          line.receivedUnitCost != null ? String(line.receivedUnitCost) : "",
+      },
+    ]);
+    setFormError(null);
+    setBarcodeScanMessage(null);
+    setSlideOpen(true);
   };
 
-  const handleReactivate = (grn: GoodsReceiptNoteResponse) => {
+  const handleConfirmDeleteLine = () => {
+    if (!confirmDeleteLine) return;
+    const { grn, line } = confirmDeleteLine;
+    const remaining = grn.lines
+      .filter((l) => l.id !== line.id)
+      .map(grnLineResponseToRequest);
     updateMutation.mutate({
       grnId: grn.id,
       supplierId: grn.supplierId,
       receivedAt: grn.receivedAt,
-      active: true,
+      lines: remaining,
     });
+  };
+
+  const handlePermanentDelete = (grn: GoodsReceiptNoteResponse) => {
+    setPermanentDeleteLoading(true);
+    permanentDeleteMutation.mutate(grn.id);
   };
 
   const selectedBranch = branches.find((b: Branch) => b.id === selectedBranchId);
@@ -430,7 +699,7 @@ export function GoodsReceiptPage({
     return (
       <div className="min-h-0 flex-1 overflow-auto">
         <PageHeader
-          title="Goods Receipt"
+          title="Stock"
           subtitle="Loading…"
           icon={PackagePlus}
           fallbackTo="/admin"
@@ -446,7 +715,7 @@ export function GoodsReceiptPage({
     return (
       <div className="min-h-0 flex-1 overflow-auto">
         <PageHeader
-          title="Goods Receipt"
+          title="Stock"
           icon={PackagePlus}
           fallbackTo="/admin"
         />
@@ -464,7 +733,7 @@ export function GoodsReceiptPage({
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <PageHeader
-          title="Goods Receipt"
+          title="Stock"
           subtitle="Receive stock at a branch. Select branch and supplier, then add items with quantities to increase inventory."
           icon={PackagePlus}
           fallbackTo="/admin"
@@ -491,7 +760,7 @@ export function GoodsReceiptPage({
           className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-500 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
         >
           <Plus className="h-5 w-5" />
-          Receive goods
+          Receive stock
         </button>
       </div>
 
@@ -502,61 +771,44 @@ export function GoodsReceiptPage({
         >
           Organization
         </label>
-        <select
+        <SearchableSelect
           id="grn-org-select"
+          options={[
+            { value: "", label: "Select organization…" },
+            ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
+          ]}
           value={selectedOrgId}
-          onChange={(e) => {
-            const next = e.target.value;
+          onChange={(next) => {
             setSelectedOrgId(next);
             setSelectedBranchId("");
             onOrgChange?.(next);
           }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select organization…</option>
-          {orgs.map((org: Org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
+          placeholder="Select organization…"
+          className="min-w-[200px] max-w-xs"
+        />
         <label
           htmlFor="grn-branch-select"
           className="text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           Branch
         </label>
-        <select
+        <SearchableSelect
           id="grn-branch-select"
+          options={[
+            { value: "", label: "Select branch…" },
+            ...branches.map((branch: Branch) => ({
+              value: branch.id,
+              label: branch.name,
+            })),
+          ]}
           value={selectedBranchId}
-          onChange={(e) => {
-            const next = e.target.value;
+          onChange={(next) => {
             setSelectedBranchId(next);
             onBranchChange?.(next);
           }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select branch…</option>
-          {branches.map((branch: Branch) => (
-            <option key={branch.id} value={branch.id}>
-              {branch.name}
-            </option>
-          ))}
-        </select>
-        <label className="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={includeInactive}
-            onChange={(e) => {
-              setIncludeInactive(e.target.checked);
-              setPage(0);
-            }}
-            className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
-          />
-          <span className="text-sm text-slate-700 dark:text-slate-300">
-            Include deleted
-          </span>
-        </label>
+          placeholder="Select branch…"
+          className="min-w-[200px] max-w-xs"
+        />
       </div>
 
       {suppliers.length === 0 && selectedOrgId && (
@@ -568,18 +820,18 @@ export function GoodsReceiptPage({
           >
             Add a supplier
           </Link>{" "}
-          to receive goods.
+          to receive stock.
         </div>
       )}
 
       {!selectedOrgId || !selectedBranchId ? (
         <div className="rounded-xl border border-sky-200/70 bg-white/90 p-8 text-center text-slate-500 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400">
-          Select organization and branch to view receipts and receive goods.
+          Select organization and branch to view stock receipts and receive stock.
         </div>
       ) : (
         <>
           <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
-            Recent receipts
+            Recent stock receipts
           </h2>
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
@@ -608,7 +860,7 @@ export function GoodsReceiptPage({
                       Total
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Actions
+                      Line actions
                     </th>
                   </tr>
                 </thead>
@@ -616,90 +868,120 @@ export function GoodsReceiptPage({
                   {grns.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={8}
+                        colSpan={9}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        {includeInactive
-                          ? "No goods receipts (active or deleted)."
-                          : "No goods receipts yet. Click &quot;Receive goods&quot; to add stock."}
+                        No stock receipts yet. Click &quot;Receive stock&quot; to add inventory.
                       </td>
                     </tr>
                   ) : (
-                    grns.map((grn: GoodsReceiptNoteResponse) => (
-                      <tr
-                        key={grn.id}
-                        className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 ${
-                          !grn.active ? "opacity-60" : ""
-                        }`}
-                      >
-                        <td className="px-4 py-3 text-slate-800 dark:text-white">
-                          {new Date(grn.receivedAt).toLocaleString()}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                          {grn.supplierName}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                          {grn.lines.map((l) => l.itemName).join(", ")}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-sm text-slate-600 dark:text-slate-300">
-                          {grn.lines.map((l) => l.barcode ?? "—").join(", ")}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                          {grn.lines.map((l) => l.qty).join(", ")}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300 tabular-nums">
-                          {grn.lines
-                            .map((l) =>
-                              l.receivedUnitCost != null
-                                ? formatCurrency(l.receivedUnitCost)
-                                : "—"
-                            )
-                            .join(", ")}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300 tabular-nums">
-                          {formatCurrency(
-                            grn.lines.reduce(
-                              (sum, l) =>
-                                sum +
-                                l.qty * (l.receivedUnitCost ?? 0),
-                              0
-                            )
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-left">
-                          {grn.active ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => handleEdit(grn)}
-                                className="rounded p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-200"
-                                title="Edit"
-                                aria-label={`Edit receipt ${grn.id}`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setConfirmDeactivate(grn)}
-                                className="rounded p-2 text-slate-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-slate-600 dark:hover:text-red-300"
-                                title="Delete (soft)"
-                                aria-label={`Delete receipt ${grn.id}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleReactivate(grn)}
-                              className="rounded px-2 py-1 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
+                    grns.flatMap((grn: GoodsReceiptNoteResponse) => {
+                      const lines =
+                        grn.lines.length > 0 ? grn.lines : [null];
+                      const rowSpan = lines.length;
+                      const receiptTotal = grn.lines.reduce(
+                        (sum, l) =>
+                          sum + l.qty * (l.receivedUnitCost ?? 0),
+                        0
+                      );
+                      const rowClass =
+                        "hover:bg-slate-50 dark:hover:bg-slate-700/30";
+                      return lines.map((line, lineIdx) => (
+                        <tr
+                          key={
+                            line
+                              ? `${grn.id}-${line.id}`
+                              : `${grn.id}-no-lines`
+                          }
+                          className={rowClass}
+                        >
+                          {lineIdx === 0 ? (
+                            <td
+                              rowSpan={rowSpan}
+                              className="align-top border-r border-slate-100 px-4 py-3 text-slate-800 dark:border-slate-700 dark:text-white"
                             >
-                              Reactivate
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))
+                              {new Date(grn.receivedAt).toLocaleString()}
+                            </td>
+                          ) : null}
+                          {lineIdx === 0 ? (
+                            <td
+                              rowSpan={rowSpan}
+                              className="align-top border-r border-slate-100 px-4 py-3 text-slate-600 dark:border-slate-700 dark:text-slate-300"
+                            >
+                              {grn.supplierName}
+                            </td>
+                          ) : null}
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                            {line?.itemName ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-sm text-slate-600 dark:text-slate-300">
+                            {line?.barcode?.trim()
+                              ? line.barcode
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300 tabular-nums">
+                            {line != null ? line.qty : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300 tabular-nums">
+                            {line != null && line.receivedUnitCost != null
+                              ? formatCurrency(line.receivedUnitCost)
+                              : "—"}
+                          </td>
+                          {lineIdx === 0 ? (
+                            <td
+                              rowSpan={rowSpan}
+                              className="align-top px-4 py-3 text-slate-600 dark:text-slate-300 tabular-nums"
+                            >
+                              <div className="font-medium tabular-nums">
+                                {formatCurrency(receiptTotal)}
+                              </div>
+                              <div className="mt-3 flex min-w-[9.5rem] flex-col gap-2 border-t border-slate-200 pt-3 dark:border-slate-600">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEdit(grn)}
+                                  className="inline-flex w-full items-center justify-center rounded-lg bg-primary-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-600 dark:hover:bg-primary-500 dark:focus:ring-offset-slate-900"
+                                >
+                                  Edit all lines
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteReceipt(grn)}
+                                  className="inline-flex w-full items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 shadow-sm transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:border-red-800/60 dark:bg-red-950/50 dark:text-red-100 dark:hover:bg-red-950/70 dark:focus:ring-offset-slate-900"
+                                >
+                                  Delete receipt
+                                </button>
+                              </div>
+                            </td>
+                          ) : null}
+                          <td className="whitespace-nowrap px-4 py-3 text-left align-middle">
+                            {line != null ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditLine(grn, line)}
+                                  className="rounded p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-200"
+                                  title="Edit this line"
+                                  aria-label={`Edit line ${line.itemName}`}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteLine({ grn, line })}
+                                  className="rounded p-2 text-slate-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-slate-600 dark:hover:text-red-300"
+                                  title="Remove this line from receipt"
+                                  aria-label={`Remove line ${line.itemName}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-slate-400 dark:text-slate-500">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ));
+                    })
                   )}
                 </tbody>
               </table>
@@ -714,7 +996,7 @@ export function GoodsReceiptPage({
                   setSize(s);
                   setPage(0);
                 }}
-                sizeOptions={[10, 25, 50]}
+                sizeOptions={[5, 10, 20, 25, 50]}
               />
             )}
           </div>
@@ -722,12 +1004,12 @@ export function GoodsReceiptPage({
           {grns.length > 0 && (
             <div
               className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-4 dark:border-slate-600 dark:bg-slate-900"
-              aria-label="Total goods receipt amount summary"
+              aria-label="Total stock receipt amount summary"
             >
               <div className="flex justify-end">
                 <span
                   className="inline-flex cursor-default items-center gap-2 rounded-2xl border-2 border-primary-200 bg-gradient-to-br from-primary-50 to-primary-100 px-5 py-3 text-lg font-bold tabular-nums text-primary-800 shadow-md transition-shadow hover:shadow-lg dark:border-primary-700 dark:from-primary-900/40 dark:to-primary-800/40 dark:text-primary-100"
-                  aria-label={`Total goods receipt amount: ${formatCurrency(grnsTotalAmount)}`}
+                  aria-label={`Total stock receipt amount: ${formatCurrency(grnsTotalAmount)}`}
                 >
                   <span className="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-300">
                     Total
@@ -741,22 +1023,49 @@ export function GoodsReceiptPage({
       )}
 
       <ConfirmDialog
-        open={Boolean(confirmDeactivate)}
-        onClose={() => setConfirmDeactivate(null)}
-        onConfirm={handleDeactivate}
+        open={Boolean(confirmDeleteReceipt)}
+        onClose={() => {
+          setConfirmDeleteReceipt(null);
+          setPermanentDeleteLoading(false);
+        }}
+        onConfirm={() => {
+          if (confirmDeleteReceipt) {
+            handlePermanentDelete(confirmDeleteReceipt);
+          }
+        }}
         title="Delete receipt?"
         message={
-          confirmDeactivate ? (
+          confirmDeleteReceipt ? (
             <>
-              This will mark the receipt from{" "}
-              <strong>{confirmDeactivate.supplierName}</strong> as deleted. It will
-              be hidden from the list. Stock already received will not be reversed.
+              This removes the receipt from <strong>{confirmDeleteReceipt.supplierName}</strong>,{" "}
+              deletes its lines, and reverses the stock that was received. This cannot be undone. The
+              operation fails if you have already sold or moved more stock than would remain after
+              the reversal.
             </>
           ) : null
         }
-        confirmLabel="Delete"
+        confirmLabel="Delete receipt"
         variant="danger"
-        loading={deactivateLoading}
+        loading={permanentDeleteLoading}
+      />
+
+      <ConfirmDialog
+        open={Boolean(confirmDeleteLine)}
+        onClose={() => setConfirmDeleteLine(null)}
+        onConfirm={handleConfirmDeleteLine}
+        title="Remove this line from the receipt?"
+        message={
+          confirmDeleteLine ? (
+            <>
+              <strong>{confirmDeleteLine.line.itemName}</strong> (qty{" "}
+              {confirmDeleteLine.line.qty}) will be removed and stock on hand will be
+              adjusted to match.
+            </>
+          ) : null
+        }
+        confirmLabel="Remove line"
+        variant="danger"
+        loading={updateMutation.isPending}
       />
 
       <SlideOver
@@ -764,8 +1073,15 @@ export function GoodsReceiptPage({
         onClose={() => {
           setSlideOpen(false);
           setEditingGrn(null);
+          setEditingSingleLineId(null);
         }}
-        title={editingGrn ? "Edit receipt" : "Receive goods"}
+        title={
+          editingGrn
+            ? editingSingleLineId
+              ? "Edit line"
+              : "Edit stock receipt"
+            : "Receive stock"
+        }
         maxWidth="max-w-xl"
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -787,20 +1103,17 @@ export function GoodsReceiptPage({
             >
               Supplier *
             </label>
-            <select
+            <SearchableSelect
               id="grn-supplier"
+              options={[
+                { value: "", label: "Select supplier…" },
+                ...suppliers.map((s: Supplier) => ({ value: s.id, label: s.name })),
+              ]}
               value={supplierId}
-              onChange={(e) => setSupplierId(e.target.value)}
-              required
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            >
-              <option value="">Select supplier…</option>
-              {suppliers.map((s: Supplier) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSupplierId}
+              placeholder="Select supplier…"
+              className="w-full"
+            />
           </div>
 
           {editingGrn && (
@@ -824,17 +1137,29 @@ export function GoodsReceiptPage({
 
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              {editingGrn ? "Receipt lines" : "Items to receive"}
+              {editingGrn
+                ? editingSingleLineId
+                  ? "Line on receipt"
+                  : "Receipt lines"
+                : "Items to receive as stock"}
             </label>
-            <button
-              type="button"
-              onClick={handleAddLine}
-              className="text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
-            >
-              + Add line
-            </button>
+            {!editingSingleLineId ? (
+              <button
+                type="button"
+                onClick={handleAddLine}
+                className="text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
+              >
+                + Add line
+              </button>
+            ) : null}
           </div>
-          {showBarcode && (
+          {!editingGrn ? (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Items already on another receipt from the selected supplier received today at this branch are
+              hidden. Edit that receipt if you need to change them.
+            </p>
+          ) : null}
+          {showBarcode && !editingSingleLineId && (
             <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-600 dark:bg-slate-800/50">
               <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
                 Scan barcode to add item
@@ -859,30 +1184,42 @@ export function GoodsReceiptPage({
             </div>
           )}
           <div className="space-y-3">
-            {lines.map((line, idx) => (
+            {lines.map((line, idx) => {
+              const itemIdsOnOtherLines = new Set(
+                lines
+                  .map((l, i) => (i !== idx && l.itemId ? l.itemId : null))
+                  .filter((id): id is string => Boolean(id))
+              );
+              const selectableItems = items.filter((it) => {
+                if (it.id === line.itemId) {
+                  return true;
+                }
+                if (itemIdsOnOtherLines.has(it.id)) {
+                  return false;
+                }
+                if (!itemIdsReceivedTodayOtherGrns.has(it.id)) {
+                  return true;
+                }
+                return Boolean(editingGrn && originalGrnItemIds.has(it.id));
+              });
+              return (
               <div
                 key={idx}
                 className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-600 dark:bg-slate-800/50"
               >
                 <div className="min-w-[180px] flex-1">
-                  <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                  <label
+                    className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400"
+                    htmlFor={`grn-item-${idx}`}
+                  >
                     Item
                   </label>
-                  <select
+                  <ItemSearchCombobox
+                    inputId={`grn-item-${idx}`}
+                    items={selectableItems}
                     value={line.itemId}
-                    onChange={(e) =>
-                      handleUpdateLine(idx, "itemId", e.target.value)
-                    }
-                    required={lines.length === 1}
-                    className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  >
-                    <option value="">Select…</option>
-                    {items.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(id) => handleUpdateLine(idx, "itemId", id)}
+                  />
                 </div>
                 <div className="w-24">
                   <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
@@ -947,16 +1284,19 @@ export function GoodsReceiptPage({
                     aria-label="Total cost (auto-calculated)"
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveLine(idx)}
-                  className="rounded p-2 text-slate-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-slate-600 dark:hover:text-red-300"
-                  aria-label={`Remove line ${idx + 1}`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {!editingSingleLineId ? (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveLine(idx)}
+                    className="rounded p-2 text-slate-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-slate-600 dark:hover:text-red-300"
+                    aria-label={`Remove line ${idx + 1}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                ) : null}
               </div>
-            ))}
+            );
+            })}
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
@@ -977,8 +1317,10 @@ export function GoodsReceiptPage({
                   ? "Saving…"
                   : "Receiving…"
                 : editingGrn
-                  ? "Save"
-                  : "Receive"}
+                  ? editingSingleLineId
+                    ? "Save line"
+                    : "Save"
+                  : "Receive stock"}
             </button>
           </div>
         </form>

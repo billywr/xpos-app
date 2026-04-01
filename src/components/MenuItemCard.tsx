@@ -28,7 +28,7 @@ export interface MenuItemCardProps {
 
 /**
  * Reusable menu item card with image, name, price, stock label, and quantity controls.
- * Used in menu order and other catalog displays.
+ * Used on POS and other catalog displays.
  */
 export function MenuItemCard({
   name,

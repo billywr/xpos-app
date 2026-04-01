@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -10,6 +10,7 @@ import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { FileText } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 export function ZReportPage() {
   const token = useAppSelector(selectToken);
@@ -58,6 +59,25 @@ export function ZReportPage() {
     }
   }, [selectedOrgId, branches, selectedBranchId]);
 
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
+    ],
+    [orgs]
+  );
+
+  const branchSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select branch…" },
+      ...branches.map((branch: Branch) => ({
+        value: branch.id,
+        label: branch.name,
+      })),
+    ],
+    [branches]
+  );
+
   if (isError && selectedOrgId && selectedBranchId && businessDate.trim()) {
     const message = getApiErrorMessage(error);
     const requestId = getApiErrorRequestId(error);
@@ -102,41 +122,33 @@ export function ZReportPage() {
         >
           Organization
         </label>
-        <select
+        <SearchableSelect
           id="zreport-org-select"
+          options={orgSelectOptions}
           value={selectedOrgId}
-          onChange={(e) => {
-            setSelectedOrgId(e.target.value);
+          onChange={(next) => {
+            setSelectedOrgId(next);
             setSelectedBranchId("");
           }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select organization…</option>
-          {orgs.map((org: Org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
+          placeholder="Search organization…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
         <label
           htmlFor="zreport-branch-select"
           className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           Branch
         </label>
-        <select
+        <SearchableSelect
           id="zreport-branch-select"
+          options={branchSelectOptions}
           value={selectedBranchId}
-          onChange={(e) => setSelectedBranchId(e.target.value)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select branch…</option>
-          {branches.map((branch: Branch) => (
-            <option key={branch.id} value={branch.id}>
-              {branch.name}
-            </option>
-          ))}
-        </select>
+          onChange={setSelectedBranchId}
+          placeholder="Search branch…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
         <label
           htmlFor="zreport-date"
           className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"

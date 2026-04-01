@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -11,6 +12,7 @@ import { ItemsListPage } from "@/features/admin/ItemsListPage";
 import { PriceListsListPage } from "@/features/admin/PriceListsListPage";
 import { PriceListItemsListPage } from "@/features/admin/PriceListItemsListPage";
 import { FolderTree, Ruler, Package, Receipt, ListChecks } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const TAB_LIST_ID = "catalog";
 
@@ -24,11 +26,31 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+const VALID_TAB_IDS: TabId[] = TABS.map((t) => t.id);
+
+function catalogTabFromQuery(tabParam: string | null): TabId {
+  if (tabParam && VALID_TAB_IDS.includes(tabParam as TabId)) {
+    return tabParam as TabId;
+  }
+  return "categories";
+}
+
 export function CatalogPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const activeTab = useMemo(() => catalogTabFromQuery(tabParam), [tabParam]);
+
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<TabId>("categories");
   const [contextOrgId, setContextOrgId] = useState<string>("");
+
+  const handleTabChange = (id: TabId) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", id);
+      return next;
+    });
+  };
 
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
@@ -53,6 +75,14 @@ export function CatalogPage() {
       });
     }
   }, [activeTab, contextOrgId, token, queryClient]);
+
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization" },
+      ...orgs.map((org) => ({ value: org.id, label: org.name })),
+    ],
+    [orgs]
+  );
 
   const tabItems = useMemo(
     () =>
@@ -85,19 +115,16 @@ export function CatalogPage() {
             >
               Context org:
             </label>
-            <select
+            <SearchableSelect
               id="catalog-context-org"
+              options={orgSelectOptions}
               value={contextOrgId}
-              onChange={(e) => setContextOrgId(e.target.value)}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            >
-              <option value="">Select organization</option>
-              {orgs.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-            </select>
+              onChange={setContextOrgId}
+              placeholder="Search organization…"
+              compact
+              className="min-w-[11rem]"
+              controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500"
+            />
           </div>
         )}
       </div>
@@ -107,7 +134,7 @@ export function CatalogPage() {
         ariaLabel="Catalog sections"
         tabs={tabItems}
         activeTab={activeTab}
-        onTabChange={(id) => setActiveTab(id as TabId)}
+        onTabChange={(id) => handleTabChange(id as TabId)}
       />
 
       <AdminTabPanel

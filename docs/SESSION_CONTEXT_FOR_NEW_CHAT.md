@@ -44,7 +44,7 @@
 
 ### 5. Toast with Action Link
 - **ToastContext / Toast:** `action?: { label: string; href: string }` — renders a Link in error toasts
-- **Use:** `ITEM_NOT_SUPPLIED` error shows "Go to Goods Receipt →" with `href="/admin/goods-receipt?orgId=…"`
+- **Use:** `ITEM_NOT_SUPPLIED` error shows "Go to receive stock →" with `href="/admin/inventory?orgId=…&tab=stock"`
 
 ### 6. Items Page Links
 - "No catalog items" and "All catalog items already have prices" — both have Link to `/admin/items`

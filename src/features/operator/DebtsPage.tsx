@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -9,6 +9,7 @@ import {
 } from "@/store/selectors/orgContextSelectors";
 import {
   fetchDebts,
+  fetchDebtPendingTotal,
   createDebt,
   updateDebt,
   cancelDebt,
@@ -30,18 +31,65 @@ import {
   Pencil,
   XCircle,
   Banknote,
-  ChevronDown,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { motion, AnimatePresence } from "framer-motion";
 
 const PAGE_SIZE = 20;
+
+/** Default list: still owed (OPEN or PARTIAL). OPEN-only hid rows after any repayment. */
+const STATUS_OUTSTANDING = "OUTSTANDING";
+
 const STATUS_OPTIONS = [
-  { value: "OPEN", label: "Open" },
-  { value: "PARTIAL", label: "Partial" },
-  { value: "SETTLED", label: "Settled" },
+  { value: STATUS_OUTSTANDING, label: "Outstanding (open + partial)" },
+  { value: "OPEN", label: "Open only" },
+  { value: "PARTIAL", label: "Partial only" },
+  { value: "CLOSED", label: "Closed" },
   { value: "CANCELLED", label: "Cancelled" },
   { value: "", label: "All" },
 ] as const;
+
+function statusQueryForFilter(filter: string): string | readonly string[] | undefined {
+  if (filter === "") {
+    return undefined;
+  }
+  if (filter === STATUS_OUTSTANDING) {
+    return ["OPEN", "PARTIAL"];
+  }
+  return filter;
+}
+
+const PENDING_TOTAL_QUERY_KEY = "operator-debts-pending-total";
+
+function DebtPendingTotalDisplay(props: { totalPending: number; loading: boolean }) {
+  const { totalPending, loading } = props;
+  return (
+    <motion.div
+      className="flex min-w-[min(100%,17rem)] max-w-full shrink-0 items-center justify-between gap-4 rounded-2xl border-2 border-emerald-500 bg-slate-900 px-5 py-3.5 shadow-md shadow-emerald-950/40 dark:border-emerald-400 dark:shadow-emerald-950/60"
+      whileHover={{
+        y: [0, -6, 0, -4, 0],
+        transition: { duration: 0.55, ease: "easeInOut" },
+      }}
+    >
+      <span className="text-xs font-bold uppercase tracking-widest text-emerald-500 dark:text-emerald-400">
+        Total pending
+      </span>
+      <AnimatePresence mode="wait">
+        <motion.span
+          key={loading ? "loading" : String(totalPending)}
+          initial={{ opacity: 0, x: 6 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -6 }}
+          transition={{ type: "spring", stiffness: 400, damping: 32 }}
+          className="text-right text-lg font-bold tabular-nums tracking-tight text-emerald-50"
+        >
+          {loading ? "…" : formatCurrency(totalPending)}
+        </motion.span>
+      </AnimatePresence>
+    </motion.div>
+  );
+}
 
 export function DebtsPage() {
   const token = useAppSelector(selectToken);
@@ -62,7 +110,9 @@ export function DebtsPage() {
   const [editingDebt, setEditingDebt] = useState<CustomerDebtResponse | null>(
     null
   );
-  const [editBalance, setEditBalance] = useState("");
+  const [editCustomerName, setEditCustomerName] = useState("");
+  const [editCustomerPhone, setEditCustomerPhone] = useState("");
+  const [editAmount, setEditAmount] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
@@ -74,7 +124,12 @@ export function DebtsPage() {
     useState<CustomerDebtResponse | null>(null);
   const [settleAmount, setSettleAmount] = useState("");
   const [settleSubmitting, setSettleSubmitting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>("OPEN");
+  const [statusFilter, setStatusFilter] = useState<string>(STATUS_OUTSTANDING);
+
+  const debtStatusFilterOptions = useMemo(
+    () => STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label })),
+    []
+  );
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["operator-debts", token, orgId, branchId, page, statusFilter],
@@ -82,8 +137,14 @@ export function DebtsPage() {
       fetchDebts(token, orgId!, branchId!, {
         page,
         size: PAGE_SIZE,
-        status: statusFilter || undefined,
+        status: statusQueryForFilter(statusFilter),
       }),
+    enabled: Boolean(token && orgId && branchId),
+  });
+
+  const { data: pendingTotalData, isLoading: pendingTotalLoading } = useQuery({
+    queryKey: [PENDING_TOTAL_QUERY_KEY, token, orgId, branchId],
+    queryFn: () => fetchDebtPendingTotal(token, orgId!, branchId!),
     enabled: Boolean(token && orgId && branchId),
   });
 
@@ -93,6 +154,7 @@ export function DebtsPage() {
       createDebt(token, orgId!, branchId!, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operator-debts"] });
+      queryClient.invalidateQueries({ queryKey: [PENDING_TOTAL_QUERY_KEY] });
       setFormOpen(false);
       setFormCustomerName("");
       setFormCustomerPhone("");
@@ -118,6 +180,7 @@ export function DebtsPage() {
     }) => updateDebt(token, orgId!, branchId!, debtId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operator-debts"] });
+      queryClient.invalidateQueries({ queryKey: [PENDING_TOTAL_QUERY_KEY] });
       setEditFormOpen(false);
       setEditingDebt(null);
       toast.success("Debt updated.", { title: "Customer debt" });
@@ -136,6 +199,7 @@ export function DebtsPage() {
       cancelDebt(token, orgId!, branchId!, debtId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operator-debts"] });
+      queryClient.invalidateQueries({ queryKey: [PENDING_TOTAL_QUERY_KEY] });
       setClearDialogDebt(null);
       toast.success("Debt cleared.", { title: "Customer debt" });
     },
@@ -156,6 +220,7 @@ export function DebtsPage() {
       settleDebt(token, orgId!, branchId!, debtId, paymentAmount),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operator-debts"] });
+      queryClient.invalidateQueries({ queryKey: [PENDING_TOTAL_QUERY_KEY] });
       setSettleFormOpen(false);
       setSettlingDebt(null);
       setSettleAmount("");
@@ -174,7 +239,9 @@ export function DebtsPage() {
 
   const openEditForm = (d: CustomerDebtResponse) => {
     setEditingDebt(d);
-    setEditBalance(String(d.outstanding));
+    setEditCustomerName(d.customerName);
+    setEditCustomerPhone(d.customerPhone ?? "");
+    setEditAmount(String(d.amount));
     setEditDueDate(d.dueDate ?? "");
     setEditNotes(d.notes ?? "");
     setEditFormOpen(true);
@@ -183,23 +250,29 @@ export function DebtsPage() {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingDebt) return;
-    const balance = parseFloat(editBalance);
-    if (isNaN(balance) || balance < 0) {
-      toast.error("Enter a valid balance.");
+    const name = editCustomerName.trim();
+    if (!name) {
+      toast.error("Customer name is required.");
       return;
     }
-    if (balance > editingDebt.amount) {
-      toast.error("Balance cannot exceed original debt.");
+    const amount = parseFloat(editAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Enter a valid amount.");
       return;
     }
+    const phoneTrim = editCustomerPhone.trim();
+    const customerPhonePayload: string | undefined =
+      phoneTrim.length > 0 ? phoneTrim : editingDebt.customerPhone ? "" : undefined;
     setEditSubmitting(true);
     try {
       await updateMutation.mutateAsync({
         debtId: editingDebt.id,
         body: {
-          outstanding: balance,
+          customerName: name,
+          ...(customerPhonePayload !== undefined ? { customerPhone: customerPhonePayload } : {}),
+          amount,
           dueDate: editDueDate || undefined,
-          notes: editNotes || undefined,
+          notes: editNotes.trim() === "" ? "" : editNotes.trim(),
         },
       });
     } finally {
@@ -251,11 +324,11 @@ export function DebtsPage() {
 
   const canEdit = (d: CustomerDebtResponse) =>
     (d.status === "OPEN" || d.status === "PARTIAL")
-    && (d.amountSettled ?? 0) === 0;
+    && Number(d.amountSettled ?? 0) === 0;
 
   const canClear = (d: CustomerDebtResponse) =>
     (d.status === "OPEN" || d.status === "PARTIAL")
-    && (d.amountSettled ?? 0) === 0;
+    && Number(d.amountSettled ?? 0) === 0;
   const totalElements = data?.totalElements ?? 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -315,28 +388,20 @@ export function DebtsPage() {
             >
               Status
             </label>
-            <div className="relative">
-              <select
-                id="debt-status-filter"
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setPage(0);
-                }}
-                aria-label="Filter by status"
-                className="appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 pr-8 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-primary-400 dark:focus:ring-primary-400"
-              >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value || "all"} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
-                aria-hidden
-              />
-            </div>
+            <SearchableSelect
+              id="debt-status-filter"
+              options={debtStatusFilterOptions}
+              value={statusFilter}
+              onChange={(v) => {
+                setStatusFilter(v);
+                setPage(0);
+              }}
+              aria-label="Filter by status"
+              placeholder="Search status…"
+              compact
+              className="min-w-[12rem]"
+              controlClassName="border-slate-200 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus:border-primary-400 dark:focus:ring-primary-400"
+            />
           </div>
         </PageHeader>
         <button
@@ -364,25 +429,25 @@ export function DebtsPage() {
       )}
 
       {!isLoading && !isError && (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          {debts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <HandCoins className="h-12 w-12 text-slate-400 dark:text-slate-500" />
-              <p className="mt-4 text-slate-500 dark:text-slate-400">
-                No debts recorded yet. Record a debt when a customer buys on
-                credit.
-              </p>
-              <button
-                type="button"
-                onClick={() => setFormOpen(true)}
-                className="mt-4 inline-flex items-center gap-2 rounded-lg border border-primary-500 bg-transparent px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30"
-              >
-                <Plus className="h-4 w-4" />
-                Record debt
-              </button>
-            </div>
-          ) : (
-            <>
+        <>
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            {debts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <HandCoins className="h-12 w-12 text-slate-400 dark:text-slate-500" />
+                <p className="mt-4 text-slate-500 dark:text-slate-400">
+                  No debts recorded yet. Record a debt when a customer buys on
+                  credit.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setFormOpen(true)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg border border-primary-500 bg-transparent px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30"
+                >
+                  <Plus className="h-4 w-4" />
+                  Record debt
+                </button>
+              </div>
+            ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
                   <thead>
@@ -400,7 +465,7 @@ export function DebtsPage() {
                         Repaid
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        Balanced
+                        Balance
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Status
@@ -439,12 +504,12 @@ export function DebtsPage() {
                             className={`inline-flex justify-start rounded-full px-2.5 py-0.5 text-left text-xs font-medium ${
                               d.status === "OPEN" || d.status === "PARTIAL"
                                 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                : d.status === "SETTLED"
+                                : d.status === "CLOSED"
                                   ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
                                   : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
                             }`}
                           >
-                            {d.status}
+                            {d.status === "CLOSED" ? "Closed" : d.status}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
@@ -455,7 +520,7 @@ export function DebtsPage() {
                         </td>
                         <td className="px-4 py-3 text-left">
                           {canRecordPayment(d) ? (
-                            <div className="flex justify-start gap-1">
+                            <div className="flex flex-wrap justify-start gap-2">
                               <button
                                 type="button"
                                 onClick={() => openSettleForm(d)}
@@ -469,7 +534,7 @@ export function DebtsPage() {
                                   type="button"
                                   onClick={() => openEditForm(d)}
                                   className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200"
-                                  title="Edit balance / due date / notes"
+                                  title="Edit customer debt"
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </button>
@@ -494,15 +559,25 @@ export function DebtsPage() {
                   </tbody>
                 </table>
               </div>
-              <Pagination
-                page={data?.number ?? 0}
-                size={PAGE_SIZE}
-                totalElements={totalElements}
-                onPageChange={setPage}
-              />
-            </>
-          )}
-        </div>
+            )}
+            {debts.length > 0 ? (
+              <div className="border-t border-slate-200 bg-slate-50/90 px-4 py-4 dark:border-slate-600 dark:bg-slate-900/50">
+                <Pagination
+                  page={data?.number ?? 0}
+                  size={PAGE_SIZE}
+                  totalElements={totalElements}
+                  onPageChange={setPage}
+                />
+              </div>
+            ) : null}
+          </div>
+          <div className="mt-3 flex justify-end">
+            <DebtPendingTotalDisplay
+              loading={pendingTotalLoading}
+              totalPending={pendingTotalData?.totalPending ?? 0}
+            />
+          </div>
+        </>
       )}
 
       <SlideOver
@@ -630,45 +705,69 @@ export function DebtsPage() {
           setEditFormOpen(false);
           setEditingDebt(null);
           if (!editSubmitting) {
-            setEditBalance("");
+            setEditCustomerName("");
+            setEditCustomerPhone("");
+            setEditAmount("");
             setEditDueDate("");
             setEditNotes("");
           }
         }}
-        title="Edit debt"
+        title="Edit customer debt"
       >
         {editingDebt && (
           <form onSubmit={handleEditSubmit} className="space-y-4">
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              {editingDebt.customerName}
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Same fields as recording a debt. Edits are only allowed before any repayment; use
+              Record payment after that.
             </p>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Original debt (KES)
+              <label
+                htmlFor="editCustomerName"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Customer name *
               </label>
-              <p className="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                {formatCurrency(editingDebt.amount)} — captured at creation, cannot change
-              </p>
+              <input
+                id="editCustomerName"
+                type="text"
+                required
+                value={editCustomerName}
+                onChange={(e) => setEditCustomerName(e.target.value)}
+                placeholder="e.g. John Kamau"
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              />
             </div>
             <div>
               <label
-                htmlFor="editBalance"
+                htmlFor="editCustomerPhone"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Balance (KES) *
+                Customer phone
               </label>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Update balance when customer pays. Repaid = Original − Balance.
-              </p>
               <input
-                id="editBalance"
+                id="editCustomerPhone"
+                type="tel"
+                value={editCustomerPhone}
+                onChange={(e) => setEditCustomerPhone(e.target.value)}
+                placeholder="e.g. +254 700 123 456"
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="editAmount"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Amount (KES) *
+              </label>
+              <input
+                id="editAmount"
                 type="number"
                 step="0.01"
-                min="0"
-                max={editingDebt.amount}
+                min="0.01"
                 required
-                value={editBalance}
-                onChange={(e) => setEditBalance(e.target.value)}
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
                 className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               />
             </div>

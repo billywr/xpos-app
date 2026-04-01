@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken, selectIamUserId } from "@/store/selectors/authSelectors";
@@ -28,6 +28,7 @@ import {
 } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Power, PowerOff, Trash2 } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -374,6 +375,38 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
     (b: Branch) => !assignedBranchIds.has(b.id)
   );
 
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...orgs.map((o: Org) => ({ value: o.id, label: o.name })),
+    ],
+    [orgs]
+  );
+
+  const profileDefaultBranchOptions = useMemo(
+    () => [
+      { value: "", label: "None" },
+      ...branches.map((b: Branch) => ({ value: b.id, label: b.name })),
+    ],
+    [branches]
+  );
+
+  const profileStatusOptions = useMemo(
+    () => [
+      { value: "ACTIVE", label: "ACTIVE" },
+      { value: "INACTIVE", label: "INACTIVE" },
+    ],
+    []
+  );
+
+  const addBranchOptions = useMemo(
+    () => [
+      { value: "", label: "Select branch…" },
+      ...availableBranches.map((b: Branch) => ({ value: b.id, label: b.name })),
+    ],
+    [availableBranches]
+  );
+
   if (isLoading && selectedOrgId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
@@ -431,22 +464,18 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
         >
           Organization
         </label>
-        <select
+        <SearchableSelect
           id="staff-org-select"
+          options={orgSelectOptions}
           value={selectedOrgId}
-          onChange={(e) => {
-            setSelectedOrgId(e.target.value);
+          onChange={(next) => {
+            setSelectedOrgId(next);
             setPage(0);
           }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select organization…</option>
-          {orgs.map((o: Org) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
+          placeholder="Search organization…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
         {selectedOrgId && iamUserId && (
           <button
             type="button"
@@ -718,19 +747,15 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                     >
                       Default branch
                     </label>
-                    <select
+                    <SearchableSelect
                       id="profile-default-branch"
+                      options={profileDefaultBranchOptions}
                       value={formDefaultBranchId}
-                      onChange={(e) => setFormDefaultBranchId(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                    >
-                      <option value="">None</option>
-                      {branches.map((b: Branch) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setFormDefaultBranchId}
+                      placeholder="Search branch…"
+                      className="w-full"
+                      controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                    />
                   </div>
                   <div>
                     <label
@@ -739,15 +764,15 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                     >
                       Status
                     </label>
-                    <select
+                    <SearchableSelect
                       id="profile-status"
+                      options={profileStatusOptions}
                       value={formStatus}
-                      onChange={(e) => setFormStatus(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                    >
-                      <option value="ACTIVE">ACTIVE</option>
-                      <option value="INACTIVE">INACTIVE</option>
-                    </select>
+                      onChange={setFormStatus}
+                      placeholder="Search status…"
+                      className="w-full"
+                      controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                    />
                   </div>
                   <div className="flex justify-end gap-3 pt-2">
                     <button
@@ -794,19 +819,16 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                         >
                           Add branch
                         </label>
-                        <select
+                        <SearchableSelect
                           id="add-branch"
+                          options={addBranchOptions}
                           value={addBranchId}
-                          onChange={(e) => setAddBranchId(e.target.value)}
-                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                        >
-                          <option value="">Select branch…</option>
-                          {availableBranches.map((b: Branch) => (
-                            <option key={b.id} value={b.id}>
-                              {b.name}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={setAddBranchId}
+                          placeholder="Search branch…"
+                          compact
+                          className="w-full"
+                          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                        />
                       </div>
                       <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                         <input

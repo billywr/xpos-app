@@ -16,7 +16,8 @@ import {
   filterNonDeletedBranches,
 } from "@/types/org";
 import { setStoredAdminContext } from "@/utils/contextStorage";
-import { ChevronDown, Building2, MapPin } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { Building2, MapPin } from "lucide-react";
 
 /**
  * Org and branch dropdowns for filtering analytics. Always visible when context
@@ -74,16 +75,17 @@ export function AnalyticsOrgBranchFilter() {
 
   if (!token || !orgId) return null;
 
-  const handleOrgChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = e.target.value;
+  const handleOrgChange = (id: string) => {
     const org = orgs.find((o) => o.id === id);
     if (org) {
       dispatch(setOrg({ orgId: org.id, orgName: org.name }));
     }
   };
 
-  const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = e.target.value;
+  const handleBranchChange = (id: string) => {
+    if (!id) {
+      return;
+    }
     const branch = branches.find((b) => b.id === id);
     if (branch) {
       dispatch(setBranch({ branchId: branch.id, branchName: branch.name }));
@@ -96,59 +98,41 @@ export function AnalyticsOrgBranchFilter() {
     }
   };
 
-  const selectClass =
-    "appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 pr-8 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-primary-400 dark:focus:ring-primary-400";
+  const branchPlaceholderLabel = !branchesLoaded
+    ? "Loading…"
+    : branches.length === 0
+      ? "No branches"
+      : "Select branch";
+
+  const branchOptions = [
+    { value: "", label: branchPlaceholderLabel },
+    ...branches.map((b) => ({ value: b.id, label: b.name })),
+  ];
 
   return (
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-2">
         <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-        <div className="relative">
-          <select
-            value={orgId ?? ""}
-            onChange={handleOrgChange}
-            aria-label="Filter by organization"
-            className={selectClass}
-          >
-            {orgs.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
-            aria-hidden
-          />
-        </div>
+        <SearchableSelect
+          aria-label="Filter by organization"
+          options={orgs.map((o) => ({ value: o.id, label: o.name }))}
+          value={orgId ?? ""}
+          onChange={handleOrgChange}
+          className="min-w-[160px] max-w-[240px]"
+          controlClassName="border-slate-200 dark:border-slate-600 dark:bg-slate-800"
+        />
       </div>
       <div className="flex items-center gap-2">
         <MapPin className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-        <div className="relative">
-          <select
-            value={branchId ?? ""}
-            onChange={handleBranchChange}
-            aria-label="Filter by branch"
-            className={selectClass}
-          >
-            <option value="">
-              {!branchesLoaded
-                ? "Loading…"
-                : branches.length === 0
-                  ? "No branches"
-                  : "Select branch"}
-            </option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
-            aria-hidden
-          />
-        </div>
+        <SearchableSelect
+          aria-label="Filter by branch"
+          options={branchOptions}
+          value={branchId ?? ""}
+          onChange={handleBranchChange}
+          placeholder={branchPlaceholderLabel}
+          className="min-w-[160px] max-w-[240px]"
+          controlClassName="border-slate-200 dark:border-slate-600 dark:bg-slate-800"
+        />
       </div>
     </div>
   );

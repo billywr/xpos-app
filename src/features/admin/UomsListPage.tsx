@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -12,6 +12,7 @@ import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Ruler, Trash2 } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -124,6 +125,14 @@ export function UomsListPage({ initialOrgId, onOrgChange }: UomsListPageProps = 
       setSelectedOrgId(orgs[0].id);
     }
   }, [initialOrgId, orgs, selectedOrgId]);
+
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
+    ],
+    [orgs]
+  );
 
   function resetForm() {
     setFormName("");
@@ -239,24 +248,19 @@ export function UomsListPage({ initialOrgId, onOrgChange }: UomsListPageProps = 
         >
           Organization
         </label>
-        <select
+        <SearchableSelect
           id="uom-org-select"
+          options={orgSelectOptions}
           value={selectedOrgId}
-          onChange={(e) => {
-            const next = e.target.value;
+          onChange={(next) => {
             setSelectedOrgId(next);
             setPage(0);
             onOrgChange?.(next);
           }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select organization…</option>
-          {orgs.map((org: Org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
+          placeholder="Search organization…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
         {selectedOrgId && (
           <button
             type="button"

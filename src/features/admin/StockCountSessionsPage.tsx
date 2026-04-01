@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAppSelector } from "@/hooks/useAppSelector";
@@ -22,6 +22,7 @@ import { APP_NAME_KEY } from "@/config/headerNavItems";
 import { downloadStockCountPdf } from "@/utils/stockCountPdf";
 import { ClipboardList, Plus, Loader2, Trash2, Download } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const PAGE_SIZE = 10;
 
@@ -93,6 +94,22 @@ export function StockCountSessionsPage() {
       setSelectedBranchId(filteredBranches[0].id);
     }
   }, [selectedOrgId, filteredBranches, selectedBranchId]);
+
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...filteredOrgs.map((org: Org) => ({ value: org.id, label: org.name })),
+    ],
+    [filteredOrgs]
+  );
+
+  const branchSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select branch…" },
+      ...filteredBranches.map((b: Branch) => ({ value: b.id, label: b.name })),
+    ],
+    [filteredBranches]
+  );
 
   const startMutation = useMutation({
     mutationFn: () =>
@@ -177,43 +194,43 @@ export function StockCountSessionsPage() {
           noMargin
         />
         <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label
+            htmlFor="stock-sessions-org"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
             Organization
           </label>
-          <select
+          <SearchableSelect
+            id="stock-sessions-org"
+            options={orgSelectOptions}
             value={selectedOrgId}
-            onChange={(e) => {
-              setSelectedOrgId(e.target.value);
+            onChange={(next) => {
+              setSelectedOrgId(next);
               setSelectedBranchId("");
               setPage(0);
             }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+            placeholder="Search organization…"
+            className="min-w-[12rem]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
+          <label
+            htmlFor="stock-sessions-branch"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
           >
-            <option value="">Select organization…</option>
-            {filteredOrgs.map((org: Org) => (
-              <option key={org.id} value={org.id}>
-                {org.name}
-              </option>
-            ))}
-          </select>
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Branch
           </label>
-          <select
+          <SearchableSelect
+            id="stock-sessions-branch"
+            options={branchSelectOptions}
             value={selectedBranchId}
-            onChange={(e) => {
-              setSelectedBranchId(e.target.value);
+            onChange={(next) => {
+              setSelectedBranchId(next);
               setPage(0);
             }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-          >
-            <option value="">Select branch…</option>
-            {filteredBranches.map((b: Branch) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
+            placeholder="Search branch…"
+            className="min-w-[12rem]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
           <button
             type="button"
             onClick={() => startMutation.mutate()}

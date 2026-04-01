@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -17,6 +17,7 @@ import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -161,6 +162,27 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
     }
   }, [initialOrgId, orgs, selectedOrgId]);
 
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...orgs.map((o: Org) => ({ value: o.id, label: o.name })),
+    ],
+    [orgs]
+  );
+
+  const parentSelectOptions = useMemo(
+    () => [
+      { value: "", label: "None (root)" },
+      ...parentOptions.map((c: Category) => ({ value: c.id, label: c.name })),
+    ],
+    [parentOptions]
+  );
+
+  const categoryTypeOptions = useMemo(
+    () => CATEGORY_TYPES.map((t) => ({ value: t, label: t })),
+    []
+  );
+
   function resetForm() {
     setFormParentId("");
     setFormName("");
@@ -285,24 +307,19 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
         >
           Organization
         </label>
-        <select
+        <SearchableSelect
           id="category-org-select"
+          options={orgSelectOptions}
           value={selectedOrgId}
-          onChange={(e) => {
-            const next = e.target.value;
+          onChange={(next) => {
             setSelectedOrgId(next);
             setPage(0);
             onOrgChange?.(next);
           }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select organization…</option>
-          {orgs.map((o: Org) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
+          placeholder="Search organization…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
         {selectedOrgId && (
           <button
             type="button"
@@ -445,19 +462,15 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                 >
                   Parent category
                 </label>
-                <select
+                <SearchableSelect
                   id="category-parent"
+                  options={parentSelectOptions}
                   value={formParentId}
-                  onChange={(e) => setFormParentId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                >
-                  <option value="">None (root)</option>
-                  {parentOptions.map((c: Category) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFormParentId}
+                  placeholder="Search parent…"
+                  className="w-full"
+                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                />
               </div>
               <div>
                 <label
@@ -466,18 +479,15 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                 >
                   Type
                 </label>
-                <select
+                <SearchableSelect
                   id="category-type"
+                  options={categoryTypeOptions}
                   value={formType}
-                  onChange={(e) => setFormType(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                >
-                  {CATEGORY_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFormType}
+                  placeholder="Search type…"
+                  className="w-full"
+                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                />
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button

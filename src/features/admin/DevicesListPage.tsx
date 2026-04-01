@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -19,6 +19,7 @@ import { SlideOver, ConfirmDialog, Pagination } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Power, PowerOff, Trash2 } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -170,6 +171,22 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
     }
   }, [slideOpen, branches, formBranchId]);
 
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
+    ],
+    [orgs]
+  );
+
+  const branchRegisterOptions = useMemo(
+    () => [
+      { value: "", label: "Select branch…" },
+      ...branches.map((b: Branch) => ({ value: b.id, label: b.name })),
+    ],
+    [branches]
+  );
+
   const openRegister = () => {
     setFormBranchId(branches[0]?.id ?? "");
     setFormDeviceId("");
@@ -281,22 +298,18 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
         >
           Organization
         </label>
-        <select
+        <SearchableSelect
           id="device-org-select"
+          options={orgSelectOptions}
           value={selectedOrgId}
-          onChange={(e) => {
-            setSelectedOrgId(e.target.value);
+          onChange={(next) => {
+            setSelectedOrgId(next);
             setPage(0);
           }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select organization…</option>
-          {orgs.map((org: Org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
+          placeholder="Search organization…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
         {selectedOrgId && (
           <button
             type="button"
@@ -435,19 +448,15 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                 >
                   Branch
                 </label>
-                <select
+                <SearchableSelect
                   id="register-branch"
+                  options={branchRegisterOptions}
                   value={formBranchId}
-                  onChange={(e) => setFormBranchId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                >
-                  <option value="">Select branch…</option>
-                  {branches.map((b: Branch) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFormBranchId}
+                  placeholder="Search branch…"
+                  className="w-full"
+                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                />
                 {branches.length === 0 && (
                   <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
                     Create a branch for this org first.

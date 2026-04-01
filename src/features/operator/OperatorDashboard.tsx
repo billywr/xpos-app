@@ -361,7 +361,7 @@ export function OperatorDashboard() {
             <ShoppingCart className="h-8 w-8 text-white" />
           </div>
           <div>
-            <h2 className="font-semibold">Menu Order</h2>
+            <h2 className="font-semibold">POS</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               Take orders and process payments
             </p>

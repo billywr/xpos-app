@@ -21,6 +21,7 @@ import {
   Smartphone,
   Users,
 } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const TAB_LIST_ID = "org-setup";
 
@@ -68,6 +69,14 @@ export function OrgSetupPage() {
       setContextOrgId(orgs[0].id);
     }
   }, [orgs, contextOrgId]);
+
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization" },
+      ...orgs.map((org) => ({ value: org.id, label: org.name })),
+    ],
+    [orgs]
+  );
 
   const tabItems = useMemo(() => {
     const isEnabled = (tab: (typeof TABS)[number]): boolean => {
@@ -123,19 +132,16 @@ export function OrgSetupPage() {
             >
               Context org:
             </label>
-            <select
+            <SearchableSelect
               id="org-setup-context-org"
+              options={orgSelectOptions}
               value={contextOrgId}
-              onChange={(e) => setContextOrgId(e.target.value)}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            >
-              <option value="">Select organization</option>
-              {orgs.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-            </select>
+              onChange={setContextOrgId}
+              placeholder="Search organization…"
+              compact
+              className="min-w-[11rem]"
+              controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500"
+            />
           </div>
         )}
       </div>

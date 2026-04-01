@@ -65,7 +65,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItemConfig[] = [
   navItem("/admin/sales", "Sales", ShoppingCart, "Sales"),
   navItem("/admin/shifts", "Shifts", Wallet, "Sales"),
   navItem("/admin/z-report", "Z-Report", FileText, "Sales"),
-  navItem("/admin/inventory", "Inventory & Receiving", Package, "Inventory"),
+  navItem("/admin/inventory", "Stock and Inventory", Package, "Inventory"),
   navItem("/admin/stock-taking-schedules", "Stock Taking", CalendarClock, "Inventory"),
   navItem("/admin/stock-count-sessions", "Manual Stock Taking", ClipboardList, "Inventory"),
   navItem("/admin/standard-stock-count", "Standard Stock Count", FileSpreadsheet, "Inventory"),

@@ -11,27 +11,33 @@ import { SuppliersListPage } from "@/features/admin/SuppliersListPage";
 import { GoodsReceiptPage } from "@/features/admin/GoodsReceiptPage";
 import { InventoryPage } from "@/features/admin/InventoryPage";
 import { Truck, PackagePlus, Package } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const TAB_LIST_ID = "inventory-receiving";
 
 const TABS = [
   { id: "suppliers", label: "Suppliers", icon: Truck },
-  { id: "goods-receipt", label: "Goods Receipt", icon: PackagePlus },
+  { id: "stock", label: "Stock", icon: PackagePlus },
   { id: "inventory", label: "Inventory", icon: Package },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
-const VALID_TABS: TabId[] = ["suppliers", "goods-receipt", "inventory"];
+const VALID_TABS: TabId[] = ["suppliers", "stock", "inventory"];
 
 export function InventoryReceivingPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab: TabId =
-    tabParam && VALID_TABS.includes(tabParam as TabId) ? (tabParam as TabId) : "suppliers";
+
+  const activeTab = useMemo((): TabId => {
+    const normalized = tabParam === "goods-receipt" ? "stock" : tabParam;
+    if (normalized && VALID_TABS.includes(normalized as TabId)) {
+      return normalized as TabId;
+    }
+    return "suppliers";
+  }, [tabParam]);
 
   const token = useAppSelector(selectToken);
-  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const [contextOrgId, setContextOrgId] = useState<string>("");
   const [contextBranchId, setContextBranchId] = useState<string>("");
 
@@ -66,19 +72,41 @@ export function InventoryReceivingPage() {
   }, [contextOrgId, contextBranchId, branches]);
 
   useEffect(() => {
-    if (tabParam && VALID_TABS.includes(tabParam as TabId) && tabParam !== activeTab) {
-      setActiveTab(tabParam as TabId);
+    if (tabParam === "goods-receipt") {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("tab", "stock");
+          return next;
+        },
+        { replace: true }
+      );
     }
-  }, [tabParam]);
+  }, [tabParam, setSearchParams]);
 
   const handleTabChange = (id: TabId) => {
-    setActiveTab(id);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("tab", id);
       return next;
     });
   };
+
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization" },
+      ...orgs.map((org) => ({ value: org.id, label: org.name })),
+    ],
+    [orgs]
+  );
+
+  const branchSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select branch" },
+      ...branches.map((branch) => ({ value: branch.id, label: branch.name })),
+    ],
+    [branches]
+  );
 
   const tabItems = useMemo(
     () =>
@@ -97,10 +125,10 @@ export function InventoryReceivingPage() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
-            Inventory &amp; Receiving
+            Stock and Inventory
           </h1>
           <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Suppliers, goods receipt, and inventory by branch
+            Suppliers, stock receiving, and inventory by branch
           </p>
         </div>
         {hasOrgs && (
@@ -112,22 +140,19 @@ export function InventoryReceivingPage() {
               >
                 Organization
               </label>
-              <select
+              <SearchableSelect
                 id="inv-rec-context-org"
+                options={orgSelectOptions}
                 value={contextOrgId}
-                onChange={(e) => {
-                  setContextOrgId(e.target.value);
+                onChange={(next) => {
+                  setContextOrgId(next);
                   setContextBranchId("");
                 }}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              >
-                <option value="">Select organization</option>
-                {orgs.map((org) => (
-                  <option key={org.id} value={org.id}>
-                    {org.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="Search organization…"
+                compact
+                className="min-w-[11rem]"
+                controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500"
+              />
             </div>
             <div className="flex items-center gap-2">
               <label
@@ -136,20 +161,17 @@ export function InventoryReceivingPage() {
               >
                 Branch
               </label>
-              <select
+              <SearchableSelect
                 id="inv-rec-context-branch"
+                options={branchSelectOptions}
                 value={contextBranchId}
-                onChange={(e) => setContextBranchId(e.target.value)}
+                onChange={setContextBranchId}
                 disabled={!contextOrgId}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              >
-                <option value="">Select branch</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="Search branch…"
+                compact
+                className="min-w-[11rem]"
+                controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500 disabled:opacity-60"
+              />
             </div>
           </div>
         )}
@@ -173,7 +195,7 @@ export function InventoryReceivingPage() {
             onOrgChange={setContextOrgId}
           />
         )}
-        {activeTab === "goods-receipt" && (
+        {activeTab === "stock" && (
           <GoodsReceiptPage
             initialOrgId={contextOrgId || undefined}
             initialBranchId={contextBranchId || undefined}

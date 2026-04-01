@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import {
@@ -15,6 +15,7 @@ import {
 import { formatCurrency } from "@/utils/formatCurrency";
 import { PageHeader } from "@/components/PageHeader";
 import { ConfirmDialog } from "@/components/ui";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/contexts/ToastContext";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { APP_NAME_KEY } from "@/config/headerNavItems";
@@ -105,6 +106,14 @@ export function StockCountSessionDetailPage({
 
   const items = itemsData?.content ?? [];
   const trackedItems = items.filter((i: Item) => i.trackInventory);
+
+  const addLineItemOptions = useMemo(
+    () => [
+      { value: "", label: "Select item…" },
+      ...trackedItems.map((i: Item) => ({ value: i.id, label: i.name })),
+    ],
+    [trackedItems]
+  );
 
   async function handleAddLine() {
     if (!session || !addLineItemId || !addLineQty || !sessionId) return;
@@ -542,18 +551,15 @@ export function StockCountSessionDetailPage({
             Add count line
           </h3>
           <div className="flex flex-wrap items-center gap-2">
-            <select
+            <SearchableSelect
+              id="stock-count-add-item"
+              options={addLineItemOptions}
               value={addLineItemId}
-              onChange={(e) => setAddLineItemId(e.target.value)}
-              className="min-w-[200px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            >
-              <option value="">Select item…</option>
-              {trackedItems.map((i: Item) => (
-                <option key={i.id} value={i.id}>
-                  {i.name}
-                </option>
-              ))}
-            </select>
+              onChange={setAddLineItemId}
+              placeholder="Search item…"
+              className="min-w-[200px]"
+              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            />
             <input
               type="number"
               min={0}

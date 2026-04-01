@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -13,6 +13,7 @@ import { Pagination } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Wallet } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -66,6 +67,25 @@ export function ShiftsListPage() {
       setSelectedBranchId(branches[0].id);
     }
   }, [selectedOrgId, branches, selectedBranchId]);
+
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
+    ],
+    [orgs]
+  );
+
+  const branchSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select branch…" },
+      ...branches.map((branch: Branch) => ({
+        value: branch.id,
+        label: branch.name,
+      })),
+    ],
+    [branches]
+  );
 
   if (isLoading && selectedOrgId && selectedBranchId) {
     return (
@@ -124,45 +144,37 @@ export function ShiftsListPage() {
         >
           Organization
         </label>
-        <select
+        <SearchableSelect
           id="shifts-org-select"
+          options={orgSelectOptions}
           value={selectedOrgId}
-          onChange={(e) => {
-            setSelectedOrgId(e.target.value);
+          onChange={(next) => {
+            setSelectedOrgId(next);
             setSelectedBranchId("");
             setPage(0);
           }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select organization…</option>
-          {orgs.map((org: Org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
+          placeholder="Search organization…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
         <label
           htmlFor="shifts-branch-select"
           className="text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           Branch
         </label>
-        <select
+        <SearchableSelect
           id="shifts-branch-select"
+          options={branchSelectOptions}
           value={selectedBranchId}
-          onChange={(e) => {
-            setSelectedBranchId(e.target.value);
+          onChange={(next) => {
+            setSelectedBranchId(next);
             setPage(0);
           }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select branch…</option>
-          {branches.map((branch: Branch) => (
-            <option key={branch.id} value={branch.id}>
-              {branch.name}
-            </option>
-          ))}
-        </select>
+          placeholder="Search branch…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
       </div>
 
       {!selectedOrgId || !selectedBranchId ? (

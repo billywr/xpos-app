@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -27,6 +27,7 @@ import { SlideOver } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 25;
 
@@ -234,6 +235,43 @@ export function AdminTablesPage() {
     }
   }, [branches, selectedBranchId]);
 
+  const orgSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select organization…" },
+      ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
+    ],
+    [orgs]
+  );
+
+  const branchSelectOptions = useMemo(
+    () => [
+      { value: "", label: "Select branch…" },
+      ...branches.map((branch: Branch) => ({
+        value: branch.id,
+        label: branch.name,
+      })),
+    ],
+    [branches]
+  );
+
+  const tableAreaOptions = useMemo(
+    () => [
+      { value: "", label: "None" },
+      ...areas.map((a: TableArea) => ({ value: a.id, label: a.name })),
+    ],
+    [areas]
+  );
+
+  const tableStatusOptions = useMemo(
+    () => [
+      { value: "ACTIVE", label: "ACTIVE" },
+      { value: "INACTIVE", label: "INACTIVE" },
+      { value: "FREE", label: "FREE" },
+      { value: "OCCUPIED", label: "OCCUPIED" },
+    ],
+    []
+  );
+
   const openAreaCreate = () => {
     setEditingArea(null);
     setAreaFormName("");
@@ -379,38 +417,30 @@ export function AdminTablesPage() {
         >
           Organization
         </label>
-        <select
+        <SearchableSelect
           id="tables-org-select"
+          options={orgSelectOptions}
           value={selectedOrgId}
-          onChange={(e) => setSelectedOrgId(e.target.value)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select organization…</option>
-          {orgs.map((org: Org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
+          onChange={setSelectedOrgId}
+          placeholder="Search organization…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
         <label
           htmlFor="tables-branch-select"
           className="text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           Branch
         </label>
-        <select
+        <SearchableSelect
           id="tables-branch-select"
+          options={branchSelectOptions}
           value={selectedBranchId}
-          onChange={(e) => setSelectedBranchId(e.target.value)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        >
-          <option value="">Select branch…</option>
-          {branches.map((branch: Branch) => (
-            <option key={branch.id} value={branch.id}>
-              {branch.name}
-            </option>
-          ))}
-        </select>
+          onChange={setSelectedBranchId}
+          placeholder="Search branch…"
+          className="min-w-[12rem]"
+          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+        />
       </div>
 
       {selectedBranchId && (
@@ -642,19 +672,15 @@ export function AdminTablesPage() {
             >
               Area
             </label>
-            <select
+            <SearchableSelect
               id="table-area"
+              options={tableAreaOptions}
               value={tableFormAreaId}
-              onChange={(e) => setTableFormAreaId(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            >
-              <option value="">None</option>
-              {areas.map((a: TableArea) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+              onChange={setTableFormAreaId}
+              placeholder="Search area…"
+              className="mt-1 w-full"
+              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            />
           </div>
           <div>
             <label
@@ -681,17 +707,15 @@ export function AdminTablesPage() {
               >
                 Status
               </label>
-              <select
+              <SearchableSelect
                 id="table-status"
+                options={tableStatusOptions}
                 value={tableFormStatus}
-                onChange={(e) => setTableFormStatus(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-                <option value="FREE">FREE</option>
-                <option value="OCCUPIED">OCCUPIED</option>
-              </select>
+                onChange={setTableFormStatus}
+                placeholder="Search status…"
+                className="mt-1 w-full"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
             </div>
           )}
           {tableFormError && (

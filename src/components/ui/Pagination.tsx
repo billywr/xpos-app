@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 export interface PaginationProps {
   /** Zero-based current page */
@@ -37,18 +38,17 @@ export function Pagination({
           <span className="font-medium">{totalElements}</span>
         </p>
         {onSizeChange && (
-          <select
-            value={size}
-            onChange={(e) => onSizeChange(Number(e.target.value))}
-            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+          <SearchableSelect
             aria-label="Items per page"
-          >
-            {sizeOptions.map((n) => (
-              <option key={n} value={n}>
-                {n} per page
-              </option>
-            ))}
-          </select>
+            options={sizeOptions.map((n) => ({
+              value: String(n),
+              label: `${n} per page`,
+            }))}
+            value={String(size)}
+            onChange={(v) => onSizeChange(Number(v))}
+            compact
+            className="w-auto min-w-[9rem]"
+          />
         )}
       </div>
       <div className="flex items-center gap-2">

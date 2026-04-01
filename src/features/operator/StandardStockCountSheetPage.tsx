@@ -33,8 +33,12 @@ import {
 import { downloadStdStockCountPdf } from "@/utils/stdStockCountPdf";
 import { Pagination } from "@/components/ui";
 
+/** YYYY-MM-DD in the browser's local calendar (not UTC). toISOString().slice(0,10) is wrong for TZ ahead of UTC. */
 function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function parseDateStr(s: string): Date {
@@ -58,6 +62,7 @@ interface ComputedRow {
   name: string;
   openingStock: number;
   addedStock: number;
+  addedTodayStock: number;
   totalStock: number;
   closingStock: number;
   systemCountBeforeToday: number;
@@ -65,20 +70,30 @@ interface ComputedRow {
   unitsSold: number;
   sellingPrice: number;
   amount: number;
+  comments: string;
   lastSavedAt: string | null;
   closingError?: string;
 }
 
+/** Saved closing if present; otherwise ledger on-hand (same as System column). */
+function defaultClosingFromRow(row: StdStockCountRowResponse): number {
+  return row.closingStock ?? row.systemCountBeforeToday ?? 0;
+}
+
 function computeRow(
   row: StdStockCountRowResponse,
-  localClosing: number | undefined
+  localClosing: number | undefined,
+  localComment: string | undefined
 ): ComputedRow {
-  const closing = localClosing ?? row.closingStock ?? 0;
-  const total = row.openingStock + row.addedStock;
+  const closing = localClosing ?? defaultClosingFromRow(row);
+  const total =
+    row.openingStock + row.addedStock + (row.addedTodayStock ?? 0);
   const systemCount = row.systemCountBeforeToday ?? 0;
   const variance = closing - systemCount;
   const unitsSold = Math.max(0, total - closing);
   const amount = unitsSold * (row.sellingPrice ?? 0);
+  const comments =
+    localComment !== undefined ? localComment : (row.comments ?? "");
 
   let closingError: string | undefined;
   if (closing < 0) {
@@ -93,6 +108,7 @@ function computeRow(
     name: row.name,
     openingStock: row.openingStock,
     addedStock: row.addedStock,
+    addedTodayStock: row.addedTodayStock,
     totalStock: total,
     closingStock: closing,
     systemCountBeforeToday: systemCount,
@@ -100,6 +116,7 @@ function computeRow(
     unitsSold,
     sellingPrice: row.sellingPrice,
     amount,
+    comments,
     lastSavedAt: row.lastSavedAt,
     closingError,
   };
@@ -143,6 +160,7 @@ export function StandardStockCountSheetPage({
   const [dateStr, setDateStr] = useState(todayStr);
   const [searchQuery, setSearchQuery] = useState("");
   const [localClosings, setLocalClosings] = useState<Record<string, string>>({});
+  const [localComments, setLocalComments] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
 
@@ -154,14 +172,22 @@ export function StandardStockCountSheetPage({
     queryKey: ["std-stock-count", token, orgId, branchId, dateStr],
     queryFn: () => fetchStdStockCountSheet(token, orgId, branchId, dateStr),
     enabled: Boolean(token && orgId && branchId),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   function parseClosing(itemId: string, row: StdStockCountRowResponse): number {
     const s = localClosings[itemId];
-    if (s === undefined) return row.closingStock ?? 0;
+    if (s === undefined) return defaultClosingFromRow(row);
     if (s === "") return 0;
     const n = parseInt(s, 10);
     return Number.isNaN(n) ? 0 : n;
+  }
+
+  function parseCommentForSave(itemId: string, row: StdStockCountRowResponse): string {
+    const s = localComments[itemId];
+    if (s !== undefined) return s;
+    return row.comments ?? "";
   }
 
   const saveMutation = useMutation({
@@ -170,6 +196,7 @@ export function StandardStockCountSheetPage({
       const counts = rows.map((r) => ({
         itemId: r.itemId,
         closingStock: parseClosing(r.itemId, r),
+        comments: parseCommentForSave(r.itemId, r),
       }));
       return saveStdStockCount(token, orgId, branchId, {
         date: dateStr,
@@ -180,6 +207,7 @@ export function StandardStockCountSheetPage({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["std-stock-count"] });
       setLocalClosings({});
+      setLocalComments({});
       toast.success("Stock count saved.", { title: "Saved" });
     },
     onError: (err) => {
@@ -202,9 +230,13 @@ export function StandardStockCountSheetPage({
         )
       : rows;
     return filtered.map((r) =>
-      computeRow(r, localClosings[r.itemId] !== undefined ? parseClosing(r.itemId, r) : undefined)
+      computeRow(
+        r,
+        localClosings[r.itemId] !== undefined ? parseClosing(r.itemId, r) : undefined,
+        localComments[r.itemId] !== undefined ? localComments[r.itemId] : undefined
+      )
     );
-  }, [sheet?.rows, searchQuery, localClosings]);
+  }, [sheet?.rows, searchQuery, localClosings, localComments]);
 
   const paginatedRows = useMemo(() => {
     const start = page * pageSize;
@@ -233,9 +265,13 @@ export function StandardStockCountSheetPage({
   const allRowsForPdf = useMemo(() => {
     const rows = sheet?.rows ?? [];
     return rows.map((r) =>
-      computeRow(r, localClosings[r.itemId] !== undefined ? parseClosing(r.itemId, r) : undefined)
+      computeRow(
+        r,
+        localClosings[r.itemId] !== undefined ? parseClosing(r.itemId, r) : undefined,
+        localComments[r.itemId] !== undefined ? localComments[r.itemId] : undefined
+      )
     );
-  }, [sheet?.rows, localClosings]);
+  }, [sheet?.rows, localClosings, localComments]);
 
   const pdfTotals = useMemo(
     () =>
@@ -254,13 +290,20 @@ export function StandardStockCountSheetPage({
   const hasChanges = useMemo(() => {
     const rows = sheet?.rows ?? [];
     return rows.some((r) => {
-      const s = localClosings[r.itemId];
-      if (s === undefined) return false;
-      const parsed = s === "" ? 0 : (parseInt(s, 10) || 0);
-      const server = r.closingStock ?? 0;
-      return parsed !== server;
+      const closingLocal = localClosings[r.itemId];
+      if (closingLocal !== undefined) {
+        const parsed = closingLocal === "" ? 0 : (parseInt(closingLocal, 10) || 0);
+        const baseline = defaultClosingFromRow(r);
+        if (parsed !== baseline) return true;
+      }
+      const commentLocal = localComments[r.itemId];
+      if (commentLocal !== undefined) {
+        const baselineComment = r.comments ?? "";
+        if (commentLocal !== baselineComment) return true;
+      }
+      return false;
     });
-  }, [sheet?.rows, localClosings]);
+  }, [sheet?.rows, localClosings, localComments]);
 
   function handleDownloadPdf() {
     downloadStdStockCountPdf(
@@ -277,6 +320,7 @@ export function StandardStockCountSheetPage({
         unitsSold: r.unitsSold,
         sellingPrice: r.sellingPrice,
         amount: r.amount,
+        comments: r.comments,
       })),
       pdfTotals,
       branchName,
@@ -305,6 +349,12 @@ export function StandardStockCountSheetPage({
     }
   }
 
+  function handleCommentChange(itemId: string, value: string) {
+    if (value.length <= 2000) {
+      setLocalComments((prev) => ({ ...prev, [itemId]: value }));
+    }
+  }
+
   function handleSave() {
     if (hasErrors) {
       toast.error("Fix validation errors before saving.");
@@ -327,7 +377,7 @@ export function StandardStockCountSheetPage({
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
       <PageHeader
         title="Stock Count Sheet"
-        subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening + Added = Total; Closing = physical count; Units Sold = Total − Closing.${showSystemAndVariance ? " System = inventory at start of day; Variance = Closing − System (positive = excess)." : ""}`}
+        subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = previous day's saved Closing when you saved the sheet; if none, ledger fallback (max(0, System − same-day Added and stock-take adds)). Total Stock = Opening + Added + Added today. Closing = physical count (defaults to ledger on-hand; editable); Units Sold = Total Stock − Closing.${showSystemAndVariance ? " System = ledger at end of this day; Variance = Closing − System (positive = excess)." : ""}`}
         icon={FileSpreadsheet}
         fallbackTo="/operator"
       />
@@ -443,19 +493,19 @@ export function StandardStockCountSheetPage({
                   </th>
                   <th
                     className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
-                    title="Closing of yesterday — stock at start of today"
+                    title="Previous business day's saved closing, or ledger fallback if that day was not saved"
                   >
                     Opening
                   </th>
                   <th
                     className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
-                    title="Items added today (GRN, transfers in)"
+                    title="Received today per receipt date (sum of current GRN lines; edits apply immediately)"
                   >
                     Added
                   </th>
                   <th
                     className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
-                    title="Opening + Added — expected stock before sales"
+                    title="Opening + Added + stock-take adds; equals System when counts align with the ledger"
                   >
                     Total Stock
                   </th>
@@ -469,13 +519,13 @@ export function StandardStockCountSheetPage({
                     <>
                       <th
                         className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
-                        title="Inventory system balance at start of today (current − added)"
+                        title="Ledger on-hand at end of this day (from stock movements; excludes later receipts)"
                       >
                         System
                       </th>
                       <th
                         className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
-                        title="Closing − System (positive = excess/selling not in system, negative = short)"
+                        title="Closing count minus ledger on-hand (positive = physical excess, negative = short)"
                       >
                         Variance
                       </th>
@@ -498,6 +548,12 @@ export function StandardStockCountSheetPage({
                     title="Units Sold × Selling Price (revenue value)"
                   >
                     Amount
+                  </th>
+                  <th
+                    className="px-4 py-3 text-left text-base font-medium text-slate-700 dark:text-slate-300"
+                    title="Notes saved with this count line"
+                  >
+                    comments
                   </th>
                 </tr>
               </thead>
@@ -567,9 +623,9 @@ export function StandardStockCountSheetPage({
                           }`}
                           title={
                             r.variance > 0
-                              ? "Excess: selling not in system"
+                              ? "Physical count exceeds ledger on-hand"
                               : r.variance < 0
-                                ? "Short"
+                                ? "Physical count below ledger on-hand"
                                 : undefined
                           }
                         >
@@ -586,6 +642,25 @@ export function StandardStockCountSheetPage({
                     </td>
                     <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-900 dark:text-white">
                       {formatCurrency(r.amount)}
+                    </td>
+                    <td className="px-4 py-2 align-top">
+                      {canEdit ? (
+                        <textarea
+                          value={r.comments}
+                          onChange={(e) =>
+                            handleCommentChange(r.itemId, e.target.value)
+                          }
+                          rows={2}
+                          maxLength={2000}
+                          className="min-w-[10rem] max-w-[18rem] resize-y rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500"
+                          placeholder="Notes…"
+                          aria-label={`comments for ${r.name}`}
+                        />
+                      ) : (
+                        <span className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">
+                          {r.comments.trim() ? r.comments : "—"}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

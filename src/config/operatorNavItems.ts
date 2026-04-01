@@ -7,6 +7,7 @@ import {
   FileSpreadsheet,
   HandCoins,
   LayoutDashboard,
+  NotebookPen,
   Receipt,
   ReceiptText,
   ShoppingCart,
@@ -41,12 +42,19 @@ function navItem(
 
 export const OPERATOR_NAV_ITEMS: OperatorNavItemConfig[] = [
   navItem("/operator", "Dashboard", "Main", false, LayoutDashboard, false, true),
-  navItem("/operator/menu-order", "Menu Order", "Main", true, ShoppingCart),
+  navItem("/operator/menu-order", "POS", "Main", true, ShoppingCart),
   navItem("/operator/receipts", "Receipts", "Main", true, Receipt),
   navItem("/operator/analytics", "Analytics", "Main", true, BarChart3),
   navItem("/operator/debts", "Customer Debts", "Main", true, HandCoins),
   navItem("/operator/misc-expenses", "Misc Expenses", "Main", true, ReceiptText),
-  navItem("/operator/stock-count", "Manual Stock Taking", "Main", true, ClipboardList),
+  navItem("/operator/stock-count", "Stock count sessions", "Main", true, ClipboardList),
+  navItem(
+    "/operator/manual-stock-sheet",
+    "Manual stock sheet",
+    "Main",
+    true,
+    NotebookPen
+  ),
   navItem(
     "/operator/inventory/stock-count",
     "Standard Stock Taking",

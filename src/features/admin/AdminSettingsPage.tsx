@@ -481,10 +481,10 @@ export function AdminSettingsPage() {
 
         <section>
           <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
-            Menu order (operator)
+            POS (operator)
           </h2>
           <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-            Show or hide elements on the operator Menu Order screen: order type
+            Show or hide elements on the operator POS screen: order type
             (Dine-in / Takeaway / Delivery), table selector, and the item list
             (categories and search).
           </p>
@@ -533,7 +533,7 @@ export function AdminSettingsPage() {
               </h3>
               <div className="space-y-4">
                 <MenuOrderVisibilityRow
-                  label="Goods receipt: barcode scan"
+                  label="Receive stock: barcode scan"
                   visible={isBarcodeVisible(
                     visibilityState,
                     BARCODE_GOODS_RECEIPT
@@ -553,7 +553,7 @@ export function AdminSettingsPage() {
               </h3>
               <div className="space-y-4">
                 <MenuOrderVisibilityRow
-                  label="Menu order: barcode scan"
+                  label="POS: barcode scan"
                   visible={isBarcodeVisible(
                     opVisibilityState,
                     BARCODE_MENU_ORDER

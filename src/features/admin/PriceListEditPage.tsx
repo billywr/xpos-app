@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import { fetchBranches } from "@/api/branches";
-import { fetchItems } from "@/api/items";
+import { fetchAllOrgItems } from "@/api/items";
 import {
   fetchPriceList,
   updatePriceList,
@@ -20,9 +20,11 @@ import type { Item } from "@/types/catalog";
 import { PageHeader } from "@/components/PageHeader";
 import { Pagination, ConfirmDialog } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorCode, getApiErrorRequestId } from "@/utils/apiError";
+import { messageIfSellingAtOrBelowBuyingPrice } from "@/utils/priceListSellingValidation";
 import { useToast } from "@/contexts/ToastContext";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { ArrowLeft, Pencil, Trash2, Plus, Loader2 } from "lucide-react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -48,6 +50,7 @@ export function PriceListEditPage() {
   const [newItemId, setNewItemId] = useState("");
   const [newPrice, setNewPrice] = useState("");
   const [newCurrency, setNewCurrency] = useState(DEFAULT_CURRENCY);
+  const [addItemPriceError, setAddItemPriceError] = useState<string | null>(null);
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [editingPrice, setEditingPrice] = useState("");
   const [deleteConfirmLine, setDeleteConfirmLine] = useState<PriceListItem | null>(null);
@@ -66,9 +69,9 @@ export function PriceListEditPage() {
     enabled: Boolean(token) && Boolean(orgId),
   });
 
-  const { data: itemsData } = useQuery({
-    queryKey: ["admin-items", token, orgId],
-    queryFn: () => fetchItems(token, orgId, { size: 500 }),
+  const { data: catalogItems, isLoading: catalogItemsLoading } = useQuery({
+    queryKey: ["admin-catalog-items-all", token, orgId],
+    queryFn: () => fetchAllOrgItems(token, orgId),
     enabled: Boolean(token) && Boolean(orgId),
   });
 
@@ -111,8 +114,8 @@ export function PriceListEditPage() {
   const assignedItemIds = new Set(
     (allAssignedData?.content ?? []).map((pli) => pli.itemId)
   );
-  const items = itemsData?.content ?? [];
-  const availableItems = items.filter((i: Item) => !assignedItemIds.has(i.id));
+  const items = catalogItems ?? [];
+  const unassignedCatalogItems = items.filter((i: Item) => !assignedItemIds.has(i.id));
 
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
 
@@ -129,12 +132,28 @@ export function PriceListEditPage() {
   useEffect(() => {
     if (
       itemIdFromUrl &&
-      availableItems.some((i) => i.id === itemIdFromUrl) &&
+      unassignedCatalogItems.some((i) => i.id === itemIdFromUrl) &&
       !newItemId
     ) {
       setNewItemId(itemIdFromUrl);
     }
-  }, [itemIdFromUrl, availableItems, newItemId]);
+  }, [itemIdFromUrl, unassignedCatalogItems, newItemId]);
+
+  const plBranchOptions = useMemo(
+    () => [
+      { value: "", label: "None" },
+      ...branches.map((b: Branch) => ({ value: b.id, label: b.name })),
+    ],
+    [branches]
+  );
+
+  const newItemOptions = useMemo(
+    () => [
+      { value: "", label: "Select item…" },
+      ...unassignedCatalogItems.map((i: Item) => ({ value: i.id, label: i.name })),
+    ],
+    [unassignedCatalogItems]
+  );
 
   const updateListMutation = useMutation({
     mutationFn: () =>
@@ -179,6 +198,9 @@ export function PriceListEditPage() {
       queryClient.invalidateQueries({
         queryKey: ["admin-price-list-items", token, orgId, priceListId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-price-list-assigned-ids", token, orgId, priceListId],
+      });
       setNewItemId("");
       setNewPrice("");
       setNewCurrency(DEFAULT_CURRENCY);
@@ -188,12 +210,18 @@ export function PriceListEditPage() {
       const code = getApiErrorCode(err);
       const requestId = getApiErrorRequestId(err);
       toast.error(getApiErrorMessage(err), {
+        title:
+          code === "SELLING_PRICE_BELOW_COST"
+            ? "Selling price too low"
+            : code === "ITEM_NOT_SUPPLIED"
+              ? "Item not supplied"
+              : undefined,
         detail: requestId ? `Reference: ${requestId}` : undefined,
         action:
           code === "ITEM_NOT_SUPPLIED"
             ? {
-                label: "Go to Goods Receipt",
-                href: orgId ? `/admin/goods-receipt?orgId=${orgId}` : "/admin/goods-receipt",
+                label: "Go to receive stock",
+                href: orgId ? `/admin/inventory?orgId=${orgId}&tab=stock` : "/admin/inventory?tab=stock",
               }
             : undefined,
       });
@@ -225,12 +253,14 @@ export function PriceListEditPage() {
       const code = getApiErrorCode(err);
       const requestId = getApiErrorRequestId(err);
       toast.error(getApiErrorMessage(err), {
+        title:
+          code === "SELLING_PRICE_BELOW_COST" ? "Selling price too low" : undefined,
         detail: requestId ? `Reference: ${requestId}` : undefined,
         action:
           code === "ITEM_NOT_SUPPLIED"
             ? {
-                label: "Go to Goods Receipt",
-                href: orgId ? `/admin/goods-receipt?orgId=${orgId}` : "/admin/goods-receipt",
+                label: "Go to receive stock",
+                href: orgId ? `/admin/inventory?orgId=${orgId}&tab=stock` : "/admin/inventory?tab=stock",
               }
             : undefined,
       });
@@ -244,6 +274,9 @@ export function PriceListEditPage() {
       setDeleteConfirmLine(null);
       queryClient.invalidateQueries({
         queryKey: ["admin-price-list-items", token, orgId, priceListId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-price-list-assigned-ids", token, orgId, priceListId],
       });
       toast.success("Price list item removed.", { title: "Removed" });
     },
@@ -272,9 +305,21 @@ export function PriceListEditPage() {
     if (!newItemId) return;
     const priceNum = Number.parseFloat(newPrice);
     if (Number.isNaN(priceNum) || priceNum < 0) {
+      setAddItemPriceError(null);
       toast.error("Enter a valid price (number ≥ 0).");
       return;
     }
+    const catalogItem = items.find((i) => i.id === newItemId);
+    const buyingMsg = messageIfSellingAtOrBelowBuyingPrice(
+      priceNum,
+      catalogItem?.buyingPrice
+    );
+    if (buyingMsg) {
+      setAddItemPriceError(buyingMsg);
+      toast.error(buyingMsg, { title: "Selling price too low" });
+      return;
+    }
+    setAddItemPriceError(null);
     addItemMutation.mutate({
       itemId: newItemId,
       price: priceNum,
@@ -286,6 +331,16 @@ export function PriceListEditPage() {
     const priceNum = Number.parseFloat(editingPrice);
     if (Number.isNaN(priceNum) || priceNum < 0) {
       toast.error("Enter a valid price (number ≥ 0).");
+      return;
+    }
+    const line = priceListItems.find((p) => p.id === lineId);
+    const catalogItem = line ? items.find((i) => i.id === line.itemId) : undefined;
+    const buyingMsg = messageIfSellingAtOrBelowBuyingPrice(
+      priceNum,
+      catalogItem?.buyingPrice
+    );
+    if (buyingMsg) {
+      toast.error(buyingMsg, { title: "Selling price too low" });
       return;
     }
     updateItemMutation.mutate({ lineId, price: priceNum });
@@ -376,19 +431,15 @@ export function PriceListEditPage() {
             >
               Branch
             </label>
-            <select
+            <SearchableSelect
               id="pl-branch"
+              options={plBranchOptions}
               value={formBranchId}
-              onChange={(e) => setFormBranchId(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            >
-              <option value="">None</option>
-              {branches.map((b: Branch) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+              onChange={setFormBranchId}
+              placeholder="Search branch…"
+              className="w-full"
+              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            />
           </div>
           <div>
             <label
@@ -456,7 +507,7 @@ export function PriceListEditPage() {
             Menu item prices
           </h2>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            Add catalog items and set prices. These prices appear on the Operator Menu Order.
+            Add catalog items and set prices. These prices appear on Operator POS.
           </p>
         </div>
 
@@ -580,7 +631,12 @@ export function PriceListEditPage() {
           <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
             Add item
           </h3>
-          {items.length === 0 ? (
+          {catalogItemsLoading ? (
+            <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              Loading catalog items…
+            </p>
+          ) : items.length === 0 ? (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
               No catalog items yet. Add items in{" "}
               <Link
@@ -591,7 +647,7 @@ export function PriceListEditPage() {
               </Link>{" "}
               first.
             </p>
-          ) : availableItems.length === 0 ? (
+          ) : unassignedCatalogItems.length === 0 ? (
             <p className="text-sm text-slate-500 dark:text-slate-400">
               All catalog items already have prices in this list.{" "}
               <Link
@@ -610,21 +666,20 @@ export function PriceListEditPage() {
                 >
                   Item
                 </label>
-                <select
+                <SearchableSelect
                   id="new-item"
+                  options={newItemOptions}
                   value={newItemId}
-                  onChange={(e) => setNewItemId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                >
-                  <option value="">Select item…</option>
-                  {availableItems.map((i: Item) => (
-                      <option key={i.id} value={i.id}>
-                        {i.name}
-                      </option>
-                    ))}
-                </select>
+                  onChange={(v) => {
+                    setNewItemId(v);
+                    setAddItemPriceError(null);
+                  }}
+                  placeholder="Search item…"
+                  className="w-full"
+                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                />
               </div>
-              <div className="w-28">
+              <div className="w-28 min-w-[7.5rem]">
                 <label
                   htmlFor="new-price"
                   className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400"
@@ -637,10 +692,30 @@ export function PriceListEditPage() {
                   min={0}
                   step="0.01"
                   value={newPrice}
-                  onChange={(e) => setNewPrice(e.target.value)}
+                  onChange={(e) => {
+                    setNewPrice(e.target.value);
+                    setAddItemPriceError(null);
+                  }}
                   placeholder="0.00"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  aria-invalid={Boolean(addItemPriceError)}
+                  aria-describedby={
+                    addItemPriceError ? "new-price-error" : undefined
+                  }
+                  className={`w-full rounded-lg border bg-white px-3 py-2 dark:bg-slate-700 dark:text-white ${
+                    addItemPriceError
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-500 dark:border-red-500"
+                      : "border-slate-300 dark:border-slate-600"
+                  }`}
                 />
+                {addItemPriceError ? (
+                  <p
+                    id="new-price-error"
+                    className="mt-1 max-w-xs text-xs text-red-600 dark:text-red-400"
+                    role="alert"
+                  >
+                    {addItemPriceError}
+                  </p>
+                ) : null}
               </div>
               <button
                 type="button"
