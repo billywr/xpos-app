@@ -554,7 +554,7 @@ export function StandardStockCountSheetPage({
                     className="px-4 py-3 text-left text-base font-medium text-slate-700 dark:text-slate-300"
                     title="Notes saved with this count line"
                   >
-                    comments
+                    Notes
                   </th>
                 </tr>
               </thead>

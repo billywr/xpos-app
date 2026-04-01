@@ -19,6 +19,9 @@ import {
   type CustomerDebtUpdateRequest,
 } from "@/api/debts";
 import { createCustomer } from "@/api/customers";
+import { fetchAllOrgItems } from "@/api/items";
+import { fetchPriceLists, fetchPriceListItems } from "@/api/priceLists";
+import type { Item } from "@/types/catalog";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { Pagination, ConfirmDialog } from "@/components/ui";
 import { formatCurrency } from "@/utils/formatCurrency";
@@ -27,6 +30,7 @@ import { useToast } from "@/contexts/ToastContext";
 import {
   HandCoins,
   Plus,
+  Minus,
   Loader2,
   Pencil,
   XCircle,
@@ -37,6 +41,27 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { motion, AnimatePresence } from "framer-motion";
 
 const PAGE_SIZE = 20;
+
+interface BorrowedLineDraft {
+  itemId: string;
+  itemName: string;
+  sku: string | null;
+  unitPrice: number;
+  qty: number;
+}
+
+function borrowedItemsNoteBlock(lines: BorrowedLineDraft[]): string {
+  if (lines.length === 0) {
+    return "";
+  }
+  const rows = lines.map(
+    (l) =>
+      `• ${l.itemName} × ${l.qty} @ ${formatCurrency(l.unitPrice)} = ${formatCurrency(
+        l.qty * l.unitPrice
+      )}`
+  );
+  return ["Borrowed items:", ...rows].join("\n");
+}
 
 /** Default list: still owed (OPEN or PARTIAL). OPEN-only hid rows after any repayment. */
 const STATUS_OUTSTANDING = "OUTSTANDING";
@@ -105,6 +130,8 @@ export function DebtsPage() {
   const [formAmount, setFormAmount] = useState("");
   const [formDueDate, setFormDueDate] = useState("");
   const [formNotes, setFormNotes] = useState("");
+  const [formBorrowedLines, setFormBorrowedLines] = useState<BorrowedLineDraft[]>([]);
+  const [formAddItemId, setFormAddItemId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [editFormOpen, setEditFormOpen] = useState(false);
   const [editingDebt, setEditingDebt] = useState<CustomerDebtResponse | null>(
@@ -148,6 +175,132 @@ export function DebtsPage() {
     enabled: Boolean(token && orgId && branchId),
   });
 
+  const debtFormDataEnabled = Boolean(formOpen && token && orgId);
+
+  const { data: priceListsPage } = useQuery({
+    queryKey: ["priceLists", orgId, "debts-record-form"],
+    queryFn: () => fetchPriceLists(token!, orgId!, { page: 0, size: 100 }),
+    enabled: debtFormDataEnabled,
+  });
+
+  const priceLists = priceListsPage?.content ?? [];
+  const firstPriceListId = priceLists[0]?.id ?? null;
+  const effectivePriceListIdForDebt = branchId
+    ? (priceLists.find((pl) => pl.branchId === branchId)?.id ?? firstPriceListId)
+    : firstPriceListId;
+
+  const { data: priceItemsPage } = useQuery({
+    queryKey: ["priceListItems", orgId, effectivePriceListIdForDebt, "debts-form"],
+    queryFn: () =>
+      fetchPriceListItems(token!, orgId!, effectivePriceListIdForDebt!, {
+        page: 0,
+        size: 2000,
+      }),
+    enabled: Boolean(debtFormDataEnabled && effectivePriceListIdForDebt),
+  });
+
+  const debtPriceMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of priceItemsPage?.content ?? []) {
+      const num = typeof p.price === "number" ? p.price : Number(p.price);
+      if (!Number.isNaN(num) && num > 0) {
+        map.set(p.itemId, num);
+      }
+    }
+    return map;
+  }, [priceItemsPage]);
+
+  const { data: debtCatalogItems = [], isLoading: debtCatalogLoading } = useQuery({
+    queryKey: ["debts-record-catalog", orgId],
+    queryFn: () => fetchAllOrgItems(token!, orgId!),
+    enabled: debtFormDataEnabled,
+  });
+
+  const pricedItemsForDebt = useMemo(() => {
+    const out: { item: Item; price: number }[] = [];
+    for (const item of debtCatalogItems) {
+      if (!item.active) {
+        continue;
+      }
+      const fromList = debtPriceMap.get(item.id);
+      const fallback = item.defaultSellingPrice;
+      const raw = fromList ?? (fallback != null ? Number(fallback) : NaN);
+      if (!Number.isNaN(raw) && raw > 0) {
+        out.push({ item, price: raw });
+      }
+    }
+    out.sort((a, b) =>
+      a.item.name.localeCompare(b.item.name, undefined, { sensitivity: "base" })
+    );
+    return out;
+  }, [debtCatalogItems, debtPriceMap]);
+
+  const debtAddItemOptions = useMemo(
+    () => [
+      { value: "", label: "Search or select item to add…" },
+      ...pricedItemsForDebt.map(({ item, price }) => ({
+        value: item.id,
+        label: item.name,
+        detail: `${formatCurrency(price)}${item.sku ? ` · ${item.sku}` : ""}`,
+      })),
+    ],
+    [pricedItemsForDebt]
+  );
+
+  const borrowedItemsSubtotal = useMemo(
+    () => formBorrowedLines.reduce((sum, l) => sum + l.qty * l.unitPrice, 0),
+    [formBorrowedLines]
+  );
+
+  const handleAddBorrowedItem = (itemId: string) => {
+    if (!itemId) {
+      return;
+    }
+    const row = pricedItemsForDebt.find((x) => x.item.id === itemId);
+    if (!row) {
+      return;
+    }
+    setFormBorrowedLines((prev) => {
+      const idx = prev.findIndex((l) => l.itemId === itemId);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], qty: next[idx].qty + 1 };
+        return next;
+      }
+      return [
+        ...prev,
+        {
+          itemId: row.item.id,
+          itemName: row.item.name,
+          sku: row.item.sku,
+          unitPrice: row.price,
+          qty: 1,
+        },
+      ];
+    });
+    setFormAddItemId("");
+  };
+
+  const adjustBorrowedQty = (itemId: string, delta: number) => {
+    setFormBorrowedLines((prev) => {
+      const idx = prev.findIndex((l) => l.itemId === itemId);
+      if (idx < 0) {
+        return prev;
+      }
+      const line = prev[idx];
+      const nextQty = line.qty + delta;
+      if (nextQty < 1) {
+        return prev.filter((l) => l.itemId !== itemId);
+      }
+      const next = [...prev];
+      next[idx] = { ...line, qty: nextQty };
+      return next;
+    });
+  };
+
+  const removeBorrowedLine = (itemId: string) => {
+    setFormBorrowedLines((prev) => prev.filter((l) => l.itemId !== itemId));
+  };
 
   const createMutation = useMutation({
     mutationFn: (body: CustomerDebtCreateRequest) =>
@@ -160,6 +313,9 @@ export function DebtsPage() {
       setFormCustomerPhone("");
       setFormAmount("");
       setFormDueDate("");
+      setFormNotes("");
+      setFormBorrowedLines([]);
+      setFormAddItemId("");
       toast.success("Debt recorded.", { title: "Customer debt" });
     },
     onError: (err) => {
@@ -333,12 +489,28 @@ export function DebtsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = parseFloat(formAmount);
     const name = formCustomerName.trim();
-    if (!name || isNaN(amount) || amount <= 0) {
-      toast.error("Enter customer name and a valid amount.");
+    const manualAmount = parseFloat(formAmount);
+    const fromItems = formBorrowedLines.length > 0 ? borrowedItemsSubtotal : 0;
+    const amount =
+      formBorrowedLines.length > 0 ? Number(fromItems.toFixed(2)) : manualAmount;
+    if (!name) {
+      toast.error("Enter customer name.");
       return;
     }
+    if (formBorrowedLines.length > 0) {
+      if (fromItems <= 0 || Number.isNaN(fromItems)) {
+        toast.error("Add at least one borrowed item with quantity.");
+        return;
+      }
+    } else if (isNaN(manualAmount) || manualAmount <= 0) {
+      toast.error("Enter a valid amount or add borrowed items.");
+      return;
+    }
+    const itemsBlock = borrowedItemsNoteBlock(formBorrowedLines);
+    const userNotes = formNotes.trim();
+    const combinedNotes =
+      [itemsBlock, userNotes].filter((s) => s.length > 0).join("\n\n") || undefined;
     setSubmitting(true);
     try {
       const customer = await createCustomer(token, orgId!, {
@@ -349,7 +521,7 @@ export function DebtsPage() {
         customerId: customer.id,
         amount,
         dueDate: formDueDate || undefined,
-        notes: formNotes || undefined,
+        notes: combinedNotes,
       });
     } catch (err) {
       toast.error(getApiErrorMessage(err), {
@@ -477,6 +649,9 @@ export function DebtsPage() {
                         Created
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Notes
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                         Actions
                       </th>
                     </tr>
@@ -517,6 +692,15 @@ export function DebtsPage() {
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                           {new Date(d.createdAt).toLocaleString()}
+                        </td>
+                        <td className="max-w-[14rem] px-4 py-3 align-top text-sm text-slate-700 dark:text-slate-300">
+                          {d.notes?.trim() ? (
+                            <div className="max-h-24 overflow-y-auto whitespace-pre-wrap break-words">
+                              {d.notes}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="px-4 py-3 text-left">
                           {canRecordPayment(d) ? (
@@ -589,6 +773,9 @@ export function DebtsPage() {
             setFormCustomerPhone("");
             setFormAmount("");
             setFormDueDate("");
+            setFormNotes("");
+            setFormBorrowedLines([]);
+            setFormAddItemId("");
           }
         }}
         title="Record customer debt"
@@ -628,22 +815,124 @@ export function DebtsPage() {
             />
           </div>
           <div>
+            <span
+              id="borrowed-items-label"
+              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Items borrowed
+            </span>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              Add lines from the branch price list (or default selling price). Debt total fills from
+              these lines; use amount below only when you are not listing items.
+            </p>
+            {debtCatalogLoading ? (
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Loading catalog…</p>
+            ) : pricedItemsForDebt.length === 0 ? (
+              <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+                No priced items found. Add items to this branch&apos;s price list (or set default
+                selling prices) to select products here.
+              </p>
+            ) : (
+              <div className="mt-2">
+                <SearchableSelect
+                  aria-label="Add borrowed item"
+                  options={debtAddItemOptions}
+                  value={formAddItemId}
+                  onChange={(v) => handleAddBorrowedItem(v)}
+                  placeholder="Search item…"
+                  unknownValueDisplay="Select item…"
+                  optionsOrder="as_given"
+                  className="w-full"
+                  controlClassName="border-slate-300 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus-within:border-primary-400 dark:focus-within:ring-primary-400"
+                />
+              </div>
+            )}
+            {formBorrowedLines.length > 0 ? (
+              <ul className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50/80 p-2 dark:border-slate-600 dark:bg-slate-900/40">
+                {formBorrowedLines.map((line) => (
+                  <li
+                    key={line.itemId}
+                    className="flex flex-wrap items-center gap-2 rounded-md bg-white px-2 py-2 dark:bg-slate-800"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium text-slate-900 dark:text-white">
+                        {line.itemName}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        {formatCurrency(line.unitPrice)} each
+                        {line.sku ? ` · ${line.sku}` : ""}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => adjustBorrowedQty(line.itemId, -1)}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                        aria-label={`Decrease quantity for ${line.itemName}`}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <span className="min-w-[2rem] text-center text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
+                        {line.qty}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => adjustBorrowedQty(line.itemId, 1)}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                        aria-label={`Increase quantity for ${line.itemName}`}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="w-full text-right text-sm font-medium tabular-nums text-slate-800 dark:text-slate-200 sm:w-auto sm:text-left">
+                      {formatCurrency(line.qty * line.unitPrice)}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeBorrowedLine(line.itemId)}
+                      className="shrink-0 rounded p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
+                      aria-label={`Remove ${line.itemName}`}
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+          <div>
             <label
               htmlFor="amount"
               className="block text-sm font-medium text-slate-700 dark:text-slate-300"
             >
               Amount (KES) *
             </label>
-            <input
-              id="amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              required
-              value={formAmount}
-              onChange={(e) => setFormAmount(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-            />
+            {formBorrowedLines.length > 0 ? (
+              <>
+                <input
+                  id="amount"
+                  type="text"
+                  readOnly
+                  value={formatCurrency(borrowedItemsSubtotal)}
+                  className="mt-1 block w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  aria-describedby="amount-items-hint"
+                />
+                <p id="amount-items-hint" className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Total from borrowed items above. Remove all lines to enter a custom amount.
+                </p>
+              </>
+            ) : (
+              <input
+                id="amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                required
+                value={formAmount}
+                onChange={(e) => setFormAmount(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              />
+            )}
           </div>
           <div>
             <label

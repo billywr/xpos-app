@@ -28,6 +28,8 @@ export interface SearchableSelectProps {
   matchOptionValue?: boolean;
   /** Denser padding (e.g. header toolbars). */
   compact?: boolean;
+  /** Use "as_given" to keep option order (e.g. placeholder first); default sorts by label. */
+  optionsOrder?: "sort" | "as_given";
 }
 
 const DEFAULT_MAX = 80;
@@ -70,6 +72,7 @@ export function SearchableSelect({
   maxSuggestions = DEFAULT_MAX,
   matchOptionValue = false,
   compact = false,
+  optionsOrder = "sort",
 }: SearchableSelectProps) {
   const reactId = useId();
   const inputId = idProp ?? `searchable-select-${reactId}`;
@@ -96,8 +99,14 @@ export function SearchableSelect({
   const q = filterText.trim().toLowerCase();
 
   const orderedOptions = useMemo(() => {
-    return [...options].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
-  }, [options]);
+    const copy = [...options];
+    if (optionsOrder === "as_given") {
+      return copy;
+    }
+    return copy.sort((a, b) =>
+      a.label.localeCompare(b.label, undefined, { sensitivity: "base" })
+    );
+  }, [options, optionsOrder]);
 
   const suggestions = useMemo(() => {
     const matched = orderedOptions.filter((o) => optionMatches(o, q, matchOptionValue));
@@ -105,10 +114,12 @@ export function SearchableSelect({
   }, [orderedOptions, q, matchOptionValue, maxSuggestions]);
 
   useEffect(() => {
-    if (open) {
-      setHighlighted(0);
+    if (!open) {
+      return;
     }
-  }, [open, q, suggestions.length]);
+    const idx = suggestions.findIndex((o) => o.value === value);
+    setHighlighted(idx >= 0 ? idx : 0);
+  }, [open, suggestions, value]);
 
   useEffect(() => {
     return () => {
@@ -172,12 +183,11 @@ export function SearchableSelect({
     if (disabled) {
       return;
     }
-    // Empty value often maps to a "Select…" placeholder row; using that label as the search
-    // query would filter out every real option (nothing contains "select item").
-    const isPlaceholderSelection = !selected || selected.value === "";
-    setFilterText(isPlaceholderSelection ? "" : (selected.label ?? ""));
+    // Always clear the filter when opening. Using the selected label as the query substring-filters
+    // the list (e.g. "Outstanding (open + partial)" matches only itself, hiding Open/All/etc.).
+    setFilterText("");
     setOpen(true);
-  }, [disabled, selected]);
+  }, [disabled]);
 
   const pick = useCallback(
     (opt: SearchableSelectOption) => {

@@ -500,7 +500,7 @@ export function ManualStockCountSheetPage() {
                       Amount
                     </th>
                     <th className="px-4 py-3 text-left text-base font-medium text-slate-700 dark:text-slate-300">
-                      comments
+                      Notes
                     </th>
                     <th
                       className="w-12 px-2 py-3 text-center text-base font-medium text-slate-700 dark:text-slate-300"
