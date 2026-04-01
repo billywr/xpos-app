@@ -46,14 +46,14 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
   @Query(
       """
       select count(i) from Item i
-      where i.org.id = :orgId and i.category.id = :categoryId
+      where i.org.id = :orgId and i.category.id = :categoryId and i.active = true
       """)
   long countByOrgIdAndCategoryId(@Param("orgId") UUID orgId, @Param("categoryId") UUID categoryId);
 
   @Query(
       """
       select count(i) from Item i
-      where i.org.id = :orgId and i.baseUom.id = :uomId
+      where i.org.id = :orgId and i.baseUom.id = :uomId and i.active = true
       """)
   long countByOrgIdAndBaseUomId(@Param("orgId") UUID orgId, @Param("uomId") UUID uomId);
 }

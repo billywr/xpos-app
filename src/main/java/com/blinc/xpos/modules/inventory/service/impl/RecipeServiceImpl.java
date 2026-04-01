@@ -48,7 +48,7 @@ public class RecipeServiceImpl implements RecipeService {
   @Transactional
   public Recipe create(UUID orgId, UUID menuItemId, BigDecimal yieldQty) {
     var org = orgService.require(orgId);
-    var menuItem = itemService.require(orgId, menuItemId);
+    var menuItem = itemService.requireActive(orgId, menuItemId);
     if (recipeRepository.findByOrgIdAndMenuItemId(orgId, menuItemId).isPresent()) {
       throw new IllegalStateException(
           "Recipe already exists for menu item: " + menuItemId);
@@ -87,7 +87,7 @@ public class RecipeServiceImpl implements RecipeService {
   public Recipe addLine(
       UUID orgId, UUID recipeId, UUID ingredientItemId, BigDecimal qty, UUID uomId) {
     Recipe recipe = require(orgId, recipeId);
-    var ingredient = itemService.require(orgId, ingredientItemId);
+    var ingredient = itemService.requireActive(orgId, ingredientItemId);
     var uom = (uomId != null) ? uomService.require(orgId, uomId) : null;
     if (qty == null || qty.compareTo(BigDecimal.ZERO) <= 0) {
       throw new IllegalArgumentException("Quantity must be positive");

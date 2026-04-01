@@ -8,6 +8,7 @@ import com.blinc.xpos.modules.inventory.repository.InventoryItemRepository;
 import com.blinc.xpos.modules.inventory.service.InventoryItemService;
 import com.blinc.xpos.modules.organization.domain.Branch;
 import com.blinc.xpos.modules.organization.service.BranchService;
+import com.blinc.xpos.modules.pricing.service.PriceListItemService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -17,6 +18,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,17 +30,21 @@ public class InventoryItemServiceImpl implements InventoryItemService {
   private final InventoryItemRepository inventoryItemRepository;
   private final BranchService branchService;
   private final ItemService itemService;
+  private final PriceListItemService priceListItemService;
   private final Clock clock;
 
   public InventoryItemServiceImpl(
       InventoryItemRepository inventoryItemRepository,
       BranchService branchService,
       ItemService itemService,
+      @Lazy PriceListItemService priceListItemService,
       Clock clock) {
     this.inventoryItemRepository =
         Objects.requireNonNull(inventoryItemRepository, "inventoryItemRepository");
     this.branchService = Objects.requireNonNull(branchService, "branchService");
     this.itemService = Objects.requireNonNull(itemService, "itemService");
+    this.priceListItemService =
+        Objects.requireNonNull(priceListItemService, "priceListItemService");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 
@@ -58,7 +64,7 @@ public class InventoryItemServiceImpl implements InventoryItemService {
       throw new IllegalArgumentException("Quantity must be positive");
     }
     Branch branch = branchService.require(orgId, branchId);
-    Item item = itemService.require(orgId, itemId);
+    Item item = itemService.requireActive(orgId, itemId);
     BigDecimal qtyScaled = qty.setScale(SCALE, RoundingMode.HALF_UP);
 
     InventoryItem inv =
@@ -110,6 +116,44 @@ public class InventoryItemServiceImpl implements InventoryItemService {
     inv.setOnHandQty(after);
     inv.setUpdatedAt(Instant.now(clock));
     inventoryItemRepository.save(inv);
+    if (after.compareTo(BigDecimal.ZERO) <= 0) {
+      Item catalogItem = itemService.require(orgId, itemId);
+      if (catalogItem.requiresOnHandForSellableListing()) {
+        priceListItemService.purgePriceListLinesForTrackedItemIfOutOfStock(orgId, itemId);
+      }
+    }
+  }
+
+  @Override
+  @Transactional
+  public void decrementOnHandClampToZeroForInactiveItem(
+      UUID orgId, UUID branchId, UUID itemId, BigDecimal qty) {
+    if (qty == null || qty.compareTo(BigDecimal.ZERO) <= 0) {
+      throw new IllegalArgumentException("Quantity must be positive");
+    }
+    BigDecimal qtyScaled = qty.setScale(SCALE, RoundingMode.HALF_UP);
+    inventoryItemRepository
+        .findByOrgIdAndBranchIdAndItemId(orgId, branchId, itemId)
+        .ifPresent(
+            inv -> {
+              BigDecimal after =
+                  inv.getOnHandQty()
+                      .subtract(qtyScaled)
+                      .setScale(SCALE, RoundingMode.HALF_UP);
+              if (after.compareTo(BigDecimal.ZERO) < 0) {
+                after = BigDecimal.ZERO.setScale(SCALE, RoundingMode.HALF_UP);
+              }
+              inv.setOnHandQty(after);
+              inv.setUpdatedAt(Instant.now(clock));
+              inventoryItemRepository.save(inv);
+              if (after.compareTo(BigDecimal.ZERO) <= 0) {
+                Item catalogItem = itemService.require(orgId, itemId);
+                if (catalogItem.requiresOnHandForSellableListing()) {
+                  priceListItemService.purgePriceListLinesForTrackedItemIfOutOfStock(
+                      orgId, itemId);
+                }
+              }
+            });
   }
 
   @Override
@@ -152,5 +196,9 @@ public class InventoryItemServiceImpl implements InventoryItemService {
         inv.getOnHandQty().add(delta).setScale(SCALE, RoundingMode.HALF_UP));
     inv.setUpdatedAt(Instant.now(clock));
     inventoryItemRepository.save(inv);
+    BigDecimal onHand = inv.getOnHandQty();
+    if (onHand.compareTo(BigDecimal.ZERO) <= 0 && item.requiresOnHandForSellableListing()) {
+      priceListItemService.purgePriceListLinesForTrackedItemIfOutOfStock(orgId, itemId);
+    }
   }
 }

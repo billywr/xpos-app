@@ -1,6 +1,9 @@
 package com.blinc.xpos.modules.inventory.repository;
 
+import com.blinc.xpos.common.constants.enums.SourceType;
 import com.blinc.xpos.modules.inventory.domain.StockMovement;
+import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,6 +21,20 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
       where s.id = :id and s.org.id = :orgId
       """)
   Optional<StockMovement> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
+
+  @Query(
+      """
+      select s from StockMovement s
+      join fetch s.item
+      where s.org.id = :orgId
+        and s.sourceType = :sourceType
+        and s.sourceId = :sourceId
+      order by s.createdAt asc, s.id asc
+      """)
+  List<StockMovement> findAllByOrgIdAndSourceTypeAndSourceIdOrderByCreatedAtAsc(
+      @Param("orgId") UUID orgId,
+      @Param("sourceType") SourceType sourceType,
+      @Param("sourceId") UUID sourceId);
 
   @Query(
       """
@@ -58,6 +75,9 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
       where s.org.id = :orgId and s.branch.id = :branchId
         and s.movementType = com.blinc.xpos.common.constants.enums.MovementType.IN
         and s.sourceType = com.blinc.xpos.common.constants.enums.SourceType.GRN
+        and exists (
+          select 1 from GoodsReceiptNote g
+          where g.id = s.sourceId and g.org.id = :orgId and g.active = true)
       group by s.item.id
       """)
   List<Object[]> sumReceivedQtyByItemIdForBranch(
@@ -67,8 +87,14 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
       """
       select max(s.unitCost) from StockMovement s
       where s.org.id = :orgId and s.item.id = :itemId
+        and s.item.active = true
         and s.movementType = com.blinc.xpos.common.constants.enums.MovementType.IN
         and s.unitCost is not null
+        and (
+          s.sourceType <> com.blinc.xpos.common.constants.enums.SourceType.GRN
+          or exists (
+            select 1 from GoodsReceiptNote g
+            where g.id = s.sourceId and g.org.id = :orgId and g.active = true))
       """)
   java.math.BigDecimal findMaxUnitCostByOrgAndItem(
       @Param("orgId") UUID orgId, @Param("itemId") UUID itemId);
@@ -77,8 +103,14 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
       """
       select distinct s.item.id from StockMovement s
       where s.org.id = :orgId
+        and s.item.active = true
         and s.movementType = com.blinc.xpos.common.constants.enums.MovementType.IN
         and s.unitCost is not null
+        and (
+          s.sourceType <> com.blinc.xpos.common.constants.enums.SourceType.GRN
+          or exists (
+            select 1 from GoodsReceiptNote g
+            where g.id = s.sourceId and g.org.id = :orgId and g.active = true))
       """)
   java.util.List<UUID> findItemIdsWithPurchaseHistoryByOrgId(@Param("orgId") UUID orgId);
 
@@ -86,8 +118,14 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
       """
       select s from StockMovement s
       where s.org.id = :orgId and s.branch.id = :branchId and s.item.id = :itemId
+        and s.item.active = true
         and s.movementType = com.blinc.xpos.common.constants.enums.MovementType.IN
         and s.unitCost is not null
+        and (
+          s.sourceType <> com.blinc.xpos.common.constants.enums.SourceType.GRN
+          or exists (
+            select 1 from GoodsReceiptNote g
+            where g.id = s.sourceId and g.org.id = :orgId and g.active = true))
       order by s.createdAt desc
       """)
   org.springframework.data.domain.Page<StockMovement> findLatestInByOrgAndBranchAndItem(
@@ -112,18 +150,54 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
       @Param("end") java.time.Instant end);
 
   /**
-   * Sum of IN movements (GRN, TRANSFER) per item for a branch within a date range. For std stock
-   * count addedStock.
+   * Net on-hand from stock movements with {@code createdAt < asOfExclusive} (signed: IN/TRANSFER_IN
+   * add; OUT/TRANSFER_OUT/WASTE/CONSUMPTION subtract; ADJUST uses signed qty). Used for std stock
+   * count Opening (at start of day) and System (ledger at end of selected business day).
    */
   @Query(
       """
-      select s.item.id, sum(s.qty) from StockMovement s
+      select s.item.id,
+        coalesce(sum(
+          case
+            when s.movementType = com.blinc.xpos.common.constants.enums.MovementType.IN
+              or s.movementType = com.blinc.xpos.common.constants.enums.MovementType.TRANSFER_IN
+              then s.qty
+            when s.movementType = com.blinc.xpos.common.constants.enums.MovementType.OUT
+              or s.movementType = com.blinc.xpos.common.constants.enums.MovementType.TRANSFER_OUT
+              or s.movementType = com.blinc.xpos.common.constants.enums.MovementType.WASTE
+              or s.movementType = com.blinc.xpos.common.constants.enums.MovementType.CONSUMPTION
+              then -s.qty
+            when s.movementType = com.blinc.xpos.common.constants.enums.MovementType.ADJUST
+              then s.qty
+            else 0
+          end
+        ), 0)
+      from StockMovement s
       where s.org.id = :orgId and s.branch.id = :branchId
-        and s.movementType = com.blinc.xpos.common.constants.enums.MovementType.IN
+        and s.item.id in :itemIds
+        and s.createdAt < :asOfExclusive
+      group by s.item.id
+      """)
+  List<Object[]> sumNetQtyByItemForBranchUpToExclusive(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("itemIds") Collection<UUID> itemIds,
+      @Param("asOfExclusive") Instant asOfExclusive);
+
+  /**
+   * Sum of positive stock-take adjustments per item for a branch within a date range. For std stock
+   * count "Added today" (variance increases from counted stock / corrections, not GRN).
+   */
+  @Query(
+      """
+      select s.item.id, sum(case when s.qty > 0 then s.qty else 0 end) from StockMovement s
+      where s.org.id = :orgId and s.branch.id = :branchId
+        and s.movementType = com.blinc.xpos.common.constants.enums.MovementType.ADJUST
+        and s.sourceType = com.blinc.xpos.common.constants.enums.SourceType.STOCKTAKE
         and s.createdAt >= :start and s.createdAt < :end
       group by s.item.id
       """)
-  List<Object[]> sumInQtyByItemIdForBranchAndDateRange(
+  List<Object[]> sumStockTakePositiveAdjustQtyByItemIdForBranchAndDateRange(
       @Param("orgId") UUID orgId,
       @Param("branchId") UUID branchId,
       @Param("start") java.time.Instant start,

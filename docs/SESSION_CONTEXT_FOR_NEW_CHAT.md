@@ -26,7 +26,7 @@
 - **Category filter:** Searchable dropdown (type to filter categories) with "All categories" option
 - **Removed:** Category column from table; category group headers (DRINKS, LIQUOR, etc.)
 - **Backend:** `GET /api/v1/admin/orgs/{orgId}/items?categoryId=…` — optional category filter
-- **Items with no purchase history:** Amber row styling; row tooltip: "No purchase history—record a Goods Receipt first"
+- **Items with no purchase history:** Amber row styling; row tooltip: "No purchase history—receive stock first"
 
 ### 3. Action Icons & Tooltips
 - All table action icons have `title` (hover tooltip) and `aria-label`
@@ -38,7 +38,7 @@
 
 ### 5. Links for UX
 - Items page: Links to `/admin/items` in "No catalog items" and "All catalog items already have prices"
-- **ITEM_NOT_SUPPLIED** error toast: Includes "Go to Goods Receipt →" link (via `ToastContext` `action` option)
+- **ITEM_NOT_SUPPLIED** error toast: Includes "Go to receive stock →" link (via `ToastContext` `action` option)
 - **Items table:** "Add price" banknote icon per row → `/admin/price-lists?orgId=…&itemId=…`; Price Lists passes `itemId` to Edit links; Price List Edit pre-selects item in add form when `itemId` in URL
 
 ---

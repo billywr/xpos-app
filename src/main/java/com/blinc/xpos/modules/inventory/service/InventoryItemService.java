@@ -26,6 +26,14 @@ public interface InventoryItemService {
   void decrementOnHand(UUID orgId, UUID branchId, UUID itemId, BigDecimal qty);
 
   /**
+   * Decrements on-hand when reversing a GRN line for an inactive (hidden) catalog item. Quantity is
+   * subtracted but on-hand never goes below zero, so permanent receipt delete can succeed when
+   * stock was already consumed.
+   */
+  void decrementOnHandClampToZeroForInactiveItem(
+      UUID orgId, UUID branchId, UUID itemId, BigDecimal qty);
+
+  /**
    * Returns on-hand qty for each item in the given set. Missing items return 0.
    */
   Map<UUID, BigDecimal> getOnHandQtysByItemIds(

@@ -21,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -131,6 +132,13 @@ public class GoodsReceiptNoteAdminController {
   @Transactional(readOnly = true)
   public GoodsReceiptNoteResponse get(@PathVariable UUID orgId, @PathVariable UUID grnId) {
     return toResponse(grnService.require(orgId, grnId));
+  }
+
+  @DeleteMapping("/{grnId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deletePermanently(@PathVariable UUID orgId, @PathVariable UUID grnId) {
+    staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
+    grnService.deletePermanently(orgId, grnId);
   }
 
   private GoodsReceiptNoteResponse toResponse(GoodsReceiptNote grn) {

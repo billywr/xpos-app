@@ -51,25 +51,34 @@ public class ScheduledPriceServiceImpl implements ScheduledPriceService {
   public ScheduledPrice add(
       UUID orgId, UUID priceScheduleId, UUID itemId, BigDecimal price, String currency) {
     PriceSchedule schedule = priceScheduleService.require(orgId, priceScheduleId);
-    Item item = itemService.require(orgId, itemId);
+    Item item = itemService.requireActive(orgId, itemId);
 
     BigDecimal sellingPrice = price != null ? price : BigDecimal.ZERO;
-    BigDecimal maxUnitCost =
+    BigDecimal maxFromMovements =
         stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, itemId);
+    BigDecimal buying = item.getBuyingPrice();
+    BigDecimal floorUnitCost;
+    if (maxFromMovements == null) {
+      floorUnitCost = buying;
+    } else if (buying != null && buying.compareTo(maxFromMovements) > 0) {
+      floorUnitCost = buying;
+    } else {
+      floorUnitCost = maxFromMovements;
+    }
 
-    if (maxUnitCost == null) {
+    if (floorUnitCost == null) {
       throw new BadRequestException(
           "ITEM_NOT_SUPPLIED",
           "Item has no purchase history. You cannot sell what you don't have. "
-              + "Go to Inventory → Goods Receipt Notes, create a Goods Receipt when you receive "
-              + "stock, record the unit cost, then add the item to this schedule.");
+              + "Go to Inventory → Stock, receive stock when stock arrives, "
+              + "record the unit cost, then add the item to this schedule.");
     }
 
-    if (sellingPrice.compareTo(maxUnitCost) <= 0) {
+    if (sellingPrice.compareTo(floorUnitCost) <= 0) {
       throw new BadRequestException(
           "SELLING_PRICE_BELOW_COST",
           "Selling price must be greater than buying price (cost: "
-              + maxUnitCost
+              + floorUnitCost
               + "). Reduce cost or increase selling price.");
     }
 
@@ -115,5 +124,14 @@ public class ScheduledPriceServiceImpl implements ScheduledPriceService {
   public void remove(UUID orgId, UUID priceScheduleId, UUID scheduledPriceId) {
     ScheduledPrice scheduled = requireInSchedule(orgId, priceScheduleId, scheduledPriceId);
     scheduledPriceRepository.delete(scheduled);
+  }
+
+  @Override
+  @Transactional
+  public void removeAllScheduledPricesForItem(UUID orgId, UUID itemId) {
+    var rows = scheduledPriceRepository.findAllByOrgIdAndItemId(orgId, itemId);
+    if (!rows.isEmpty()) {
+      scheduledPriceRepository.deleteAll(rows);
+    }
   }
 }

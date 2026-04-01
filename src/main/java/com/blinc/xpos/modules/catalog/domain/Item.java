@@ -76,4 +76,16 @@ public class Item {
 
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
+
+  /**
+   * STOCK/MENU are physical sellables: price lists that respect inventory should hide lines when
+   * there is no on-hand, even if {@code trackInventory} was left off. Tracked items always follow
+   * on-hand rules.
+   */
+  public boolean requiresOnHandForSellableListing() {
+    if (Boolean.TRUE.equals(trackInventory)) {
+      return true;
+    }
+    return itemType == ItemType.STOCK || itemType == ItemType.MENU;
+  }
 }

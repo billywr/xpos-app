@@ -32,4 +32,15 @@ public interface PriceListItemService {
   Page<PriceListItem> listByPriceList(UUID orgId, UUID priceListId, Pageable pageable);
 
   void remove(UUID orgId, UUID priceListId, UUID priceListItemId);
+
+  /**
+   * Deletes every price list row for the item (when the catalog item is hidden or soft-deleted).
+   */
+  void removeAllListItemsForItem(UUID orgId, UUID itemId);
+
+  /**
+   * Removes price list lines for a tracked item when it no longer has on-hand stock in the scope
+   * implied by each price list (branch-scoped vs org-wide).
+   */
+  void purgePriceListLinesForTrackedItemIfOutOfStock(UUID orgId, UUID itemId);
 }

@@ -29,8 +29,9 @@ public interface ItemBarcodeRepository extends JpaRepository<ItemBarcode, UUID> 
   @Query(
       """
       select b from ItemBarcode b
-      join fetch b.item
+      join fetch b.item i
       where b.org.id = :orgId and b.barcode = :barcode
+      and i.active = true
       """)
   Optional<ItemBarcode> findByOrgIdAndBarcode(
       @Param("orgId") UUID orgId, @Param("barcode") String barcode);

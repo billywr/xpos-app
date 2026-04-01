@@ -3,6 +3,7 @@ package com.blinc.xpos.api.v1.operator;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -13,6 +14,7 @@ import com.blinc.xpos.api.v1.admin.organization.dto.OrgCreateRequest;
 import com.blinc.xpos.api.v1.admin.organization.dto.OrgResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MvcResult;
@@ -62,7 +64,147 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.rows.length()").value(1))
         .andExpect(jsonPath("$.rows[0].itemId").value(itemId.toString()))
         .andExpect(jsonPath("$.rows[0].openingStock").value(0))
-        .andExpect(jsonPath("$.rows[0].addedStock").value(5));
+        .andExpect(jsonPath("$.rows[0].addedStock").value(5))
+        .andExpect(jsonPath("$.rows[0].addedTodayStock").value(0))
+        .andExpect(jsonPath("$.rows[0].systemCountBeforeToday").value(5));
+  }
+
+  @Test
+  void getSheetSplitsGrnAddedAndStockTakeAddedToday() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID priceListId = createPriceList(orgId);
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
+    addItemToPriceList(orgId, priceListId, itemId);
+
+    String sessionBody = "{\"branchId\":\"" + branchId + "\"}";
+    MvcResult sessionResult =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content(sessionBody))
+            .andExpect(status().isCreated())
+            .andReturn();
+    UUID sessionId =
+        UUID.fromString(
+            objectMapper.readTree(sessionResult.getResponse().getContentAsString()).get("id").asText());
+
+    String lineBody =
+        """
+        {"itemId":"%s","countedQty":8}
+        """
+            .formatted(itemId);
+    mockMvc
+        .perform(
+            post(
+                    "/api/v1/admin/orgs/"
+                        + orgId
+                        + "/stock-count-sessions/"
+                        + sessionId
+                        + "/lines")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(lineBody))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            post(
+                    "/api/v1/admin/orgs/"
+                        + orgId
+                        + "/stock-count-sessions/"
+                        + sessionId
+                        + "/close")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk());
+
+    String date = LocalDate.now().toString();
+    String url =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + date;
+
+    mockMvc
+        .perform(get(url).with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(0))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(5))
+        .andExpect(jsonPath("$.rows[0].addedTodayStock").value(3))
+        .andExpect(jsonPath("$.rows[0].systemCountBeforeToday").value(8));
+  }
+
+  @Test
+  void getSheetAddedStockIsNetGrnInMinusOutAfterReceiptLineReduction() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID priceListId = createPriceList(orgId);
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+    String grnBody =
+        """
+        {"branchId":"%s","supplierId":"%s","lines":[{"itemId":"%s","qty":5,"receivedUnitCost":80.00}]}
+        """
+            .formatted(branchId, supplierId, itemId);
+    MvcResult grnResult =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content(grnBody))
+            .andExpect(status().isCreated())
+            .andReturn();
+    String grnJson = grnResult.getResponse().getContentAsString();
+    UUID grnId =
+        UUID.fromString(objectMapper.readTree(grnJson).get("id").asText());
+    String receivedAtForPatch = objectMapper.readTree(grnJson).get("receivedAt").asText();
+
+    String patchBody =
+        "{\"supplierId\":\""
+            + supplierId
+            + "\",\"receivedAt\":\""
+            + receivedAtForPatch
+            + "\",\"lines\":[{\"itemId\":\""
+            + itemId
+            + "\",\"qty\":2,\"receivedUnitCost\":80.00}]}";
+    mockMvc
+        .perform(
+            patch("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes/" + grnId)
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(patchBody))
+        .andExpect(status().isOk());
+
+    addItemToPriceList(orgId, priceListId, itemId);
+
+    String date = LocalDate.now().toString();
+    String url =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + date;
+
+    mockMvc
+        .perform(get(url).with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(0))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(2))
+        .andExpect(jsonPath("$.rows[0].systemCountBeforeToday").value(2));
   }
 
   @Test
@@ -112,6 +254,92 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
                 .with(jwt().jwt(j -> j.subject("admin"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.rows[0].closingStock").value(12));
+  }
+
+  @Test
+  void getSheetUsesPreviousBusinessDayClosingAsOpening() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate yesterday = today.minusDays(1);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID priceListId = createPriceList(orgId);
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
+    addItemToPriceList(orgId, priceListId, itemId);
+
+    String saveYesterday =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":5}]}
+        """
+            .formatted(yesterday, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(saveYesterday))
+        .andExpect(status().isOk());
+
+    String urlToday =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + today;
+    mockMvc
+        .perform(get(urlToday).with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(5));
+  }
+
+  @Test
+  void saveCountsPersistsCommentsWhenProvided() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID priceListId = createPriceList(orgId);
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
+    addItemToPriceList(orgId, priceListId, itemId);
+
+    String date = LocalDate.now().toString();
+    String saveBody =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":4,"comments":"Shelf check"}]}
+        """
+            .formatted(date, branchId, itemId);
+
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(saveBody))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].comments").value("Shelf check"));
+
+    mockMvc
+        .perform(
+            get(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/std-stock-count?date="
+                        + date)
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].comments").value("Shelf check"));
   }
 
   @Test

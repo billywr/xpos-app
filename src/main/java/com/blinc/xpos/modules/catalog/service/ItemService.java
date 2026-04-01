@@ -24,6 +24,12 @@ public interface ItemService {
 
   Item require(UUID orgId, UUID itemId);
 
+  /**
+   * Same as {@link #require} but rejects soft-deleted (inactive) catalog items. Use for stock,
+   * sales, transfers, purchase orders, pricing, and barcode lookup at POS.
+   */
+  Item requireActive(UUID orgId, UUID itemId);
+
   Page<Item> list(UUID orgId, UUID categoryId, Pageable pageable);
 
   Item update(

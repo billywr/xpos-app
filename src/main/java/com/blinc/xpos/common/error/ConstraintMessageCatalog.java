@@ -71,6 +71,9 @@ public class ConstraintMessageCatalog {
     m.put("uq_item_org_sku", "An item with this SKU already exists in this organization.");
     m.put("uq_item_uom", "This item already has this unit of measure configured.");
     m.put(
+        "uq_manual_stock_count_sheet_branch_date",
+        "A manual stock sheet already exists for this branch and date. Reload and try again.");
+    m.put(
         "uq_ledger_account",
         "A ledger account with this code already exists in this organization.");
     m.put(
@@ -191,7 +194,7 @@ public class ConstraintMessageCatalog {
         "Invalid purchase order: purchase order not found.");
     m.put("goods_receipt_note_received_by_fkey", "Invalid received by: staff user not found.");
     m.put("goods_receipt_note_supplier_id_fkey", "Invalid supplier: supplier not found.");
-    m.put("grn_line_grn_id_fkey", "Invalid goods receipt note: goods receipt note not found.");
+    m.put("grn_line_grn_id_fkey", "Invalid stock receipt: stock receipt not found.");
     m.put("grn_line_item_id_fkey", "Item not found.");
     m.put("grn_line_org_id_fkey", "Organization not found.");
     m.put("grn_line_uom_id_fkey", "Invalid unit of measure: unit of measure not found.");
@@ -334,6 +337,10 @@ public class ConstraintMessageCatalog {
     m.put("staff_profile_org_id_fkey", "Organization not found.");
     m.put("staff_profile_staff_user_id_fkey", "Staff user not found.");
     m.put("staff_user_org_id_fkey", "Organization not found.");
+    m.put("fk_manual_stock_line_item", "Item not found.");
+    m.put("fk_manual_stock_line_sheet", "Manual stock sheet not found.");
+    m.put("fk_manual_stock_sheet_branch", "Branch not found.");
+    m.put("fk_manual_stock_sheet_org", "Organization not found.");
     m.put("stock_count_line_item_id_fkey", "Item not found.");
     m.put("stock_count_line_org_id_fkey", "Organization not found.");
     m.put("stock_count_line_session_id_fkey", "Invalid session: stock count session not found.");

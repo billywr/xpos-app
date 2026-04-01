@@ -238,7 +238,7 @@ public class SaleServiceImpl implements SaleService {
       BigDecimal unitPriceOverride,
       List<ModifierQuantity> modifiers) {
     Sale sale = requireOpenOrHeldSale(orgId, saleId);
-    Item item = itemService.require(orgId, itemId);
+    Item item = itemService.requireActive(orgId, itemId);
     if (qty == null || qty.compareTo(BigDecimal.ZERO) <= 0) {
       throw new IllegalArgumentException("Quantity must be positive");
     }

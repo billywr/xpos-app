@@ -59,4 +59,8 @@ public class StdStockCountSnapshot {
 
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
+
+  /** Operator notes for this line (optional). */
+  @Column(name = "comments", columnDefinition = "text")
+  private String comments;
 }

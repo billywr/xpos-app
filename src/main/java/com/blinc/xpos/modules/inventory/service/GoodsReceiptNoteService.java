@@ -31,5 +31,11 @@ public interface GoodsReceiptNoteService {
       List<GrnLineRequest> lines,
       UUID updatedByStaffUserId);
 
+  /**
+   * Permanently deletes the receipt, its lines, and all stock movements sourced to this GRN.
+   * Reverses the net inventory effect of those movements (fails if on-hand would go negative).
+   */
+  void deletePermanently(UUID orgId, UUID grnId);
+
   record GrnLineRequest(UUID itemId, BigDecimal qty, UUID uomId, BigDecimal receivedUnitCost) {}
 }

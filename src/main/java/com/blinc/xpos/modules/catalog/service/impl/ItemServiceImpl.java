@@ -12,12 +12,16 @@ import com.blinc.xpos.modules.catalog.service.UomService;
 import com.blinc.xpos.modules.organization.service.OrgService;
 import com.blinc.xpos.common.error.BadRequestException;
 import com.blinc.xpos.modules.pricing.domain.TaxProfile;
+import com.blinc.xpos.modules.pricing.service.PriceListItemService;
+import com.blinc.xpos.modules.pricing.service.ScheduledPriceService;
 import com.blinc.xpos.modules.pricing.service.TaxProfileService;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -31,6 +35,8 @@ public class ItemServiceImpl implements ItemService {
   private final CategoryService categoryService;
   private final UomService uomService;
   private final TaxProfileService taxProfileService;
+  private final PriceListItemService priceListItemService;
+  private final ScheduledPriceService scheduledPriceService;
   private final Clock clock;
 
   public ItemServiceImpl(
@@ -39,13 +45,23 @@ public class ItemServiceImpl implements ItemService {
       CategoryService categoryService,
       UomService uomService,
       TaxProfileService taxProfileService,
+      @Lazy PriceListItemService priceListItemService,
+      @Lazy ScheduledPriceService scheduledPriceService,
       Clock clock) {
     this.itemRepository = Objects.requireNonNull(itemRepository, "itemRepository");
     this.orgService = Objects.requireNonNull(orgService, "orgService");
     this.categoryService = Objects.requireNonNull(categoryService, "categoryService");
     this.uomService = Objects.requireNonNull(uomService, "uomService");
     this.taxProfileService = Objects.requireNonNull(taxProfileService, "taxProfileService");
+    this.priceListItemService =
+        Objects.requireNonNull(priceListItemService, "priceListItemService");
+    this.scheduledPriceService =
+        Objects.requireNonNull(scheduledPriceService, "scheduledPriceService");
     this.clock = Objects.requireNonNull(clock, "clock");
+  }
+
+  private static BigDecimal zeroMoney() {
+    return BigDecimal.ZERO.setScale(2, RoundingMode.UNNECESSARY);
   }
 
   @Override
@@ -62,7 +78,8 @@ public class ItemServiceImpl implements ItemService {
       boolean active,
       BigDecimal buyingPrice,
       BigDecimal defaultSellingPrice) {
-    validateBuyingAndSellingPrice(buyingPrice, defaultSellingPrice);
+    BigDecimal effectiveSelling = active ? defaultSellingPrice : zeroMoney();
+    validateBuyingAndSellingPrice(buyingPrice, effectiveSelling);
     var org = orgService.require(orgId);
     Item item = new Item();
     item.setOrg(org);
@@ -90,18 +107,27 @@ public class ItemServiceImpl implements ItemService {
     item.setTrackInventory(trackInventory);
     item.setActive(active);
     item.setBuyingPrice(buyingPrice);
-    item.setDefaultSellingPrice(defaultSellingPrice);
+    item.setDefaultSellingPrice(effectiveSelling);
     Instant now = Instant.now(clock);
     item.setCreatedAt(now);
     item.setUpdatedAt(now);
-    return itemRepository.save(item);
+    Item saved = itemRepository.save(item);
+    if (!active) {
+      priceListItemService.removeAllListItemsForItem(orgId, saved.getId());
+      scheduledPriceService.removeAllScheduledPricesForItem(orgId, saved.getId());
+    }
+    return saved;
   }
 
   private static void validateBuyingAndSellingPrice(
       BigDecimal buyingPrice, BigDecimal defaultSellingPrice) {
-    if (buyingPrice != null
-        && defaultSellingPrice != null
-        && defaultSellingPrice.compareTo(buyingPrice) < 0) {
+    if (buyingPrice == null || defaultSellingPrice == null) {
+      return;
+    }
+    if (defaultSellingPrice.compareTo(BigDecimal.ZERO) == 0) {
+      return;
+    }
+    if (defaultSellingPrice.compareTo(buyingPrice) < 0) {
       throw new BadRequestException(
           "SELLING_PRICE_BELOW_BUYING",
           "Default selling price cannot be less than buying price.");
@@ -114,6 +140,18 @@ public class ItemServiceImpl implements ItemService {
     return itemRepository
         .findByIdAndOrgId(itemId, orgId)
         .orElseThrow(() -> new NotFoundException("ITEM_NOT_FOUND", "Item not found"));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Item requireActive(UUID orgId, UUID itemId) {
+    Item item = require(orgId, itemId);
+    if (!Boolean.TRUE.equals(item.getActive())) {
+      throw new BadRequestException(
+          "ITEM_INACTIVE",
+          "This catalog item is inactive. Reactivate it in Catalog before stock, sales, or pricing.");
+    }
+    return item;
   }
 
   @Override
@@ -138,7 +176,8 @@ public class ItemServiceImpl implements ItemService {
       boolean active,
       BigDecimal buyingPrice,
       BigDecimal defaultSellingPrice) {
-    validateBuyingAndSellingPrice(buyingPrice, defaultSellingPrice);
+    BigDecimal effectiveSelling = active ? defaultSellingPrice : zeroMoney();
+    validateBuyingAndSellingPrice(buyingPrice, effectiveSelling);
     Item item = require(orgId, itemId);
     item.setSku(sku);
     item.setName(name);
@@ -161,9 +200,14 @@ public class ItemServiceImpl implements ItemService {
     item.setTrackInventory(trackInventory);
     item.setActive(active);
     item.setBuyingPrice(buyingPrice);
-    item.setDefaultSellingPrice(defaultSellingPrice);
+    item.setDefaultSellingPrice(effectiveSelling);
     item.setUpdatedAt(Instant.now(clock));
-    return itemRepository.save(item);
+    Item saved = itemRepository.save(item);
+    if (!active) {
+      priceListItemService.removeAllListItemsForItem(orgId, itemId);
+      scheduledPriceService.removeAllScheduledPricesForItem(orgId, itemId);
+    }
+    return saved;
   }
 
   @Override
@@ -171,6 +215,9 @@ public class ItemServiceImpl implements ItemService {
   public void delete(UUID orgId, UUID itemId) {
     Item item = require(orgId, itemId);
     item.setActive(false);
+    item.setDefaultSellingPrice(zeroMoney());
+    priceListItemService.removeAllListItemsForItem(orgId, itemId);
+    scheduledPriceService.removeAllScheduledPricesForItem(orgId, itemId);
     item.setUpdatedAt(Instant.now(clock));
     itemRepository.save(item);
   }

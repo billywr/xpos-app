@@ -25,4 +25,12 @@ public interface ScheduledPriceRepository extends JpaRepository<ScheduledPrice, 
       """)
   List<ScheduledPrice> findAllByPriceScheduleIdAndOrgId(
       @Param("priceScheduleId") UUID priceScheduleId, @Param("orgId") UUID orgId);
+
+  @Query(
+      """
+      select s from ScheduledPrice s
+      where s.org.id = :orgId and s.item.id = :itemId
+      """)
+  List<ScheduledPrice> findAllByOrgIdAndItemId(
+      @Param("orgId") UUID orgId, @Param("itemId") UUID itemId);
 }

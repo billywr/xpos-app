@@ -92,7 +92,7 @@ public class TransferOrderServiceImpl implements TransferOrderService {
       throw new IllegalStateException(
           "Only draft transfer orders can be modified. Status: " + order.getStatus());
     }
-    var item = itemService.require(orgId, itemId);
+    var item = itemService.requireActive(orgId, itemId);
     var uom = (uomId != null) ? uomService.require(orgId, uomId) : null;
     if (qty == null || qty.compareTo(BigDecimal.ZERO) <= 0) {
       throw new IllegalArgumentException("Quantity must be positive");

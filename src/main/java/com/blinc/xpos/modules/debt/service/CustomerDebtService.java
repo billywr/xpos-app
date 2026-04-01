@@ -22,13 +22,7 @@ public interface CustomerDebtService {
   CustomerDebt require(UUID orgId, UUID debtId);
 
   CustomerDebt update(
-      UUID orgId,
-      UUID debtId,
-      java.math.BigDecimal amount,
-      java.math.BigDecimal outstanding,
-      java.time.LocalDate dueDate,
-      String notes,
-      UUID updatedByStaffUserId);
+      UUID orgId, UUID debtId, DebtUpdateInput input, UUID updatedByStaffUserId);
 
   CustomerDebt cancel(UUID orgId, UUID debtId, UUID cancelledByStaffUserId);
 
@@ -57,4 +51,7 @@ public interface CustomerDebtService {
       Pageable pageable);
 
   Page<CustomerDebt> listByCustomer(UUID orgId, UUID customerId, Pageable pageable);
+
+  /** Sum of outstanding (amount − settled) for OPEN and PARTIAL debts at this branch. */
+  java.math.BigDecimal sumPendingOutstanding(UUID orgId, UUID branchId);
 }

@@ -71,6 +71,81 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
+  void pendingTotalMatchesOpenAndPartialOutstanding() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    mockMvc
+        .perform(
+            get(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/debts/pending-total")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalPending").value(0));
+
+    MvcResult createResult =
+        mockMvc
+            .perform(
+                post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"customerId\":\"" + customerId + "\",\"amount\":100}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+    UUID debtId =
+        UUID.fromString(
+            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+
+    mockMvc
+        .perform(
+            get(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/debts/pending-total")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalPending").value(100));
+
+    mockMvc
+        .perform(
+            post(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/debts/"
+                        + debtId
+                        + "/settle")
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content("{\"paymentAmount\":25}"))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            get(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/debts/pending-total")
+                .with(jwt().jwt(j -> j.subject("admin"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalPending").value(75));
+  }
+
+  @Test
   void createDebtWithInvalidCustomerReturns404() throws Exception {
     UUID orgId = createOrg();
     UUID businessId = createBusiness(orgId);
@@ -183,7 +258,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.amountSettled").value(1000))
         .andExpect(jsonPath("$.outstanding").value(0))
-        .andExpect(jsonPath("$.status").value("SETTLED"));
+        .andExpect(jsonPath("$.status").value("CLOSED"));
   }
 
   @Test
@@ -360,6 +435,49 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
+  void updateDebtCustomerAndAmountAndBalanceTogether() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    MvcResult createResult =
+        mockMvc
+            .perform(
+                post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
+                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"customerId\":\"" + customerId + "\",\"amount\":100}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+    UUID debtId =
+        UUID.fromString(
+            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+
+    String updateBody =
+        "{\"customerName\":\"Jane Wanjiku\",\"customerPhone\":\"+254700111222\","
+            + "\"amount\":250,\"outstanding\":200,\"notes\":\"Corrected totals\"}";
+
+    mockMvc
+        .perform(
+            patch("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts/" + debtId)
+                .with(jwt().jwt(j -> j.subject("admin")))
+                .contentType(APPLICATION_JSON)
+                .content(updateBody))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.customerName").value("Jane Wanjiku"))
+        .andExpect(jsonPath("$.customerPhone").value("+254700111222"))
+        .andExpect(jsonPath("$.amount").value(250))
+        .andExpect(jsonPath("$.amountSettled").value(50))
+        .andExpect(jsonPath("$.outstanding").value(200))
+        .andExpect(jsonPath("$.status").value("PARTIAL"))
+        .andExpect(jsonPath("$.notes").value("Corrected totals"));
+  }
+
+  @Test
   void listDebtsWithStatusFilterOpenReturnsOnlyOpenDebts() throws Exception {
     UUID orgId = createOrg();
     UUID businessId = createBusiness(orgId);
@@ -422,7 +540,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
                 .contentType(APPLICATION_JSON)
                 .content("{\"paymentAmount\":50}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("SETTLED"));
+        .andExpect(jsonPath("$.status").value("CLOSED"));
 
     mockMvc
         .perform(
@@ -438,11 +556,11 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
                         + orgId
                         + "/branches/"
                         + branchId
-                        + "/debts?status=SETTLED")
+                        + "/debts?status=CLOSED")
                 .with(jwt().jwt(j -> j.subject("admin"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
-        .andExpect(jsonPath("$.content[0].status").value("SETTLED"));
+        .andExpect(jsonPath("$.content[0].status").value("CLOSED"));
   }
 
   @Test

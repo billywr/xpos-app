@@ -107,7 +107,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
       throw new IllegalStateException(
           "Only draft purchase orders can be modified. Current status: " + po.getStatus());
     }
-    var item = itemService.require(orgId, itemId);
+    var item = itemService.requireActive(orgId, itemId);
     var uom = (uomId != null) ? uomService.require(orgId, uomId) : null;
     if (qty == null || qty.compareTo(BigDecimal.ZERO) <= 0) {
       throw new IllegalArgumentException("Quantity must be positive");

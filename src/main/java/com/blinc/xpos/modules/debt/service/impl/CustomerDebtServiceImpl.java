@@ -8,6 +8,7 @@ import com.blinc.xpos.modules.cash.service.ShiftService;
 import com.blinc.xpos.modules.debt.domain.CustomerDebt;
 import com.blinc.xpos.modules.debt.repository.CustomerDebtRepository;
 import com.blinc.xpos.modules.debt.service.CustomerDebtService;
+import com.blinc.xpos.modules.debt.service.DebtUpdateInput;
 import com.blinc.xpos.modules.organization.domain.Customer;
 import com.blinc.xpos.modules.organization.domain.Terminal;
 import com.blinc.xpos.modules.organization.service.BranchService;
@@ -142,13 +143,7 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
   @Override
   @Transactional
   public CustomerDebt update(
-      UUID orgId,
-      UUID debtId,
-      BigDecimal amount,
-      BigDecimal outstanding,
-      LocalDate dueDate,
-      String notes,
-      UUID updatedByStaffUserId) {
+      UUID orgId, UUID debtId, DebtUpdateInput input, UUID updatedByStaffUserId) {
     staffUserService.require(orgId, updatedByStaffUserId);
     CustomerDebt debt = require(orgId, debtId);
     if (debt.getStatus() == CustomerDebtStatus.CANCELLED) {
@@ -166,8 +161,43 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
           "DEBT_HAS_REPAYMENTS",
           "Cannot edit debt once repayments have been recorded. Use Record payment to add more.");
     }
-    if (outstanding != null) {
+    if (input.reassignedCustomerId() != null) {
+      debt.setCustomer(customerService.require(orgId, input.reassignedCustomerId()));
+    }
+    if (input.customerName() != null || input.customerPhone() != null) {
+      String name = input.customerName();
+      if (name != null && name.trim().isEmpty()) {
+        throw new BadRequestException(
+            "CUSTOMER_NAME_REQUIRED", "Customer name cannot be empty.");
+      }
+      String phone = input.customerPhone();
+      if (phone != null) {
+        phone = phone.trim();
+      }
+      customerService.update(
+          orgId,
+          debt.getCustomer().getId(),
+          name,
+          phone,
+          null,
+          null);
+    }
+    if (input.amount() != null) {
+      if (input.amount().compareTo(BigDecimal.ZERO) <= 0) {
+        throw new BadRequestException("INVALID_AMOUNT", "Amount must be positive.");
+      }
+      BigDecimal settled =
+          debt.getAmountSettled() != null ? debt.getAmountSettled() : BigDecimal.ZERO;
+      if (input.amount().compareTo(settled) < 0) {
+        throw new BadRequestException(
+            "AMOUNT_BELOW_SETTLED",
+            "Original amount cannot be less than amount already repaid.");
+      }
+      debt.setAmount(input.amount());
+    }
+    if (input.outstanding() != null) {
       BigDecimal orig = debt.getAmount() != null ? debt.getAmount() : BigDecimal.ZERO;
+      BigDecimal outstanding = input.outstanding();
       if (outstanding.compareTo(BigDecimal.ZERO) < 0) {
         throw new BadRequestException(
             "BALANCE_NEGATIVE", "Balance cannot be negative.");
@@ -186,21 +216,12 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
                   ? CustomerDebtStatus.PARTIAL
                   : CustomerDebtStatus.OPEN);
     }
-    if (amount != null) {
-      BigDecimal settled =
-          debt.getAmountSettled() != null ? debt.getAmountSettled() : BigDecimal.ZERO;
-      if (amount.compareTo(settled) < 0) {
-        throw new BadRequestException(
-            "AMOUNT_BELOW_SETTLED",
-            "Original amount cannot be less than amount already repaid.");
-      }
-      debt.setAmount(amount);
+    if (input.dueDate() != null) {
+      debt.setDueDate(input.dueDate());
     }
-    if (dueDate != null) {
-      debt.setDueDate(dueDate);
-    }
-    if (notes != null) {
-      debt.setNotes(notes.trim().isEmpty() ? null : notes.trim());
+    if (input.notes() != null) {
+      String n = input.notes().trim();
+      debt.setNotes(n.isEmpty() ? null : n);
     }
     return customerDebtRepository.save(debt);
   }
@@ -305,6 +326,16 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
           orgId, branchId, statusNames, pageable);
     }
     return customerDebtRepository.findAllByOrgIdAndBranchId(orgId, branchId, pageable);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public BigDecimal sumPendingOutstanding(UUID orgId, UUID branchId) {
+    branchService.require(orgId, branchId);
+    BigDecimal v =
+        customerDebtRepository.sumOutstandingByOrgIdAndBranchIdAndStatusIn(
+            orgId, branchId, List.of("OPEN", "PARTIAL"));
+    return v != null ? v : BigDecimal.ZERO;
   }
 
   @Override

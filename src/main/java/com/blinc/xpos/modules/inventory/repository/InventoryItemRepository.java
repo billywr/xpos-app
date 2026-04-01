@@ -31,4 +31,12 @@ public interface InventoryItemRepository extends JpaRepository<InventoryItem, UU
       @Param("orgId") UUID orgId,
       @Param("branchId") UUID branchId,
       Pageable pageable);
+
+  @Query(
+      """
+      select count(inv) from InventoryItem inv
+      where inv.org.id = :orgId and inv.item.id = :itemId and inv.onHandQty > 0
+      """)
+  long countWithPositiveOnHandByOrgAndItem(
+      @Param("orgId") UUID orgId, @Param("itemId") UUID itemId);
 }

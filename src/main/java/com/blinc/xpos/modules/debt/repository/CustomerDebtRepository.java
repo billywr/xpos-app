@@ -40,7 +40,9 @@ public interface CustomerDebtRepository
           left join fetch d.customer
           left join fetch d.createdBy
           where d.org.id = :orgId and d.branch.id = :branchId
-          order by d.createdAt desc
+          order by case when (d.status = com.blinc.xpos.common.constants.enums.CustomerDebtStatus.SETTLED
+              or d.status = com.blinc.xpos.common.constants.enums.CustomerDebtStatus.CANCELLED)
+              then 1 else 0 end asc, d.createdAt desc
           """,
       countQuery =
           """

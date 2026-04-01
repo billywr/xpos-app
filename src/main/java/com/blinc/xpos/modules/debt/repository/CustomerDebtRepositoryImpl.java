@@ -42,7 +42,8 @@ public class CustomerDebtRepositoryImpl implements CustomerDebtRepositoryCustom 
         select cd.id from customer_debt cd
         where cd.org_id = :orgId and cd.branch_id = :branchId
         and cd.status::text in (:statusNames)
-        order by cd.created_at desc
+        order by case when cd.status::text in ('OPEN','PARTIAL') then 0 else 1 end asc,
+        cd.created_at desc
         """;
 
     Query idsQuery = entityManager.createNativeQuery(idsSql);

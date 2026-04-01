@@ -1,6 +1,8 @@
 package com.blinc.xpos.modules.inventory.repository;
 
 import com.blinc.xpos.modules.inventory.domain.GoodsReceiptNote;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -68,4 +70,24 @@ public interface GoodsReceiptNoteRepository extends JpaRepository<GoodsReceiptNo
       """)
   Page<GoodsReceiptNote> findAllByOrgIdAndBranchId(
       @Param("orgId") UUID orgId, @Param("branchId") UUID branchId, Pageable pageable);
+
+  /**
+   * Latest active GRN for branch+supplier on the same calendar day (see service for zone used),
+   * excluding purchase-order-linked receipts (those are not merged).
+   */
+  @Query(
+      """
+      select g from GoodsReceiptNote g
+      where g.org.id = :orgId and g.branch.id = :branchId and g.supplier.id = :supplierId
+      and g.active = true and g.purchaseOrder is null
+      and g.receivedAt >= :dayStart and g.receivedAt < :dayEndExclusive
+      order by g.receivedAt desc
+      """)
+  List<GoodsReceiptNote> findActiveWithoutPoForMergeSameDay(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("supplierId") UUID supplierId,
+      @Param("dayStart") Instant dayStart,
+      @Param("dayEndExclusive") Instant dayEndExclusive,
+      Pageable pageable);
 }

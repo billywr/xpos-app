@@ -3,12 +3,14 @@ package com.blinc.xpos.api.v1.operator;
 import com.blinc.xpos.api.v1.operator.dto.CustomerDebtCreateRequest;
 import com.blinc.xpos.api.v1.operator.dto.CustomerDebtResponse;
 import com.blinc.xpos.api.v1.operator.dto.CustomerDebtUpdateRequest;
+import com.blinc.xpos.api.v1.operator.dto.DebtPendingTotalResponse;
 import com.blinc.xpos.api.v1.operator.dto.DebtSettleRequest;
 import com.blinc.xpos.common.security.CurrentPrincipalResolver;
 import com.blinc.xpos.common.web.paging.PageRequestFactory;
 import com.blinc.xpos.common.constants.enums.CustomerDebtStatus;
 import com.blinc.xpos.modules.debt.domain.CustomerDebt;
 import com.blinc.xpos.modules.debt.service.CustomerDebtService;
+import com.blinc.xpos.modules.debt.service.DebtUpdateInput;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
@@ -86,10 +88,14 @@ public class CustomerDebtOperatorController {
         customerDebtService.update(
             orgId,
             debtId,
-            request.amount(),
-            request.outstanding(),
-            request.dueDate(),
-            request.notes(),
+            new DebtUpdateInput(
+                request.customerId(),
+                request.customerName(),
+                request.customerPhone(),
+                request.amount(),
+                request.outstanding(),
+                request.dueDate(),
+                request.notes()),
             staffUser.getId());
     return toResponse(debt);
   }
@@ -122,6 +128,15 @@ public class CustomerDebtOperatorController {
     return toResponse(debt);
   }
 
+  @GetMapping("/debts/pending-total")
+  public DebtPendingTotalResponse pendingTotal(
+      @PathVariable UUID orgId, @PathVariable UUID branchId) {
+    staffAuthorizationService.requireStaffUserForBranch(
+        orgId, branchId, principalResolver.require().iamUserId());
+    BigDecimal total = customerDebtService.sumPendingOutstanding(orgId, branchId);
+    return new DebtPendingTotalResponse(total);
+  }
+
   @GetMapping("/debts")
   public Page<CustomerDebtResponse> list(
       @PathVariable UUID orgId,
@@ -149,6 +164,9 @@ public class CustomerDebtOperatorController {
             .distinct()
             .map(
                 s -> {
+                  if ("CLOSED".equals(s)) {
+                    return CustomerDebtStatus.SETTLED;
+                  }
                   try {
                     return CustomerDebtStatus.valueOf(s);
                   } catch (IllegalArgumentException e) {
@@ -159,6 +177,16 @@ public class CustomerDebtOperatorController {
             .distinct()
             .toList();
     return result.isEmpty() ? null : result;
+  }
+
+  private static String statusToApi(CustomerDebtStatus status) {
+    if (status == null) {
+      return null;
+    }
+    if (status == CustomerDebtStatus.SETTLED) {
+      return "CLOSED";
+    }
+    return status.name();
   }
 
   private static CustomerDebtResponse toResponse(CustomerDebt d) {
@@ -175,7 +203,7 @@ public class CustomerDebtOperatorController {
         outstanding,
         d.getCurrency(),
         d.getDueDate(),
-        d.getStatus() != null ? d.getStatus().name() : null,
+        statusToApi(d.getStatus()),
         d.getNotes(),
         d.getCreatedBy().getId(),
         d.getCreatedAt());

@@ -130,10 +130,11 @@ public class StockCountSessionServiceImpl implements StockCountSessionService {
       UUID orgId, UUID sessionId, UUID itemId, BigDecimal countedQty) {
     StockCountSession session = require(orgId, sessionId);
     if (!STATUS_OPEN.equals(session.getStatus())) {
-      throw new IllegalStateException(
-          "Only open sessions can receive count lines. Status: " + session.getStatus());
+      throw new BadRequestException(
+          "STOCK_COUNT_SESSION_NOT_OPEN",
+          "Only open sessions can receive count lines. Current status: " + session.getStatus());
     }
-    var item = itemService.require(orgId, itemId);
+    var item = itemService.requireActive(orgId, itemId);
     if (countedQty == null || countedQty.compareTo(BigDecimal.ZERO) < 0) {
       throw new IllegalArgumentException("Counted quantity must be non-negative");
     }
@@ -165,8 +166,9 @@ public class StockCountSessionServiceImpl implements StockCountSessionService {
       UUID orgId, UUID sessionId, UUID lineId, BigDecimal countedQty) {
     StockCountSession session = require(orgId, sessionId);
     if (!STATUS_OPEN.equals(session.getStatus())) {
-      throw new IllegalStateException(
-          "Only open sessions can be updated. Status: " + session.getStatus());
+      throw new BadRequestException(
+          "STOCK_COUNT_SESSION_NOT_OPEN",
+          "Only open sessions can be updated. Current status: " + session.getStatus());
     }
     StockCountLine line =
         lineRepository
@@ -197,8 +199,9 @@ public class StockCountSessionServiceImpl implements StockCountSessionService {
   public StockCountSession deleteLine(UUID orgId, UUID sessionId, UUID lineId) {
     StockCountSession session = require(orgId, sessionId);
     if (!STATUS_OPEN.equals(session.getStatus())) {
-      throw new IllegalStateException(
-          "Only open sessions can have lines deleted. Status: " + session.getStatus());
+      throw new BadRequestException(
+          "STOCK_COUNT_SESSION_NOT_OPEN",
+          "Only open sessions can have lines deleted. Current status: " + session.getStatus());
     }
     StockCountLine line =
         lineRepository
@@ -220,8 +223,9 @@ public class StockCountSessionServiceImpl implements StockCountSessionService {
   public StockCountSession close(UUID orgId, UUID sessionId, UUID closedByStaffUserId) {
     StockCountSession session = require(orgId, sessionId);
     if (!STATUS_OPEN.equals(session.getStatus())) {
-      throw new IllegalStateException(
-          "Session is not open. Status: " + session.getStatus());
+      throw new BadRequestException(
+          "STOCK_COUNT_SESSION_NOT_OPEN",
+          "Session is not open. Current status: " + session.getStatus());
     }
     StaffUser closedBy = staffUserService.require(orgId, closedByStaffUserId);
     session.setClosedBy(closedBy);

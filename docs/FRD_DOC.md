@@ -43,8 +43,8 @@ refunding a sale requires approval.
 ## 5. Inventory Management
 
 The system shall maintain per-branch stock levels. Stock must be
-affected by sales, waste, transfers and purchase receipts. Goods Receipt
-Note (GRN) must increase inventory quantities. Stock take sessions must
+affected by sales, waste, transfers and purchase receipts. Stock receipt
+(GRN) must increase inventory quantities. Stock take sessions must
 record counted quantities and calculate variance. The system shall
 produce alerts for negative stock and low stock.
 
