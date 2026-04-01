@@ -378,6 +378,7 @@ export function StandardStockCountSheetPage({
       <PageHeader
         title="Stock Count Sheet"
         subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = previous day's saved Closing when you saved the sheet; if none, ledger fallback (max(0, System − same-day Added and stock-take adds)). Total Stock = Opening + Added + Added today. Closing = physical count (defaults to ledger on-hand; editable); Units Sold = Total Stock − Closing.${showSystemAndVariance ? " System = ledger at end of this day; Variance = Closing − System (positive = excess)." : ""}`}
+        subtitleRevealOnTitleHover
         icon={FileSpreadsheet}
         fallbackTo="/operator"
       />

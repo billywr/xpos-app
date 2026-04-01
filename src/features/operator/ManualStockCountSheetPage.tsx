@@ -367,6 +367,7 @@ export function ManualStockCountSheetPage() {
       <PageHeader
         title="Stock Count Sheet"
         subtitle={`Manual sheet at ${branchName ?? "this branch"} (no ledger). Same layout as standard count: Opening + Added = Total stock; Closing and System are typed in; Units sold = Total − Closing; Variance = Closing − System; Amount = Units sold × selling price. Item name is set when you add a row. Leave Opening blank on save to use yesterday’s saved closing.`}
+        subtitleRevealOnTitleHover
         icon={FileSpreadsheet}
         fallbackTo="/operator"
       />

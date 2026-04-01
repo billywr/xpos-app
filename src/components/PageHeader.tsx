@@ -1,9 +1,12 @@
+import { useId } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 
 export interface PageHeaderProps {
   title: string;
   subtitle?: string;
+  /** When true, subtitle is collapsed until the user hovers the title row (icon + text). */
+  subtitleRevealOnTitleHover?: boolean;
   /** Optional icon to show next to title */
   icon?: React.ElementType;
   /** Fallback when browser history is empty (e.g. direct link). */
@@ -19,6 +22,7 @@ export interface PageHeaderProps {
 export function PageHeader({
   title,
   subtitle,
+  subtitleRevealOnTitleHover = false,
   icon: Icon,
   fallbackTo,
   className = "",
@@ -26,6 +30,7 @@ export function PageHeader({
   children,
 }: PageHeaderProps) {
   const navigate = useNavigate();
+  const subtitleDescriptionId = useId();
 
   const handleBack = () => {
     if (fallbackTo && window.history.length <= 1) {
@@ -47,12 +52,41 @@ export function PageHeader({
         <ChevronLeft className="h-6 w-6" />
       </button>
       <div className="min-w-0 flex-1">
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-          {Icon && <Icon className="h-7 w-7 shrink-0" />}
-          {title}
-        </h1>
-        {subtitle && (
-          <p className="mt-1 text-slate-600 dark:text-slate-400">{subtitle}</p>
+        {subtitle && subtitleRevealOnTitleHover ? (
+          <div className="group inline-block max-w-full cursor-default">
+            <h1
+              className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white"
+              aria-describedby={subtitleDescriptionId}
+            >
+              {Icon && <Icon className="h-7 w-7 shrink-0" />}
+              {title}
+            </h1>
+            <div
+              className={
+                "grid grid-rows-[1fr] transition-[grid-template-rows] duration-200 ease-out " +
+                "[@media(hover:hover)]:grid-rows-[0fr] [@media(hover:hover)]:group-hover:grid-rows-[1fr]"
+              }
+            >
+              <div className="min-h-0 overflow-hidden">
+                <p
+                  id={subtitleDescriptionId}
+                  className="mt-1 text-slate-600 dark:text-slate-400"
+                >
+                  {subtitle}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
+              {Icon && <Icon className="h-7 w-7 shrink-0" />}
+              {title}
+            </h1>
+            {subtitle && (
+              <p className="mt-1 text-slate-600 dark:text-slate-400">{subtitle}</p>
+            )}
+          </>
         )}
         {children}
       </div>
