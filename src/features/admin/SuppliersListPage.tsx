@@ -12,7 +12,8 @@ import type { Org } from "@/types/org";
 import type { Supplier } from "@/api/suppliers";
 import { filterActiveOrgs } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
+import { SlideOver, Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Truck, Pencil, Trash2 } from "lucide-react";
@@ -138,6 +139,7 @@ export function SuppliersListPage({
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const suppliers = suppliersData?.content ?? [];
   const totalElements = suppliersData?.totalElements ?? 0;
+  const { searchQuery, setSearchQuery, filteredRows: filteredSuppliers } = useTableSearch(suppliers);
 
   useEffect(() => {
     if (initialOrgId) {
@@ -327,6 +329,8 @@ export function SuppliersListPage({
         </div>
       ) : (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search suppliers…" className="mb-4" />
+
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -350,19 +354,21 @@ export function SuppliersListPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {suppliers.length === 0 ? (
+                  {filteredSuppliers.length === 0 ? (
                     <tr>
                       <td
                         colSpan={5}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        {includeInactive
-                          ? "No suppliers (active or inactive)."
-                          : "No suppliers. Add a supplier to use when receiving goods."}
+                        {suppliers.length === 0
+                          ? (includeInactive
+                              ? "No suppliers (active or inactive)."
+                              : "No suppliers. Add a supplier to use when receiving goods.")
+                          : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    suppliers.map((s: Supplier) => (
+                    filteredSuppliers.map((s: Supplier) => (
                       <tr
                         key={s.id}
                         className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 ${

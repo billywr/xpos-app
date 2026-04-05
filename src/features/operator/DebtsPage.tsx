@@ -23,7 +23,8 @@ import { fetchAllOrgItems } from "@/api/items";
 import { fetchPriceLists, fetchPriceListItems } from "@/api/priceLists";
 import type { Item } from "@/types/catalog";
 import { SlideOver } from "@/components/ui/SlideOver";
-import { Pagination, ConfirmDialog } from "@/components/ui";
+import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -392,6 +393,7 @@ export function DebtsPage() {
   });
 
   const debts = data?.content ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredDebts } = useTableSearch(debts);
 
   const openEditForm = (d: CustomerDebtResponse) => {
     setEditingDebt(d);
@@ -602,22 +604,24 @@ export function DebtsPage() {
 
       {!isLoading && !isError && (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search debts…" className="mb-4" />
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            {debts.length === 0 ? (
+            {filteredDebts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16">
                 <HandCoins className="h-12 w-12 text-slate-400 dark:text-slate-500" />
                 <p className="mt-4 text-slate-500 dark:text-slate-400">
-                  No debts recorded yet. Record a debt when a customer buys on
-                  credit.
+                  {debts.length === 0 ? "No debts recorded yet. Record a debt when a customer buys on credit." : "No results match your search."}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setFormOpen(true)}
-                  className="mt-4 inline-flex items-center gap-2 rounded-lg border border-primary-500 bg-transparent px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30"
-                >
-                  <Plus className="h-4 w-4" />
-                  Record debt
-                </button>
+                {debts.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFormOpen(true)}
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg border border-primary-500 bg-transparent px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Record debt
+                  </button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -657,7 +661,7 @@ export function DebtsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                    {debts.map((d: CustomerDebtResponse) => (
+                    {filteredDebts.map((d: CustomerDebtResponse) => (
                       <tr key={d.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                         <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                           {d.customerName}

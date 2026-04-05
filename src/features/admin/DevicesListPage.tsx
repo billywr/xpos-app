@@ -15,7 +15,8 @@ import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { DeviceRegistration } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, ConfirmDialog, Pagination } from "@/components/ui";
+import { SlideOver, ConfirmDialog, Pagination, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Power, PowerOff, Trash2 } from "lucide-react";
@@ -156,6 +157,7 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
   const devices = devicesData?.content ?? [];
   const totalElements = devicesData?.totalElements ?? 0;
+  const { searchQuery, setSearchQuery, filteredRows: filteredDevices } = useTableSearch(devices);
 
   useEffect(() => {
     if (initialOrgId) {
@@ -328,6 +330,8 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
         </div>
       ) : (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search devices…" className="mb-4" />
+
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -345,17 +349,17 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {devices.length === 0 ? (
+                  {filteredDevices.length === 0 ? (
                     <tr>
                       <td
                         colSpan={3}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        No devices registered yet. Register a device to get started.
+                        {devices.length === 0 ? "No devices registered yet. Register a device to get started." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    devices.map((device: DeviceRegistration) => (
+                    filteredDevices.map((device: DeviceRegistration) => (
                       <tr
                         key={device.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

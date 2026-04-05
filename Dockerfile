@@ -23,9 +23,9 @@ RUN npm run build
 FROM nginx:1.27-alpine
 
 RUN apk add --no-cache gettext-envsubst \
-    && rm -rf /usr/share/nginx/html/*
+    && rm -rf /etc/nginx/html/*
 
-COPY --from=builder /build/dist /usr/share/nginx/html
+COPY --from=builder /build/dist /etc/nginx/html
 COPY nginx.conf.template /etc/nginx/conf.d/default.conf.template
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

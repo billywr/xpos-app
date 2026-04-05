@@ -13,7 +13,8 @@ import type { Org } from "@/types/org";
 import { filterActiveOrgs } from "@/types/org";
 import type { Category } from "@/types/catalog";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
+import { SlideOver, Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -149,6 +150,7 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const categories = categoriesData?.content ?? [];
   const totalElements = categoriesData?.totalElements ?? 0;
+  const { searchQuery, setSearchQuery, filteredRows: filteredCategories } = useTableSearch(categories);
   const allCategories = allCategoriesData?.content ?? [];
   const parentOptions = allCategories.filter(
     (c: Category) => !editingCategory || c.id !== editingCategory.id
@@ -338,6 +340,8 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
         </div>
       ) : (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search categories…" className="mb-4" />
+
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -358,17 +362,17 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {categories.length === 0 ? (
+                  {filteredCategories.length === 0 ? (
                     <tr>
                       <td
                         colSpan={4}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        No categories yet. Add one to organize your catalog.
+                        {categories.length === 0 ? "No categories yet. Add one to organize your catalog." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    categories.map((cat: Category) => (
+                    filteredCategories.map((cat: Category) => (
                       <tr
                         key={cat.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

@@ -19,7 +19,8 @@ import {
   filterNonDeletedDevices,
 } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, ConfirmDialog, Pagination } from "@/components/ui";
+import { SlideOver, ConfirmDialog, Pagination, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Smartphone, Trash2 } from "lucide-react";
@@ -183,6 +184,7 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
   const terminals = terminalsData?.content ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredTerminals } = useTableSearch(terminals);
   const totalElements = terminalsData?.totalElements ?? 0;
   const devices = filterNonDeletedDevices(devicesData?.content ?? []);
 
@@ -410,6 +412,7 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
         </div>
       ) : (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search terminals…" className="mb-4" />
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -427,18 +430,17 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {terminals.length === 0 ? (
+                  {filteredTerminals.length === 0 ? (
                     <tr>
                       <td
                         colSpan={3}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        No terminals yet for {selectedBranch?.name}. Add one to
-                        get started.
+                        {terminals.length === 0 ? `No terminals yet for ${selectedBranch?.name}. Add one to get started.` : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    terminals.map((terminal: Terminal) => (
+                    filteredTerminals.map((terminal: Terminal) => (
                       <tr
                         key={terminal.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

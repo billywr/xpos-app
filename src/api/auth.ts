@@ -1,4 +1,5 @@
 import { getSubFromToken } from "@/utils/jwt";
+import { getEnv } from "@/utils/env";
 
 const TOKEN_PATH = "/protocol/openid-connect/token";
 
@@ -31,8 +32,7 @@ export async function loginWithPassword(params: LoginParams): Promise<{
 }> {
   const useProxy =
     (typeof window !== "undefined" && window.location?.origin
-      ? String(import.meta.env.VITE_USE_KEYCLOAK_PROXY ?? "").toLowerCase() ===
-        "true"
+      ? String(getEnv("VITE_USE_KEYCLOAK_PROXY") ?? "").toLowerCase() === "true"
       : false);
   const baseUrl =
     typeof import.meta.env.DEV !== "undefined" && import.meta.env.DEV

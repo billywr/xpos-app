@@ -14,7 +14,8 @@ import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { PriceList } from "@/types/sales";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
+import { SlideOver, Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -120,6 +121,7 @@ export function PriceListsListPage({ initialOrgId, onOrgChange }: PriceListsList
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const priceLists = priceListsData?.content ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredPriceLists } = useTableSearch(priceLists);
   const totalElements = priceListsData?.totalElements ?? 0;
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
 
@@ -296,6 +298,7 @@ export function PriceListsListPage({ initialOrgId, onOrgChange }: PriceListsList
         </div>
       ) : (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search price lists…" className="mb-4" />
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -319,17 +322,17 @@ export function PriceListsListPage({ initialOrgId, onOrgChange }: PriceListsList
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {priceLists.length === 0 ? (
+                  {filteredPriceLists.length === 0 ? (
                     <tr>
                       <td
                         colSpan={5}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        No price lists yet. Add one to set prices by branch/channel.
+                        {priceLists.length === 0 ? "No price lists yet. Add one to set prices by branch/channel." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    priceLists.map((list: PriceList) => (
+                    filteredPriceLists.map((list: PriceList) => (
                       <tr
                         key={list.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

@@ -8,7 +8,8 @@ import type { Org } from "@/types/org";
 import { filterActiveOrgs } from "@/types/org";
 import type { Uom } from "@/types/catalog";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
+import { SlideOver, Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Ruler, Trash2 } from "lucide-react";
@@ -116,6 +117,7 @@ export function UomsListPage({ initialOrgId, onOrgChange }: UomsListPageProps = 
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const uoms = uomsData?.content ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredUoms } = useTableSearch(uoms);
   const totalElements = uomsData?.totalElements ?? 0;
 
   useEffect(() => {
@@ -279,6 +281,7 @@ export function UomsListPage({ initialOrgId, onOrgChange }: UomsListPageProps = 
         </div>
       ) : (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search units…" className="mb-4" />
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -296,17 +299,17 @@ export function UomsListPage({ initialOrgId, onOrgChange }: UomsListPageProps = 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {uoms.length === 0 ? (
+                  {filteredUoms.length === 0 ? (
                     <tr>
                       <td
                         colSpan={3}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        No units yet. Add one to use in Catalog → Items.
+                        {uoms.length === 0 ? "No units yet. Add one to use in Catalog → Items." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    uoms.map((uom: Uom) => (
+                    filteredUoms.map((uom: Uom) => (
                       <tr
                         key={uom.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

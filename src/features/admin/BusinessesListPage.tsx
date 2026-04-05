@@ -13,7 +13,8 @@ import type { Org } from "@/types/org";
 import { filterActiveOrgs } from "@/types/org";
 import type { Business } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, ConfirmDialog, Pagination } from "@/components/ui";
+import { SlideOver, ConfirmDialog, Pagination, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -136,6 +137,7 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const businesses = businessesData?.content ?? [];
   const totalElements = businessesData?.totalElements ?? 0;
+  const { searchQuery, setSearchQuery, filteredRows: filteredBusinesses } = useTableSearch(businesses);
 
   useEffect(() => {
     if (initialOrgId) {
@@ -306,6 +308,8 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
         </div>
       ) : (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search businesses…" className="mb-4" />
+
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -323,17 +327,17 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {businesses.length === 0 ? (
+                  {filteredBusinesses.length === 0 ? (
                     <tr>
                       <td
                         colSpan={3}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        No businesses yet. Add one to use when creating branches.
+                        {businesses.length === 0 ? "No businesses yet. Add one to use when creating branches." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    businesses.map((business: Business) => (
+                    filteredBusinesses.map((business: Business) => (
                       <tr
                         key={business.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

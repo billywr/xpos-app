@@ -5,6 +5,7 @@ import { setCredentials } from "@/store/slices/authSlice";
 import { loginWithPassword } from "@/api/auth";
 import { setStoredAuth } from "@/utils/authStorage";
 import { getStoredBranding } from "@/utils/brandingStorage";
+import { getEnv } from "@/utils/env";
 import { Store } from "lucide-react";
 
 export function LoginPage() {
@@ -28,9 +29,9 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL ?? "";
-  const realm = import.meta.env.VITE_KEYCLOAK_REALM ?? "xpos";
-  const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID ?? "xpos-client-api";
+  const keycloakUrl = getEnv("VITE_KEYCLOAK_URL") ?? "";
+  const realm = getEnv("VITE_KEYCLOAK_REALM") ?? "xpos";
+  const clientId = getEnv("VITE_KEYCLOAK_CLIENT_ID") ?? "xpos-client-api";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

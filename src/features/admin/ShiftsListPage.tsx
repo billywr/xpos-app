@@ -9,7 +9,8 @@ import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { Shift } from "@/types/shift";
 import { PageHeader } from "@/components/PageHeader";
-import { Pagination } from "@/components/ui";
+import { Pagination, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Wallet } from "lucide-react";
@@ -48,6 +49,7 @@ export function ShiftsListPage() {
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
   const shifts = shiftsData?.content ?? [];
   const totalElements = shiftsData?.totalElements ?? 0;
+  const { searchQuery, setSearchQuery, filteredRows: filteredShifts } = useTableSearch(shifts);
 
   const handleSizeChange = (newSize: number) => {
     setSize(Math.min(newSize, MAX_PAGE_SIZE));
@@ -183,6 +185,8 @@ export function ShiftsListPage() {
         </div>
       ) : (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search shifts…" className="mb-4" />
+
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -209,17 +213,17 @@ export function ShiftsListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {shifts.length === 0 ? (
+                  {filteredShifts.length === 0 ? (
                     <tr>
                       <td
                         colSpan={6}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        No shifts for {selectedBranch?.name ?? "this branch"}.
+                        {shifts.length === 0 ? `No shifts for ${selectedBranch?.name ?? "this branch"}.` : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    shifts.map((shift: Shift) => (
+                    filteredShifts.map((shift: Shift) => (
                       <tr
                         key={shift.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

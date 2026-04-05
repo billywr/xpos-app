@@ -15,7 +15,8 @@ import { fetchAllOrgItems } from "@/api/items";
 import type { Item } from "@/types/catalog";
 import { filterActiveOrgs } from "@/types/org";
 import type { PriceListItem } from "@/types/sales";
-import { Pagination, ConfirmDialog } from "@/components/ui";
+import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorCode, getApiErrorRequestId } from "@/utils/apiError";
 import { messageIfSellingAtOrBelowBuyingPrice } from "@/utils/priceListSellingValidation";
 import { useToast } from "@/contexts/ToastContext";
@@ -107,6 +108,7 @@ export function PriceListItemsListPage({
 
   const priceLists = priceListsData?.content ?? [];
   const priceListItems = priceListItemsPage?.content ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredPriceListItems } = useTableSearch(priceListItems);
   const totalItems = priceListItemsPage?.totalElements ?? 0;
   const assignedItemIds = new Set(
     (allAssignedData?.content ?? []).map((pli) => pli.itemId)
@@ -347,13 +349,14 @@ export function PriceListItemsListPage({
             </p>
           </div>
 
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search price list items…" className="mx-4 mt-3" />
           {itemsLoading ? (
             <div className="flex items-center justify-center p-8">
               <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
             </div>
-          ) : priceListItems.length === 0 ? (
+          ) : filteredPriceListItems.length === 0 ? (
             <div className="p-8 text-center text-slate-500 dark:text-slate-400">
-              No items in this list yet. Add items below.
+              {priceListItems.length === 0 ? "No items in this list yet. Add items below." : "No results match your search."}
             </div>
           ) : (
             <>
@@ -373,7 +376,7 @@ export function PriceListItemsListPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                    {priceListItems.map((pli) => (
+                    {filteredPriceListItems.map((pli) => (
                       <tr
                         key={pli.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

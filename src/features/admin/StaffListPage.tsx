@@ -20,7 +20,8 @@ import type { Branch } from "@/types/org";
 import type { StaffUser } from "@/types/staff";
 import type { StaffBranchAssignment } from "@/types/staff";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, ConfirmDialog, Pagination } from "@/components/ui";
+import { SlideOver, ConfirmDialog, Pagination, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import {
   getApiErrorMessage,
   getApiErrorRequestId,
@@ -253,6 +254,7 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const staffUsers = staffData?.content ?? [];
   const totalElements = staffData?.totalElements ?? 0;
+  const { searchQuery, setSearchQuery, filteredRows: filteredStaff } = useTableSearch(staffUsers);
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
   const profile = profileData;
   const assignments = assignmentsData ?? [];
@@ -494,6 +496,8 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
         </div>
       ) : (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search staff…" className="mb-4" />
+
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -511,17 +515,17 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {staffUsers.length === 0 ? (
+                  {filteredStaff.length === 0 ? (
                     <tr>
                       <td
                         colSpan={3}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        No staff users yet. Register yourself as staff to get started.
+                        {staffUsers.length === 0 ? "No staff users yet. Register yourself as staff to get started." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    staffUsers.map((s: StaffUser) => (
+                    filteredStaff.map((s: StaffUser) => (
                       <tr
                         key={s.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

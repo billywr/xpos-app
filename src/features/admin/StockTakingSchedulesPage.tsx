@@ -17,7 +17,8 @@ import {
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
+import { SlideOver, Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import {
@@ -105,6 +106,7 @@ export function StockTakingSchedulesPage() {
   const filteredOrgs = filterActiveOrgs(orgs);
   const filteredBranches = filterNonDeletedBranches(branches);
   const schedules = schedulesData?.content ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredSchedules } = useTableSearch(schedules);
   const totalElements = schedulesData?.totalElements ?? 0;
   const totalPages = schedulesData?.totalPages ?? 0;
   const branchMap = new Map(branches.map((b: Branch) => [b.id, b.name]));
@@ -359,10 +361,10 @@ export function StockTakingSchedulesPage() {
 
       {selectedOrgId && !isLoading && !isError && (
         <>
-          {schedules.length === 0 ? (
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search schedules…" className="mb-4" />
+          {filteredSchedules.length === 0 ? (
             <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-              No stock taking schedules. Add a schedule to enable automatic stock
-              counts.
+              {schedules.length === 0 ? "No stock taking schedules. Add a schedule to enable automatic stock counts." : "No results match your search."}
             </div>
           ) : (
             <>
@@ -388,7 +390,7 @@ export function StockTakingSchedulesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                    {schedules.map((s) => (
+                    {filteredSchedules.map((s) => (
                       <tr
                         key={s.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

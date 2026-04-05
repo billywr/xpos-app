@@ -15,7 +15,8 @@ import {
   type SaleSummary,
 } from "@/api/sales";
 import { ReceiptModal } from "@/components/ReceiptModal";
-import { Pagination } from "@/components/ui";
+import { Pagination, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -110,6 +111,7 @@ export function ReceiptsPage() {
   });
 
   const receipts = data?.content ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredReceipts } = useTableSearch(receipts);
   const totalElements = data?.totalElements ?? 0;
 
   const handleReprint = async (sale: SaleSummary) => {
@@ -197,6 +199,8 @@ export function ReceiptsPage() {
           <p>{getApiErrorMessage(error)}</p>
         </div>
       ) : (
+        <>
+        <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search receipts…" className="mb-4" />
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -220,17 +224,17 @@ export function ReceiptsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                {receipts.length === 0 ? (
+                {filteredReceipts.length === 0 ? (
                   <tr>
                     <td
                       colSpan={5}
                       className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                     >
-                      No receipts for this date range.
+                      {receipts.length === 0 ? "No receipts for this date range." : "No results match your search."}
                     </td>
                   </tr>
                 ) : (
-                  receipts.map((sale) => (
+                  filteredReceipts.map((sale) => (
                     <tr
                       key={sale.id}
                       className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
@@ -280,6 +284,7 @@ export function ReceiptsPage() {
             />
           )}
         </div>
+        </>
       )}
 
       {receiptDetails && (

@@ -20,7 +20,8 @@ import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { Item } from "@/types/catalog";
 import type { Supplier } from "@/api/suppliers";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
+import { SlideOver, Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { useToast } from "@/contexts/ToastContext";
@@ -381,6 +382,7 @@ export function GoodsReceiptPage({
   }, [editingGrn?.id, editingGrn?.lines]);
 
   const grns = grnsData?.content ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredGrns } = useTableSearch(grns);
   const totalElements = grnsData?.totalElements ?? 0;
 
   const grnsTotalAmount = grns.reduce(
@@ -833,6 +835,7 @@ export function GoodsReceiptPage({
           <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
             Recent stock receipts
           </h2>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search receipts…" className="mb-4" />
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -865,17 +868,17 @@ export function GoodsReceiptPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {grns.length === 0 ? (
+                  {filteredGrns.length === 0 ? (
                     <tr>
                       <td
                         colSpan={9}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        No stock receipts yet. Click &quot;Receive stock&quot; to add inventory.
+                        {grns.length === 0 ? <>No stock receipts yet. Click &quot;Receive stock&quot; to add inventory.</> : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    grns.flatMap((grn: GoodsReceiptNoteResponse) => {
+                    filteredGrns.flatMap((grn: GoodsReceiptNoteResponse) => {
                       const lines =
                         grn.lines.length > 0 ? grn.lines : [null];
                       const rowSpan = lines.length;

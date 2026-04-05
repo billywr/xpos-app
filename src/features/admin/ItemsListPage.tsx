@@ -29,7 +29,8 @@ import type { Item } from "@/types/catalog";
 import type { Category } from "@/types/catalog";
 import type { ItemModifierGroupLink } from "@/types/catalog";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, Pagination, ConfirmDialog } from "@/components/ui";
+import { SlideOver, Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { formatCurrency } from "@/utils/formatCurrency";
@@ -345,6 +346,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const items = itemsData?.content ?? [];
   const totalElements = itemsData?.totalElements ?? 0;
+  const { searchQuery, setSearchQuery, filteredRows: filteredItems } = useTableSearch(items);
   const categories = categoriesData?.content ?? [];
   const uoms = uomsData?.content ?? [];
   const taxProfiles = taxProfilesData?.content ?? [];
@@ -787,6 +789,8 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
         </div>
       ) : (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search items…" className="mb-4" />
+
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -827,17 +831,17 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {items.length === 0 ? (
+                  {filteredItems.length === 0 ? (
                     <tr>
                       <td
                         colSpan={showBarcode ? 10 : 9}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        No items yet. Add one to build your catalog.
+                        {items.length === 0 ? "No items yet. Add one to build your catalog." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    items.map((item: Item) => (
+                    filteredItems.map((item: Item) => (
                         <tr
                           key={item.id}
                           className={

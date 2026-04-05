@@ -5,7 +5,8 @@ import { selectToken } from "@/store/selectors/authSelectors";
 import { fetchOrgs, createOrg, updateOrg, deleteOrg } from "@/api/orgs";
 import type { Org } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, ConfirmDialog, Pagination } from "@/components/ui";
+import { SlideOver, ConfirmDialog, Pagination, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Ban, Trash2 } from "lucide-react";
@@ -130,6 +131,7 @@ export function OrgsListPage() {
 
   const orgs = data?.content ?? [];
   const totalElements = data?.totalElements ?? 0;
+  const { searchQuery, setSearchQuery, filteredRows: filteredOrgs } = useTableSearch(orgs);
 
   const openCreate = () => {
     setEditingOrg(null);
@@ -241,6 +243,8 @@ export function OrgsListPage() {
         </button>
       </div>
 
+      <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search organizations…" className="mb-4" />
+
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -258,17 +262,17 @@ export function OrgsListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {orgs.length === 0 ? (
+              {filteredOrgs.length === 0 ? (
                 <tr>
                   <td
                     colSpan={3}
                     className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                   >
-                    No organizations yet. Add one to get started.
+                    {orgs.length === 0 ? "No organizations yet. Add one to get started." : "No results match your search."}
                   </td>
                 </tr>
               ) : (
-                orgs.map((org: Org) => (
+                filteredOrgs.map((org: Org) => (
                   <tr
                     key={org.id}
                     className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

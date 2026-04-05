@@ -26,12 +26,12 @@ import {
   ChevronRight,
   Save,
   Loader2,
-  Search,
   FileSpreadsheet,
   Download,
 } from "lucide-react";
 import { downloadStdStockCountPdf } from "@/utils/stdStockCountPdf";
-import { Pagination } from "@/components/ui";
+import { Pagination, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 
 /** YYYY-MM-DD in the browser's local calendar (not UTC). toISOString().slice(0,10) is wrong for TZ ahead of UTC. */
 function toDateStr(d: Date): string {
@@ -158,7 +158,6 @@ export function StandardStockCountSheetPage({
     : "XPOS";
 
   const [dateStr, setDateStr] = useState(todayStr);
-  const [searchQuery, setSearchQuery] = useState("");
   const [localClosings, setLocalClosings] = useState<Record<string, string>>({});
   const [localComments, setLocalComments] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
@@ -219,24 +218,18 @@ export function StandardStockCountSheetPage({
     },
   });
 
-  const computedRows = useMemo(() => {
+  const allComputedRows = useMemo(() => {
     const rows = sheet?.rows ?? [];
-    const q = searchQuery.trim().toLowerCase();
-    const filtered = q
-      ? rows.filter(
-          (r) =>
-            (r.name || "").toLowerCase().includes(q) ||
-            (r.sku || "").toLowerCase().includes(q)
-        )
-      : rows;
-    return filtered.map((r) =>
+    return rows.map((r) =>
       computeRow(
         r,
         localClosings[r.itemId] !== undefined ? parseClosing(r.itemId, r) : undefined,
         localComments[r.itemId] !== undefined ? localComments[r.itemId] : undefined
       )
     );
-  }, [sheet?.rows, searchQuery, localClosings, localComments]);
+  }, [sheet?.rows, localClosings, localComments]);
+
+  const { searchQuery, setSearchQuery, filteredRows: computedRows } = useTableSearch(allComputedRows);
 
   const paginatedRows = useMemo(() => {
     const start = page * pageSize;
@@ -262,16 +255,7 @@ export function StandardStockCountSheetPage({
     );
   }, [computedRows]);
 
-  const allRowsForPdf = useMemo(() => {
-    const rows = sheet?.rows ?? [];
-    return rows.map((r) =>
-      computeRow(
-        r,
-        localClosings[r.itemId] !== undefined ? parseClosing(r.itemId, r) : undefined,
-        localComments[r.itemId] !== undefined ? localComments[r.itemId] : undefined
-      )
-    );
-  }, [sheet?.rows, localClosings, localComments]);
+  const allRowsForPdf = allComputedRows;
 
   const pdfTotals = useMemo(
     () =>
@@ -386,14 +370,7 @@ export function StandardStockCountSheetPage({
       <div className="mb-3 flex items-center gap-4">
         {sheet ? (
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <Search className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
-            <input
-              type="search"
-              placeholder="Filter by name or SKU"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 sm:max-w-xs"
-            />
+            <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Filter by name or SKU" />
             {sheet.rows[0]?.lastSavedAt && (
               <span className="hidden shrink-0 text-sm text-slate-500 dark:text-slate-400 sm:inline">
                 Last saved: {new Date(sheet.rows[0].lastSavedAt).toLocaleString()}

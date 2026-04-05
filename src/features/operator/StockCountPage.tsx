@@ -16,7 +16,8 @@ import {
   deleteOperatorStockCountSession,
   type StockCountSessionResponse,
 } from "@/api/stockTaking";
-import { Pagination, ConfirmDialog } from "@/components/ui";
+import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
@@ -64,6 +65,7 @@ export function StockCountPage() {
   });
 
   const sessions = sessionsData?.content ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredSessions } = useTableSearch(sessions);
   const totalElements = sessionsData?.totalElements ?? 0;
   const totalPages = sessionsData?.totalPages ?? 0;
 
@@ -188,9 +190,10 @@ export function StockCountPage() {
 
       {!isLoading && !isError && (
         <>
-          {sessions.length === 0 ? (
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search sessions…" className="mb-4" />
+          {filteredSessions.length === 0 ? (
             <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-              No stock count sessions yet. Start a count to begin.
+              {sessions.length === 0 ? "No stock count sessions yet. Start a count to begin." : "No results match your search."}
             </div>
           ) : (
             <>
@@ -216,7 +219,7 @@ export function StockCountPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                    {sessions.map((s) => (
+                    {filteredSessions.map((s) => (
                       <tr
                         key={s.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

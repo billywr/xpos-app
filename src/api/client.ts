@@ -1,5 +1,6 @@
 import type { ApiError } from "@/types/api";
 import { generateUuid } from "@/utils/uuid";
+import { getEnv } from "@/utils/env";
 
 const REQUEST_ID_HEADER = "X-Request-Id";
 
@@ -14,7 +15,7 @@ export function set401Handler(handler: (() => void) | null): void {
 }
 
 export function getApiBaseUrl(): string {
-  const base = import.meta.env.VITE_API_BASE_URL;
+  const base = getEnv("VITE_API_BASE_URL");
   if (!base) return "";
   return base.replace(/\/$/, "");
 }

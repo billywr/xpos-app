@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { PageHeader } from "@/components/PageHeader";
-import { ConfirmDialog } from "@/components/ui";
+import { ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/contexts/ToastContext";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
@@ -255,6 +256,7 @@ export function StockCountSessionDetailPage({
   }
 
   const lines = session.lines ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredLines } = useTableSearch(lines);
 
   const totalCountedValue = lines.reduce(
     (sum, l) =>
@@ -339,15 +341,16 @@ export function StockCountSessionDetailPage({
       </div>
 
       {/* Counted items – full page display */}
+      <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search items…" className="mb-4" />
       <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
         <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-600">
           <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
             Items counted
           </h2>
         </div>
-        {lines.length === 0 ? (
+        {filteredLines.length === 0 ? (
           <div className="p-8 text-center text-slate-500 dark:text-slate-400">
-            No items counted yet. Add items below when the session is open.
+            {lines.length === 0 ? "No items counted yet. Add items below when the session is open." : "No results match your search."}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -383,7 +386,7 @@ export function StockCountSessionDetailPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                {lines.map((l: StockCountLineResponse) => (
+                {filteredLines.map((l: StockCountLineResponse) => (
                   <tr
                     key={l.id}
                     className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

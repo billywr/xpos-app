@@ -1,3 +1,5 @@
+import { getEnv } from "@/utils/env";
+
 /**
  * Extracts the filename from an image URL or path for display.
  * e.g. /uploads/items/orgId/uuid.jpg -> uuid.jpg
@@ -28,6 +30,6 @@ export function getItemImageUrl(url: string | null | undefined): string | null {
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     return trimmed;
   }
-  const base = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+  const base = (getEnv("VITE_API_BASE_URL") ?? "").replace(/\/$/, "");
   return base ? `${base}${trimmed.startsWith("/") ? "" : "/"}${trimmed}` : trimmed;
 }

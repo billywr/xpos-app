@@ -13,7 +13,8 @@ import type { Org } from "@/types/org";
 import { filterActiveOrgs } from "@/types/org";
 import type { TenderType } from "@/types/sales";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, ConfirmDialog } from "@/components/ui";
+import { SlideOver, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Trash2, CreditCard } from "lucide-react";
@@ -129,6 +130,7 @@ export function TenderTypesListPage() {
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const tenderTypes = tenderTypesData ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredTenderTypes } = useTableSearch(tenderTypes);
 
   useEffect(() => {
     if (!selectedOrgId && orgs.length > 0) {
@@ -299,6 +301,8 @@ export function TenderTypesListPage() {
         </div>
       ) : (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search tender types…" className="mb-4" />
+
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -319,18 +323,17 @@ export function TenderTypesListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {tenderTypes.length === 0 ? (
+                  {filteredTenderTypes.length === 0 ? (
                     <tr>
                       <td
                         colSpan={4}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        No tender types yet. Add one (e.g. Cash, M-Pesa) for
-                        payment options.
+                        {tenderTypes.length === 0 ? "No tender types yet. Add one (e.g. Cash, M-Pesa) for payment options." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    tenderTypes.map((tt: TenderType) => (
+                    filteredTenderTypes.map((tt: TenderType) => (
                       <tr
                         key={tt.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

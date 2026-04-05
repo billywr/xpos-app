@@ -22,7 +22,8 @@ import { useToast } from "@/contexts/ToastContext";
 import { generateUuid } from "@/utils/uuid";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { Pagination } from "@/components/ui";
+import { Pagination, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import {
   ChevronLeft,
   ChevronRight,
@@ -30,7 +31,6 @@ import {
   Loader2,
   Plus,
   Save,
-  Search,
   Trash2,
 } from "lucide-react";
 import type { Item } from "@/types/catalog";
@@ -156,7 +156,6 @@ export function ManualStockCountSheetPage() {
   const [dateStr, setDateStr] = useState(todayStr);
   const [localRows, setLocalRows] = useState<LocalRow[]>([]);
   const [hydratedForDate, setHydratedForDate] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
   const [addModal, setAddModal] = useState<"catalog" | "custom" | null>(null);
@@ -226,15 +225,7 @@ export function ManualStockCountSheetPage() {
     [catalogItems]
   );
 
-  const filteredRows = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return localRows;
-    return localRows.filter(
-      (r) =>
-        r.itemName.toLowerCase().includes(q) ||
-        r.sku.toLowerCase().includes(q)
-    );
-  }, [localRows, searchQuery]);
+  const { searchQuery, setSearchQuery, filteredRows } = useTableSearch(localRows);
 
   const paginatedRows = useMemo(() => {
     const start = page * pageSize;
@@ -374,14 +365,7 @@ export function ManualStockCountSheetPage() {
 
       <div className="mb-3 flex flex-wrap items-center gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Search className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
-          <input
-            type="search"
-            placeholder="Filter by name or SKU"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-base text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white sm:max-w-xs"
-          />
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Filter by name or SKU" />
           {sheet?.lastSavedAt && (
             <span className="hidden shrink-0 text-sm text-slate-500 dark:text-slate-400 sm:inline">
               Last saved: {new Date(sheet.lastSavedAt).toLocaleString()}

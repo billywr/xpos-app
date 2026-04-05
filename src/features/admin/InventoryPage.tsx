@@ -8,7 +8,8 @@ import { fetchInventoryReport, type InventoryReportLineResponse } from "@/api/in
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { Pagination } from "@/components/ui";
+import { Pagination, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { Package, TrendingDown, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -69,6 +70,7 @@ export function InventoryPage({
   const filteredOrgs = filterActiveOrgs(orgs);
   const filteredBranches = filterNonDeletedBranches(branches);
   const lines = reportData?.content ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredLines } = useTableSearch(lines);
 
   useEffect(() => {
     if (initialOrgId) {
@@ -203,6 +205,7 @@ export function InventoryPage({
           <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
             Sold vs remaining
           </h2>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search inventory…" className="mb-4" />
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -229,24 +232,28 @@ export function InventoryPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {lines.length === 0 ? (
+                  {filteredLines.length === 0 ? (
                     <tr>
                       <td
                         colSpan={6}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        No inventory at this branch yet.{" "}
-                        <Link
-                          to="/admin/inventory?tab=stock"
-                          className="font-medium text-primary-600 underline hover:no-underline dark:text-primary-400"
-                        >
-                          Receive stock
-                        </Link>{" "}
-                        to add stock.
+                        {lines.length === 0 ? (
+                          <>
+                            No inventory at this branch yet.{" "}
+                            <Link
+                              to="/admin/inventory?tab=stock"
+                              className="font-medium text-primary-600 underline hover:no-underline dark:text-primary-400"
+                            >
+                              Receive stock
+                            </Link>{" "}
+                            to add stock.
+                          </>
+                        ) : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    lines.map((line: InventoryReportLineResponse) => (
+                    filteredLines.map((line: InventoryReportLineResponse) => (
                       <tr
                         key={line.itemId}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"

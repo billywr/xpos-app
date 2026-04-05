@@ -23,7 +23,8 @@ import {
   filterNonDeletedBranches,
 } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver } from "@/components/ui";
+import { SlideOver, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil } from "lucide-react";
@@ -215,6 +216,8 @@ export function AdminTablesPage() {
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
   const areas = areasData?.content ?? [];
   const tables = tablesData?.content ?? [];
+  const { searchQuery: areasSearchQuery, setSearchQuery: setAreasSearchQuery, filteredRows: filteredAreas } = useTableSearch(areas);
+  const { searchQuery: tablesSearchQuery, setSearchQuery: setTablesSearchQuery, filteredRows: filteredTables } = useTableSearch(tables);
   const totalElements = tablesData?.totalElements ?? 0;
 
   useEffect(() => {
@@ -459,10 +462,11 @@ export function AdminTablesPage() {
                 Add area
               </button>
             </div>
+            <TableSearchInput value={areasSearchQuery} onChange={setAreasSearchQuery} placeholder="Search areas…" className="mb-4" />
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-              {areas.length === 0 ? (
+              {filteredAreas.length === 0 ? (
                 <p className="p-8 text-center text-slate-500 dark:text-slate-400">
-                  No table areas. Add one to group tables (e.g. Patio, Main Hall).
+                  {areas.length === 0 ? "No table areas. Add one to group tables (e.g. Patio, Main Hall)." : "No results match your search."}
                 </p>
               ) : (
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -475,7 +479,7 @@ export function AdminTablesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {areas.map((area: TableArea) => (
+                    {filteredAreas.map((area: TableArea) => (
                       <tr
                         key={area.id}
                         className="border-t border-slate-200 dark:border-slate-700"
@@ -516,10 +520,11 @@ export function AdminTablesPage() {
                 Add table
               </button>
             </div>
+            <TableSearchInput value={tablesSearchQuery} onChange={setTablesSearchQuery} placeholder="Search tables…" className="mb-4" />
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-              {tables.length === 0 ? (
+              {filteredTables.length === 0 ? (
                 <p className="p-8 text-center text-slate-500 dark:text-slate-400">
-                  No tables. Add tables for dine-in service.
+                  {tables.length === 0 ? "No tables. Add tables for dine-in service." : "No results match your search."}
                 </p>
               ) : (
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -541,7 +546,7 @@ export function AdminTablesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {tables.map((table: TableEntity) => (
+                    {filteredTables.map((table: TableEntity) => (
                       <tr
                         key={table.id}
                         className="border-t border-slate-200 dark:border-slate-700"

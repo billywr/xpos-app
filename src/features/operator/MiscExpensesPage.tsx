@@ -18,7 +18,8 @@ import {
   type MiscExpenseCategory,
 } from "@/api/miscExpenses";
 import { SlideOver } from "@/components/ui/SlideOver";
-import { Pagination, ConfirmDialog } from "@/components/ui";
+import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -117,6 +118,7 @@ export function MiscExpensesPage() {
   });
 
   const expenses = data?.content ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredExpenses } = useTableSearch(expenses);
   const totalElements = data?.totalElements ?? 0;
   const totalAmount = data?.totalAmount ?? 0;
 
@@ -266,22 +268,24 @@ export function MiscExpensesPage() {
 
       {!isLoading && !isError && (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search expenses…" className="mb-4" />
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            {expenses.length === 0 ? (
+            {filteredExpenses.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16">
                 <Receipt className="h-12 w-12 text-slate-400 dark:text-slate-500" />
                 <p className="mt-4 text-slate-500 dark:text-slate-400">
-                  No expenses recorded yet. Record expenses such as utilities,
-                  supplies, or maintenance.
+                  {expenses.length === 0 ? "No expenses recorded yet. Record expenses such as utilities, supplies, or maintenance." : "No results match your search."}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setFormOpen(true)}
-                  className="mt-4 inline-flex items-center gap-2 rounded-lg border border-primary-500 bg-transparent px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30"
-                >
-                  <Plus className="h-4 w-4" />
-                  Record expense
-                </button>
+                {expenses.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFormOpen(true)}
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg border border-primary-500 bg-transparent px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Record expense
+                  </button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -312,7 +316,7 @@ export function MiscExpensesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                    {expenses.map((e: MiscExpenseResponse) => (
+                    {filteredExpenses.map((e: MiscExpenseResponse) => (
                       <tr
                         key={e.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/50"

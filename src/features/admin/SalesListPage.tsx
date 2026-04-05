@@ -12,7 +12,8 @@ import {
 import { fetchReceiptDetails } from "@/api/sales";
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
-import { Pagination } from "@/components/ui";
+import { Pagination, TableSearchInput } from "@/components/ui";
+import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Receipt, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
@@ -68,6 +69,7 @@ export function SalesListPage() {
   });
 
   const sales = salesData?.content ?? [];
+  const { searchQuery, setSearchQuery, filteredRows: filteredSales } = useTableSearch(sales);
   const totalElements = salesData?.totalElements ?? 0;
 
   const { data: totalSalesSum = 0 } = useQuery({
@@ -314,6 +316,7 @@ export function SalesListPage() {
         </div>
       ) : (
         <>
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search sales…" className="mb-4" />
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -335,18 +338,17 @@ export function SalesListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {sales.length === 0 ? (
+                  {filteredSales.length === 0 ? (
                     <tr>
                       <td
                         colSpan={5}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        No completed sales for {selectedBranch?.name ?? "this branch"} in the
-                        selected date range.
+                        {sales.length === 0 ? `No completed sales for ${selectedBranch?.name ?? "this branch"} in the selected date range.` : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    sales.map((sale: SaleSummary) => (
+                    filteredSales.map((sale: SaleSummary) => (
                       <Fragment key={sale.id}>
                         <tr
                           key={sale.id}

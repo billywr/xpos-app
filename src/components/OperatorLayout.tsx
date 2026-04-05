@@ -8,15 +8,12 @@ import {
   Search,
   Settings,
   Store,
-  Sun,
-  Moon,
   UtensilsCrossed,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
-import { useTheme } from "@/contexts/ThemeContext";
 import {
   selectOrgId,
   selectOrgName,
@@ -56,7 +53,6 @@ const ME_QUERY_KEY = "me";
 export function OperatorLayout() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { theme, toggleTheme } = useTheme();
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
   const token = useAppSelector(selectToken);
   const orgId = useAppSelector(selectOrgId);
@@ -162,14 +158,6 @@ export function OperatorLayout() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
-            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          >
-            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </button>
           <button
             type="button"
             className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
