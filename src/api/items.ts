@@ -1,4 +1,5 @@
 import { apiFetch, buildPageQuery } from "@/api/client";
+import { getEnv } from "@/utils/env";
 import type { Item } from "@/types/catalog";
 import type { ItemBarcode } from "@/types/catalog";
 import type { ItemModifierGroupLink } from "@/types/catalog";
@@ -248,7 +249,7 @@ export async function uploadItemImage(
   orgId: string,
   file: File
 ): Promise<ItemImageUploadResponse> {
-  const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+  const baseUrl = (getEnv("VITE_API_BASE_URL") ?? "").replace(/\/$/, "");
   const url = `${baseUrl}/api/v1/admin/orgs/${orgId}/item-images/upload`;
   const formData = new FormData();
   formData.append("file", file);

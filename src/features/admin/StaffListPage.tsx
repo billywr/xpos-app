@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
-import { selectToken, selectIamUserId } from "@/store/selectors/authSelectors";
+import { selectToken } from "@/store/selectors/authSelectors";
 import { fetchOrgs } from "@/api/orgs";
 import { fetchBranches } from "@/api/branches";
 import {
@@ -40,7 +40,6 @@ export interface StaffListPageProps {
 
 export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
   const token = useAppSelector(selectToken);
-  const iamUserId = useAppSelector(selectIamUserId);
   const queryClient = useQueryClient();
   const toast = useToast();
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
@@ -116,11 +115,8 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
   });
 
   const createMutation = useMutation({
-    mutationFn: (username: string) =>
-      createStaffUser(token, selectedOrgId, {
-        iamUserId: iamUserId!,
-        username,
-      }),
+    mutationFn: (body: { iamUserId: string; username: string }) =>
+      createStaffUser(token, selectedOrgId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["admin-staff", token, selectedOrgId],
@@ -128,8 +124,8 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
       setRegisterSlideOpen(false);
       setFormUsername("");
       setFormError(null);
-      toast.success("You are now registered as staff for this org.", {
-        title: "Registered",
+      toast.success("Staff user added.", {
+        title: "Added",
       });
     },
     onError: (err) => {
@@ -324,12 +320,11 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
       setFormError("Username is required.");
       return;
     }
-    if (!iamUserId) {
-      setFormError("You must be logged in to register as staff.");
-      return;
-    }
     setSubmitLoading(true);
-    createMutation.mutate(trimmed, { onSettled: () => setSubmitLoading(false) });
+    createMutation.mutate(
+      { iamUserId: trimmed, username: trimmed },
+      { onSettled: () => setSubmitLoading(false) },
+    );
   };
 
   const handleProfileSubmit = (e: React.FormEvent) => {
@@ -455,7 +450,7 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
     <div className="min-h-0 flex-1 overflow-auto">
       <PageHeader
         title="Staff"
-        subtitle="Staff users and branch assignments. Register yourself or manage profile and status."
+        subtitle="Staff users and branch assignments. Add users or manage profile and status."
         fallbackTo="/admin"
       />
 
@@ -480,14 +475,14 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
           />
         </div>
-        {selectedOrgId && iamUserId && (
+        {selectedOrgId && (
           <button
             type="button"
             onClick={openRegister}
             className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-500 dark:hover:bg-primary-600 dark:focus:ring-offset-slate-800"
           >
             <Plus className="h-4 w-4" />
-            Register myself as staff
+            Add Staff
           </button>
         )}
       </div>
@@ -523,7 +518,7 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                         colSpan={3}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
-                        {staffUsers.length === 0 ? "No staff users yet. Register yourself as staff to get started." : "No results match your search."}
+                        {staffUsers.length === 0 ? "No staff users yet. Add a staff user to get started." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
@@ -614,7 +609,7 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
               setRegisterSlideOpen(false);
               setFormError(null);
             }}
-            title="Register myself as staff"
+            title="Add Staff User"
           >
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
               {formError && (
@@ -623,14 +618,14 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                 </p>
               )}
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Your current account will be linked as a staff user for this organization.
+                Enter the Keycloak username of the user you want to add as staff for this organization.
               </p>
               <div>
                 <label
                   htmlFor="staff-username"
                   className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
                 >
-                  Username
+                  Keycloak Username
                 </label>
                 <input
                   id="staff-username"
@@ -655,7 +650,7 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                   disabled={submitLoading}
                   className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
                 >
-                  {submitLoading ? "Registering…" : "Register"}
+                  {submitLoading ? "Adding…" : "Add Staff"}
                 </button>
               </div>
             </form>

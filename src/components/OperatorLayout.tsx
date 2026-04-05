@@ -68,7 +68,7 @@ export function OperatorLayout() {
     enabled: Boolean(token && orgId),
   });
 
-  const displayName = meData?.profile?.displayName ?? meData?.username ?? keycloakUsername ?? "User";
+  const displayName = keycloakUsername ?? meData?.username ?? "User";
   const displayInitial = displayName.charAt(0).toUpperCase() || "U";
   const [globalError, setGlobalError] = useState<{ message: string; requestId: string } | null>(null);
   const [manageOpen, setManageOpen] = useState(true);
