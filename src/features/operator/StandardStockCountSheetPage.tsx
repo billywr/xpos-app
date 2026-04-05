@@ -367,27 +367,27 @@ export function StandardStockCountSheetPage({
         fallbackTo="/operator"
       />
 
-      <div className="mb-3 flex items-center gap-4">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
         {sheet ? (
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Filter by name or SKU" />
             {sheet.rows[0]?.lastSavedAt && (
-              <span className="hidden shrink-0 text-sm text-slate-500 dark:text-slate-400 sm:inline">
-                Last saved: {new Date(sheet.rows[0].lastSavedAt).toLocaleString()}
+              <span className="hidden shrink-0 text-xs text-slate-500 md:inline dark:text-slate-400">
+                Saved: {new Date(sheet.rows[0].lastSavedAt).toLocaleString()}
               </span>
             )}
           </div>
         ) : (
           <div className="min-w-0 flex-1" />
         )}
-        <div className="flex shrink-0 flex-nowrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:flex-nowrap sm:gap-2">
           <button
             type="button"
             onClick={goPrevDay}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             aria-label="Previous day"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
           <DatePicker
             selected={dateStr ? parseDateStr(dateStr) : null}
@@ -396,40 +396,40 @@ export function StandardStockCountSheetPage({
             dateFormat="dd/MM/yyyy"
             showPopperArrow={false}
             placeholderText="Select date"
-            className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 sm:w-32 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+            className="w-[6.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 sm:w-32 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
           />
           <button
             type="button"
             onClick={goNextDay}
             disabled={isToday}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             aria-label="Next day"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
-          <span className="mx-1 h-4 w-px bg-slate-300 dark:bg-slate-600" aria-hidden />
+          <span className="mx-0.5 hidden h-4 w-px bg-slate-300 sm:mx-1 sm:block dark:bg-slate-600" aria-hidden />
           <button
             type="button"
             onClick={handleDownloadPdf}
             disabled={!sheet}
-            className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:gap-2 sm:px-4 sm:py-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             aria-label="Download PDF"
           >
             <Download className="h-4 w-4" />
-            PDF
+            <span className="hidden xs:inline">PDF</span>
           </button>
           <button
             type="button"
             onClick={handleSave}
             disabled={saveMutation.isPending || hasErrors || !canEdit || !hasChanges}
-            className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 sm:gap-2 sm:px-4 sm:py-2"
           >
             {saveMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Save className="h-4 w-4" />
             )}
-            Save
+            <span className="hidden xs:inline">Save</span>
           </button>
         </div>
       </div>

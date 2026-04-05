@@ -363,54 +363,54 @@ export function ManualStockCountSheetPage() {
         fallbackTo="/operator"
       />
 
-      <div className="mb-3 flex flex-wrap items-center gap-4">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex min-w-0 items-center gap-2">
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Filter by name or SKU" />
           {sheet?.lastSavedAt && (
-            <span className="hidden shrink-0 text-sm text-slate-500 dark:text-slate-400 sm:inline">
-              Last saved: {new Date(sheet.lastSavedAt).toLocaleString()}
+            <span className="hidden shrink-0 text-xs text-slate-500 md:inline dark:text-slate-400">
+              Saved: {new Date(sheet.lastSavedAt).toLocaleString()}
             </span>
           )}
         </div>
-        <div className="flex shrink-0 flex-nowrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:flex-nowrap sm:gap-2">
           <button
             type="button"
             onClick={() => setAddModal("catalog")}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 sm:px-3 sm:text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
-            <Plus className="h-4 w-4" />
-            Add from catalog
+            <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline">Add from</span> catalog
           </button>
           <button
             type="button"
             onClick={() => setAddModal("custom")}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 sm:px-3 sm:text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
-            <Plus className="h-4 w-4" />
-            Custom line
+            <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            Custom
           </button>
           <button
             type="button"
             onClick={() => setDateStr(toDateStr(new Date(parseDateStr(dateStr).getTime() - 86400000)))}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             aria-label="Previous day"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
           <DatePicker
             selected={parseDateStr(dateStr)}
             onChange={(d: Date | null) => setDateStr(d ? toDateStr(d) : todayStr())}
             maxDate={new Date()}
             dateFormat="dd/MM/yyyy"
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+            className="w-[6.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm sm:w-32 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
           />
           <button
             type="button"
             onClick={() => setDateStr(toDateStr(new Date(parseDateStr(dateStr).getTime() + 86400000)))}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             aria-label="Next day"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
           <button
             type="button"
