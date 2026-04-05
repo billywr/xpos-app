@@ -43,22 +43,7 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
     assignStaffToBranch(orgId, staffUserId, branchId);
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
-
-    String grnBody =
-        "{\"branchId\":\""
-            + branchId
-            + "\",\"supplierId\":\""
-            + supplierId
-            + "\",\"lines\":[{\"itemId\":\""
-            + itemId
-            + "\",\"qty\":5,\"receivedUnitCost\":80.00}]}";
-    mockMvc
-        .perform(
-            post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(adminJwt())
-                .contentType(APPLICATION_JSON)
-                .content(grnBody))
-        .andExpect(status().isCreated());
+    createGrn(orgId, branchId, supplierId, itemId);
 
     String createBody = """
         {"name":"Default","priority":0,"active":true}
@@ -1123,6 +1108,24 @@ class PriceListAdminControllerIT extends AbstractIntegrationTest {
             .andReturn();
     return UUID.fromString(
         objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private void createGrn(UUID orgId, UUID branchId, UUID supplierId, UUID itemId) throws Exception {
+    String grnBody =
+        "{\"branchId\":\""
+            + branchId
+            + "\",\"supplierId\":\""
+            + supplierId
+            + "\",\"lines\":[{\"itemId\":\""
+            + itemId
+            + "\",\"qty\":5,\"receivedUnitCost\":80.00}]}";
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
+                .with(adminJwt())
+                .contentType(APPLICATION_JSON)
+                .content(grnBody))
+        .andExpect(status().isCreated());
   }
 
   private UUID createTaxProfile(UUID orgId) throws Exception {

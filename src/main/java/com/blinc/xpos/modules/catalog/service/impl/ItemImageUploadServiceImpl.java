@@ -58,11 +58,15 @@ public class ItemImageUploadServiceImpl implements ItemImageUploadService {
     if (contentType == null) {
       return "bin";
     }
-    return switch (contentType.toLowerCase()) {
-      case "image/jpeg", "image/jpg" -> "jpg";
-      case "image/png" -> "png";
-      case "image/webp" -> "webp";
-      default -> "bin";
-    };
+    String ct = contentType.toLowerCase();
+    if ("image/jpeg".equals(ct) || "image/jpg".equals(ct)) {
+      return "jpg";
+    } else if ("image/png".equals(ct)) {
+      return "png";
+    } else if ("image/webp".equals(ct)) {
+      return "webp";
+    } else {
+      return "bin";
+    }
   }
 }

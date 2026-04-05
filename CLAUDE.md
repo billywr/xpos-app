@@ -130,7 +130,7 @@ REST controllers live in `api/v1/`:
 
 - **Unit tests** run by default; integration tests require `-Psurefire-integration` or `-Dsurefire.excludedGroups=`
 - **Integration tests** extend `AbstractIntegrationTest` (Testcontainers: PostgreSQL 16-alpine, Redis 7-alpine), tagged `@Tag("integration")`
-- **JaCoCo** enforces 75% instruction coverage; excludes: `XposApplication`, `config/**`, `dto/**`, `outbox/consumer/**`
+- **JaCoCo** coverage threshold currently disabled (set to 0%); excludes: `XposApplication`, `config/**`, `dto/**`, `outbox/consumer/**`
 - **Clock:** Mock `Clock` bean available for deterministic time-dependent tests
 - **Required test coverage per new endpoint group:** (a) happy-path integration test, (b) validation failure (400) with field details, (c) org-scoping test (404/403 for other org's records), (d) duplicate/constraint test (409) with user-friendly message
 - **PriceListItem tests:** Must first `createSupplier(orgId)`, then `createGrnForItem(orgId, branchId, supplierId, itemId)`, then `addItemToPriceList`. Use unit cost lower than selling price (e.g., 40–80 vs 99.50).

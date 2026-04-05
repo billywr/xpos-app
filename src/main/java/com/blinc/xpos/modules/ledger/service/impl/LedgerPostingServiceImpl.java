@@ -149,11 +149,14 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     if (type == null) {
       return null;
     }
-    return switch (type) {
-      case PAID_IN -> EVENT_CASH_PAID_IN;
-      case PAID_OUT -> EVENT_CASH_PAID_OUT;
-      case PETTY_CASH -> EVENT_CASH_PETTY_CASH;
-      case FLOAT_ADD -> EVENT_CASH_FLOAT_ADD;
-    };
+    if (type == CashMovementType.PAID_IN) {
+      return EVENT_CASH_PAID_IN;
+    } else if (type == CashMovementType.PAID_OUT) {
+      return EVENT_CASH_PAID_OUT;
+    } else if (type == CashMovementType.PETTY_CASH) {
+      return EVENT_CASH_PETTY_CASH;
+    } else {
+      return EVENT_CASH_FLOAT_ADD;
+    }
   }
 }

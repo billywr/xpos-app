@@ -133,21 +133,7 @@ public class BiReportServiceImpl implements BiReportService {
       document.add(summaryTable);
 
       document.add(new Paragraph("Expenses by Category", headingFont));
-      PdfPTable expenseTable = new PdfPTable(2);
-      expenseTable.setWidthPercentage(60);
-      expenseTable.setSpacingBefore(5);
-      expenseTable.setSpacingAfter(10);
-      for (ExpenseCategorySum s : byCategory) {
-        addCell(
-            expenseTable,
-            s.getCategory() != null ? s.getCategory().name() : "OTHER",
-            formatCurrency(s.getAmount() != null ? s.getAmount() : BigDecimal.ZERO),
-            normalFont);
-      }
-      if (byCategory.isEmpty()) {
-        addCell(expenseTable, "No expenses recorded", "-", normalFont);
-      }
-      document.add(expenseTable);
+      document.add(buildExpenseTable(byCategory, headingFont, normalFont));
 
       document.add(
           new Paragraph(
@@ -168,6 +154,26 @@ public class BiReportServiceImpl implements BiReportService {
     valueCell.setBorderWidth(0.5f);
     valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
     table.addCell(valueCell);
+  }
+
+  private static PdfPTable buildExpenseTable(
+      List<ExpenseCategorySum> byCategory, Font headingFont, Font normalFont)
+      throws DocumentException {
+    PdfPTable expenseTable = new PdfPTable(2);
+    expenseTable.setWidthPercentage(60);
+    expenseTable.setSpacingBefore(5);
+    expenseTable.setSpacingAfter(10);
+    for (ExpenseCategorySum s : byCategory) {
+      addCell(
+          expenseTable,
+          s.getCategory() != null ? s.getCategory().name() : "OTHER",
+          formatCurrency(s.getAmount() != null ? s.getAmount() : BigDecimal.ZERO),
+          normalFont);
+    }
+    if (byCategory.isEmpty()) {
+      addCell(expenseTable, "No expenses recorded", "-", normalFont);
+    }
+    return expenseTable;
   }
 
   private static String formatCurrency(BigDecimal amount) {
