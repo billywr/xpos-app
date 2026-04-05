@@ -60,12 +60,20 @@ public interface StaffBranchAssignmentRepository
 
   @Query(
       """
+            select a
+            from StaffBranchAssignment a
+            where a.branch.id = :branchId
+              and a.staffUser.username = :username
+            """)
+  Optional<StaffBranchAssignment> findByBranchIdAndStaffUserUsername(
+      @Param("branchId") UUID branchId, @Param("username") String username);
+
+  @Query(
+      """
             select a from StaffBranchAssignment a
             where a.org.id = :orgId and a.branch.id = :branchId
             order by a.isPrimary desc nulls last, a.createdAt asc
             """)
   Page<StaffBranchAssignment> findAllByOrgIdAndBranchId(
-      @Param("orgId") UUID orgId,
-      @Param("branchId") UUID branchId,
-      Pageable pageable);
+      @Param("orgId") UUID orgId, @Param("branchId") UUID branchId, Pageable pageable);
 }

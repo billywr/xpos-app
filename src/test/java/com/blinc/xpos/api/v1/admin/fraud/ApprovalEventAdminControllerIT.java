@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.fraud;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -51,9 +51,12 @@ class ApprovalEventAdminControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId
-                + "/approval-events?page=0&size=10")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/approval-events?page=0&size=10")
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray())
         .andExpect(jsonPath("$.content.length()").value(1))
@@ -62,27 +65,32 @@ class ApprovalEventAdminControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/approval-events/"
-                + event.getId())
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/approval-events/"
+                    + event.getId())
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(event.getId().toString()))
         .andExpect(jsonPath("$.approvalType").value("VOID"));
   }
 
   private UUID createOrg() throws Exception {
-    String body =
-        objectMapper.writeValueAsString(new OrgCreateRequest("Test Org ApprovalEvent"));
+    String body = objectMapper.writeValueAsString(new OrgCreateRequest("Test Org ApprovalEvent"));
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 
   private UUID createBusiness(UUID orgId) throws Exception {
@@ -90,7 +98,7 @@ class ApprovalEventAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -109,7 +117,7 @@ class ApprovalEventAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -123,7 +131,7 @@ class ApprovalEventAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"iamUserId\":\"admin\",\"username\":\"admin\"}"))
             .andExpect(status().isCreated())
@@ -136,7 +144,7 @@ class ApprovalEventAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"branchId\":\"" + branchId + "\",\"primary\":true}"))
         .andExpect(status().isCreated());

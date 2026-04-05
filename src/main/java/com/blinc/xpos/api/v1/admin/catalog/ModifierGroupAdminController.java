@@ -42,24 +42,18 @@ public class ModifierGroupAdminController {
       @PathVariable UUID orgId, @Valid @RequestBody ModifierGroupCreateRequest request) {
     ModifierGroup group =
         modifierGroupService.create(
-            orgId,
-            request.name(),
-            request.minSelect(),
-            request.maxSelect(),
-            request.required());
+            orgId, request.name(), request.minSelect(), request.maxSelect(), request.required());
     return toResponse(group);
   }
 
   @GetMapping
   public Page<ModifierGroupResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     return modifierGroupService.list(orgId, normalized).map(this::toResponse);
   }
 
   @GetMapping("/{modifierGroupId}")
-  public ModifierGroupResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID modifierGroupId) {
+  public ModifierGroupResponse get(@PathVariable UUID orgId, @PathVariable UUID modifierGroupId) {
     return toResponse(modifierGroupService.require(orgId, modifierGroupId));
   }
 

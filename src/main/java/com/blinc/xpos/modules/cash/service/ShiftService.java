@@ -10,11 +10,7 @@ import org.springframework.data.domain.Pageable;
 public interface ShiftService {
 
   Shift openShift(
-      UUID orgId,
-      UUID branchId,
-      UUID terminalId,
-      UUID staffUserId,
-      BigDecimal openingFloatAmount);
+      UUID orgId, UUID branchId, UUID terminalId, UUID staffUserId, BigDecimal openingFloatAmount);
 
   Shift closeShift(
       UUID orgId,

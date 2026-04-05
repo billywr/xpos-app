@@ -13,8 +13,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface ShiftRepository extends JpaRepository<Shift, UUID> {
 
-  @Query(
-      """
+  @Query("""
       select s from Shift s
       where s.id = :id and s.org.id = :orgId
       """)

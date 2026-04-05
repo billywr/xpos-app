@@ -87,16 +87,14 @@ public class ScheduledPriceServiceImpl implements ScheduledPriceService {
     scheduled.setPriceSchedule(schedule);
     scheduled.setItem(item);
     scheduled.setPrice(sellingPrice);
-    scheduled.setCurrency(
-        currency != null && !currency.isBlank() ? currency : DEFAULT_CURRENCY);
+    scheduled.setCurrency(currency != null && !currency.isBlank() ? currency : DEFAULT_CURRENCY);
     scheduled.setCreatedAt(Instant.now(clock));
     return scheduledPriceRepository.save(scheduled);
   }
 
   @Override
   @Transactional(readOnly = true)
-  public ScheduledPrice requireInSchedule(
-      UUID orgId, UUID priceScheduleId, UUID scheduledPriceId) {
+  public ScheduledPrice requireInSchedule(UUID orgId, UUID priceScheduleId, UUID scheduledPriceId) {
     ScheduledPrice scheduled =
         scheduledPriceRepository
             .findByIdAndOrgId(scheduledPriceId, orgId)
@@ -115,8 +113,7 @@ public class ScheduledPriceServiceImpl implements ScheduledPriceService {
   @Transactional(readOnly = true)
   public List<ScheduledPrice> listBySchedule(UUID orgId, UUID priceScheduleId) {
     priceScheduleService.require(orgId, priceScheduleId);
-    return scheduledPriceRepository.findAllByPriceScheduleIdAndOrgId(
-        priceScheduleId, orgId);
+    return scheduledPriceRepository.findAllByPriceScheduleIdAndOrgId(priceScheduleId, orgId);
   }
 
   @Override

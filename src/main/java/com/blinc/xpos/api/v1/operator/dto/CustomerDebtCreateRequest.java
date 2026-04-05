@@ -8,7 +8,8 @@ import java.util.UUID;
 
 public record CustomerDebtCreateRequest(
     @NotNull(message = "Customer is required") UUID customerId,
-    @NotNull(message = "Amount is required") @DecimalMin(value = "0.01", message = "Amount must be positive")
+    @NotNull(message = "Amount is required")
+        @DecimalMin(value = "0.01", message = "Amount must be positive")
         BigDecimal amount,
     LocalDate dueDate,
     String notes,

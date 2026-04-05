@@ -8,7 +8,8 @@ import java.util.UUID;
 
 public record SaleLineAddRequest(
     @NotNull(message = "Item ID is required") UUID itemId,
-    @NotNull(message = "Quantity is required") @DecimalMin(value = "0.001", message = "Quantity must be positive")
+    @NotNull(message = "Quantity is required")
+        @DecimalMin(value = "0.001", message = "Quantity must be positive")
         BigDecimal qty,
     UUID uomId,
     BigDecimal unitPriceOverride,

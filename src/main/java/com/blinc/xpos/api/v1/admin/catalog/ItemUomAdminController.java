@@ -35,33 +35,25 @@ public class ItemUomAdminController {
       @PathVariable UUID itemId,
       @Valid @RequestBody ItemUomCreateRequest request) {
     ItemUom itemUom =
-        itemUomService.add(
-            orgId, itemId, request.uomId(), request.conversionToBase());
+        itemUomService.add(orgId, itemId, request.uomId(), request.conversionToBase());
     return toResponse(itemUom);
   }
 
   @GetMapping
-  public List<ItemUomResponse> list(
-      @PathVariable UUID orgId, @PathVariable UUID itemId) {
-    return itemUomService.listByItem(orgId, itemId).stream()
-        .map(this::toResponse)
-        .toList();
+  public List<ItemUomResponse> list(@PathVariable UUID orgId, @PathVariable UUID itemId) {
+    return itemUomService.listByItem(orgId, itemId).stream().map(this::toResponse).toList();
   }
 
   @GetMapping("/{itemUomId}")
   public ItemUomResponse get(
-      @PathVariable UUID orgId,
-      @PathVariable UUID itemId,
-      @PathVariable UUID itemUomId) {
+      @PathVariable UUID orgId, @PathVariable UUID itemId, @PathVariable UUID itemUomId) {
     return toResponse(itemUomService.requireInItem(orgId, itemId, itemUomId));
   }
 
   @DeleteMapping("/{itemUomId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void remove(
-      @PathVariable UUID orgId,
-      @PathVariable UUID itemId,
-      @PathVariable UUID itemUomId) {
+      @PathVariable UUID orgId, @PathVariable UUID itemId, @PathVariable UUID itemUomId) {
     itemUomService.remove(orgId, itemId, itemUomId);
   }
 

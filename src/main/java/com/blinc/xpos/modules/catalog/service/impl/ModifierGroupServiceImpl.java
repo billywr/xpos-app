@@ -52,9 +52,7 @@ public class ModifierGroupServiceImpl implements ModifierGroupService {
     return modifierGroupRepository
         .findByIdAndOrgId(modifierGroupId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "MODIFIER_GROUP_NOT_FOUND", "Modifier group not found"));
+            () -> new NotFoundException("MODIFIER_GROUP_NOT_FOUND", "Modifier group not found"));
   }
 
   @Override

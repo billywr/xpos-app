@@ -64,8 +64,7 @@ public class ReceiptsOperatorController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
           LocalDate toDate,
       Pageable pageable) {
-    staffAuthorizationService.requireStaffUser(
-        orgId, principalResolver.require().iamUserId());
+    staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
     var branch = branchService.require(orgId, branchId);
     ZoneId branchZone = toZoneId(branch.getTimezone());
     LocalDate todayInBranch = LocalDate.now(branchZone);
@@ -82,12 +81,9 @@ public class ReceiptsOperatorController {
 
   @PostMapping("/{saleId}/refund")
   public SaleSummaryResponse refund(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      @PathVariable UUID saleId) {
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @PathVariable UUID saleId) {
     var staffUser =
-        staffAuthorizationService.requireStaffUser(
-            orgId, principalResolver.require().iamUserId());
+        staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
     branchService.require(orgId, branchId);
     Sale sale = saleService.refundSale(orgId, saleId, staffUser.getId());
     return toResponse(sale);
@@ -96,11 +92,8 @@ public class ReceiptsOperatorController {
   @PostMapping("/{saleId}/reprint")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void reprint(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      @PathVariable UUID saleId) {
-    staffAuthorizationService.requireStaffUser(
-        orgId, principalResolver.require().iamUserId());
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @PathVariable UUID saleId) {
+    staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
     branchService.require(orgId, branchId);
     receiptService.recordReprint(orgId, saleId);
   }

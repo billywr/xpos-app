@@ -61,8 +61,7 @@ public class OperatorAnalyticsServiceImpl implements OperatorAnalyticsService {
       MiscExpenseRepository miscExpenseRepository) {
     this.branchService = Objects.requireNonNull(branchService, "branchService");
     this.saleRepository = Objects.requireNonNull(saleRepository, "saleRepository");
-    this.saleLineRepository =
-        Objects.requireNonNull(saleLineRepository, "saleLineRepository");
+    this.saleLineRepository = Objects.requireNonNull(saleLineRepository, "saleLineRepository");
     this.tenderRepository = Objects.requireNonNull(tenderRepository, "tenderRepository");
     this.shiftRepository = Objects.requireNonNull(shiftRepository, "shiftRepository");
     this.shiftExpectedCashService =
@@ -139,8 +138,7 @@ public class OperatorAnalyticsServiceImpl implements OperatorAnalyticsService {
     }
 
     AnalyticsSnapshotResponse.OpenShift openShift = buildOpenShift(orgId, branchId);
-    List<AnalyticsSnapshotResponse.HourlyPoint> hourlyTrend =
-        buildHourlyTrend(rangeSales, zone);
+    List<AnalyticsSnapshotResponse.HourlyPoint> hourlyTrend = buildHourlyTrend(rangeSales, zone);
     List<AnalyticsSnapshotResponse.TopItem> topItems =
         buildTopItems(orgId, branchId, rangeStart, rangeEnd);
     List<AnalyticsSnapshotResponse.PaymentBreakdown> paymentBreakdown =
@@ -157,8 +155,7 @@ public class OperatorAnalyticsServiceImpl implements OperatorAnalyticsService {
         effectiveFrom,
         effectiveTo,
         branch.getTimezone(),
-        new AnalyticsSnapshotResponse.Summary(
-            rangeRevenue, rangeCount, rangeAvg, rangeTax),
+        new AnalyticsSnapshotResponse.Summary(rangeRevenue, rangeCount, rangeAvg, rangeTax),
         openShift,
         hourlyTrend,
         topItems,
@@ -188,14 +185,14 @@ public class OperatorAnalyticsServiceImpl implements OperatorAnalyticsService {
         customerDebtRepository.sumOverdueByOrgIdAndBranchIdAndStatusInAndDueDateBefore(
             orgId, branchId, openStatusNames, today);
     long openCount =
-        customerDebtRepository.countByOrgIdAndBranchIdAndStatusIn(
-            orgId, branchId, openStatusNames);
+        customerDebtRepository.countByOrgIdAndBranchIdAndStatusIn(orgId, branchId, openStatusNames);
     List<String> settledOnly = List.of("SETTLED");
     long settledCount =
-        customerDebtRepository.countByOrgIdAndBranchIdAndStatusIn(
-            orgId, branchId, settledOnly);
+        customerDebtRepository.countByOrgIdAndBranchIdAndStatusIn(orgId, branchId, settledOnly);
     BigDecimal paymentRate = BigDecimal.ZERO;
-    if (totalOriginal != null && totalOriginal.compareTo(BigDecimal.ZERO) > 0 && totalRepaid != null) {
+    if (totalOriginal != null
+        && totalOriginal.compareTo(BigDecimal.ZERO) > 0
+        && totalRepaid != null) {
       paymentRate =
           totalRepaid
               .multiply(BigDecimal.valueOf(100))
@@ -226,15 +223,15 @@ public class OperatorAnalyticsServiceImpl implements OperatorAnalyticsService {
                 s ->
                     new AnalyticsSnapshotResponse.ExpenseByCategory(
                         s.getCategory() != null ? s.getCategory().name() : "OTHER",
-                        s.getAmount() != null ? s.getAmount().setScale(SCALE, ROUNDING) : BigDecimal.ZERO))
+                        s.getAmount() != null
+                            ? s.getAmount().setScale(SCALE, ROUNDING)
+                            : BigDecimal.ZERO))
             .toList();
     return new AnalyticsSnapshotResponse.ExpenseIntelligence(
-        todayTotal != null ? todayTotal.setScale(SCALE, ROUNDING) : BigDecimal.ZERO,
-        categories);
+        todayTotal != null ? todayTotal.setScale(SCALE, ROUNDING) : BigDecimal.ZERO, categories);
   }
 
-  private AnalyticsSnapshotResponse.OpenShift buildOpenShift(
-      UUID orgId, UUID branchId) {
+  private AnalyticsSnapshotResponse.OpenShift buildOpenShift(UUID orgId, UUID branchId) {
     List<Shift> openShifts =
         shiftRepository.findByBranchIdAndStatus(
             branchId, com.blinc.xpos.common.constants.enums.ShiftStatus.OPEN);
@@ -244,20 +241,20 @@ public class OperatorAnalyticsServiceImpl implements OperatorAnalyticsService {
     BigDecimal totalExpected = BigDecimal.ZERO;
     Instant latestOpened = null;
     for (Shift shift : openShifts) {
-      BigDecimal exp =
-          shiftExpectedCashService.computeForOpenShift(orgId, shift.getId());
+      BigDecimal exp = shiftExpectedCashService.computeForOpenShift(orgId, shift.getId());
       if (exp != null) {
         totalExpected = totalExpected.add(exp);
       }
       if (latestOpened == null
-          || (shift.getOpenedAt() != null
-              && shift.getOpenedAt().isAfter(latestOpened))) {
+          || (shift.getOpenedAt() != null && shift.getOpenedAt().isAfter(latestOpened))) {
         latestOpened = shift.getOpenedAt();
       }
     }
     return new AnalyticsSnapshotResponse.OpenShift(
         true,
-        totalExpected.compareTo(BigDecimal.ZERO) > 0 ? totalExpected.setScale(SCALE, ROUNDING) : null,
+        totalExpected.compareTo(BigDecimal.ZERO) > 0
+            ? totalExpected.setScale(SCALE, ROUNDING)
+            : null,
         latestOpened);
   }
 
@@ -272,17 +269,13 @@ public class OperatorAnalyticsServiceImpl implements OperatorAnalyticsService {
         continue;
       }
       int hour = s.getCompletedAt().atZone(zone).getHour();
-      byHour
-          .computeIfAbsent(hour, k -> new HourlyAgg())
-          .add(s.getTotal(), 1);
+      byHour.computeIfAbsent(hour, k -> new HourlyAgg()).add(s.getTotal(), 1);
     }
     return byHour.entrySet().stream()
         .map(
             e ->
                 new AnalyticsSnapshotResponse.HourlyPoint(
-                    e.getKey(),
-                    e.getValue().revenue.setScale(SCALE, ROUNDING),
-                    e.getValue().count))
+                    e.getKey(), e.getValue().revenue.setScale(SCALE, ROUNDING), e.getValue().count))
         .toList();
   }
 
@@ -298,7 +291,9 @@ public class OperatorAnalyticsServiceImpl implements OperatorAnalyticsService {
                     p.itemId().toString(),
                     p.itemName() != null ? p.itemName() : "—",
                     p.totalQty() != null ? p.totalQty().setScale(SCALE, ROUNDING) : BigDecimal.ZERO,
-                    p.totalRevenue() != null ? p.totalRevenue().setScale(SCALE, ROUNDING) : BigDecimal.ZERO))
+                    p.totalRevenue() != null
+                        ? p.totalRevenue().setScale(SCALE, ROUNDING)
+                        : BigDecimal.ZERO))
         .toList();
   }
 
@@ -319,14 +314,12 @@ public class OperatorAnalyticsServiceImpl implements OperatorAnalyticsService {
               .filter(Objects::nonNull)
               .reduce(BigDecimal.ZERO, BigDecimal::add)
               .setScale(SCALE, ROUNDING);
-      result.add(
-          new AnalyticsSnapshotResponse.DailyTrendPoint(d, rev, daySales.size()));
+      result.add(new AnalyticsSnapshotResponse.DailyTrendPoint(d, rev, daySales.size()));
     }
     return result;
   }
 
-  private List<AnalyticsSnapshotResponse.PaymentBreakdown> buildPaymentBreakdown(
-      List<Sale> sales) {
+  private List<AnalyticsSnapshotResponse.PaymentBreakdown> buildPaymentBreakdown(List<Sale> sales) {
     if (sales.isEmpty()) {
       return List.of();
     }
@@ -334,23 +327,15 @@ public class OperatorAnalyticsServiceImpl implements OperatorAnalyticsService {
     List<Tender> tenders = tenderRepository.findBySaleIdInWithTenderType(saleIds);
     Map<String, TenderAgg> byType = new HashMap<>();
     for (Tender t : tenders) {
-      String code = t.getTenderType().getCode() != null
-          ? t.getTenderType().getCode()
-          : "OTHER";
-      String name = t.getTenderType().getName() != null
-          ? t.getTenderType().getName()
-          : code;
-      byType
-          .computeIfAbsent(code, k -> new TenderAgg(name))
-          .add(t.getAmount());
+      String code = t.getTenderType().getCode() != null ? t.getTenderType().getCode() : "OTHER";
+      String name = t.getTenderType().getName() != null ? t.getTenderType().getName() : code;
+      byType.computeIfAbsent(code, k -> new TenderAgg(name)).add(t.getAmount());
     }
     return byType.entrySet().stream()
         .map(
             e ->
                 new AnalyticsSnapshotResponse.PaymentBreakdown(
-                    e.getKey(),
-                    e.getValue().name,
-                    e.getValue().amount.setScale(SCALE, ROUNDING)))
+                    e.getKey(), e.getValue().name, e.getValue().amount.setScale(SCALE, ROUNDING)))
         .toList();
   }
 

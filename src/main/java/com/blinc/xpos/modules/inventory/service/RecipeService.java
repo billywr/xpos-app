@@ -14,8 +14,7 @@ public interface RecipeService {
 
   Page<Recipe> list(UUID orgId, Pageable pageable);
 
-  Recipe addLine(
-      UUID orgId, UUID recipeId, UUID ingredientItemId, BigDecimal qty, UUID uomId);
+  Recipe addLine(UUID orgId, UUID recipeId, UUID ingredientItemId, BigDecimal qty, UUID uomId);
 
   Recipe update(UUID orgId, UUID recipeId, BigDecimal yieldQty, Boolean active);
 }

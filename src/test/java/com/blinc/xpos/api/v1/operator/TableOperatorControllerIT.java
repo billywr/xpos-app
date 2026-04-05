@@ -1,7 +1,8 @@
 package com.blinc.xpos.api.v1.operator;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
+import static com.blinc.xpos.TestJwtFactory.operatorJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -38,11 +39,10 @@ class TableOperatorControllerIT extends AbstractIntegrationTest {
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
 
-    String url =
-        "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/tables";
+    String url = "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/tables";
 
     mockMvc
-        .perform(get(url).with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(url).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$").isArray())
         .andExpect(jsonPath("$.length()").value(0));
@@ -58,11 +58,10 @@ class TableOperatorControllerIT extends AbstractIntegrationTest {
 
     createTable(orgId, branchId, null, "Table 1", 4);
 
-    String url =
-        "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/tables";
+    String url = "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/tables";
 
     mockMvc
-        .perform(get(url).with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(url).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$").isArray())
         .andExpect(jsonPath("$.length()").value(1))
@@ -73,8 +72,7 @@ class TableOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   private void createTable(
-      UUID orgId, UUID branchId, UUID tableAreaId, String name, Integer capacity)
-      throws Exception {
+      UUID orgId, UUID branchId, UUID tableAreaId, String name, Integer capacity) throws Exception {
     String body =
         """
         {"tableAreaId":%s,"name":"%s","capacity":%s}
@@ -86,7 +84,7 @@ class TableOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/tables")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());
@@ -100,7 +98,7 @@ class TableOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -118,7 +116,7 @@ class TableOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -137,7 +135,7 @@ class TableOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -154,7 +152,7 @@ class TableOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -164,15 +162,13 @@ class TableOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   private void assignStaffToBranch(UUID orgId, UUID staffUserId, UUID branchId) throws Exception {
-    String body =
-        """
+    String body = """
         {"branchId":"%s","primary":true}
-        """
-            .formatted(branchId);
+        """.formatted(branchId);
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());

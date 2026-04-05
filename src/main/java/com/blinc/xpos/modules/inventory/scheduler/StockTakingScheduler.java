@@ -66,23 +66,20 @@ public class StockTakingScheduler {
   }
 
   private boolean isDue(StockTakingSchedule s, ZonedDateTime now) {
-    if (s.getScheduledHour() != now.getHour()
-        || s.getScheduledMinute() != now.getMinute()) {
+    if (s.getScheduledHour() != now.getHour() || s.getScheduledMinute() != now.getMinute()) {
       return false;
     }
     if (StockTakingSchedule.FREQUENCY_DAILY.equals(s.getFrequency())) {
       return true;
     }
-    if (StockTakingSchedule.FREQUENCY_WEEKLY.equals(s.getFrequency())
-        && s.getDayOfWeek() != null) {
+    if (StockTakingSchedule.FREQUENCY_WEEKLY.equals(s.getFrequency()) && s.getDayOfWeek() != null) {
       int javaDay = s.getDayOfWeek() == 0 ? 7 : s.getDayOfWeek();
       return now.getDayOfWeek().getValue() == javaDay;
     }
     return false;
   }
 
-  private boolean alreadyRanThisPeriod(
-      StockTakingSchedule s, ZonedDateTime now, ZoneId zone) {
+  private boolean alreadyRanThisPeriod(StockTakingSchedule s, ZonedDateTime now, ZoneId zone) {
     Instant lastRun = s.getLastRunAt();
     if (lastRun == null) {
       return false;
@@ -91,8 +88,7 @@ public class StockTakingScheduler {
     if (StockTakingSchedule.FREQUENCY_DAILY.equals(s.getFrequency())) {
       return lastRunZoned.toLocalDate().equals(now.toLocalDate());
     }
-    if (StockTakingSchedule.FREQUENCY_WEEKLY.equals(s.getFrequency())
-        && s.getDayOfWeek() != null) {
+    if (StockTakingSchedule.FREQUENCY_WEEKLY.equals(s.getFrequency()) && s.getDayOfWeek() != null) {
       int lastRunWeek = lastRunZoned.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear());
       int lastRunYear = lastRunZoned.get(java.time.temporal.WeekFields.ISO.weekBasedYear());
       int nowWeek = now.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear());
@@ -110,9 +106,7 @@ public class StockTakingScheduler {
         assignmentRepository.findAllByOrgIdAndBranchId(
             orgId, branchId, org.springframework.data.domain.PageRequest.of(0, 1));
     if (assignments.isEmpty()) {
-      log.warn(
-          "Skipping scheduled stock take for branch {}: no staff assigned",
-          branchId);
+      log.warn("Skipping scheduled stock take for branch {}: no staff assigned", branchId);
       return;
     }
     UUID staffUserId = assignments.getContent().get(0).getStaffUser().getId();

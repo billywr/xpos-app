@@ -126,8 +126,7 @@ public class StockCountSessionServiceImpl implements StockCountSessionService {
 
   @Override
   @Transactional
-  public StockCountSession addLine(
-      UUID orgId, UUID sessionId, UUID itemId, BigDecimal countedQty) {
+  public StockCountSession addLine(UUID orgId, UUID sessionId, UUID itemId, BigDecimal countedQty) {
     StockCountSession session = require(orgId, sessionId);
     if (!STATUS_OPEN.equals(session.getStatus())) {
       throw new BadRequestException(
@@ -145,8 +144,7 @@ public class StockCountSessionServiceImpl implements StockCountSessionService {
     if (invItem.isPresent()) {
       systemQty = invItem.get().getOnHandQty();
     }
-    BigDecimal varianceQty =
-        countedQty.subtract(systemQty).setScale(SCALE, RoundingMode.HALF_UP);
+    BigDecimal varianceQty = countedQty.subtract(systemQty).setScale(SCALE, RoundingMode.HALF_UP);
     Instant now = Instant.now(clock);
     StockCountLine line = new StockCountLine();
     line.setOrg(session.getOrg());
@@ -176,8 +174,7 @@ public class StockCountSessionServiceImpl implements StockCountSessionService {
             .orElseThrow(
                 () ->
                     new NotFoundException(
-                        "STOCK_COUNT_LINE_NOT_FOUND",
-                        "Stock count line not found: " + lineId));
+                        "STOCK_COUNT_LINE_NOT_FOUND", "Stock count line not found: " + lineId));
     if (!line.getSession().getId().equals(sessionId)) {
       throw new IllegalArgumentException("Line does not belong to this session");
     }
@@ -185,9 +182,7 @@ public class StockCountSessionServiceImpl implements StockCountSessionService {
       throw new IllegalArgumentException("Counted quantity must be non-negative");
     }
     BigDecimal varianceQty =
-        countedQty
-            .subtract(line.getSystemQty())
-            .setScale(SCALE, RoundingMode.HALF_UP);
+        countedQty.subtract(line.getSystemQty()).setScale(SCALE, RoundingMode.HALF_UP);
     line.setCountedQty(countedQty.setScale(SCALE, RoundingMode.HALF_UP));
     line.setVarianceQty(varianceQty);
     lineRepository.save(line);
@@ -209,8 +204,7 @@ public class StockCountSessionServiceImpl implements StockCountSessionService {
             .orElseThrow(
                 () ->
                     new NotFoundException(
-                        "STOCK_COUNT_LINE_NOT_FOUND",
-                        "Stock count line not found: " + lineId));
+                        "STOCK_COUNT_LINE_NOT_FOUND", "Stock count line not found: " + lineId));
     if (!line.getSession().getId().equals(sessionId)) {
       throw new IllegalArgumentException("Line does not belong to this session");
     }
@@ -252,8 +246,7 @@ public class StockCountSessionServiceImpl implements StockCountSessionService {
       if (invItem.isPresent()) {
         systemQty = invItem.get().getOnHandQty().setScale(SCALE, RoundingMode.HALF_UP);
       }
-      BigDecimal variance =
-          totalCounted.subtract(systemQty).setScale(SCALE, RoundingMode.HALF_UP);
+      BigDecimal variance = totalCounted.subtract(systemQty).setScale(SCALE, RoundingMode.HALF_UP);
       if (variance.compareTo(BigDecimal.ZERO) == 0) {
         continue;
       }
@@ -276,12 +269,10 @@ public class StockCountSessionServiceImpl implements StockCountSessionService {
 
   @Override
   @Transactional
-  public StockCountSession softDelete(
-      UUID orgId, UUID sessionId, UUID deletedByStaffUserId) {
+  public StockCountSession softDelete(UUID orgId, UUID sessionId, UUID deletedByStaffUserId) {
     StockCountSession session = require(orgId, sessionId);
     if (session.getDeletedAt() != null) {
-      throw new BadRequestException(
-          "SESSION_ALREADY_DELETED", "Session is already deleted.");
+      throw new BadRequestException("SESSION_ALREADY_DELETED", "Session is already deleted.");
     }
     StaffUser deletedBy = staffUserService.require(orgId, deletedByStaffUserId);
     session.setDeletedAt(Instant.now(clock));

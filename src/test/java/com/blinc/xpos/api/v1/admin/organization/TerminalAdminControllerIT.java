@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.organization;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -36,25 +36,30 @@ class TerminalAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/terminals")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"terminalCode\":\"T-DELETE\",\"printerProfileId\":null}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID terminalId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     String deletePath =
         "/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/terminals/" + terminalId;
-    mockMvc
-        .perform(delete(deletePath).with(jwt().jwt(j -> j.subject("admin"))))
-        .andExpect(status().isNoContent());
+    mockMvc.perform(delete(deletePath).with(adminJwt())).andExpect(status().isNoContent());
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/terminals?page=0&size=100")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/terminals?page=0&size=100")
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[?(@.id == '%s')]", terminalId.toString()).isEmpty());
   }
@@ -64,14 +69,16 @@ class TerminalAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         objectMapper.writeValueAsString(
                             new OrgCreateRequest("Terminal Admin Test Org " + UUID.randomUUID()))))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 
   private UUID createBusiness(UUID orgId) throws Exception {
@@ -79,7 +86,7 @@ class TerminalAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Terminal Test Business\"}"))
             .andExpect(status().isCreated())
@@ -93,7 +100,7 @@ class TerminalAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         """

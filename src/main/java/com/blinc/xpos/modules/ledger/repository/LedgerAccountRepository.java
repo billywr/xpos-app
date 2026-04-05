@@ -31,5 +31,6 @@ public interface LedgerAccountRepository extends JpaRepository<LedgerAccount, UU
       select a from LedgerAccount a
       where a.org.id = :orgId and a.code = :code
       """)
-  Optional<LedgerAccount> findByOrgIdAndCode(@Param("orgId") UUID orgId, @Param("code") String code);
+  Optional<LedgerAccount> findByOrgIdAndCode(
+      @Param("orgId") UUID orgId, @Param("code") String code);
 }

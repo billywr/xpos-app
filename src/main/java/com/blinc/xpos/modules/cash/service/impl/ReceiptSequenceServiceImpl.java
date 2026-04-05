@@ -52,8 +52,7 @@ public class ReceiptSequenceServiceImpl implements ReceiptSequenceService {
       ReceiptSequence newSeq = new ReceiptSequence();
       newSeq.setOrg(branch.getOrg());
       newSeq.setBranch(branch);
-      newSeq.setTerminal(
-          terminalId != null ? terminalService.require(orgId, terminalId) : null);
+      newSeq.setTerminal(terminalId != null ? terminalService.require(orgId, terminalId) : null);
       newSeq.setBusinessDate(businessDate);
       newSeq.setNextNumber(2L);
       newSeq.setCreatedAt(Instant.now(clock));

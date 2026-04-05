@@ -11,8 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface TableAreaRepository extends JpaRepository<TableArea, UUID> {
 
-  @Query(
-      """
+  @Query("""
       select t from TableArea t
       where t.id = :id and t.org.id = :orgId
       """)

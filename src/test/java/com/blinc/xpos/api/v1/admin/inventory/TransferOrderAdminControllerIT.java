@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.inventory;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -37,7 +37,7 @@ class TransferOrderAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/transfer-orders")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         "{\"fromBranchId\":\""
@@ -50,19 +50,20 @@ class TransferOrderAdminControllerIT extends AbstractIntegrationTest {
             .andReturn();
     UUID orderId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/transfer-orders/" + orderId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"itemId\":\"" + itemId + "\",\"qty\":5}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.lines.length()").value(1));
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/transfer-orders")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/transfer-orders").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
   }
@@ -72,12 +73,14 @@ class TransferOrderAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(new OrgCreateRequest("Test"))))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 
   private UUID createBusiness(UUID orgId) throws Exception {
@@ -85,7 +88,7 @@ class TransferOrderAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -99,7 +102,7 @@ class TransferOrderAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         "{\"businessId\":\""
@@ -119,7 +122,7 @@ class TransferOrderAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         "{\"name\":\"I\",\"itemType\":\"STOCK\",\"taxProfileId\":\""
@@ -136,7 +139,7 @@ class TransferOrderAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/tax-profiles")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         "{\"name\":\"VAT\",\"vatCategory\":\"STANDARD\","

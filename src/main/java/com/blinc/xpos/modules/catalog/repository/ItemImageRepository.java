@@ -23,8 +23,7 @@ public interface ItemImageRepository extends JpaRepository<ItemImage, UUID> {
       where img.item.id = :itemId and img.org.id = :orgId
       order by img.sortOrder, img.createdAt
       """)
-  List<ItemImage> findAllByItemIdAndOrgId(
-      @Param("itemId") UUID itemId, @Param("orgId") UUID orgId);
+  List<ItemImage> findAllByItemIdAndOrgId(@Param("itemId") UUID itemId, @Param("orgId") UUID orgId);
 
   @Query(
       """

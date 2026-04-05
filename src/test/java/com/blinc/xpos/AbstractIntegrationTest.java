@@ -16,9 +16,9 @@ import org.testcontainers.utility.DockerImageName;
 
 /**
  * Base for integration tests that need a full Spring context. Starts Postgres and Redis via
- * Testcontainers. These tests are excluded by default; run with {@code -Psurefire-integration}
- * when Docker is available. Docker must be running or the build will fail.
- * Flyway is run in {@link #runFlywayMigrations()} so the container has schema before context load.
+ * Testcontainers. These tests are excluded by default; run with {@code -Psurefire-integration} when
+ * Docker is available. Docker must be running or the build will fail. Flyway is run in {@link
+ * #runFlywayMigrations()} so the container has schema before context load.
  */
 @Tag("integration")
 @Testcontainers
@@ -35,8 +35,7 @@ public abstract class AbstractIntegrationTest {
 
   @Container
   static final GenericContainer<?> redis =
-      new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-          .withExposedPorts(6379);
+      new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
 
   @BeforeAll
   static void runFlywayMigrations() {
@@ -59,7 +58,6 @@ public abstract class AbstractIntegrationTest {
     registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379).toString());
     registry.add("spring.data.redis.password", () -> "");
     registry.add(
-        "xpos.upload.dir",
-        () -> System.getProperty("java.io.tmpdir") + "/xpos-test-uploads");
+        "xpos.upload.dir", () -> System.getProperty("java.io.tmpdir") + "/xpos-test-uploads");
   }
 }

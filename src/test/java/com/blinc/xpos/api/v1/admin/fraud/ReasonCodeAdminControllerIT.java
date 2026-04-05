@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.fraud;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -32,15 +32,14 @@ class ReasonCodeAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/reason-codes")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"code\":\"VOID\",\"description\":\"Void reason\"}"))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.code").value("VOID"));
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/reason-codes?page=0&size=10")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/" + orgId + "/reason-codes?page=0&size=10").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
   }
@@ -51,11 +50,13 @@ class ReasonCodeAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 }

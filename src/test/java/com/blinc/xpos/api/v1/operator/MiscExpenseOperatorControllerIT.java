@@ -1,7 +1,8 @@
 package com.blinc.xpos.api.v1.operator;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
+import static com.blinc.xpos.TestJwtFactory.operatorJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -43,7 +44,7 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/misc-expenses")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(createBody))
         .andExpect(status().isCreated())
@@ -58,7 +59,7 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/misc-expenses")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].amount").value(250.75))
@@ -83,7 +84,7 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/misc-expenses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -91,7 +92,10 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
 
     UUID expenseId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     String updateBody =
         """
@@ -100,9 +104,14 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            patch("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/misc-expenses/"
-                + expenseId)
-                .with(jwt().jwt(j -> j.subject("admin")))
+            patch(
+                    "/api/v1/operator/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/misc-expenses/"
+                        + expenseId)
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(updateBody))
         .andExpect(status().isOk())
@@ -111,15 +120,20 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/misc-expenses/"
-                + expenseId + "/cancel")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/misc-expenses/"
+                    + expenseId
+                    + "/cancel")
+                .with(operatorJwt()))
         .andExpect(status().isOk());
 
     mockMvc
         .perform(
             get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/misc-expenses")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(0))
         .andExpect(jsonPath("$.totalAmount").value(0));
@@ -141,7 +155,7 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/misc-expenses")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(createBody))
         .andExpect(status().isBadRequest());
@@ -163,7 +177,7 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/misc-expenses")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(createBody))
         .andExpect(status().isBadRequest());
@@ -181,7 +195,7 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/operator/orgs/" + orgId + "/branches/" + otherBranchId + "/misc-expenses")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(operatorJwt()))
         .andExpect(status().isNotFound());
   }
 
@@ -193,12 +207,14 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 
   private UUID createBusiness(UUID orgId) throws Exception {
@@ -206,7 +222,7 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -217,13 +233,15 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
 
   private UUID createBranch(UUID orgId, UUID businessId) throws Exception {
     String body =
-        "{\"businessId\":\"" + businessId + "\",\"name\":\"B1\","
+        "{\"businessId\":\""
+            + businessId
+            + "\",\"name\":\"B1\","
             + "\"timezone\":\"Africa/Nairobi\",\"currency\":\"KES\"}";
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -238,7 +256,7 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -252,7 +270,7 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());

@@ -4,9 +4,4 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record ItemImageResponse(
-    UUID id,
-    UUID itemId,
-    String url,
-    int sortOrder,
-    boolean isPrimary,
-    Instant createdAt) {}
+    UUID id, UUID itemId, String url, int sortOrder, boolean isPrimary, Instant createdAt) {}

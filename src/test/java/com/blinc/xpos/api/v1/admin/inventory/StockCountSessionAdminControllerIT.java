@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.inventory;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -19,9 +19,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-/**
- * Integration test for Stock Count Session admin API. Requires Postgres (e.g. Testcontainers).
- */
+/** Integration test for Stock Count Session admin API. Requires Postgres (e.g. Testcontainers). */
 @SpringBootTest
 @AutoConfigureMockMvc
 class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
@@ -38,16 +36,14 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
     assignStaffToBranch(orgId, staffUserId, branchId);
     UUID itemId = createItem(orgId);
 
-    String createBody =
-        """
+    String createBody = """
         {"branchId":"%s"}
-        """
-            .formatted(branchId);
+        """.formatted(branchId);
     MvcResult createResult =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -56,17 +52,18 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
             .andReturn();
     UUID sessionId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
-    String addLineBody =
-        """
+    String addLineBody = """
         {"itemId":"%s","countedQty":10}
-        """
-            .formatted(itemId);
+        """.formatted(itemId);
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions/" + sessionId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(addLineBody))
         .andExpect(status().isOk())
@@ -76,7 +73,7 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions/" + sessionId + "/close")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("CLOSED"));
   }
@@ -95,25 +92,25 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
             .andReturn();
     UUID sessionId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString())
-                .get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
-    String addLineBody =
-        """
+    String addLineBody = """
         {"itemId":"%s","countedQty":-1}
-        """
-            .formatted(itemId);
+        """.formatted(itemId);
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions/" + sessionId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(addLineBody))
         .andExpect(status().isBadRequest());
@@ -133,24 +130,25 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
             .andReturn();
     UUID sessionId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
-    String addLineBody =
-        """
+    String addLineBody = """
         {"itemId":"%s","countedQty":1}
-        """
-            .formatted(itemId);
+        """.formatted(itemId);
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions/" + sessionId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(addLineBody))
         .andExpect(status().isOk());
@@ -158,14 +156,14 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions/" + sessionId + "/close")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("CLOSED"));
 
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions/" + sessionId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(addLineBody))
         .andExpect(status().isBadRequest())
@@ -186,20 +184,22 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
             .andReturn();
     UUID sessionId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString())
-                .get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
         .perform(
             get("/api/v1/admin/orgs/" + otherOrgId + "/stock-count-sessions/" + sessionId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(adminJwt()))
         .andExpect(status().isNotFound());
   }
 
@@ -211,7 +211,7 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -226,7 +226,7 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -245,7 +245,7 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -265,7 +265,7 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -279,7 +279,7 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/tax-profiles")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         "{\"name\":\"VAT\",\"vatCategory\":\"STANDARD\",\"serviceChargeRate\":0,"
@@ -295,7 +295,7 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"iamUserId\":\"admin\",\"username\":\"admin\"}"))
             .andExpect(status().isCreated())
@@ -308,7 +308,7 @@ class StockCountSessionAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"branchId\":\"" + branchId + "\",\"primary\":true}"))
         .andExpect(status().isCreated());

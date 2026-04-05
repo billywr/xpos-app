@@ -11,8 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
 
-  @Query(
-      """
+  @Query("""
       select a from AuditLog a
       where a.id = :id and a.org.id = :orgId
       """)

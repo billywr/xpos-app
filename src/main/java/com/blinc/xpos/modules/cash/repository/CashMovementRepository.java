@@ -33,6 +33,5 @@ public interface CashMovementRepository extends JpaRepository<CashMovement, UUID
       where m.branch.id = :branchId
       order by m.createdAt desc
       """)
-  Page<CashMovement> findAllByBranchId(
-      @Param("branchId") UUID branchId, Pageable pageable);
+  Page<CashMovement> findAllByBranchId(@Param("branchId") UUID branchId, Pageable pageable);
 }

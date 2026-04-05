@@ -21,10 +21,7 @@ public class CustomerDebtRepositoryImpl implements CustomerDebtRepositoryCustom 
 
   @Override
   public Page<CustomerDebt> findAllByOrgIdAndBranchIdAndStatusIn(
-      UUID orgId,
-      UUID branchId,
-      List<String> statusNames,
-      Pageable pageable) {
+      UUID orgId, UUID branchId, List<String> statusNames, Pageable pageable) {
     String countSql =
         """
         select count(*) from customer_debt cd
@@ -88,8 +85,7 @@ public class CustomerDebtRepositoryImpl implements CustomerDebtRepositoryCustom 
     for (CustomerDebt d : fetched) {
       byId.put(d.getId(), d);
     }
-    List<CustomerDebt> ordered =
-        ids.stream().map(byId::get).filter(e -> e != null).toList();
+    List<CustomerDebt> ordered = ids.stream().map(byId::get).filter(e -> e != null).toList();
 
     return new PageImpl<>(ordered, pageable, total);
   }

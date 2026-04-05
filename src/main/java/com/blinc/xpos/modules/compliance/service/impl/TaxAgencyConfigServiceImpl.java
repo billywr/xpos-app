@@ -24,9 +24,7 @@ public class TaxAgencyConfigServiceImpl implements TaxAgencyConfigService {
   private final Clock clock;
 
   public TaxAgencyConfigServiceImpl(
-      TaxAgencyConfigRepository taxAgencyConfigRepository,
-      OrgService orgService,
-      Clock clock) {
+      TaxAgencyConfigRepository taxAgencyConfigRepository, OrgService orgService, Clock clock) {
     this.taxAgencyConfigRepository = Objects.requireNonNull(taxAgencyConfigRepository);
     this.orgService = Objects.requireNonNull(orgService);
     this.clock = Objects.requireNonNull(clock);

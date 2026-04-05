@@ -1,7 +1,8 @@
 package com.blinc.xpos.api.v1.operator;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
+import static com.blinc.xpos.TestJwtFactory.operatorJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -37,11 +38,12 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
     assignStaffToBranch(orgId, staffUserId, branchId);
     UUID itemId = createItem(orgId);
 
-    String base = "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/stock-count-sessions";
+    String base =
+        "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/stock-count-sessions";
 
     MvcResult startResult =
         mockMvc
-            .perform(post(base).with(jwt().jwt(j -> j.subject("admin"))))
+            .perform(post(base).with(operatorJwt()))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").exists())
             .andExpect(jsonPath("$.status").value("OPEN"))
@@ -49,17 +51,18 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
             .andReturn();
     UUID sessionId =
         UUID.fromString(
-            objectMapper.readTree(startResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(startResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
-    String addLineBody =
-        """
+    String addLineBody = """
         {"itemId":"%s","countedQty":7}
-        """
-            .formatted(itemId);
+        """.formatted(itemId);
     mockMvc
         .perform(
             post(base + "/" + sessionId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(addLineBody))
         .andExpect(status().isOk())
@@ -67,16 +70,12 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.lines[0].countedQty").value(7));
 
     mockMvc
-        .perform(
-            get(base)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(base).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
 
     mockMvc
-        .perform(
-            post(base + "/" + sessionId + "/close")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(post(base + "/" + sessionId + "/close").with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("CLOSED"));
   }
@@ -94,33 +93,34 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
 
     MvcResult startResult =
         mockMvc
-            .perform(post(base).with(jwt().jwt(j -> j.subject("admin"))))
+            .perform(post(base).with(operatorJwt()))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.status").value("OPEN"))
             .andReturn();
     UUID sessionId =
         UUID.fromString(
-            objectMapper.readTree(startResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(startResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
-        .perform(
-            post(base + "/" + sessionId + "/close")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(post(base + "/" + sessionId + "/close").with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("CLOSED"));
 
     mockMvc
-        .perform(get(base).with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(base).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
 
     mockMvc
-        .perform(delete(base + "/" + sessionId).with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(delete(base + "/" + sessionId).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(sessionId.toString()));
 
     mockMvc
-        .perform(get(base).with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(base).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(0));
   }
@@ -138,26 +138,29 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
 
     MvcResult startResult =
         mockMvc
-            .perform(post(base).with(jwt().jwt(j -> j.subject("admin"))))
+            .perform(post(base).with(operatorJwt()))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.status").value("OPEN"))
             .andReturn();
     UUID sessionId =
         UUID.fromString(
-            objectMapper.readTree(startResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(startResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
-        .perform(get(base).with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(base).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
 
     mockMvc
-        .perform(delete(base + "/" + sessionId).with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(delete(base + "/" + sessionId).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(sessionId.toString()));
 
     mockMvc
-        .perform(get(base).with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(base).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(0));
   }
@@ -172,22 +175,21 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
     assignStaffToBranch(orgId, staffUserId, branchId);
     assignStaffToBranch(orgId, staffUserId, otherBranchId);
 
-    String base = "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/stock-count-sessions";
+    String base =
+        "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/stock-count-sessions";
     MvcResult startResult =
-        mockMvc
-            .perform(post(base).with(jwt().jwt(j -> j.subject("admin"))))
-            .andExpect(status().isCreated())
-            .andReturn();
+        mockMvc.perform(post(base).with(operatorJwt())).andExpect(status().isCreated()).andReturn();
     UUID sessionId =
         UUID.fromString(
-            objectMapper.readTree(startResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(startResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     String otherBase =
         "/api/v1/operator/orgs/" + orgId + "/branches/" + otherBranchId + "/stock-count-sessions";
     mockMvc
-        .perform(
-            get(otherBase + "/" + sessionId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(otherBase + "/" + sessionId).with(operatorJwt()))
         .andExpect(status().isNotFound());
   }
 
@@ -199,7 +201,7 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -214,7 +216,7 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -237,7 +239,7 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -257,7 +259,7 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -271,7 +273,7 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/tax-profiles")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         "{\"name\":\"VAT\",\"vatCategory\":\"STANDARD\",\"serviceChargeRate\":0,"
@@ -287,7 +289,7 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"iamUserId\":\"admin\",\"username\":\"admin\"}"))
             .andExpect(status().isCreated())
@@ -300,7 +302,7 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"branchId\":\"" + branchId + "\",\"primary\":true}"))
         .andExpect(status().isCreated());

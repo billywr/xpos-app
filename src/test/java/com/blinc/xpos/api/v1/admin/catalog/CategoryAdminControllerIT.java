@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.catalog;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -42,7 +42,7 @@ class CategoryAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/categories")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -56,9 +56,7 @@ class CategoryAdminControllerIT extends AbstractIntegrationTest {
     UUID categoryId = UUID.fromString(objectMapper.readTree(categoryJson).get("id").asText());
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/categories/" + categoryId)
-                .with(user("admin").roles("ADMIN")))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/categories/" + categoryId).with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(categoryId.toString()))
         .andExpect(jsonPath("$.name").value("Beverages"));
@@ -69,7 +67,7 @@ class CategoryAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             patch("/api/v1/admin/orgs/" + orgId + "/categories/" + categoryId)
-                .with(user("admin").roles("ADMIN"))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(updateBody))
         .andExpect(status().isOk())
@@ -86,7 +84,7 @@ class CategoryAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/categories")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(rootBody))
             .andExpect(status().isCreated())
@@ -103,7 +101,7 @@ class CategoryAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/categories")
-                .with(user("admin").roles("ADMIN"))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(childBody))
         .andExpect(status().isCreated())
@@ -119,7 +117,7 @@ class CategoryAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())

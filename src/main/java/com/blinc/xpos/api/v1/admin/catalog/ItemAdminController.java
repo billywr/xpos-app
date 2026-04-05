@@ -4,8 +4,8 @@ import com.blinc.xpos.api.v1.admin.catalog.dto.ItemCreateRequest;
 import com.blinc.xpos.api.v1.admin.catalog.dto.ItemIdsWithPricesResponse;
 import com.blinc.xpos.api.v1.admin.catalog.dto.ItemResponse;
 import com.blinc.xpos.api.v1.admin.catalog.dto.ItemUpdateRequest;
-import com.blinc.xpos.common.web.paging.PageRequestFactory;
 import com.blinc.xpos.common.error.NotFoundException;
+import com.blinc.xpos.common.web.paging.PageRequestFactory;
 import com.blinc.xpos.modules.catalog.domain.Item;
 import com.blinc.xpos.modules.catalog.domain.ItemImage;
 import com.blinc.xpos.modules.catalog.service.ItemBarcodeService;
@@ -24,13 +24,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -57,8 +57,7 @@ public class ItemAdminController {
       PriceListItemRepository priceListItemRepository,
       PriceListItemService priceListItemService) {
     this.itemService = Objects.requireNonNull(itemService, "itemService");
-    this.itemBarcodeService =
-        Objects.requireNonNull(itemBarcodeService, "itemBarcodeService");
+    this.itemBarcodeService = Objects.requireNonNull(itemBarcodeService, "itemBarcodeService");
     this.itemImageService = Objects.requireNonNull(itemImageService, "itemImageService");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
     this.stockMovementRepository =
@@ -76,16 +75,14 @@ public class ItemAdminController {
   }
 
   @GetMapping("/by-barcode")
-  public ItemResponse getByBarcode(
-      @PathVariable UUID orgId, @RequestParam String barcode) {
+  public ItemResponse getByBarcode(@PathVariable UUID orgId, @RequestParam String barcode) {
     Item item =
         itemBarcodeService
             .findItemByBarcode(orgId, barcode)
             .orElseThrow(
                 () ->
                     new NotFoundException(
-                        "ITEM_NOT_FOUND_BY_BARCODE",
-                        "No item found for barcode: " + barcode));
+                        "ITEM_NOT_FOUND_BY_BARCODE", "No item found for barcode: " + barcode));
     String primaryImageUrl = resolvePrimaryImageUrl(orgId, item.getId());
     boolean hasHistory =
         stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, item.getId()) != null;
@@ -129,13 +126,13 @@ public class ItemAdminController {
       @PathVariable UUID orgId,
       @RequestParam(required = false) UUID categoryId,
       Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     var page = itemService.list(orgId, categoryId, normalized);
     List<UUID> itemIds = page.getContent().stream().map(Item::getId).toList();
     var primaryUrls = itemImageService.findPrimaryUrlsByItemIds(orgId, itemIds);
     var idsWithHistory =
-        new java.util.HashSet<>(stockMovementRepository.findItemIdsWithPurchaseHistoryByOrgId(orgId));
+        new java.util.HashSet<>(
+            stockMovementRepository.findItemIdsWithPurchaseHistoryByOrgId(orgId));
     Map<UUID, String> itemIdToBarcode = itemBarcodeService.getFirstBarcodeByItemIds(orgId, itemIds);
     return page.map(
         item ->
@@ -150,8 +147,7 @@ public class ItemAdminController {
   public ItemResponse get(@PathVariable UUID orgId, @PathVariable UUID itemId) {
     Item item = itemService.require(orgId, itemId);
     String primaryImageUrl = resolvePrimaryImageUrl(orgId, itemId);
-    boolean hasHistory =
-        stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, itemId) != null;
+    boolean hasHistory = stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, itemId) != null;
     return toResponse(item, primaryImageUrl, hasHistory, resolveFirstBarcode(orgId, itemId));
   }
 
@@ -189,8 +185,7 @@ public class ItemAdminController {
           DEFAULT_CURRENCY);
     }
     String primaryImageUrl = resolvePrimaryImageUrl(orgId, itemId);
-    boolean hasHistory =
-        stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, itemId) != null;
+    boolean hasHistory = stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, itemId) != null;
     return toResponse(updated, primaryImageUrl, hasHistory, resolveFirstBarcode(orgId, itemId));
   }
 
@@ -214,10 +209,7 @@ public class ItemAdminController {
   }
 
   private ItemResponse toResponse(
-      Item item,
-      String primaryImageUrl,
-      boolean hasPurchaseHistory,
-      String barcode) {
+      Item item, String primaryImageUrl, boolean hasPurchaseHistory, String barcode) {
     return new ItemResponse(
         item.getId(),
         item.getOrg().getId(),

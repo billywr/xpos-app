@@ -4,6 +4,4 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.UUID;
 
 public record TableEntityCreateRequest(
-    UUID tableAreaId,
-    @NotBlank(message = "Name is required") String name,
-    Integer capacity) {}
+    UUID tableAreaId, @NotBlank(message = "Name is required") String name, Integer capacity) {}

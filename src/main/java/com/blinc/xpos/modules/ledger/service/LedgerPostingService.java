@@ -19,9 +19,9 @@ public interface LedgerPostingService {
   void postSaleComplete(UUID orgId, Sale sale);
 
   /**
-   * Posts ledger entries for a cash movement. Looks up the active posting rule for the
-   * movement type (e.g. CASH_PAID_IN, CASH_PAID_OUT) and creates debit/credit entries. No-op if
-   * no rule is configured.
+   * Posts ledger entries for a cash movement. Looks up the active posting rule for the movement
+   * type (e.g. CASH_PAID_IN, CASH_PAID_OUT) and creates debit/credit entries. No-op if no rule is
+   * configured.
    */
   void postCashMovement(UUID orgId, CashMovement movement);
 }

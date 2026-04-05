@@ -22,9 +22,7 @@ public class SupplierServiceImpl implements SupplierService {
   private final Clock clock;
 
   public SupplierServiceImpl(
-      SupplierRepository supplierRepository,
-      OrgService orgService,
-      Clock clock) {
+      SupplierRepository supplierRepository, OrgService orgService, Clock clock) {
     this.supplierRepository = Objects.requireNonNull(supplierRepository, "supplierRepository");
     this.orgService = Objects.requireNonNull(orgService, "orgService");
     this.clock = Objects.requireNonNull(clock, "clock");
@@ -52,9 +50,7 @@ public class SupplierServiceImpl implements SupplierService {
     return supplierRepository
         .findByIdAndOrgId(supplierId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "SUPPLIER_NOT_FOUND", "Supplier not found: " + supplierId));
+            () -> new NotFoundException("SUPPLIER_NOT_FOUND", "Supplier not found: " + supplierId));
   }
 
   @Override
@@ -72,12 +68,7 @@ public class SupplierServiceImpl implements SupplierService {
   @Override
   @Transactional
   public Supplier update(
-      UUID orgId,
-      UUID supplierId,
-      String name,
-      String phone,
-      String email,
-      Boolean active) {
+      UUID orgId, UUID supplierId, String name, String phone, String email, Boolean active) {
     Supplier supplier = require(orgId, supplierId);
     supplier.setName(name);
     supplier.setPhone(phone != null && !phone.isBlank() ? phone.trim() : null);

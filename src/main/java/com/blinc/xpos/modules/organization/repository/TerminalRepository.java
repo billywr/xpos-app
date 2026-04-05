@@ -22,7 +22,8 @@ select t
             """)
   Optional<Terminal> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
-  @Query("""
+  @Query(
+      """
       select t from Terminal t
       where t.org.id = :orgId and t.branch.id = :branchId and t.status in :statuses
       """)

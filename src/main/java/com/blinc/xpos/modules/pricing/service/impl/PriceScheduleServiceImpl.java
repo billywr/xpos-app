@@ -41,12 +41,7 @@ public class PriceScheduleServiceImpl implements PriceScheduleService {
   @Override
   @Transactional
   public PriceSchedule create(
-      UUID orgId,
-      UUID branchId,
-      String name,
-      String startsAt,
-      String endsAt,
-      int daysOfWeek) {
+      UUID orgId, UUID branchId, String name, String startsAt, String endsAt, int daysOfWeek) {
     Org org = orgService.require(orgId);
     Branch branch = branchService.require(orgId, branchId);
     PriceSchedule schedule = new PriceSchedule();
@@ -68,9 +63,7 @@ public class PriceScheduleServiceImpl implements PriceScheduleService {
     return priceScheduleRepository
         .findByIdAndOrgId(priceScheduleId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "PRICE_SCHEDULE_NOT_FOUND", "Price schedule not found"));
+            () -> new NotFoundException("PRICE_SCHEDULE_NOT_FOUND", "Price schedule not found"));
   }
 
   @Override

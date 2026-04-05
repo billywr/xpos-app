@@ -7,6 +7,7 @@ import java.util.UUID;
 
 public record TenderAddRequest(
     @NotNull(message = "Tender type ID is required") UUID tenderTypeId,
-    @NotNull(message = "Amount is required") @DecimalMin(value = "0", message = "Amount must be non-negative")
+    @NotNull(message = "Amount is required")
+        @DecimalMin(value = "0", message = "Amount must be non-negative")
         BigDecimal amount,
     String currency) {}

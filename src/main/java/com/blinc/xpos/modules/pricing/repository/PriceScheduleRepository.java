@@ -18,8 +18,7 @@ public interface PriceScheduleRepository extends JpaRepository<PriceSchedule, UU
       """)
   Optional<PriceSchedule> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
-  @Query(
-      """
+  @Query("""
       select s from PriceSchedule s
       where s.org.id = :orgId
       """)

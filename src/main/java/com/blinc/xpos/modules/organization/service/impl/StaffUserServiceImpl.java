@@ -36,8 +36,7 @@ public class StaffUserServiceImpl implements StaffUserService {
   public StaffUser create(UUID orgId, String iamUserId, String username) {
     Org org = orgService.require(orgId);
 
-    StaffUser existing =
-        staffUserRepository.findByOrgIdAndIamUserId(orgId, iamUserId).orElse(null);
+    StaffUser existing = staffUserRepository.findByOrgIdAndIamUserId(orgId, iamUserId).orElse(null);
     if (existing != null) {
       if (existing.getStatus() == StatusCommon.DELETED) {
         existing.setStatus(StatusCommon.ACTIVE);

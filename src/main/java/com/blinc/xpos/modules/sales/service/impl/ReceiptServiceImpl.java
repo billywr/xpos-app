@@ -2,6 +2,7 @@ package com.blinc.xpos.modules.sales.service.impl;
 
 import com.blinc.xpos.api.v1.operator.dto.ReceiptDetailResponse;
 import com.blinc.xpos.api.v1.operator.dto.SaleLineModifierResponse;
+import com.blinc.xpos.common.error.NotFoundException;
 import com.blinc.xpos.modules.cash.service.ReceiptSequenceService;
 import com.blinc.xpos.modules.debt.domain.CustomerDebt;
 import com.blinc.xpos.modules.debt.repository.CustomerDebtRepository;
@@ -18,7 +19,6 @@ import com.blinc.xpos.modules.sales.repository.SaleLineRepository;
 import com.blinc.xpos.modules.sales.repository.SaleRepository;
 import com.blinc.xpos.modules.sales.repository.SaleTaxLineRepository;
 import com.blinc.xpos.modules.sales.repository.TenderRepository;
-import com.blinc.xpos.common.error.NotFoundException;
 import com.blinc.xpos.modules.sales.service.ReceiptService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -153,9 +153,7 @@ public class ReceiptServiceImpl implements ReceiptService {
                                   t.getCurrency()))
                       .toList();
               BigDecimal amountTendered =
-                  tenders.stream()
-                      .map(Tender::getAmount)
-                      .reduce(BigDecimal.ZERO, BigDecimal::add);
+                  tenders.stream().map(Tender::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
               BigDecimal changeDue =
                   amountTendered
                       .subtract(sale.getTotal())
@@ -199,13 +197,12 @@ public class ReceiptServiceImpl implements ReceiptService {
 
   private List<ReceiptDetailResponse.ReceiptDetailLineItem> buildReceiptDetailLineItems(
       UUID saleId) {
-    List<SaleLine> lines =
-        saleLineRepository.findBySaleIdOrderByCreatedAtWithItemAndUom(saleId);
+    List<SaleLine> lines = saleLineRepository.findBySaleIdOrderByCreatedAtWithItemAndUom(saleId);
     List<ReceiptDetailResponse.ReceiptDetailLineItem> lineItems = new ArrayList<>();
     for (SaleLine line : lines) {
       List<SaleLineModifier> modifiers =
-          saleLineModifierRepository
-              .findBySaleLineIdOrderByCreatedAtWithModifierOption(line.getId());
+          saleLineModifierRepository.findBySaleLineIdOrderByCreatedAtWithModifierOption(
+              line.getId());
       List<SaleLineModifierResponse> modResponses =
           modifiers.stream()
               .map(
@@ -244,7 +241,8 @@ public class ReceiptServiceImpl implements ReceiptService {
                 () ->
                     new NotFoundException(
                         "RECEIPT_NOT_FOUND", "Receipt not found for sale: " + saleId));
-    receipt.setReprintCount((receipt.getReprintCount() != null ? receipt.getReprintCount() : 0) + 1);
+    receipt.setReprintCount(
+        (receipt.getReprintCount() != null ? receipt.getReprintCount() : 0) + 1);
     receipt.setPrintedAt(Instant.now(clock));
     receiptRepository.save(receipt);
   }

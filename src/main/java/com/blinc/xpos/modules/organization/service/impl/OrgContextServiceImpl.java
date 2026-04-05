@@ -23,15 +23,30 @@ import com.blinc.xpos.api.v1.admin.pricing.dto.TaxProfileResponse;
 import com.blinc.xpos.api.v1.admin.sales.dto.TenderTypeResponse;
 import com.blinc.xpos.api.v1.admin.staff.dto.StaffUserResponse;
 import com.blinc.xpos.api.v1.operator.dto.ShiftResponse;
+import com.blinc.xpos.modules.cash.domain.Shift;
+import com.blinc.xpos.modules.cash.service.ShiftService;
 import com.blinc.xpos.modules.catalog.domain.Category;
 import com.blinc.xpos.modules.catalog.domain.Item;
 import com.blinc.xpos.modules.catalog.domain.ModifierGroup;
 import com.blinc.xpos.modules.catalog.domain.Uom;
+import com.blinc.xpos.modules.catalog.service.CategoryService;
+import com.blinc.xpos.modules.catalog.service.ItemImageService;
+import com.blinc.xpos.modules.catalog.service.ItemService;
+import com.blinc.xpos.modules.catalog.service.ModifierGroupService;
+import com.blinc.xpos.modules.catalog.service.UomService;
 import com.blinc.xpos.modules.compliance.domain.TaxAgencyConfig;
+import com.blinc.xpos.modules.compliance.service.TaxAgencyConfigService;
 import com.blinc.xpos.modules.fraud.domain.ApprovalPolicy;
 import com.blinc.xpos.modules.fraud.domain.ReasonCode;
+import com.blinc.xpos.modules.fraud.service.ApprovalPolicyService;
+import com.blinc.xpos.modules.fraud.service.ReasonCodeService;
+import com.blinc.xpos.modules.inventory.domain.Supplier;
+import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
+import com.blinc.xpos.modules.inventory.service.SupplierService;
 import com.blinc.xpos.modules.ledger.domain.LedgerAccount;
 import com.blinc.xpos.modules.ledger.domain.PostingRule;
+import com.blinc.xpos.modules.ledger.service.LedgerAccountService;
+import com.blinc.xpos.modules.ledger.service.PostingRuleService;
 import com.blinc.xpos.modules.organization.domain.Branch;
 import com.blinc.xpos.modules.organization.domain.Business;
 import com.blinc.xpos.modules.organization.domain.Customer;
@@ -40,9 +55,6 @@ import com.blinc.xpos.modules.organization.domain.Org;
 import com.blinc.xpos.modules.organization.domain.PrinterProfile;
 import com.blinc.xpos.modules.organization.domain.ReceiptTemplate;
 import com.blinc.xpos.modules.organization.domain.StaffUser;
-import com.blinc.xpos.modules.cash.domain.Shift;
-import com.blinc.xpos.modules.cash.service.ShiftService;
-import com.blinc.xpos.modules.fraud.service.ApprovalPolicyService;
 import com.blinc.xpos.modules.organization.service.BranchService;
 import com.blinc.xpos.modules.organization.service.BusinessService;
 import com.blinc.xpos.modules.organization.service.CustomerService;
@@ -54,22 +66,10 @@ import com.blinc.xpos.modules.organization.service.ReceiptTemplateService;
 import com.blinc.xpos.modules.organization.service.StaffUserService;
 import com.blinc.xpos.modules.pricing.domain.PriceList;
 import com.blinc.xpos.modules.pricing.domain.TaxProfile;
-import com.blinc.xpos.modules.sales.domain.TenderType;
-import com.blinc.xpos.modules.sales.service.TenderTypeService;
-import com.blinc.xpos.modules.catalog.service.CategoryService;
-import com.blinc.xpos.modules.catalog.service.ItemImageService;
-import com.blinc.xpos.modules.catalog.service.ItemService;
-import com.blinc.xpos.modules.catalog.service.ModifierGroupService;
-import com.blinc.xpos.modules.catalog.service.UomService;
-import com.blinc.xpos.modules.compliance.service.TaxAgencyConfigService;
-import com.blinc.xpos.modules.fraud.service.ReasonCodeService;
-import com.blinc.xpos.modules.inventory.domain.Supplier;
-import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
-import com.blinc.xpos.modules.inventory.service.SupplierService;
-import com.blinc.xpos.modules.ledger.service.LedgerAccountService;
-import com.blinc.xpos.modules.ledger.service.PostingRuleService;
 import com.blinc.xpos.modules.pricing.service.PriceListService;
 import com.blinc.xpos.modules.pricing.service.TaxProfileService;
+import com.blinc.xpos.modules.sales.domain.TenderType;
+import com.blinc.xpos.modules.sales.service.TenderTypeService;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -158,8 +158,7 @@ public class OrgContextServiceImpl implements OrgContextService {
     this.customerService = Objects.requireNonNull(customerService, "customerService");
     this.approvalPolicyService =
         Objects.requireNonNull(approvalPolicyService, "approvalPolicyService");
-    this.postingRuleService =
-        Objects.requireNonNull(postingRuleService, "postingRuleService");
+    this.postingRuleService = Objects.requireNonNull(postingRuleService, "postingRuleService");
     this.itemService = Objects.requireNonNull(itemService, "itemService");
     this.itemImageService = Objects.requireNonNull(itemImageService, "itemImageService");
     this.deviceRegistrationService =
@@ -174,44 +173,65 @@ public class OrgContextServiceImpl implements OrgContextService {
   public OrgContextResponse getContext(UUID orgId) {
     Org org = orgService.require(orgId);
     Pageable page = PageRequest.of(0, CONTEXT_PAGE_SIZE, Sort.by("createdAt").ascending());
-    Pageable shiftsPage =
-        PageRequest.of(0, CONTEXT_PAGE_SIZE, Sort.by("openedAt").descending());
+    Pageable shiftsPage = PageRequest.of(0, CONTEXT_PAGE_SIZE, Sort.by("openedAt").descending());
 
     return new OrgContextResponse(
         toOrgResponse(org),
-        businessService.list(orgId, page).getContent().stream().map(this::toBusinessResponse).toList(),
+        businessService.list(orgId, page).getContent().stream()
+            .map(this::toBusinessResponse)
+            .toList(),
         branchService.list(orgId, page).getContent().stream().map(this::toBranchResponse).toList(),
-        staffUserService.list(orgId, page).getContent().stream().map(this::toStaffUserResponse).toList(),
-        categoryService.list(orgId, page).getContent().stream().map(this::toCategoryResponse).toList(),
-        taxProfileService.list(orgId, page).getContent().stream().map(this::toTaxProfileResponse).toList(),
+        staffUserService.list(orgId, page).getContent().stream()
+            .map(this::toStaffUserResponse)
+            .toList(),
+        categoryService.list(orgId, page).getContent().stream()
+            .map(this::toCategoryResponse)
+            .toList(),
+        taxProfileService.list(orgId, page).getContent().stream()
+            .map(this::toTaxProfileResponse)
+            .toList(),
         uomService.list(orgId, page).getContent().stream().map(this::toUomResponse).toList(),
         modifierGroupService.list(orgId, page).getContent().stream()
-            .map(this::toModifierGroupResponse).toList(),
-        priceListService.list(orgId, page).getContent().stream().map(this::toPriceListResponse).toList(),
+            .map(this::toModifierGroupResponse)
+            .toList(),
+        priceListService.list(orgId, page).getContent().stream()
+            .map(this::toPriceListResponse)
+            .toList(),
         tenderTypeService.listActiveByOrg(orgId).stream().map(this::toTenderTypeResponse).toList(),
         taxAgencyConfigService.list(orgId, page).getContent().stream()
-            .map(this::toTaxAgencyConfigResponse).toList(),
+            .map(this::toTaxAgencyConfigResponse)
+            .toList(),
         supplierService.listActiveOnly(orgId, page).getContent().stream()
-            .map(this::toSupplierResponse).toList(),
+            .map(this::toSupplierResponse)
+            .toList(),
         reasonCodeService.list(orgId, page).getContent().stream()
-            .map(this::toReasonCodeResponse).toList(),
+            .map(this::toReasonCodeResponse)
+            .toList(),
         ledgerAccountService.list(orgId, page).getContent().stream()
-            .map(this::toLedgerAccountResponse).toList(),
+            .map(this::toLedgerAccountResponse)
+            .toList(),
         receiptTemplateService.list(orgId, page).getContent().stream()
-            .map(this::toReceiptTemplateResponse).toList(),
+            .map(this::toReceiptTemplateResponse)
+            .toList(),
         printerProfileService.list(orgId, page).getContent().stream()
-            .map(this::toPrinterProfileResponse).toList(),
+            .map(this::toPrinterProfileResponse)
+            .toList(),
         customerService.list(orgId, page).getContent().stream()
-            .map(this::toCustomerResponse).toList(),
+            .map(this::toCustomerResponse)
+            .toList(),
         approvalPolicyService.list(orgId, page).getContent().stream()
-            .map(this::toApprovalPolicyResponse).toList(),
+            .map(this::toApprovalPolicyResponse)
+            .toList(),
         postingRuleService.list(orgId, page).getContent().stream()
-            .map(this::toPostingRuleResponse).toList(),
+            .map(this::toPostingRuleResponse)
+            .toList(),
         toItemResponses(orgId, itemService.list(orgId, null, page).getContent()),
         deviceRegistrationService.list(orgId, page).getContent().stream()
-            .map(this::toDeviceResponse).toList(),
+            .map(this::toDeviceResponse)
+            .toList(),
         shiftService.listOpenByOrg(orgId, shiftsPage).getContent().stream()
-            .map(this::toShiftResponse).toList());
+            .map(this::toShiftResponse)
+            .toList());
   }
 
   private SupplierResponse toSupplierResponse(Supplier s) {
@@ -227,7 +247,8 @@ public class OrgContextServiceImpl implements OrgContextService {
   }
 
   private OrgResponse toOrgResponse(Org o) {
-    return new OrgResponse(o.getId(), o.getName(), o.getStatus(), o.getCreatedAt(), o.getUpdatedAt());
+    return new OrgResponse(
+        o.getId(), o.getName(), o.getStatus(), o.getCreatedAt(), o.getUpdatedAt());
   }
 
   private BusinessResponse toBusinessResponse(Business b) {
@@ -295,11 +316,7 @@ public class OrgContextServiceImpl implements OrgContextService {
 
   private UomResponse toUomResponse(Uom u) {
     return new UomResponse(
-        u.getId(),
-        u.getOrg().getId(),
-        u.getName(),
-        u.getSymbol(),
-        u.getCreatedAt());
+        u.getId(), u.getOrg().getId(), u.getName(), u.getSymbol(), u.getCreatedAt());
   }
 
   private ModifierGroupResponse toModifierGroupResponse(ModifierGroup g) {
@@ -329,12 +346,7 @@ public class OrgContextServiceImpl implements OrgContextService {
 
   private TenderTypeResponse toTenderTypeResponse(TenderType t) {
     return new TenderTypeResponse(
-        t.getId(),
-        t.getOrg().getId(),
-        t.getCode(),
-        t.getName(),
-        t.getActive(),
-        t.getCreatedAt());
+        t.getId(), t.getOrg().getId(), t.getCode(), t.getName(), t.getActive(), t.getCreatedAt());
   }
 
   private TaxAgencyConfigResponse toTaxAgencyConfigResponse(TaxAgencyConfig t) {
@@ -433,14 +445,10 @@ public class OrgContextServiceImpl implements OrgContextService {
     var itemIds = items.stream().map(Item::getId).toList();
     var primaryUrls = itemImageService.findPrimaryUrlsByItemIds(orgId, itemIds);
     var idsWithHistory =
-        new java.util.HashSet<>(stockMovementRepository.findItemIdsWithPurchaseHistoryByOrgId(orgId));
+        new java.util.HashSet<>(
+            stockMovementRepository.findItemIdsWithPurchaseHistoryByOrgId(orgId));
     return items.stream()
-        .map(
-            i ->
-                toItemResponse(
-                    i,
-                    primaryUrls.get(i.getId()),
-                    idsWithHistory.contains(i.getId())))
+        .map(i -> toItemResponse(i, primaryUrls.get(i.getId()), idsWithHistory.contains(i.getId())))
         .toList();
   }
 

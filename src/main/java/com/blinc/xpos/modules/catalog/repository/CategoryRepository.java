@@ -11,15 +11,13 @@ import org.springframework.data.repository.query.Param;
 
 public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
-  @Query(
-      """
+  @Query("""
       select c from Category c
       where c.id = :id and c.org.id = :orgId
       """)
   Optional<Category> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
-  @Query(
-      """
+  @Query("""
       select c from Category c
       where c.org.id = :orgId
       """)

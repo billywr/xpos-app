@@ -4,8 +4,8 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * One line in the inventory report: item with on-hand, sold, reserved,
- * and initial received quantities.
+ * One line in the inventory report: item with on-hand, sold, reserved, and initial received
+ * quantities.
  */
 public record InventoryReportLineResponse(
     UUID itemId,

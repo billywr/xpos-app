@@ -16,8 +16,6 @@ public interface ScheduledPriceService {
 
   void remove(UUID orgId, UUID priceScheduleId, UUID scheduledPriceId);
 
-  /**
-   * Deletes every scheduled price row linked to the item (hidden / soft-deleted catalog item).
-   */
+  /** Deletes every scheduled price row linked to the item (hidden / soft-deleted catalog item). */
   void removeAllScheduledPricesForItem(UUID orgId, UUID itemId);
 }

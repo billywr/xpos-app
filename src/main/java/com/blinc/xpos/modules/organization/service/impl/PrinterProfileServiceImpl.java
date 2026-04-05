@@ -24,9 +24,7 @@ public class PrinterProfileServiceImpl implements PrinterProfileService {
   private final Clock clock;
 
   public PrinterProfileServiceImpl(
-      PrinterProfileRepository printerProfileRepository,
-      OrgService orgService,
-      Clock clock) {
+      PrinterProfileRepository printerProfileRepository, OrgService orgService, Clock clock) {
     this.printerProfileRepository =
         Objects.requireNonNull(printerProfileRepository, "printerProfileRepository");
     this.orgService = Objects.requireNonNull(orgService, "orgService");
@@ -40,8 +38,7 @@ public class PrinterProfileServiceImpl implements PrinterProfileService {
     PrinterProfile profile = new PrinterProfile();
     profile.setOrg(org);
     profile.setName(name != null ? name.trim() : "");
-    profile.setConfigJson(
-        configJson != null ? configJson : JsonNodeFactory.instance.objectNode());
+    profile.setConfigJson(configJson != null ? configJson : JsonNodeFactory.instance.objectNode());
     profile.setActive(true);
     Instant now = Instant.now(clock);
     profile.setCreatedAt(now);
@@ -55,9 +52,7 @@ public class PrinterProfileServiceImpl implements PrinterProfileService {
     return printerProfileRepository
         .findByIdAndOrgId(profileId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "PRINTER_PROFILE_NOT_FOUND", "Printer profile not found"));
+            () -> new NotFoundException("PRINTER_PROFILE_NOT_FOUND", "Printer profile not found"));
   }
 
   @Override

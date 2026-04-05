@@ -18,8 +18,7 @@ public interface ModifierGroupRepository extends JpaRepository<ModifierGroup, UU
       """)
   Optional<ModifierGroup> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
-  @Query(
-      """
+  @Query("""
       select g from ModifierGroup g
       where g.org.id = :orgId
       """)

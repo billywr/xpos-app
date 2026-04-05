@@ -14,5 +14,6 @@ public interface ReceiptTemplateService {
 
   Page<ReceiptTemplate> list(UUID orgId, Pageable pageable);
 
-  ReceiptTemplate update(UUID orgId, UUID templateId, String name, JsonNode templateJson, Boolean active);
+  ReceiptTemplate update(
+      UUID orgId, UUID templateId, String name, JsonNode templateJson, Boolean active);
 }

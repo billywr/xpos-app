@@ -40,7 +40,8 @@ public class RecipeAdminController {
       RecipeLineRepository recipeLineRepository,
       PageRequestFactory pageRequestFactory) {
     this.recipeService = Objects.requireNonNull(recipeService, "recipeService");
-    this.recipeLineRepository = Objects.requireNonNull(recipeLineRepository, "recipeLineRepository");
+    this.recipeLineRepository =
+        Objects.requireNonNull(recipeLineRepository, "recipeLineRepository");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
   }
 
@@ -54,8 +55,7 @@ public class RecipeAdminController {
 
   @GetMapping
   public Page<RecipeResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     return recipeService.list(orgId, normalized).map(this::toResponse);
   }
 
@@ -69,9 +69,7 @@ public class RecipeAdminController {
       @PathVariable UUID orgId,
       @PathVariable UUID recipeId,
       @Valid @RequestBody RecipeUpdateRequest request) {
-    Recipe recipe =
-        recipeService.update(
-            orgId, recipeId, request.yieldQty(), request.active());
+    Recipe recipe = recipeService.update(orgId, recipeId, request.yieldQty(), request.active());
     return toResponse(recipe);
   }
 
@@ -82,11 +80,7 @@ public class RecipeAdminController {
       @Valid @RequestBody RecipeLineAddRequest request) {
     Recipe recipe =
         recipeService.addLine(
-            orgId,
-            recipeId,
-            request.ingredientItemId(),
-            request.qty(),
-            request.uomId());
+            orgId, recipeId, request.ingredientItemId(), request.qty(), request.uomId());
     return toResponse(recipe);
   }
 

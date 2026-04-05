@@ -11,15 +11,13 @@ import org.springframework.data.repository.query.Param;
 
 public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
 
-  @Query(
-      """
+  @Query("""
       select s from Supplier s
       where s.id = :id and s.org.id = :orgId
       """)
   Optional<Supplier> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
-  @Query(
-      """
+  @Query("""
       select s from Supplier s
       where s.org.id = :orgId
       """)
@@ -30,6 +28,5 @@ public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
       select s from Supplier s
       where s.org.id = :orgId and s.active = true
       """)
-  Page<Supplier> findAllByOrgIdAndActiveTrue(
-      @Param("orgId") UUID orgId, Pageable pageable);
+  Page<Supplier> findAllByOrgIdAndActiveTrue(@Param("orgId") UUID orgId, Pageable pageable);
 }

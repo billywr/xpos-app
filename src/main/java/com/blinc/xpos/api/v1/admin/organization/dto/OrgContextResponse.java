@@ -18,12 +18,11 @@ import com.blinc.xpos.api.v1.operator.dto.ShiftResponse;
 import java.util.List;
 
 /**
- * Aggregate response containing org-level reference data in a single call:
- * org, businesses, branches, staff, categories, tax, UoMs, modifier groups,
- * price lists, tender types, tax agency configs, suppliers, reason codes,
- * ledger accounts, receipt templates, printer profiles, customers,
- * approval policies, posting rules, items, devices, open shifts.
- * Each list is bounded (e.g. first 500 per type).
+ * Aggregate response containing org-level reference data in a single call: org, businesses,
+ * branches, staff, categories, tax, UoMs, modifier groups, price lists, tender types, tax agency
+ * configs, suppliers, reason codes, ledger accounts, receipt templates, printer profiles,
+ * customers, approval policies, posting rules, items, devices, open shifts. Each list is bounded
+ * (e.g. first 500 per type).
  */
 public record OrgContextResponse(
     OrgResponse org,

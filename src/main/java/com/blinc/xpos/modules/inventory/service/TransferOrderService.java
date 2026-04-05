@@ -19,6 +19,5 @@ public interface TransferOrderService {
 
   Page<TransferOrder> list(UUID orgId, Pageable pageable);
 
-  TransferOrder addLine(
-      UUID orgId, UUID transferOrderId, UUID itemId, BigDecimal qty, UUID uomId);
+  TransferOrder addLine(UUID orgId, UUID transferOrderId, UUID itemId, BigDecimal qty, UUID uomId);
 }

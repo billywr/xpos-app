@@ -11,8 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface CustomerRepository extends JpaRepository<Customer, UUID> {
 
-  @Query(
-      """
+  @Query("""
       select c from Customer c
       where c.id = :id and c.org.id = :orgId
       """)

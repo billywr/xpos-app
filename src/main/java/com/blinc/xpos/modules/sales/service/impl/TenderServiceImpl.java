@@ -98,11 +98,8 @@ public class TenderServiceImpl implements TenderService {
         tenderRepository
             .findById(tenderId)
             .orElseThrow(
-                () ->
-                    new NotFoundException(
-                        "TENDER_NOT_FOUND", "Tender not found: " + tenderId));
-    if (!tender.getSale().getId().equals(sale.getId())
-        || !tender.getOrg().getId().equals(orgId)) {
+                () -> new NotFoundException("TENDER_NOT_FOUND", "Tender not found: " + tenderId));
+    if (!tender.getSale().getId().equals(sale.getId()) || !tender.getOrg().getId().equals(orgId)) {
       throw new NotFoundException(
           "TENDER_NOT_FOUND", "Tender not found for this sale: " + tenderId);
     }
@@ -116,8 +113,7 @@ public class TenderServiceImpl implements TenderService {
             .orElseThrow(
                 () -> new NotFoundException("SALE_NOT_FOUND", "Sale not found: " + saleId));
     if (sale.getStatus() != SaleStatus.OPEN) {
-      throw new IllegalStateException(
-          "Sale is not open. Only open sales can receive tenders.");
+      throw new IllegalStateException("Sale is not open. Only open sales can receive tenders.");
     }
     return sale;
   }

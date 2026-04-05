@@ -23,9 +23,7 @@ public class LedgerAccountServiceImpl implements LedgerAccountService {
   private final Clock clock;
 
   public LedgerAccountServiceImpl(
-      LedgerAccountRepository ledgerAccountRepository,
-      OrgService orgService,
-      Clock clock) {
+      LedgerAccountRepository ledgerAccountRepository, OrgService orgService, Clock clock) {
     this.ledgerAccountRepository = Objects.requireNonNull(ledgerAccountRepository);
     this.orgService = Objects.requireNonNull(orgService);
     this.clock = Objects.requireNonNull(clock);
@@ -54,9 +52,7 @@ public class LedgerAccountServiceImpl implements LedgerAccountService {
     return ledgerAccountRepository
         .findByIdAndOrgId(accountId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "LEDGER_ACCOUNT_NOT_FOUND", "Ledger account not found"));
+            () -> new NotFoundException("LEDGER_ACCOUNT_NOT_FOUND", "Ledger account not found"));
   }
 
   @Override

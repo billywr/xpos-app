@@ -47,10 +47,7 @@ public class EtimsInvoiceRecordServiceImpl implements EtimsInvoiceRecordService 
     Sale sale =
         saleService
             .getByIdAndOrg(orgId, saleId)
-            .orElseThrow(
-                () ->
-                    new NotFoundException(
-                        "SALE_NOT_FOUND", "Sale not found"));
+            .orElseThrow(() -> new NotFoundException("SALE_NOT_FOUND", "Sale not found"));
     if (etimsInvoiceRecordRepository.findByOrgIdAndSaleId(orgId, saleId).isPresent()) {
       throw new IllegalArgumentException("eTIMS record already exists for this sale");
     }

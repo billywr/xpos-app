@@ -23,11 +23,8 @@ public class TableAreaServiceImpl implements TableAreaService {
   private final Clock clock;
 
   public TableAreaServiceImpl(
-      TableAreaRepository tableAreaRepository,
-      BranchService branchService,
-      Clock clock) {
-    this.tableAreaRepository =
-        Objects.requireNonNull(tableAreaRepository, "tableAreaRepository");
+      TableAreaRepository tableAreaRepository, BranchService branchService, Clock clock) {
+    this.tableAreaRepository = Objects.requireNonNull(tableAreaRepository, "tableAreaRepository");
     this.branchService = Objects.requireNonNull(branchService, "branchService");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
@@ -49,8 +46,7 @@ public class TableAreaServiceImpl implements TableAreaService {
   public TableArea require(UUID orgId, UUID tableAreaId) {
     return tableAreaRepository
         .findByIdAndOrgId(tableAreaId, orgId)
-        .orElseThrow(
-            () -> new NotFoundException("TABLE_AREA_NOT_FOUND", "Table area not found"));
+        .orElseThrow(() -> new NotFoundException("TABLE_AREA_NOT_FOUND", "Table area not found"));
   }
 
   @Override

@@ -30,8 +30,7 @@ public class PriceListServiceImpl implements PriceListService {
       OrgService orgService,
       BranchService branchService,
       Clock clock) {
-    this.priceListRepository =
-        Objects.requireNonNull(priceListRepository, "priceListRepository");
+    this.priceListRepository = Objects.requireNonNull(priceListRepository, "priceListRepository");
     this.orgService = Objects.requireNonNull(orgService, "orgService");
     this.branchService = Objects.requireNonNull(branchService, "branchService");
     this.clock = Objects.requireNonNull(clock, "clock");
@@ -40,12 +39,7 @@ public class PriceListServiceImpl implements PriceListService {
   @Override
   @Transactional
   public PriceList create(
-      UUID orgId,
-      UUID branchId,
-      String channel,
-      String name,
-      int priority,
-      boolean active) {
+      UUID orgId, UUID branchId, String channel, String name, int priority, boolean active) {
     Org org = orgService.require(orgId);
     Branch branch = branchId != null ? branchService.require(orgId, branchId) : null;
     PriceList list = new PriceList();
@@ -66,8 +60,7 @@ public class PriceListServiceImpl implements PriceListService {
   public PriceList require(UUID orgId, UUID priceListId) {
     return priceListRepository
         .findByIdAndOrgId(priceListId, orgId)
-        .orElseThrow(
-            () -> new NotFoundException("PRICE_LIST_NOT_FOUND", "Price list not found"));
+        .orElseThrow(() -> new NotFoundException("PRICE_LIST_NOT_FOUND", "Price list not found"));
   }
 
   @Override

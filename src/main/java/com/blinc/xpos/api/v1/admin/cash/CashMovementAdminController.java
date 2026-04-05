@@ -7,10 +7,10 @@ import com.blinc.xpos.modules.cash.service.CashMovementService;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,8 +23,7 @@ public class CashMovementAdminController {
 
   public CashMovementAdminController(
       CashMovementService cashMovementService, PageRequestFactory pageRequestFactory) {
-    this.cashMovementService =
-        Objects.requireNonNull(cashMovementService, "cashMovementService");
+    this.cashMovementService = Objects.requireNonNull(cashMovementService, "cashMovementService");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
   }
 
@@ -33,9 +32,9 @@ public class CashMovementAdminController {
       @PathVariable("orgId") UUID orgId,
       @PathVariable("branchId") UUID branchId,
       Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
-    return cashMovementService.listByBranch(orgId, branchId, normalized)
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    return cashMovementService
+        .listByBranch(orgId, branchId, normalized)
         .map(CashMovementAdminController::toResponse);
   }
 

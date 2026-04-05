@@ -12,15 +12,13 @@ import org.springframework.data.repository.query.Param;
 
 public interface PriceListRepository extends JpaRepository<PriceList, UUID> {
 
-  @Query(
-      """
+  @Query("""
       select p from PriceList p
       where p.id = :id and p.org.id = :orgId
       """)
   Optional<PriceList> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
-  @Query(
-      """
+  @Query("""
       select p from PriceList p
       where p.org.id = :orgId
       """)

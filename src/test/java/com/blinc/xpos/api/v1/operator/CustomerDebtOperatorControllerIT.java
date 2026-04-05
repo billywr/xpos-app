@@ -1,7 +1,8 @@
 package com.blinc.xpos.api.v1.operator;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
+import static com.blinc.xpos.TestJwtFactory.operatorJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -45,7 +46,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(createBody))
         .andExpect(status().isCreated())
@@ -63,7 +64,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].amount").value(1500.50))
@@ -81,13 +82,8 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts/pending-total")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts/pending-total")
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalPending").value(0));
 
@@ -95,7 +91,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"customerId\":\"" + customerId + "\",\"amount\":100}"))
             .andExpect(status().isCreated())
@@ -103,44 +99,36 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
 
     UUID debtId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
         .perform(
-            get(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts/pending-total")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts/pending-total")
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalPending").value(100));
 
     mockMvc
         .perform(
-            post(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts/"
-                        + debtId
-                        + "/settle")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts/"
+                    + debtId
+                    + "/settle")
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"paymentAmount\":25}"))
         .andExpect(status().isOk());
 
     mockMvc
         .perform(
-            get(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts/pending-total")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts/pending-total")
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalPending").value(75));
   }
@@ -157,13 +145,12 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     String createBody =
         """
         {"customerId":"%s","amount":100}
-        """
-            .formatted(fakeCustomerId);
+        """.formatted(fakeCustomerId);
 
     mockMvc
         .perform(
             post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(createBody))
         .andExpect(status().isNotFound());
@@ -181,13 +168,12 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     String createBody =
         """
         {"customerId":"%s","amount":0}
-        """
-            .formatted(customerId);
+        """.formatted(customerId);
 
     mockMvc
         .perform(
             post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(createBody))
         .andExpect(status().isBadRequest());
@@ -205,14 +191,13 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     String createBody =
         """
         {"customerId":"%s","amount":1000}
-        """
-            .formatted(customerId);
+        """.formatted(customerId);
 
     MvcResult createResult =
         mockMvc
             .perform(
                 post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -220,20 +205,22 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
 
     UUID debtId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     String settlePartialBody = "{\"paymentAmount\":400}";
     mockMvc
         .perform(
-            post(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts/"
-                        + debtId
-                        + "/settle")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts/"
+                    + debtId
+                    + "/settle")
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(settlePartialBody))
         .andExpect(status().isOk())
@@ -244,15 +231,14 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     String settleFullBody = "{\"paymentAmount\":600}";
     mockMvc
         .perform(
-            post(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts/"
-                        + debtId
-                        + "/settle")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts/"
+                    + debtId
+                    + "/settle")
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(settleFullBody))
         .andExpect(status().isOk())
@@ -273,14 +259,13 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     String createBody =
         """
         {"customerId":"%s","amount":70}
-        """
-            .formatted(customerId);
+        """.formatted(customerId);
 
     MvcResult createResult =
         mockMvc
             .perform(
                 post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -288,13 +273,16 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
 
     UUID debtId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     String updateBalanceBody = "{\"outstanding\":50,\"notes\":\"Paid 20\"}";
     mockMvc
         .perform(
             patch("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts/" + debtId)
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(updateBalanceBody))
         .andExpect(status().isOk())
@@ -317,14 +305,13 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     String createBody =
         """
         {"customerId":"%s","amount":100}
-        """
-            .formatted(customerId);
+        """.formatted(customerId);
 
     MvcResult createResult =
         mockMvc
             .perform(
                 post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -332,19 +319,21 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
 
     UUID debtId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
         .perform(
-            post(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts/"
-                        + debtId
-                        + "/settle")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts/"
+                    + debtId
+                    + "/settle")
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"paymentAmount\":20}"))
         .andExpect(status().isOk());
@@ -352,22 +341,21 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             patch("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts/" + debtId)
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"outstanding\":70,\"notes\":\"Adjust\"}"))
         .andExpect(status().isBadRequest());
 
     mockMvc
         .perform(
-            post(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts/"
-                        + debtId
-                        + "/cancel")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts/"
+                    + debtId
+                    + "/cancel")
+                .with(operatorJwt()))
         .andExpect(status().isBadRequest());
   }
 
@@ -390,7 +378,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -398,13 +386,16 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
 
     UUID debtId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     String updateBody = "{\"amount\":600,\"dueDate\":\"2025-06-15\",\"notes\":\"Updated\"}";
     mockMvc
         .perform(
             patch("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts/" + debtId)
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(updateBody))
         .andExpect(status().isOk())
@@ -413,22 +404,21 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            post(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts/"
-                        + debtId
-                        + "/cancel")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts/"
+                    + debtId
+                    + "/cancel")
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("CANCELLED"));
 
     mockMvc
         .perform(
             get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].status").value("CANCELLED"));
@@ -447,7 +437,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"customerId\":\"" + customerId + "\",\"amount\":100}"))
             .andExpect(status().isCreated())
@@ -455,7 +445,10 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
 
     UUID debtId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     String updateBody =
         "{\"customerName\":\"Jane Wanjiku\",\"customerPhone\":\"+254700111222\","
@@ -464,7 +457,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             patch("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts/" + debtId)
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(updateBody))
         .andExpect(status().isOk())
@@ -489,7 +482,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"customerId\":\"" + customerId + "\",\"amount\":100}"))
         .andExpect(status().isCreated());
@@ -497,7 +490,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts?status=OPEN")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].status").value("OPEN"));
@@ -516,7 +509,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"customerId\":\"" + customerId + "\",\"amount\":50}"))
             .andExpect(status().isCreated())
@@ -524,19 +517,21 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
 
     UUID debtId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
         .perform(
-            post(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts/"
-                        + debtId
-                        + "/settle")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts/"
+                    + debtId
+                    + "/settle")
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"paymentAmount\":50}"))
         .andExpect(status().isOk())
@@ -545,19 +540,14 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts?status=OPEN")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(0));
 
     mockMvc
         .perform(
-            get(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts?status=CLOSED")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts?status=CLOSED")
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].status").value("CLOSED"));
@@ -576,7 +566,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"customerId\":\"" + customerId + "\",\"amount\":80}"))
             .andExpect(status().isCreated())
@@ -584,19 +574,21 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
 
     UUID debtId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
         .perform(
-            post(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts/"
-                        + debtId
-                        + "/settle")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts/"
+                    + debtId
+                    + "/settle")
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"paymentAmount\":30}"))
         .andExpect(status().isOk())
@@ -604,13 +596,12 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts?status=PARTIAL")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts?status=PARTIAL")
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].status").value("PARTIAL"));
@@ -629,7 +620,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"customerId\":\"" + customerId + "\",\"amount\":90}"))
             .andExpect(status().isCreated())
@@ -637,31 +628,32 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
 
     UUID debtId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
         .perform(
-            post(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts/"
-                        + debtId
-                        + "/cancel")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts/"
+                    + debtId
+                    + "/cancel")
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("CANCELLED"));
 
     mockMvc
         .perform(
-            get(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts?status=CANCELLED")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts?status=CANCELLED")
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].status").value("CANCELLED"));
@@ -679,7 +671,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"customerId\":\"" + customerId + "\",\"amount\":60}"))
         .andExpect(status().isCreated());
@@ -688,7 +680,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"customerId\":\"" + customerId + "\",\"amount\":40}"))
             .andExpect(status().isCreated())
@@ -699,28 +691,26 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
             objectMapper.readTree(create2.getResponse().getContentAsString()).get("id").asText());
     mockMvc
         .perform(
-            post(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts/"
-                        + debt2Id
-                        + "/settle")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts/"
+                    + debt2Id
+                    + "/settle")
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"paymentAmount\":40}"))
         .andExpect(status().isOk());
 
     mockMvc
         .perform(
-            get(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/debts?status=OPEN&status=SETTLED")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts?status=OPEN&status=SETTLED")
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(2));
   }
@@ -737,7 +727,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"customerId\":\"" + customerId + "\",\"amount\":200}"))
         .andExpect(status().isCreated());
@@ -745,7 +735,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].status").value("OPEN"));
@@ -763,24 +753,25 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/operator/orgs/" + orgId + "/branches/" + otherBranchId + "/debts")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(operatorJwt()))
         .andExpect(status().isNotFound());
   }
 
   private UUID createOrg() throws Exception {
     String body =
-        objectMapper.writeValueAsString(
-            new OrgCreateRequest("Debt Test Org " + UUID.randomUUID()));
+        objectMapper.writeValueAsString(new OrgCreateRequest("Debt Test Org " + UUID.randomUUID()));
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 
   private UUID createBusiness(UUID orgId) throws Exception {
@@ -788,7 +779,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -799,13 +790,15 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
 
   private UUID createBranch(UUID orgId, UUID businessId) throws Exception {
     String body =
-        "{\"businessId\":\"" + businessId + "\",\"name\":\"B1\","
+        "{\"businessId\":\""
+            + businessId
+            + "\",\"name\":\"B1\","
             + "\"timezone\":\"Africa/Nairobi\",\"currency\":\"KES\"}";
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -820,7 +813,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -834,7 +827,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());
@@ -845,7 +838,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/customers")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"name\":\"John Doe\",\"phone\":\"+254700000001\"}"))
             .andExpect(status().isCreated())

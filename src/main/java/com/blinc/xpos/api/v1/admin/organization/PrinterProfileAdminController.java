@@ -53,15 +53,14 @@ public class PrinterProfileAdminController {
 
   @GetMapping
   public Page<PrinterProfileResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("name").ascending());
-    return printerProfileService.list(orgId, normalized)
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("name").ascending());
+    return printerProfileService
+        .list(orgId, normalized)
         .map(PrinterProfileAdminController::toResponse);
   }
 
   @GetMapping("/{profileId}")
-  public PrinterProfileResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID profileId) {
+  public PrinterProfileResponse get(@PathVariable UUID orgId, @PathVariable UUID profileId) {
     return toResponse(printerProfileService.require(orgId, profileId));
   }
 
@@ -70,14 +69,10 @@ public class PrinterProfileAdminController {
       @PathVariable UUID orgId,
       @PathVariable UUID profileId,
       @Valid @RequestBody PrinterProfileUpdateRequest request) {
-    JsonNode config = request.configJson() != null ? objectMapper.valueToTree(request.configJson()) : null;
+    JsonNode config =
+        request.configJson() != null ? objectMapper.valueToTree(request.configJson()) : null;
     PrinterProfile updated =
-        printerProfileService.update(
-            orgId,
-            profileId,
-            request.name(),
-            config,
-            request.active());
+        printerProfileService.update(orgId, profileId, request.name(), config, request.active());
     return toResponse(updated);
   }
 

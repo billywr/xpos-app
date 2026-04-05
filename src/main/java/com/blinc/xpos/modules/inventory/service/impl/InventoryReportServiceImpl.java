@@ -60,8 +60,7 @@ public class InventoryReportServiceImpl implements InventoryReportService {
 
   private Map<UUID, BigDecimal> loadReceivedQtys(UUID orgId, UUID branchId) {
     Map<UUID, BigDecimal> result = new HashMap<>();
-    for (Object[] row :
-        stockMovementRepository.sumReceivedQtyByItemIdForBranch(orgId, branchId)) {
+    for (Object[] row : stockMovementRepository.sumReceivedQtyByItemIdForBranch(orgId, branchId)) {
       UUID itemId = (UUID) row[0];
       BigDecimal sum = row[1] != null ? (BigDecimal) row[1] : BigDecimal.ZERO;
       result.put(itemId, sum);
@@ -71,8 +70,7 @@ public class InventoryReportServiceImpl implements InventoryReportService {
 
   private Map<UUID, BigDecimal> loadSoldQtys(UUID orgId, UUID branchId) {
     Map<UUID, BigDecimal> result = new HashMap<>();
-    for (Object[] row :
-        stockMovementRepository.sumSoldQtyByItemIdForBranch(orgId, branchId)) {
+    for (Object[] row : stockMovementRepository.sumSoldQtyByItemIdForBranch(orgId, branchId)) {
       UUID itemId = (UUID) row[0];
       BigDecimal sum = row[1] != null ? (BigDecimal) row[1] : BigDecimal.ZERO;
       result.put(itemId, sum);

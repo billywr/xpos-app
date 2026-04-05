@@ -65,14 +65,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
       return;
     }
     Instant when = sale.getCompletedAt() != null ? sale.getCompletedAt() : Instant.now();
-    post(
-        orgId,
-        sale.getBranch(),
-        EVENT_SALE_COMPLETE,
-        SourceType.SALE,
-        sale.getId(),
-        amount,
-        when);
+    post(orgId, sale.getBranch(), EVENT_SALE_COMPLETE, SourceType.SALE, sale.getId(), amount, when);
   }
 
   @Override
@@ -116,8 +109,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
       return;
     }
     PostingRule rule = ruleOpt.get();
-    LocalDate businessDate =
-        when.atZone(ZoneId.of(branch.getTimezone())).toLocalDate();
+    LocalDate businessDate = when.atZone(ZoneId.of(branch.getTimezone())).toLocalDate();
     String currency =
         branch.getCurrency() != null && !branch.getCurrency().isBlank()
             ? branch.getCurrency()
@@ -158,10 +150,10 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
       return null;
     }
     return switch (type) {
-        case PAID_IN -> EVENT_CASH_PAID_IN;
-        case PAID_OUT -> EVENT_CASH_PAID_OUT;
-        case PETTY_CASH -> EVENT_CASH_PETTY_CASH;
-        case FLOAT_ADD -> EVENT_CASH_FLOAT_ADD;
+      case PAID_IN -> EVENT_CASH_PAID_IN;
+      case PAID_OUT -> EVENT_CASH_PAID_OUT;
+      case PETTY_CASH -> EVENT_CASH_PETTY_CASH;
+      case FLOAT_ADD -> EVENT_CASH_FLOAT_ADD;
     };
   }
 }

@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.reporting;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -34,9 +34,13 @@ class RevenueDashboardAdminControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/revenue-dashboard"
-                + "?startDate=2025-02-01&endDate=2025-02-28")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/revenue-dashboard"
+                    + "?startDate=2025-02-01&endDate=2025-02-28")
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.summary.orgId").value(orgId.toString()))
         .andExpect(jsonPath("$.summary.branchId").value(branchId.toString()))
@@ -59,9 +63,12 @@ class RevenueDashboardAdminControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/branches/" + otherBranchId
-                + "/revenue-dashboard?startDate=2025-02-01&endDate=2025-02-28")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + otherBranchId
+                    + "/revenue-dashboard?startDate=2025-02-01&endDate=2025-02-28")
+                .with(adminJwt()))
         .andExpect(status().isNotFound());
   }
 
@@ -73,9 +80,13 @@ class RevenueDashboardAdminControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/revenue-dashboard"
-                + "?startDate=2025-02-28&endDate=2025-02-01")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/revenue-dashboard"
+                    + "?startDate=2025-02-28&endDate=2025-02-01")
+                .with(adminJwt()))
         .andExpect(status().isBadRequest());
   }
 
@@ -87,9 +98,13 @@ class RevenueDashboardAdminControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/revenue-dashboard"
-                + "?endDate=2025-02-28")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/revenue-dashboard"
+                    + "?endDate=2025-02-28")
+                .with(adminJwt()))
         .andExpect(status().isBadRequest());
   }
 
@@ -100,12 +115,14 @@ class RevenueDashboardAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 
   private UUID createBusiness(UUID orgId) throws Exception {
@@ -113,7 +130,7 @@ class RevenueDashboardAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -123,13 +140,16 @@ class RevenueDashboardAdminControllerIT extends AbstractIntegrationTest {
   }
 
   private UUID createBranch(UUID orgId, UUID businessId) throws Exception {
-    String body = "{\"businessId\":\"" + businessId + "\",\"name\":\"B1\","
-        + "\"timezone\":\"Africa/Nairobi\",\"currency\":\"KES\"}";
+    String body =
+        "{\"businessId\":\""
+            + businessId
+            + "\",\"name\":\"B1\","
+            + "\"timezone\":\"Africa/Nairobi\",\"currency\":\"KES\"}";
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())

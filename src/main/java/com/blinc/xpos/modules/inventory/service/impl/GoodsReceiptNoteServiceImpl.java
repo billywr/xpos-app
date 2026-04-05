@@ -11,6 +11,7 @@ import com.blinc.xpos.modules.catalog.service.UomService;
 import com.blinc.xpos.modules.inventory.domain.GoodsReceiptNote;
 import com.blinc.xpos.modules.inventory.domain.GrnLine;
 import com.blinc.xpos.modules.inventory.domain.StockMovement;
+import com.blinc.xpos.modules.inventory.domain.Supplier;
 import com.blinc.xpos.modules.inventory.repository.GoodsReceiptNoteRepository;
 import com.blinc.xpos.modules.inventory.repository.GrnLineRepository;
 import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
@@ -18,12 +19,11 @@ import com.blinc.xpos.modules.inventory.service.GoodsReceiptNoteService;
 import com.blinc.xpos.modules.inventory.service.InventoryItemService;
 import com.blinc.xpos.modules.inventory.service.PurchaseOrderService;
 import com.blinc.xpos.modules.inventory.service.SupplierService;
-import com.blinc.xpos.modules.pricing.service.PriceListItemService;
-import com.blinc.xpos.modules.inventory.domain.Supplier;
 import com.blinc.xpos.modules.organization.domain.Branch;
 import com.blinc.xpos.modules.organization.domain.StaffUser;
 import com.blinc.xpos.modules.organization.service.BranchService;
 import com.blinc.xpos.modules.organization.service.StaffUserService;
+import com.blinc.xpos.modules.pricing.service.PriceListItemService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -47,7 +47,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
 
-  /** Calendar day for merging repeat receipts (same branch, supplier, item) is evaluated in this zone (Kenya operations). */
+  /**
+   * Calendar day for merging repeat receipts (same branch, supplier, item) is evaluated in this
+   * zone (Kenya operations).
+   */
   private static final ZoneId GOODS_RECEIPT_MERGE_DAY_ZONE = ZoneId.of("Africa/Nairobi");
 
   private record GrnLineKey(UUID itemId, UUID uomId) {}
@@ -116,12 +119,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
       Instant dayEndExclusive = endOfMergeZoneDayExclusive(now, GOODS_RECEIPT_MERGE_DAY_ZONE);
       List<GoodsReceiptNote> mergeTargets =
           grnRepository.findActiveWithoutPoForMergeSameDay(
-              orgId,
-              branchId,
-              supplierId,
-              dayStart,
-              dayEndExclusive,
-              PageRequest.of(0, 1));
+              orgId, branchId, supplierId, dayStart, dayEndExclusive, PageRequest.of(0, 1));
       if (!mergeTargets.isEmpty()) {
         return mergeIntoExistingGrn(mergeTargets.getFirst(), normalized, staffUser, now);
       }
@@ -157,8 +155,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
     List<GrnLineRequest> out = new ArrayList<>(qtyByKey.size());
     for (Map.Entry<GrnLineKey, BigDecimal> e : qtyByKey.entrySet()) {
       GrnLineKey key = e.getKey();
-      out.add(
-          new GrnLineRequest(key.itemId(), e.getValue(), key.uomId(), lastCostByKey.get(key)));
+      out.add(new GrnLineRequest(key.itemId(), e.getValue(), key.uomId(), lastCostByKey.get(key)));
     }
     return out;
   }
@@ -168,9 +165,10 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
   }
 
   /**
-   * Enforces one unit cost per item for stock receipts when the item has no catalog buying price: new
-   * lines must match prior GRN unit costs for the org. When buying price is set, it is the source of
-   * truth. Same-day merge into an existing line must not change unit cost unless buying price overrides.
+   * Enforces one unit cost per item for stock receipts when the item has no catalog buying price:
+   * new lines must match prior GRN unit costs for the org. When buying price is set, it is the
+   * source of truth. Same-day merge into an existing line must not change unit cost unless buying
+   * price overrides.
    */
   private void assertGrnLineResolvedUnitCostAllowed(
       UUID orgId,
@@ -367,10 +365,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
   }
 
   private GoodsReceiptNote mergeIntoExistingGrn(
-      GoodsReceiptNote grn,
-      List<GrnLineRequest> incoming,
-      StaffUser staffUser,
-      Instant now) {
+      GoodsReceiptNote grn, List<GrnLineRequest> incoming, StaffUser staffUser, Instant now) {
     UUID orgId = grn.getOrg().getId();
     grn.setReceivedAt(now);
     grnRepository.save(grn);
@@ -478,8 +473,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
     branchService.require(orgId, branchId);
     return includeInactive
         ? grnRepository.findAllByOrgIdAndBranchId(orgId, branchId, pageable)
-        : grnRepository.findAllByOrgIdAndBranchIdAndActiveTrue(
-            orgId, branchId, pageable);
+        : grnRepository.findAllByOrgIdAndBranchIdAndActiveTrue(orgId, branchId, pageable);
   }
 
   @Override
@@ -505,12 +499,8 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
     }
     grn = grnRepository.save(grn);
 
-    if (lines == null
-        && active != null
-        && !active
-        && previouslyActive) {
-      reverseStockMovementsForGrnAndPurgePricing(
-          orgId, grn.getId(), grn.getBranch().getId());
+    if (lines == null && active != null && !active && previouslyActive) {
+      reverseStockMovementsForGrnAndPurgePricing(orgId, grn.getId(), grn.getBranch().getId());
     }
 
     if (lines != null) {
@@ -519,17 +509,10 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
       }
       StaffUser staffUser = staffUserService.require(orgId, updatedByStaffUserId);
       Instant now = Instant.now(clock);
-      List<GrnLine> existingLines =
-          grnLineRepository.findByGrnIdOrderByCreatedAt(grn.getId());
+      List<GrnLine> existingLines = grnLineRepository.findByGrnIdOrderByCreatedAt(grn.getId());
       List<GrnLineRequest> normalizedNew = normalizeDuplicateLineRequests(lines);
       applyNetStockAdjustmentsForGrnLineReplace(
-          grn,
-          orgId,
-          grn.getBranch().getId(),
-          existingLines,
-          normalizedNew,
-          staffUser,
-          now);
+          grn, orgId, grn.getBranch().getId(), existingLines, normalizedNew, staffUser, now);
       grnLineRepository.deleteAll(existingLines);
       persistReplacementGrnLinesOnly(grn, orgId, normalizedNew, now);
     }
@@ -549,8 +532,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
     grnRepository.delete(grn);
   }
 
-  private void reverseStockMovementsForGrnAndPurgePricing(
-      UUID orgId, UUID grnId, UUID branchId) {
+  private void reverseStockMovementsForGrnAndPurgePricing(UUID orgId, UUID grnId, UUID branchId) {
     List<StockMovement> movements =
         stockMovementRepository.findAllByOrgIdAndSourceTypeAndSourceIdOrderByCreatedAtAsc(
             orgId, SourceType.GRN, grnId);

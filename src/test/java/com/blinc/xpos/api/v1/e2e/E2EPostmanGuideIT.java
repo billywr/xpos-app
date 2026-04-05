@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.e2e;
 
+import static com.blinc.xpos.TestJwtFactory.allRolesJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -71,7 +71,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         objectMapper.writeValueAsString(
@@ -91,7 +91,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -112,7 +112,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -130,7 +130,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/terminals")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -141,19 +141,15 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
   }
 
   private UUID step6aRegisterDevice(UUID orgId, UUID branchId) throws Exception {
-    String body = """
+    String body =
+        """
         {"deviceId":"pos-device-001","deviceFingerprint":"optional"}
         """;
     MvcResult r =
         mockMvc
             .perform(
-                post(
-                        "/api/v1/admin/orgs/"
-                            + orgId
-                            + "/branches/"
-                            + branchId
-                            + "/devices/register")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                post("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/devices/register")
+                    .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -165,21 +161,20 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
 
   private void step6bBindDevice(
       UUID orgId, UUID branchId, UUID terminalId, UUID deviceRegistrationId) throws Exception {
-    String body = """
-        {"deviceRegistrationId":"%s"}
+    String body =
         """
-            .formatted(deviceRegistrationId);
+        {"deviceRegistrationId":"%s"}
+        """.formatted(deviceRegistrationId);
     mockMvc
         .perform(
-            post(
-                    "/api/v1/admin/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/terminals/"
-                        + terminalId
-                        + "/bind-device")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/admin/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/terminals/"
+                    + terminalId
+                    + "/bind-device")
+                .with(allRolesJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isOk());
@@ -193,7 +188,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -213,7 +208,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             put("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/profile")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(allRolesJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isOk());
@@ -223,17 +218,11 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
       throws Exception {
     String body = """
         {"branchId":"%s","primary":true}
-        """
-            .formatted(branchId);
+        """.formatted(branchId);
     mockMvc
         .perform(
-            post(
-                    "/api/v1/admin/orgs/"
-                        + orgId
-                        + "/staff-users/"
-                        + staffUserId
-                        + "/branches")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
+                .with(allRolesJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());
@@ -247,7 +236,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/categories")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -265,7 +254,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/uoms")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -284,7 +273,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/tax-profiles")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -294,8 +283,8 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         objectMapper.readTree(r.getResponse().getContentAsString()).get("id").asText());
   }
 
-  private UUID step8dCreateItem(
-      UUID orgId, UUID categoryId, UUID uomId, UUID taxProfileId) throws Exception {
+  private UUID step8dCreateItem(UUID orgId, UUID categoryId, UUID uomId, UUID taxProfileId)
+      throws Exception {
     String body =
         """
         {"sku":"BEER-001","name":"Tusker Bottle 500ml","itemType":"STOCK","categoryId":"%s",
@@ -306,7 +295,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -326,7 +315,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/price-lists")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -341,7 +330,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/suppliers")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"name\":\"Supplier\"}"))
             .andExpect(status().isCreated())
@@ -351,8 +340,8 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         objectMapper.readTree(r.getResponse().getContentAsString()).get("id").asText());
   }
 
-  private void step9a2CreateGrnForItem(
-      UUID orgId, UUID branchId, UUID supplierId, UUID itemId) throws Exception {
+  private void step9a2CreateGrnForItem(UUID orgId, UUID branchId, UUID supplierId, UUID itemId)
+      throws Exception {
     String body =
         """
         {"branchId":"%s","supplierId":"%s","lines":[{"itemId":"%s","qty":5,"receivedUnitCost":40.00}]}
@@ -361,40 +350,31 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(allRolesJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());
   }
 
   private void step9bAddPriceListItem(UUID orgId, UUID priceListId, UUID itemId) throws Exception {
-    String body = """
-        {"itemId":"%s","price":150,"currency":"KES"}
+    String body =
         """
-            .formatted(itemId);
+        {"itemId":"%s","price":150,"currency":"KES"}
+        """.formatted(itemId);
     mockMvc
         .perform(
-            post(
-                    "/api/v1/admin/orgs/"
-                        + orgId
-                        + "/price-lists/"
-                        + priceListId
-                        + "/items")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
+                .with(allRolesJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());
   }
 
-  /**
-   * Orgs get CASH tender type auto-created on creation. Fetch it instead of creating.
-   */
+  /** Orgs get CASH tender type auto-created on creation. Fetch it instead of creating. */
   private UUID step10CreateTenderType(UUID orgId) throws Exception {
     MvcResult result =
         mockMvc
-            .perform(
-                get("/api/v1/admin/orgs/" + orgId + "/tender-types")
-                    .with(jwt().jwt(j -> j.subject("admin"))))
+            .perform(get("/api/v1/admin/orgs/" + orgId + "/tender-types").with(allRolesJwt()))
             .andExpect(status().isOk())
             .andReturn();
     var tree = objectMapper.readTree(result.getResponse().getContentAsString());
@@ -414,21 +394,21 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/ledger-accounts")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(allRolesJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"code\":\"1000\",\"name\":\"Cash\",\"accountType\":\"ASSET\"}"))
         .andExpect(status().isCreated());
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/ledger-accounts")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(allRolesJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"code\":\"4000\",\"name\":\"Sales\",\"accountType\":\"INCOME\"}"))
         .andExpect(status().isCreated());
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/posting-rules")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(allRolesJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     "{\"eventType\":\"SALE_COMPLETE\",\"debitAccountCode\":\"1000\","
@@ -439,15 +419,14 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
   private String step11OpenShift(UUID orgId, UUID branchId, UUID terminalId) throws Exception {
     mockMvc
         .perform(
-            post(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/terminals/"
-                        + terminalId
-                        + "/shifts")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/terminals/"
+                    + terminalId
+                    + "/shifts")
+                .with(allRolesJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"openingFloatAmount\":500}"))
         .andExpect(status().isCreated());
@@ -455,15 +434,15 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
   }
 
   private UUID step12CreateSale(String operatorBase, UUID priceListId) throws Exception {
-    String body = """
-        {"customerId":null,"priceListId":"%s"}
+    String body =
         """
-            .formatted(priceListId);
+        {"customerId":null,"priceListId":"%s"}
+        """.formatted(priceListId);
     MvcResult r =
         mockMvc
             .perform(
                 post(operatorBase + "/sales")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -483,7 +462,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(operatorBase + "/sales/" + saleId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(allRolesJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isOk())
@@ -504,7 +483,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(operatorBase + "/sales/" + saleId + "/tenders")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(allRolesJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated())
@@ -514,9 +493,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
 
   private void step15CompleteSale(String operatorBase, UUID saleId) throws Exception {
     mockMvc
-        .perform(
-            post(operatorBase + "/sales/" + saleId + "/complete")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(post(operatorBase + "/sales/" + saleId + "/complete").with(allRolesJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("COMPLETED"))
         .andExpect(jsonPath("$.receiptId").exists());
@@ -524,9 +501,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
 
   private void step16GetReceipt(String operatorBase, UUID saleId) throws Exception {
     mockMvc
-        .perform(
-            get(operatorBase + "/sales/" + saleId + "/receipt")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(operatorBase + "/sales/" + saleId + "/receipt").with(allRolesJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.receiptNumber").isNumber())
         .andExpect(jsonPath("$.businessDate").exists());
@@ -534,9 +509,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
 
   private void step16bGetReceiptDetails(String operatorBase, UUID saleId) throws Exception {
     mockMvc
-        .perform(
-            get(operatorBase + "/sales/" + saleId + "/receipt/details")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(operatorBase + "/sales/" + saleId + "/receipt/details").with(allRolesJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.receiptNumber").isNumber())
         .andExpect(jsonPath("$.subtotal").exists())

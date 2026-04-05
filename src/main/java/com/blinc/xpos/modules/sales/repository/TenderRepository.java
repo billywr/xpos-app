@@ -25,8 +25,7 @@ public interface TenderRepository extends JpaRepository<Tender, UUID> {
       where t.sale.id = :saleId
       order by t.capturedAt
       """)
-  List<Tender> findBySaleIdOrderByCapturedAtWithTenderTypeAndStaff(
-      @Param("saleId") UUID saleId);
+  List<Tender> findBySaleIdOrderByCapturedAtWithTenderTypeAndStaff(@Param("saleId") UUID saleId);
 
   @Query(
       """

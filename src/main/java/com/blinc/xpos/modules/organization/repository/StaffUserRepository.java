@@ -32,7 +32,18 @@ public interface StaffUserRepository extends JpaRepository<StaffUser, UUID> {
   Optional<StaffUser> findByOrgIdAndIamUserId(
       @Param("orgId") UUID orgId, @Param("iamUserId") String iamUserId);
 
-  @Query("""
+  @Query(
+      """
+            select s
+            from StaffUser s
+            where s.org.id = :orgId
+              and s.username = :username
+            """)
+  Optional<StaffUser> findByOrgIdAndUsername(
+      @Param("orgId") UUID orgId, @Param("username") String username);
+
+  @Query(
+      """
       select s from StaffUser s
       where s.org.id = :orgId and s.status in :statuses
       """)

@@ -38,11 +38,11 @@ public class DayCloseOperatorController {
       @PathVariable UUID orgId,
       @PathVariable UUID branchId,
       @Valid @RequestBody DayCloseRequest request) {
-    var staffUser = staffAuthorizationService.requireStaffUserForBranch(
-        orgId, branchId, principalResolver.require().iamUserId());
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
     DayClose dayClose =
-        dayCloseService.closeDay(
-            orgId, branchId, request.businessDate(), staffUser.getId());
+        dayCloseService.closeDay(orgId, branchId, request.businessDate(), staffUser.getId());
     return toResponse(dayClose);
   }
 

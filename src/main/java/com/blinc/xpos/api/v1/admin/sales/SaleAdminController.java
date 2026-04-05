@@ -27,8 +27,7 @@ public class SaleAdminController {
   private final SaleService saleService;
   private final PageRequestFactory pageRequestFactory;
 
-  public SaleAdminController(
-      SaleService saleService, PageRequestFactory pageRequestFactory) {
+  public SaleAdminController(SaleService saleService, PageRequestFactory pageRequestFactory) {
     this.saleService = Objects.requireNonNull(saleService, "saleService");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
   }
@@ -38,8 +37,10 @@ public class SaleAdminController {
       @PathVariable UUID orgId,
       @PathVariable UUID branchId,
       @RequestParam(defaultValue = "COMPLETED") SaleStatus status,
-      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate fromDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate toDate,
       Pageable pageable) {
     Instant start =
         fromDate != null
@@ -51,7 +52,8 @@ public class SaleAdminController {
             : LocalDate.now(ZoneOffset.UTC).plusYears(10).atStartOfDay(ZoneOffset.UTC).toInstant();
     Pageable normalized =
         pageRequestFactory.normalize(pageable, Sort.by("completedAt").descending());
-    return saleService.listByBranch(orgId, branchId, status, start, end, normalized)
+    return saleService
+        .listByBranch(orgId, branchId, status, start, end, normalized)
         .map(SaleAdminController::toResponse);
   }
 

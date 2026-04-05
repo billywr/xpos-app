@@ -8,12 +8,7 @@ import org.springframework.data.domain.Pageable;
 public interface PriceListService {
 
   PriceList create(
-      UUID orgId,
-      UUID branchId,
-      String channel,
-      String name,
-      int priority,
-      boolean active);
+      UUID orgId, UUID branchId, String channel, String name, int priority, boolean active);
 
   PriceList require(UUID orgId, UUID priceListId);
 

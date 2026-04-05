@@ -7,5 +7,6 @@ import java.util.UUID;
 
 public record ModifierQuantityRequest(
     @NotNull(message = "Modifier option ID is required") UUID modifierOptionId,
-    @NotNull(message = "Quantity is required") @DecimalMin(value = "0.001", message = "Quantity must be positive")
+    @NotNull(message = "Quantity is required")
+        @DecimalMin(value = "0.001", message = "Quantity must be positive")
         BigDecimal qty) {}

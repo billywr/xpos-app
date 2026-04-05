@@ -38,9 +38,7 @@ public interface PriceListItemRepository extends JpaRepository<PriceListItem, UU
       order by i.item.name, i.createdAt
       """)
   Page<PriceListItem> findByPriceListIdAndOrgId(
-      @Param("priceListId") UUID priceListId,
-      @Param("orgId") UUID orgId,
-      Pageable pageable);
+      @Param("priceListId") UUID priceListId, @Param("orgId") UUID orgId, Pageable pageable);
 
   /**
    * Admin price list lines: service-like items (no physical stock expectation) stay listed; STOCK,
@@ -148,10 +146,7 @@ public interface PriceListItemRepository extends JpaRepository<PriceListItem, UU
           )
           """)
   Page<PriceListItem> findByPriceListIdAndOrgIdInStockForAdmin(
-      @Param("priceListId") UUID priceListId,
-      @Param("orgId") UUID orgId,
-      Pageable pageable);
-
+      @Param("priceListId") UUID priceListId, @Param("orgId") UUID orgId, Pageable pageable);
 
   @Query(
       """

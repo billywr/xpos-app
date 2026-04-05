@@ -30,18 +30,14 @@ public class InventoryReportAdminController {
     this.inventoryReportService =
         Objects.requireNonNull(inventoryReportService, "inventoryReportService");
     this.branchService = Objects.requireNonNull(branchService, "branchService");
-    this.pageRequestFactory =
-        Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
+    this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
   }
 
   @GetMapping
   public Page<InventoryReportLineResponse> listByBranch(
-      @PathVariable UUID orgId,
-      @RequestParam UUID branchId,
-      Pageable pageable) {
+      @PathVariable UUID orgId, @RequestParam UUID branchId, Pageable pageable) {
     branchService.require(orgId, branchId);
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("item.name").ascending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("item.name").ascending());
     return inventoryReportService.listByBranch(orgId, branchId, normalized);
   }
 }

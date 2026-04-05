@@ -28,8 +28,7 @@ public class ApprovalPolicyAdminController {
   private final PageRequestFactory pageRequestFactory;
 
   public ApprovalPolicyAdminController(
-      ApprovalPolicyService approvalPolicyService,
-      PageRequestFactory pageRequestFactory) {
+      ApprovalPolicyService approvalPolicyService, PageRequestFactory pageRequestFactory) {
     this.approvalPolicyService = Objects.requireNonNull(approvalPolicyService);
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory);
   }
@@ -50,9 +49,9 @@ public class ApprovalPolicyAdminController {
 
   @GetMapping
   public Page<ApprovalPolicyResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("policyCode").ascending());
-    return approvalPolicyService.list(orgId, normalized)
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("policyCode").ascending());
+    return approvalPolicyService
+        .list(orgId, normalized)
         .map(ApprovalPolicyAdminController::toResponse);
   }
 

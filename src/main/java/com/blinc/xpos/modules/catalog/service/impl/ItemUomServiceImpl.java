@@ -45,8 +45,7 @@ public class ItemUomServiceImpl implements ItemUomService {
     entity.setOrg(item.getOrg());
     entity.setItem(item);
     entity.setUom(uom);
-    entity.setConversionToBase(
-        conversionToBase != null ? conversionToBase : BigDecimal.ONE);
+    entity.setConversionToBase(conversionToBase != null ? conversionToBase : BigDecimal.ONE);
     entity.setCreatedAt(Instant.now(clock));
     return itemUomRepository.save(entity);
   }
@@ -57,13 +56,9 @@ public class ItemUomServiceImpl implements ItemUomService {
     ItemUom itemUom =
         itemUomRepository
             .findByIdAndOrgId(itemUomId, orgId)
-            .orElseThrow(
-                () ->
-                    new NotFoundException(
-                        "ITEM_UOM_NOT_FOUND", "Item UoM not found"));
+            .orElseThrow(() -> new NotFoundException("ITEM_UOM_NOT_FOUND", "Item UoM not found"));
     if (!itemUom.getItem().getId().equals(itemId)) {
-      throw new NotFoundException(
-          "ITEM_UOM_NOT_FOUND", "Item UoM not found for this item");
+      throw new NotFoundException("ITEM_UOM_NOT_FOUND", "Item UoM not found for this item");
     }
     return itemUom;
   }

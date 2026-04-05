@@ -39,11 +39,7 @@ public class OutboxEventServiceImpl implements OutboxEventService {
   @Override
   @Transactional
   public OutboxEvent enqueue(
-      UUID orgId,
-      UUID terminalId,
-      String eventType,
-      JsonNode payload,
-      String idempotencyKey) {
+      UUID orgId, UUID terminalId, String eventType, JsonNode payload, String idempotencyKey) {
     var terminal = terminalService.require(orgId, terminalId);
     if (payload == null) {
       throw new IllegalArgumentException("payload is required");
@@ -69,9 +65,7 @@ public class OutboxEventServiceImpl implements OutboxEventService {
     return outboxEventRepository
         .findByIdAndOrgId(eventId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "OUTBOX_EVENT_NOT_FOUND", "Outbox event not found"));
+            () -> new NotFoundException("OUTBOX_EVENT_NOT_FOUND", "Outbox event not found"));
   }
 
   @Override

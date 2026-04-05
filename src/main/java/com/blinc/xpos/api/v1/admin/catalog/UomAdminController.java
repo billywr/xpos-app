@@ -71,10 +71,6 @@ public class UomAdminController {
 
   private UomResponse toResponse(Uom uom) {
     return new UomResponse(
-        uom.getId(),
-        uom.getOrg().getId(),
-        uom.getName(),
-        uom.getSymbol(),
-        uom.getCreatedAt());
+        uom.getId(), uom.getOrg().getId(), uom.getName(), uom.getSymbol(), uom.getCreatedAt());
   }
 }

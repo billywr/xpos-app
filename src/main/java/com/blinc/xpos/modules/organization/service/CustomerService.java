@@ -14,10 +14,5 @@ public interface CustomerService {
   Page<Customer> list(UUID orgId, Pageable pageable);
 
   Customer update(
-      UUID orgId,
-      UUID customerId,
-      String name,
-      String phone,
-      String email,
-      Boolean active);
+      UUID orgId, UUID customerId, String name, String phone, String email, Boolean active);
 }

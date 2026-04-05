@@ -3,10 +3,10 @@ package com.blinc.xpos.modules.cash.service.impl;
 import com.blinc.xpos.common.constants.enums.DayCloseStatus;
 import com.blinc.xpos.common.constants.enums.ShiftStatus;
 import com.blinc.xpos.common.error.NotFoundException;
+import com.blinc.xpos.modules.auditvault.service.AuditLogService;
 import com.blinc.xpos.modules.cash.domain.DayClose;
 import com.blinc.xpos.modules.cash.repository.DayCloseRepository;
 import com.blinc.xpos.modules.cash.repository.ShiftRepository;
-import com.blinc.xpos.modules.auditvault.service.AuditLogService;
 import com.blinc.xpos.modules.cash.service.DayCloseService;
 import com.blinc.xpos.modules.organization.domain.Branch;
 import com.blinc.xpos.modules.organization.domain.StaffUser;
@@ -93,16 +93,12 @@ public class DayCloseServiceImpl implements DayCloseService {
   public DayClose require(UUID orgId, UUID dayCloseId) {
     return dayCloseRepository
         .findByIdAndOrgId(dayCloseId, orgId)
-        .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "DAY_CLOSE_NOT_FOUND", "Day close not found"));
+        .orElseThrow(() -> new NotFoundException("DAY_CLOSE_NOT_FOUND", "Day close not found"));
   }
 
   @Override
   @Transactional(readOnly = true)
-  public Optional<DayClose> findByBranchAndDate(
-      UUID orgId, UUID branchId, LocalDate businessDate) {
+  public Optional<DayClose> findByBranchAndDate(UUID orgId, UUID branchId, LocalDate businessDate) {
     branchService.require(orgId, branchId);
     return dayCloseRepository.findByBranchIdAndBusinessDate(branchId, businessDate);
   }

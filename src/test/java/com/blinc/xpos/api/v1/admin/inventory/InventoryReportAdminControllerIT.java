@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.inventory;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -36,12 +36,17 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
     UUID supplierId = createSupplier(orgId, "Supp");
     UUID itemId = createItem(orgId);
     String grnBody =
-        "{\"branchId\":\"" + branchId + "\",\"supplierId\":\"" + supplierId
-            + "\",\"lines\":[{\"itemId\":\"" + itemId + "\",\"qty\":10,\"receivedUnitCost\":5}]}";
+        "{\"branchId\":\""
+            + branchId
+            + "\",\"supplierId\":\""
+            + supplierId
+            + "\",\"lines\":[{\"itemId\":\""
+            + itemId
+            + "\",\"qty\":10,\"receivedUnitCost\":5}]}";
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(grnBody))
         .andExpect(status().isCreated());
@@ -49,7 +54,7 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/admin/orgs/" + orgId + "/inventory-report?branchId=" + branchId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].itemId").value(itemId.toString()))
@@ -70,7 +75,7 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/admin/orgs/" + orgId + "/inventory-report?branchId=" + otherBranchId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(adminJwt()))
         .andExpect(status().isNotFound());
   }
 
@@ -78,9 +83,7 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
   void listInventoryReportMissingBranchIdReturns400() throws Exception {
     UUID orgId = createOrg("Inventory Missing Branch Org");
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/inventory-report")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/inventory-report").with(adminJwt()))
         .andExpect(status().isBadRequest());
   }
 
@@ -92,7 +95,7 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/admin/orgs/" + orgId + "/inventory-report?branchId=" + branchId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(0))
         .andExpect(jsonPath("$.totalElements").value(0));
@@ -104,12 +107,14 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 
   private UUID createBusiness(UUID orgId) throws Exception {
@@ -117,7 +122,7 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -127,13 +132,16 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
   }
 
   private UUID createBranch(UUID orgId, UUID businessId) throws Exception {
-    String body = "{\"businessId\":\"" + businessId + "\",\"name\":\"Main\","
-        + "\"timezone\":\"Africa/Nairobi\",\"currency\":\"KES\"}";
+    String body =
+        "{\"businessId\":\""
+            + businessId
+            + "\",\"name\":\"Main\","
+            + "\"timezone\":\"Africa/Nairobi\",\"currency\":\"KES\"}";
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -147,7 +155,7 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/suppliers")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"name\":\"" + name + "\"}"))
             .andExpect(status().isCreated())
@@ -158,13 +166,15 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
 
   private UUID createItem(UUID orgId) throws Exception {
     UUID taxProfileId = createTaxProfile(orgId);
-    String body = "{\"name\":\"Item\",\"itemType\":\"STOCK\",\"taxProfileId\":\"" + taxProfileId
-        + "\",\"trackInventory\":true,\"active\":true}";
+    String body =
+        "{\"name\":\"Item\",\"itemType\":\"STOCK\",\"taxProfileId\":\""
+            + taxProfileId
+            + "\",\"trackInventory\":true,\"active\":true}";
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -178,7 +188,7 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/tax-profiles")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         "{\"name\":\"VAT\",\"vatCategory\":\"STANDARD\","
@@ -194,7 +204,7 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"iamUserId\":\"admin\",\"username\":\"admin\"}"))
             .andExpect(status().isCreated())
@@ -207,7 +217,7 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"branchId\":\"" + branchId + "\",\"primary\":true}"))
         .andExpect(status().isCreated());

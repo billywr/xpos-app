@@ -80,9 +80,7 @@ public class ApprovalEventServiceImpl implements ApprovalEventService {
     return approvalEventRepository
         .findByIdAndOrgId(eventId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "APPROVAL_EVENT_NOT_FOUND", "Approval event not found"));
+            () -> new NotFoundException("APPROVAL_EVENT_NOT_FOUND", "Approval event not found"));
   }
 
   @Override

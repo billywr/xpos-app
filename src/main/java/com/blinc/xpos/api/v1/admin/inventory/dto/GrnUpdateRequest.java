@@ -11,5 +11,6 @@ public record GrnUpdateRequest(
     @NotNull(message = "Received at is required") Instant receivedAt,
     Boolean active,
     @Valid List<GrnLineRequest> lines) {
-  // When lines is null, line items are not updated. When non-null (including empty), lines are replaced.
+  // When lines is null, line items are not updated. When non-null (including empty), lines are
+  // replaced.
 }

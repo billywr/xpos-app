@@ -44,19 +44,14 @@ public class ModifierOptionAdminController {
       @Valid @RequestBody ModifierOptionCreateRequest request) {
     ModifierOption option =
         modifierOptionService.create(
-            orgId,
-            modifierGroupId,
-            request.name(),
-            request.priceDelta(),
-            request.itemId());
+            orgId, modifierGroupId, request.name(), request.priceDelta(), request.itemId());
     return toResponse(option);
   }
 
   @GetMapping
   public Page<ModifierOptionResponse> list(
       @PathVariable UUID orgId, @PathVariable UUID modifierGroupId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     return modifierOptionService
         .listByGroup(orgId, modifierGroupId, normalized)
         .map(this::toResponse);

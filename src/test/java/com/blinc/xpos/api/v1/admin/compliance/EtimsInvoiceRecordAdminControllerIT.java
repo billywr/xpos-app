@@ -1,7 +1,8 @@
 package com.blinc.xpos.api.v1.admin.compliance;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
+import static com.blinc.xpos.TestJwtFactory.operatorJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -46,9 +47,12 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
     MvcResult createResult =
         mockMvc
             .perform(
-                post("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId
-                    + "/etims-invoice-records")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                post("/api/v1/admin/orgs/"
+                        + orgId
+                        + "/branches/"
+                        + branchId
+                        + "/etims-invoice-records")
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"saleId\":\"" + saleId + "\"}"))
             .andExpect(status().isCreated())
@@ -57,77 +61,88 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
             .andReturn();
     UUID recordId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/etims-invoice-records/"
-                + recordId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/etims-invoice-records/"
+                    + recordId)
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.saleId").value(saleId.toString()));
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId
-                + "/etims-invoice-records?page=0&size=10")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/etims-invoice-records?page=0&size=10")
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
   }
 
   private UUID createCompletedSale(
-      UUID orgId, UUID branchId, UUID terminalId, UUID itemId, UUID tenderTypeId)
-      throws Exception {
+      UUID orgId, UUID branchId, UUID terminalId, UUID itemId, UUID tenderTypeId) throws Exception {
     String base =
         "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/terminals/" + terminalId;
     MvcResult createSaleResult =
         mockMvc
             .perform(
-                post(base + "/sales")
-                    .with(jwt().jwt(j -> j.subject("admin")))
-                    .contentType(APPLICATION_JSON)
-                    .content("{}"))
+                post(base + "/sales").with(adminJwt()).contentType(APPLICATION_JSON).content("{}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
         UUID.fromString(
-            objectMapper.readTree(createSaleResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createSaleResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
-                .content(
-                    "{\"itemId\":\"" + itemId + "\",\"qty\":1,\"unitPriceOverride\":50.00}"))
+                .content("{\"itemId\":\"" + itemId + "\",\"qty\":1,\"unitPriceOverride\":50.00}"))
         .andExpect(status().isOk());
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/tenders")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
-                    "{\"tenderTypeId\":\"" + tenderTypeId + "\",\"amount\":50,\"currency\":\"KES\"}"))
+                    "{\"tenderTypeId\":\""
+                        + tenderTypeId
+                        + "\",\"amount\":50,\"currency\":\"KES\"}"))
         .andExpect(status().isCreated());
     mockMvc
-        .perform(post(base + "/sales/" + saleId + "/complete").with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(post(base + "/sales/" + saleId + "/complete").with(adminJwt()))
         .andExpect(status().isOk());
     return saleId;
   }
 
   private UUID createOrg() throws Exception {
-    String body =
-        objectMapper.writeValueAsString(new OrgCreateRequest("Test Org Etims"));
+    String body = objectMapper.writeValueAsString(new OrgCreateRequest("Test Org Etims"));
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 
   private UUID createBusiness(UUID orgId) throws Exception {
@@ -135,7 +150,7 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -154,7 +169,7 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -168,7 +183,7 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/terminals")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"terminalCode\":\"T1\"}"))
             .andExpect(status().isCreated())
@@ -182,7 +197,7 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"iamUserId\":\"admin\",\"username\":\"admin\"}"))
             .andExpect(status().isCreated())
@@ -195,7 +210,7 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"branchId\":\"" + branchId + "\",\"primary\":true}"))
         .andExpect(status().isCreated());
@@ -207,7 +222,7 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(base + "/shifts")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"openingFloatAmount\":0}"))
         .andExpect(status().isCreated());
@@ -218,7 +233,7 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/price-lists")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"name\":\"Default\",\"priority\":0,\"active\":true}"))
             .andExpect(status().isCreated())
@@ -233,7 +248,7 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         "{\"name\":\"Item\",\"itemType\":\"STOCK\",\"taxProfileId\":\""
@@ -250,7 +265,7 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/tax-profiles")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         "{\"name\":\"VAT\",\"vatCategory\":\"STANDARD\",\"serviceChargeRate\":0,"
@@ -266,7 +281,7 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/suppliers")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"name\":\"Supplier\"}"))
             .andExpect(status().isCreated())
@@ -275,8 +290,8 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
         objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
   }
 
-  private void createGrnForItem(
-      UUID orgId, UUID branchId, UUID supplierId, UUID itemId) throws Exception {
+  private void createGrnForItem(UUID orgId, UUID branchId, UUID supplierId, UUID itemId)
+      throws Exception {
     String body =
         """
         {"branchId":"%s","supplierId":"%s","lines":[{"itemId":"%s","qty":5,"receivedUnitCost":40.00}]}
@@ -285,7 +300,7 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());
@@ -295,21 +310,17 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"itemId\":\"" + itemId + "\",\"price\":50,\"currency\":\"KES\"}"))
         .andExpect(status().isCreated());
   }
 
-  /**
-   * Orgs get CASH tender type auto-created on creation. Fetch it instead of creating.
-   */
+  /** Orgs get CASH tender type auto-created on creation. Fetch it instead of creating. */
   private UUID getCashTenderTypeId(UUID orgId) throws Exception {
     MvcResult result =
         mockMvc
-            .perform(
-                get("/api/v1/admin/orgs/" + orgId + "/tender-types")
-                    .with(jwt().jwt(j -> j.subject("admin"))))
+            .perform(get("/api/v1/admin/orgs/" + orgId + "/tender-types").with(adminJwt()))
             .andExpect(status().isOk())
             .andReturn();
     var tree = objectMapper.readTree(result.getResponse().getContentAsString());

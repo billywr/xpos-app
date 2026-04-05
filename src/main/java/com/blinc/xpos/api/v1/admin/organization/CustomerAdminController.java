@@ -40,24 +40,18 @@ public class CustomerAdminController {
   public CustomerResponse create(
       @PathVariable UUID orgId, @Valid @RequestBody CustomerCreateRequest request) {
     Customer customer =
-        customerService.create(
-            orgId,
-            request.name(),
-            request.phone(),
-            request.email());
+        customerService.create(orgId, request.name(), request.phone(), request.email());
     return toResponse(customer);
   }
 
   @GetMapping
   public Page<CustomerResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     return customerService.list(orgId, normalized).map(CustomerAdminController::toResponse);
   }
 
   @GetMapping("/{customerId}")
-  public CustomerResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID customerId) {
+  public CustomerResponse get(@PathVariable UUID orgId, @PathVariable UUID customerId) {
     return toResponse(customerService.require(orgId, customerId));
   }
 
@@ -68,12 +62,7 @@ public class CustomerAdminController {
       @Valid @RequestBody CustomerUpdateRequest request) {
     Customer updated =
         customerService.update(
-            orgId,
-            customerId,
-            request.name(),
-            request.phone(),
-            request.email(),
-            request.active());
+            orgId, customerId, request.name(), request.phone(), request.email(), request.active());
     return toResponse(updated);
   }
 

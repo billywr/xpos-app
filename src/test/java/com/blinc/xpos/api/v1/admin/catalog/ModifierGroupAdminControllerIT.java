@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.catalog;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -34,7 +34,8 @@ class ModifierGroupAdminControllerIT extends AbstractIntegrationTest {
   @Test
   void createThenGetAndUpdateModifierGroup() throws Exception {
     UUID orgId = createOrg();
-    String createBody = """
+    String createBody =
+        """
         {"name":"Size","minSelect":0,"maxSelect":1,"required":false}
         """;
 
@@ -42,7 +43,7 @@ class ModifierGroupAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/modifier-groups")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -59,19 +60,19 @@ class ModifierGroupAdminControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/modifier-groups/" + groupId)
-                .with(user("admin").roles("ADMIN")))
+            get("/api/v1/admin/orgs/" + orgId + "/modifier-groups/" + groupId).with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(groupId.toString()))
         .andExpect(jsonPath("$.name").value("Size"));
 
-    String updateBody = """
+    String updateBody =
+        """
         {"name":"Portion Size","minSelect":1,"maxSelect":2,"required":true}
         """;
     mockMvc
         .perform(
             patch("/api/v1/admin/orgs/" + orgId + "/modifier-groups/" + groupId)
-                .with(user("admin").roles("ADMIN"))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(updateBody))
         .andExpect(status().isOk())
@@ -86,7 +87,7 @@ class ModifierGroupAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())

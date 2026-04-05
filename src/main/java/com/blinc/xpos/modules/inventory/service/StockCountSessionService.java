@@ -20,19 +20,17 @@ public interface StockCountSessionService {
 
   Page<StockCountSession> listByBranch(UUID orgId, UUID branchId, Pageable pageable);
 
-  StockCountSession addLine(
-      UUID orgId, UUID sessionId, UUID itemId, BigDecimal countedQty);
+  StockCountSession addLine(UUID orgId, UUID sessionId, UUID itemId, BigDecimal countedQty);
 
-  StockCountSession updateLine(
-      UUID orgId, UUID sessionId, UUID lineId, BigDecimal countedQty);
+  StockCountSession updateLine(UUID orgId, UUID sessionId, UUID lineId, BigDecimal countedQty);
 
   StockCountSession deleteLine(UUID orgId, UUID sessionId, UUID lineId);
 
   StockCountSession close(UUID orgId, UUID sessionId, UUID closedByStaffUserId);
 
   /**
-   * Soft-deletes a session. Both OPEN and CLOSED sessions can be deleted.
-   * already applied variances and cannot be removed.
+   * Soft-deletes a session. Both OPEN and CLOSED sessions can be deleted. already applied variances
+   * and cannot be removed.
    */
   StockCountSession softDelete(UUID orgId, UUID sessionId, UUID deletedByStaffUserId);
 }

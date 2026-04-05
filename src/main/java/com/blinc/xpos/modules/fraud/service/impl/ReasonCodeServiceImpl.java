@@ -22,9 +22,7 @@ public class ReasonCodeServiceImpl implements ReasonCodeService {
   private final Clock clock;
 
   public ReasonCodeServiceImpl(
-      ReasonCodeRepository reasonCodeRepository,
-      OrgService orgService,
-      Clock clock) {
+      ReasonCodeRepository reasonCodeRepository, OrgService orgService, Clock clock) {
     this.reasonCodeRepository = Objects.requireNonNull(reasonCodeRepository);
     this.orgService = Objects.requireNonNull(orgService);
     this.clock = Objects.requireNonNull(clock);
@@ -48,10 +46,7 @@ public class ReasonCodeServiceImpl implements ReasonCodeService {
   public ReasonCode require(UUID orgId, UUID reasonCodeId) {
     return reasonCodeRepository
         .findByIdAndOrgId(reasonCodeId, orgId)
-        .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "REASON_CODE_NOT_FOUND", "Reason code not found"));
+        .orElseThrow(() -> new NotFoundException("REASON_CODE_NOT_FOUND", "Reason code not found"));
   }
 
   @Override

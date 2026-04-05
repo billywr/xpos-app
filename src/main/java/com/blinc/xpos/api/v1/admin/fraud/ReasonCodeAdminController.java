@@ -30,8 +30,7 @@ public class ReasonCodeAdminController {
   private final PageRequestFactory pageRequestFactory;
 
   public ReasonCodeAdminController(
-      ReasonCodeService reasonCodeService,
-      PageRequestFactory pageRequestFactory) {
+      ReasonCodeService reasonCodeService, PageRequestFactory pageRequestFactory) {
     this.reasonCodeService = Objects.requireNonNull(reasonCodeService);
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory);
   }
@@ -40,21 +39,18 @@ public class ReasonCodeAdminController {
   @ResponseStatus(HttpStatus.CREATED)
   public ReasonCodeResponse create(
       @PathVariable UUID orgId, @Valid @RequestBody ReasonCodeCreateRequest request) {
-    ReasonCode created =
-        reasonCodeService.create(orgId, request.code(), request.description());
+    ReasonCode created = reasonCodeService.create(orgId, request.code(), request.description());
     return toResponse(created);
   }
 
   @GetMapping
   public Page<ReasonCodeResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("code").ascending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("code").ascending());
     return reasonCodeService.list(orgId, normalized).map(ReasonCodeAdminController::toResponse);
   }
 
   @GetMapping("/{reasonCodeId}")
-  public ReasonCodeResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID reasonCodeId) {
+  public ReasonCodeResponse get(@PathVariable UUID orgId, @PathVariable UUID reasonCodeId) {
     return toResponse(reasonCodeService.require(orgId, reasonCodeId));
   }
 
@@ -64,8 +60,7 @@ public class ReasonCodeAdminController {
       @PathVariable UUID reasonCodeId,
       @Valid @RequestBody ReasonCodeUpdateRequest request) {
     ReasonCode updated =
-        reasonCodeService.update(
-            orgId, reasonCodeId, request.description(), request.active());
+        reasonCodeService.update(orgId, reasonCodeId, request.description(), request.active());
     return toResponse(updated);
   }
 

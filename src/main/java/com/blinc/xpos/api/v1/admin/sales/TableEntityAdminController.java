@@ -43,27 +43,20 @@ public class TableEntityAdminController {
       @Valid @RequestBody TableEntityCreateRequest request) {
     TableEntity entity =
         tableEntityService.create(
-            orgId,
-            branchId,
-            request.tableAreaId(),
-            request.name(),
-            request.capacity());
+            orgId, branchId, request.tableAreaId(), request.name(), request.capacity());
     return toResponse(entity);
   }
 
   @GetMapping
   public Page<TableEntityResponse> list(
       @PathVariable UUID orgId, @PathVariable UUID branchId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("name").ascending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("name").ascending());
     return tableEntityService.listByBranch(orgId, branchId, normalized).map(this::toResponse);
   }
 
   @GetMapping("/{tableId}")
   public TableEntityResponse get(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      @PathVariable UUID tableId) {
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @PathVariable UUID tableId) {
     return toResponse(tableEntityService.require(orgId, tableId));
   }
 

@@ -11,15 +11,13 @@ import org.springframework.data.repository.query.Param;
 
 public interface ItemRepository extends JpaRepository<Item, UUID> {
 
-  @Query(
-      """
+  @Query("""
       select i from Item i
       where i.id = :id and i.org.id = :orgId
       """)
   Optional<Item> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
-  @Query(
-      """
+  @Query("""
       select i from Item i
       where i.org.id = :orgId
       """)
@@ -32,12 +30,9 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
         and (:categoryId is null or i.category.id = :categoryId)
       """)
   Page<Item> findAllByOrgIdAndCategoryId(
-      @Param("orgId") UUID orgId,
-      @Param("categoryId") UUID categoryId,
-      Pageable pageable);
+      @Param("orgId") UUID orgId, @Param("categoryId") UUID categoryId, Pageable pageable);
 
-  @Query(
-      """
+  @Query("""
       select i from Item i
       where i.org.id = :orgId and i.active = true
       """)

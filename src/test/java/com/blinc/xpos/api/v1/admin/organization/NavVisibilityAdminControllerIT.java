@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.organization;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -33,8 +33,7 @@ class NavVisibilityAdminControllerIT extends AbstractIntegrationTest {
     UUID orgId = createOrg();
 
     mockMvc
-        .perform(get("/api/v1/admin/orgs/" + orgId + "/nav-visibility")
-            .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/nav-visibility").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.admin").isEmpty())
         .andExpect(jsonPath("$.operator").isEmpty())
@@ -54,7 +53,7 @@ class NavVisibilityAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             put("/api/v1/admin/orgs/" + orgId + "/nav-visibility")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     objectMapper.writeValueAsString(
@@ -66,9 +65,7 @@ class NavVisibilityAdminControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.operator./operator/receipts").value(false));
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/nav-visibility")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/nav-visibility").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.admin./admin/items").value(false))
         .andExpect(jsonPath("$.operator./operator/receipts").value(false));
@@ -85,26 +82,19 @@ class NavVisibilityAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             put("/api/v1/admin/orgs/" + orgId + "/nav-visibility")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     objectMapper.writeValueAsString(
                         new NavVisibilityUpdateRequest(
-                            Map.of(),
-                            Map.of(),
-                            Map.of(),
-                            adminLabels,
-                            operatorLabels,
-                            Map.of()))))
+                            Map.of(), Map.of(), Map.of(), adminLabels, operatorLabels, Map.of()))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.adminLabels./admin/items").value("Products"))
         .andExpect(jsonPath("$.adminLabels./admin/suppliers").value("Vendors"))
         .andExpect(jsonPath("$.operatorLabels./operator/receipts").value("Receipts History"));
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/nav-visibility")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/nav-visibility").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.adminLabels./admin/items").value("Products"))
         .andExpect(jsonPath("$.operatorLabels./operator/receipts").value("Receipts History"));
@@ -117,7 +107,7 @@ class NavVisibilityAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             put("/api/v1/admin/orgs/" + orgId + "/nav-visibility")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     objectMapper.writeValueAsString(
@@ -133,7 +123,7 @@ class NavVisibilityAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             put("/api/v1/admin/orgs/" + orgId + "/nav-visibility")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     objectMapper.writeValueAsString(
@@ -150,7 +140,7 @@ class NavVisibilityAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(new OrgCreateRequest(name))))
             .andExpect(status().isCreated())

@@ -35,13 +35,11 @@ public class BiReportOperatorController {
       StaffAuthorizationService staffAuthorizationService,
       BranchService branchService,
       CurrentPrincipalResolver principalResolver) {
-    this.biReportService =
-        Objects.requireNonNull(biReportService, "biReportService");
+    this.biReportService = Objects.requireNonNull(biReportService, "biReportService");
     this.staffAuthorizationService =
         Objects.requireNonNull(staffAuthorizationService, "staffAuthorizationService");
     this.branchService = Objects.requireNonNull(branchService, "branchService");
-    this.principalResolver =
-        Objects.requireNonNull(principalResolver, "principalResolver");
+    this.principalResolver = Objects.requireNonNull(principalResolver, "principalResolver");
   }
 
   @GetMapping(value = "/bi-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
@@ -52,8 +50,7 @@ public class BiReportOperatorController {
           LocalDate fromDate,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
           LocalDate toDate) {
-    staffAuthorizationService.requireStaffUser(
-        orgId, principalResolver.require().iamUserId());
+    staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
     Branch branch = branchService.require(orgId, branchId);
     ZoneId zone = toZoneId(branch.getTimezone());
     LocalDate today = LocalDate.now(zone);

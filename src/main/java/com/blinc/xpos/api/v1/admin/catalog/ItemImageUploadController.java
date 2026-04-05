@@ -26,8 +26,7 @@ public class ItemImageUploadController {
   @PostMapping("/upload")
   @ResponseStatus(HttpStatus.CREATED)
   public ItemImageUploadResponse upload(
-      @PathVariable UUID orgId,
-      @RequestParam("file") MultipartFile file) {
+      @PathVariable UUID orgId, @RequestParam("file") MultipartFile file) {
     String url = uploadService.store(orgId, file);
     return new ItemImageUploadResponse(url);
   }

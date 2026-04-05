@@ -43,9 +43,7 @@ public class ManualStockCountOperatorController {
 
   @GetMapping
   public ManualStockCountSheetResponse getSheet(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      @RequestParam LocalDate date) {
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @RequestParam LocalDate date) {
     staffAuthorizationService.requireStaffUserForBranch(
         orgId, branchId, principalResolver.require().iamUserId());
     return manualStockCountService.getSheet(orgId, branchId, date);
@@ -56,8 +54,9 @@ public class ManualStockCountOperatorController {
       @PathVariable UUID orgId,
       @PathVariable UUID branchId,
       @Valid @RequestBody ManualStockCountSaveRequest request) {
-    var staffUser = staffAuthorizationService.requireStaffUserForBranch(
-        orgId, branchId, principalResolver.require().iamUserId());
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
     ManualStockCountSheetResponse result =
         manualStockCountService.saveSheet(orgId, branchId, staffUser.getId(), request);
     return ResponseEntity.ok(result);

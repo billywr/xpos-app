@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.inventory;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -19,9 +19,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-/**
- * Integration test for Purchase Order admin API. Requires Postgres (e.g. Testcontainers).
- */
+/** Integration test for Purchase Order admin API. Requires Postgres (e.g. Testcontainers). */
 @SpringBootTest
 @AutoConfigureMockMvc
 class PurchaseOrderAdminControllerIT extends AbstractIntegrationTest {
@@ -42,13 +40,12 @@ class PurchaseOrderAdminControllerIT extends AbstractIntegrationTest {
     String createBody =
         """
         {"branchId":"%s","supplierId":"%s"}
-        """
-            .formatted(branchId, supplierId);
+        """.formatted(branchId, supplierId);
     MvcResult createResult =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/purchase-orders")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -58,17 +55,19 @@ class PurchaseOrderAdminControllerIT extends AbstractIntegrationTest {
             .andReturn();
     UUID poId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     String addLineBody =
         """
         {"itemId":"%s","qty":10,"expectedUnitCost":50.00}
-        """
-            .formatted(itemId);
+        """.formatted(itemId);
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/purchase-orders/" + poId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(addLineBody))
         .andExpect(status().isOk())
@@ -78,7 +77,7 @@ class PurchaseOrderAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/admin/orgs/" + orgId + "/purchase-orders?branchId=" + branchId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].id").value(poId.toString()));
@@ -90,7 +89,7 @@ class PurchaseOrderAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -105,7 +104,7 @@ class PurchaseOrderAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -124,7 +123,7 @@ class PurchaseOrderAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -138,7 +137,7 @@ class PurchaseOrderAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/suppliers")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"name\":\"Supplier X\"}"))
             .andExpect(status().isCreated())
@@ -158,7 +157,7 @@ class PurchaseOrderAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -172,7 +171,7 @@ class PurchaseOrderAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/tax-profiles")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         "{\"name\":\"VAT\",\"vatCategory\":\"STANDARD\",\"serviceChargeRate\":0,"
@@ -188,7 +187,7 @@ class PurchaseOrderAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"iamUserId\":\"admin\",\"username\":\"admin\"}"))
             .andExpect(status().isCreated())
@@ -201,7 +200,7 @@ class PurchaseOrderAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"branchId\":\"" + branchId + "\",\"primary\":true}"))
         .andExpect(status().isCreated());

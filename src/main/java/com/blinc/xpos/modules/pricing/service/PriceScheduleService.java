@@ -8,12 +8,7 @@ import org.springframework.data.domain.Pageable;
 public interface PriceScheduleService {
 
   PriceSchedule create(
-      UUID orgId,
-      UUID branchId,
-      String name,
-      String startsAt,
-      String endsAt,
-      int daysOfWeek);
+      UUID orgId, UUID branchId, String name, String startsAt, String endsAt, int daysOfWeek);
 
   PriceSchedule require(UUID orgId, UUID priceScheduleId);
 

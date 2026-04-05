@@ -1,15 +1,15 @@
 package com.blinc.xpos.modules.reporting.service.impl;
 
 import com.blinc.xpos.common.constants.enums.SaleStatus;
+import com.blinc.xpos.modules.inventory.domain.StockMovement;
+import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
+import com.blinc.xpos.modules.organization.service.BranchService;
 import com.blinc.xpos.modules.reporting.dto.RevenueDashboardResponse;
 import com.blinc.xpos.modules.reporting.dto.RevenueSummaryResponse;
 import com.blinc.xpos.modules.reporting.dto.RevenueTrendPointResponse;
-import com.blinc.xpos.modules.inventory.domain.StockMovement;
-import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
 import com.blinc.xpos.modules.reporting.service.RevenueReportService;
 import com.blinc.xpos.modules.sales.domain.Sale;
 import com.blinc.xpos.modules.sales.repository.SaleRepository;
-import com.blinc.xpos.modules.organization.service.BranchService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -18,8 +18,8 @@ import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,9 +74,7 @@ public class RevenueReportServiceImpl implements RevenueReportService {
       taxTotal = taxTotal.add(s.getTaxTotal());
       discountTotal = discountTotal.add(s.getDiscountTotal());
 
-      byDate
-          .computeIfAbsent(d, k -> new DailyAggregate())
-          .add(s.getTotal(), s.getTaxTotal(), 1);
+      byDate.computeIfAbsent(d, k -> new DailyAggregate()).add(s.getTotal(), s.getTaxTotal(), 1);
     }
 
     for (StockMovement m : saleMovements) {

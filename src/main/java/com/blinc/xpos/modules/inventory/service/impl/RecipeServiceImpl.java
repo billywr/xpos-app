@@ -37,7 +37,8 @@ public class RecipeServiceImpl implements RecipeService {
       UomService uomService,
       Clock clock) {
     this.recipeRepository = Objects.requireNonNull(recipeRepository, "recipeRepository");
-    this.recipeLineRepository = Objects.requireNonNull(recipeLineRepository, "recipeLineRepository");
+    this.recipeLineRepository =
+        Objects.requireNonNull(recipeLineRepository, "recipeLineRepository");
     this.orgService = Objects.requireNonNull(orgService, "orgService");
     this.itemService = Objects.requireNonNull(itemService, "itemService");
     this.uomService = Objects.requireNonNull(uomService, "uomService");
@@ -50,8 +51,7 @@ public class RecipeServiceImpl implements RecipeService {
     var org = orgService.require(orgId);
     var menuItem = itemService.requireActive(orgId, menuItemId);
     if (recipeRepository.findByOrgIdAndMenuItemId(orgId, menuItemId).isPresent()) {
-      throw new IllegalStateException(
-          "Recipe already exists for menu item: " + menuItemId);
+      throw new IllegalStateException("Recipe already exists for menu item: " + menuItemId);
     }
     if (yieldQty == null || yieldQty.compareTo(BigDecimal.ZERO) <= 0) {
       throw new IllegalArgumentException("Yield quantity must be positive");

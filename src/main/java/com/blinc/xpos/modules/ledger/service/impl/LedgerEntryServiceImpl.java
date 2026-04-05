@@ -36,9 +36,7 @@ public class LedgerEntryServiceImpl implements LedgerEntryService {
     return ledgerEntryRepository
         .findByIdAndOrgId(entryId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "LEDGER_ENTRY_NOT_FOUND", "Ledger entry not found"));
+            () -> new NotFoundException("LEDGER_ENTRY_NOT_FOUND", "Ledger entry not found"));
   }
 
   @Override

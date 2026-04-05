@@ -6,8 +6,8 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * Standard Stock Count Sheet: bar-style sheet where Opening + Added = Total Stock,
- * Units Sold = Total - Closing, Amount = Units Sold × Selling Price.
+ * Standard Stock Count Sheet: bar-style sheet where Opening + Added = Total Stock, Units Sold =
+ * Total - Closing, Amount = Units Sold × Selling Price.
  */
 public interface StdStockCountService {
 

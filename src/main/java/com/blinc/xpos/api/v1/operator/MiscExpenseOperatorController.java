@@ -38,8 +38,7 @@ public class MiscExpenseOperatorController {
       PageRequestFactory pageRequestFactory,
       CurrentPrincipalResolver principalResolver,
       StaffAuthorizationService staffAuthorizationService) {
-    this.miscExpenseService =
-        Objects.requireNonNull(miscExpenseService, "miscExpenseService");
+    this.miscExpenseService = Objects.requireNonNull(miscExpenseService, "miscExpenseService");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
     this.principalResolver = Objects.requireNonNull(principalResolver, "principalResolver");
     this.staffAuthorizationService =
@@ -52,8 +51,9 @@ public class MiscExpenseOperatorController {
       @PathVariable UUID orgId,
       @PathVariable UUID branchId,
       @Valid @RequestBody MiscExpenseCreateRequest request) {
-    var staffUser = staffAuthorizationService.requireStaffUserForBranch(
-        orgId, branchId, principalResolver.require().iamUserId());
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
     MiscExpense expense =
         miscExpenseService.create(
             orgId,
@@ -75,8 +75,9 @@ public class MiscExpenseOperatorController {
       @PathVariable UUID branchId,
       @PathVariable UUID expenseId,
       @Valid @RequestBody MiscExpenseUpdateRequest request) {
-    var staffUser = staffAuthorizationService.requireStaffUserForBranch(
-        orgId, branchId, principalResolver.require().iamUserId());
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
     MiscExpense expense =
         miscExpenseService.update(
             orgId,
@@ -92,27 +93,24 @@ public class MiscExpenseOperatorController {
 
   @PostMapping("/misc-expenses/{expenseId}/cancel")
   public MiscExpenseResponse cancel(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      @PathVariable UUID expenseId) {
-    var staffUser = staffAuthorizationService.requireStaffUserForBranch(
-        orgId, branchId, principalResolver.require().iamUserId());
-    MiscExpense expense =
-        miscExpenseService.softDelete(orgId, expenseId, staffUser.getId());
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @PathVariable UUID expenseId) {
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
+    MiscExpense expense = miscExpenseService.softDelete(orgId, expenseId, staffUser.getId());
     return toResponse(expense);
   }
 
   @GetMapping("/misc-expenses")
   public MiscExpenseListResponse list(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      Pageable pageable) {
+      @PathVariable UUID orgId, @PathVariable UUID branchId, Pageable pageable) {
     staffAuthorizationService.requireStaffUserForBranch(
         orgId, branchId, principalResolver.require().iamUserId());
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
-    var page = miscExpenseService.listByBranch(orgId, branchId, normalized)
-        .map(MiscExpenseOperatorController::toResponse);
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    var page =
+        miscExpenseService
+            .listByBranch(orgId, branchId, normalized)
+            .map(MiscExpenseOperatorController::toResponse);
     var totalAmount = miscExpenseService.sumAmountByBranch(orgId, branchId);
     return MiscExpenseListResponse.from(page, totalAmount);
   }

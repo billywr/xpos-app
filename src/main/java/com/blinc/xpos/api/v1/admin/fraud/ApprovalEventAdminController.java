@@ -22,28 +22,24 @@ public class ApprovalEventAdminController {
   private final PageRequestFactory pageRequestFactory;
 
   public ApprovalEventAdminController(
-      ApprovalEventService approvalEventService,
-      PageRequestFactory pageRequestFactory) {
+      ApprovalEventService approvalEventService, PageRequestFactory pageRequestFactory) {
     this.approvalEventService = Objects.requireNonNull(approvalEventService);
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory);
   }
 
   @GetMapping
   public Page<ApprovalEventResponse> list(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      Pageable pageable) {
+      @PathVariable UUID orgId, @PathVariable UUID branchId, Pageable pageable) {
     Pageable normalized =
         pageRequestFactory.normalize(pageable, Sort.by("approvedAt").descending());
-    return approvalEventService.listByBranch(orgId, branchId, normalized)
+    return approvalEventService
+        .listByBranch(orgId, branchId, normalized)
         .map(ApprovalEventAdminController::toResponse);
   }
 
   @GetMapping("/{eventId}")
   public ApprovalEventResponse get(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      @PathVariable UUID eventId) {
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @PathVariable UUID eventId) {
     return toResponse(approvalEventService.require(orgId, eventId));
   }
 

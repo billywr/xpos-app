@@ -11,7 +11,11 @@ import com.blinc.xpos.api.v1.operator.dto.SaleResponse;
 import com.blinc.xpos.api.v1.operator.dto.TenderAddRequest;
 import com.blinc.xpos.api.v1.operator.dto.TenderResponse;
 import com.blinc.xpos.common.security.CurrentPrincipalResolver;
+import com.blinc.xpos.modules.cash.service.ShiftService;
+import com.blinc.xpos.modules.debt.service.CustomerDebtService;
+import com.blinc.xpos.modules.organization.domain.Customer;
 import com.blinc.xpos.modules.organization.domain.StaffUser;
+import com.blinc.xpos.modules.organization.service.CustomerService;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
 import com.blinc.xpos.modules.sales.domain.Receipt;
 import com.blinc.xpos.modules.sales.domain.Sale;
@@ -19,10 +23,6 @@ import com.blinc.xpos.modules.sales.domain.SaleLine;
 import com.blinc.xpos.modules.sales.domain.SaleLineModifier;
 import com.blinc.xpos.modules.sales.domain.Tender;
 import com.blinc.xpos.modules.sales.repository.SaleLineModifierRepository;
-import com.blinc.xpos.modules.debt.service.CustomerDebtService;
-import com.blinc.xpos.modules.organization.domain.Customer;
-import com.blinc.xpos.modules.organization.service.CustomerService;
-import com.blinc.xpos.modules.cash.service.ShiftService;
 import com.blinc.xpos.modules.sales.service.ReceiptService;
 import com.blinc.xpos.modules.sales.service.SaleService;
 import com.blinc.xpos.modules.sales.service.TenderService;
@@ -75,8 +75,7 @@ public class SaleOperatorController {
     this.staffAuthorizationService =
         Objects.requireNonNull(staffAuthorizationService, "staffAuthorizationService");
     this.customerService = Objects.requireNonNull(customerService, "customerService");
-    this.customerDebtService =
-        Objects.requireNonNull(customerDebtService, "customerDebtService");
+    this.customerDebtService = Objects.requireNonNull(customerDebtService, "customerDebtService");
     this.shiftService = Objects.requireNonNull(shiftService, "shiftService");
   }
 
@@ -91,16 +90,13 @@ public class SaleOperatorController {
     UUID customerId = request != null ? request.customerId() : null;
     UUID priceListId = request != null ? request.priceListId() : null;
     Sale sale =
-        saleService.create(
-            orgId, branchId, terminalId, staffUser.getId(), customerId, priceListId);
+        saleService.create(orgId, branchId, terminalId, staffUser.getId(), customerId, priceListId);
     return toSaleResponse(sale);
   }
 
   @GetMapping
   public List<SaleResponse> listOpenOrHeld(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      @PathVariable UUID terminalId) {
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @PathVariable UUID terminalId) {
     return saleService.listOpenOrHeld(orgId, branchId, terminalId).stream()
         .map(this::toSaleResponse)
         .toList();
@@ -128,10 +124,7 @@ public class SaleOperatorController {
     List<SaleService.ModifierQuantity> mods =
         request.modifiers() != null
             ? request.modifiers().stream()
-                .map(
-                    m ->
-                        new SaleService.ModifierQuantity(
-                            m.modifierOptionId(), m.qty()))
+                .map(m -> new SaleService.ModifierQuantity(m.modifierOptionId(), m.qty()))
                 .toList()
             : List.of();
     Sale sale =
@@ -214,8 +207,9 @@ public class SaleOperatorController {
         saleService
             .getByIdAndOrg(orgId, saleId)
             .orElseThrow(
-                () -> new com.blinc.xpos.common.error.NotFoundException(
-                    "SALE_NOT_FOUND", "Sale not found"));
+                () ->
+                    new com.blinc.xpos.common.error.NotFoundException(
+                        "SALE_NOT_FOUND", "Sale not found"));
     BigDecimal remainder = sale.getTotal().subtract(tenderTotal);
     if (remainder.compareTo(BigDecimal.ZERO) <= 0) {
       throw new IllegalStateException(
@@ -298,10 +292,8 @@ public class SaleOperatorController {
     UUID orgId = sale.getOrg().getId();
     List<SaleLine> lines = saleService.listLines(orgId, sale.getId());
     List<Tender> tenders = tenderService.listBySale(orgId, sale.getId());
-    List<SaleLineResponse> lineResponses =
-        lines.stream().map(l -> toSaleLineResponse(l)).toList();
-    List<TenderResponse> tenderResponses =
-        tenders.stream().map(this::toTenderResponse).toList();
+    List<SaleLineResponse> lineResponses = lines.stream().map(l -> toSaleLineResponse(l)).toList();
+    List<TenderResponse> tenderResponses = tenders.stream().map(this::toTenderResponse).toList();
     return new SaleResponse(
         sale.getId(),
         sale.getOrg().getId(),

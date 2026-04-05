@@ -21,8 +21,7 @@ public class ItemImageUploadServiceImpl implements ItemImageUploadService {
 
   private final Path uploadRoot;
 
-  public ItemImageUploadServiceImpl(
-      @Value("${xpos.upload.dir:uploads}") String uploadDir) {
+  public ItemImageUploadServiceImpl(@Value("${xpos.upload.dir:uploads}") String uploadDir) {
     String baseDir = uploadDir.replaceAll("/$", "");
     this.uploadRoot = Path.of(baseDir, "items").toAbsolutePath();
   }
@@ -40,8 +39,7 @@ public class ItemImageUploadServiceImpl implements ItemImageUploadService {
           "Only JPEG, PNG, and WebP images are allowed. Received: " + contentType);
     }
     if (file.getSize() > MAX_SIZE_BYTES) {
-      throw new IllegalArgumentException(
-          "File size exceeds 5MB limit. Size: " + file.getSize());
+      throw new IllegalArgumentException("File size exceeds 5MB limit. Size: " + file.getSize());
     }
     String ext = extensionForContentType(contentType);
     String filename = UUID.randomUUID() + "." + ext;
@@ -61,10 +59,10 @@ public class ItemImageUploadServiceImpl implements ItemImageUploadService {
       return "bin";
     }
     return switch (contentType.toLowerCase()) {
-        case "image/jpeg", "image/jpg" -> "jpg";
-        case "image/png" -> "png";
-        case "image/webp" -> "webp";
-        default -> "bin";
+      case "image/jpeg", "image/jpg" -> "jpg";
+      case "image/png" -> "png";
+      case "image/webp" -> "webp";
+      default -> "bin";
     };
   }
 }

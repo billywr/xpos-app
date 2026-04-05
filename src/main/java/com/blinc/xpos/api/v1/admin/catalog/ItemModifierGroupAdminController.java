@@ -27,8 +27,7 @@ public class ItemModifierGroupAdminController {
   public ItemModifierGroupAdminController(
       ItemModifierGroupLinkService itemModifierGroupLinkService) {
     this.itemModifierGroupLinkService =
-        Objects.requireNonNull(
-            itemModifierGroupLinkService, "itemModifierGroupLinkService");
+        Objects.requireNonNull(itemModifierGroupLinkService, "itemModifierGroupLinkService");
   }
 
   @PostMapping
@@ -38,8 +37,7 @@ public class ItemModifierGroupAdminController {
       @PathVariable UUID itemId,
       @Valid @RequestBody ItemModifierGroupLinkCreateRequest request) {
     ItemModifierGroup link =
-        itemModifierGroupLinkService.add(
-            orgId, itemId, request.modifierGroupId());
+        itemModifierGroupLinkService.add(orgId, itemId, request.modifierGroupId());
     return toResponse(link);
   }
 
@@ -53,28 +51,20 @@ public class ItemModifierGroupAdminController {
 
   @GetMapping("/{itemModifierGroupId}")
   public ItemModifierGroupLinkResponse get(
-      @PathVariable UUID orgId,
-      @PathVariable UUID itemId,
-      @PathVariable UUID itemModifierGroupId) {
+      @PathVariable UUID orgId, @PathVariable UUID itemId, @PathVariable UUID itemModifierGroupId) {
     return toResponse(
-        itemModifierGroupLinkService.requireInItem(
-            orgId, itemId, itemModifierGroupId));
+        itemModifierGroupLinkService.requireInItem(orgId, itemId, itemModifierGroupId));
   }
 
   @DeleteMapping("/{itemModifierGroupId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void remove(
-      @PathVariable UUID orgId,
-      @PathVariable UUID itemId,
-      @PathVariable UUID itemModifierGroupId) {
+      @PathVariable UUID orgId, @PathVariable UUID itemId, @PathVariable UUID itemModifierGroupId) {
     itemModifierGroupLinkService.remove(orgId, itemId, itemModifierGroupId);
   }
 
   private ItemModifierGroupLinkResponse toResponse(ItemModifierGroup link) {
     return new ItemModifierGroupLinkResponse(
-        link.getId(),
-        link.getItem().getId(),
-        link.getModifierGroup().getId(),
-        link.getCreatedAt());
+        link.getId(), link.getItem().getId(), link.getModifierGroup().getId(), link.getCreatedAt());
   }
 }

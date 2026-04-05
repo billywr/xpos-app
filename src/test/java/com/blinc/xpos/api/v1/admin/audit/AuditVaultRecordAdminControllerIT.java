@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.audit;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -37,17 +37,12 @@ class AuditVaultRecordAdminControllerIT extends AbstractIntegrationTest {
     UUID terminalId = createTerminal(orgId, branchId);
     AuditVaultRecord record =
         auditVaultRecordService.append(
-            orgId,
-            branchId,
-            terminalId,
-            "TEST_EVENT",
-            UUID.randomUUID(),
-            "a1b2c3d4");
+            orgId, branchId, terminalId, "TEST_EVENT", UUID.randomUUID(), "a1b2c3d4");
 
     mockMvc
         .perform(
             get("/api/v1/admin/orgs/" + orgId + "/audit-vault-records?page=0&size=10")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray())
         .andExpect(jsonPath("$.content.length()").value(1))
@@ -56,34 +51,38 @@ class AuditVaultRecordAdminControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/audit-vault-records?branchId=" + branchId
-                + "&page=0&size=10")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/"
+                    + orgId
+                    + "/audit-vault-records?branchId="
+                    + branchId
+                    + "&page=0&size=10")
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
 
     mockMvc
         .perform(
             get("/api/v1/admin/orgs/" + orgId + "/audit-vault-records/" + record.getId())
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(record.getId().toString()))
         .andExpect(jsonPath("$.eventType").value("TEST_EVENT"));
   }
 
   private UUID createOrg() throws Exception {
-    String body =
-        objectMapper.writeValueAsString(new OrgCreateRequest("Test Org AuditVault"));
+    String body = objectMapper.writeValueAsString(new OrgCreateRequest("Test Org AuditVault"));
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 
   private UUID createBusiness(UUID orgId) throws Exception {
@@ -91,7 +90,7 @@ class AuditVaultRecordAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -110,7 +109,7 @@ class AuditVaultRecordAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -124,7 +123,7 @@ class AuditVaultRecordAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/terminals")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"terminalCode\":\"T1\"}"))
             .andExpect(status().isCreated())

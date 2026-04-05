@@ -51,9 +51,5 @@ public record ReceiptDetailResponse(
       BigDecimal taxAmount) {}
 
   public record ReceiptDetailTender(
-      UUID id,
-      String tenderTypeCode,
-      String tenderTypeName,
-      BigDecimal amount,
-      String currency) {}
+      UUID id, String tenderTypeCode, String tenderTypeName, BigDecimal amount, String currency) {}
 }

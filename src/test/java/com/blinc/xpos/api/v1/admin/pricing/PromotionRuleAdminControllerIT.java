@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.pricing;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -41,7 +41,7 @@ class PromotionRuleAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/promotion-rules")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -51,20 +51,15 @@ class PromotionRuleAdminControllerIT extends AbstractIntegrationTest {
             .andReturn();
 
     String createJson = createResult.getResponse().getContentAsString();
-    UUID ruleId =
-        UUID.fromString(objectMapper.readTree(createJson).get("id").asText());
+    UUID ruleId = UUID.fromString(objectMapper.readTree(createJson).get("id").asText());
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/promotion-rules")
-                .with(user("admin").roles("ADMIN")))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/promotion-rules").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/promotion-rules/" + ruleId)
-                .with(user("admin").roles("ADMIN")))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/promotion-rules/" + ruleId).with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.name").value("Weekend Discount"));
 
@@ -74,7 +69,7 @@ class PromotionRuleAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             patch("/api/v1/admin/orgs/" + orgId + "/promotion-rules/" + ruleId)
-                .with(user("admin").roles("ADMIN"))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(updateBody))
         .andExpect(status().isOk())
@@ -90,12 +85,14 @@ class PromotionRuleAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 
   private UUID createBranch(UUID orgId) throws Exception {
@@ -109,7 +106,7 @@ class PromotionRuleAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -126,7 +123,7 @@ class PromotionRuleAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())

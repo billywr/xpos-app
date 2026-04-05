@@ -84,8 +84,7 @@ public class BranchAdminController {
 
   @DeleteMapping("/{branchId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(
-      @PathVariable UUID orgId, @PathVariable UUID branchId) {
+  public void delete(@PathVariable UUID orgId, @PathVariable UUID branchId) {
     branchService.softDelete(orgId, branchId);
   }
 

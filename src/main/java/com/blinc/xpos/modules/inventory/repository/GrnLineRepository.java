@@ -22,8 +22,8 @@ public interface GrnLineRepository extends JpaRepository<GrnLine, UUID> {
   List<GrnLine> findByGrnIdOrderByCreatedAt(@Param("grnId") UUID grnId);
 
   /**
-   * Distinct unit costs for an item in the org on GRNs other than {@code excludeGrnId}.
-   * When {@code excludeGrnId} is null, includes all GRNs.
+   * Distinct unit costs for an item in the org on GRNs other than {@code excludeGrnId}. When {@code
+   * excludeGrnId} is null, includes all GRNs.
    */
   @Query(
       """
@@ -41,8 +41,8 @@ public interface GrnLineRepository extends JpaRepository<GrnLine, UUID> {
       @Param("excludeGrnId") UUID excludeGrnId);
 
   /**
-   * Sum of current GRN line quantities per item for active receipts whose {@code receivedAt} falls in
-   * the branch business day window (standard stock count "Added").
+   * Sum of current GRN line quantities per item for active receipts whose {@code receivedAt} falls
+   * in the branch business day window (standard stock count "Added").
    */
   @Query(
       """

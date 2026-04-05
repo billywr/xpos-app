@@ -26,7 +26,8 @@ public class StockLevelsOperatorController {
       InventoryItemService inventoryItemService,
       StaffAuthorizationService staffAuthorizationService,
       CurrentPrincipalResolver principalResolver) {
-    this.inventoryItemService = Objects.requireNonNull(inventoryItemService, "inventoryItemService");
+    this.inventoryItemService =
+        Objects.requireNonNull(inventoryItemService, "inventoryItemService");
     this.staffAuthorizationService =
         Objects.requireNonNull(staffAuthorizationService, "staffAuthorizationService");
     this.principalResolver = Objects.requireNonNull(principalResolver, "principalResolver");

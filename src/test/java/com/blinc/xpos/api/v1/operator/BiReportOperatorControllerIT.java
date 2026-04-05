@@ -1,7 +1,8 @@
 package com.blinc.xpos.api.v1.operator;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
+import static com.blinc.xpos.TestJwtFactory.operatorJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -36,12 +37,11 @@ class BiReportOperatorControllerIT extends AbstractIntegrationTest {
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
 
-    String url =
-        "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/reports/bi-pdf";
+    String url = "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/reports/bi-pdf";
 
     MvcResult result =
         mockMvc
-            .perform(get(url).with(jwt().jwt(j -> j.subject("admin"))))
+            .perform(get(url).with(operatorJwt()))
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_PDF))
             .andExpect(header().exists("Content-Disposition"))
@@ -66,7 +66,7 @@ class BiReportOperatorControllerIT extends AbstractIntegrationTest {
             + "/reports/bi-pdf?fromDate=2025-01-01&toDate=2025-01-07";
 
     mockMvc
-        .perform(get(url).with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(url).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_PDF));
   }
@@ -79,12 +79,14 @@ class BiReportOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 
   private UUID createBusiness(UUID orgId) throws Exception {
@@ -92,7 +94,7 @@ class BiReportOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -103,13 +105,15 @@ class BiReportOperatorControllerIT extends AbstractIntegrationTest {
 
   private UUID createBranch(UUID orgId, UUID businessId) throws Exception {
     String body =
-        "{\"businessId\":\"" + businessId + "\",\"name\":\"B1\","
+        "{\"businessId\":\""
+            + businessId
+            + "\",\"name\":\"B1\","
             + "\"timezone\":\"Africa/Nairobi\",\"currency\":\"KES\"}";
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -124,7 +128,7 @@ class BiReportOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -138,7 +142,7 @@ class BiReportOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());

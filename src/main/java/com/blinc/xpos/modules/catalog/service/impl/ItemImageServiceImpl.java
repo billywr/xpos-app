@@ -25,8 +25,7 @@ public class ItemImageServiceImpl implements ItemImageService {
 
   public ItemImageServiceImpl(
       ItemImageRepository itemImageRepository, ItemService itemService, Clock clock) {
-    this.itemImageRepository =
-        Objects.requireNonNull(itemImageRepository, "itemImageRepository");
+    this.itemImageRepository = Objects.requireNonNull(itemImageRepository, "itemImageRepository");
     this.itemService = Objects.requireNonNull(itemService, "itemService");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
@@ -36,8 +35,7 @@ public class ItemImageServiceImpl implements ItemImageService {
   public ItemImage add(UUID orgId, UUID itemId, String url, int sortOrder, boolean isPrimary) {
     Item item = itemService.require(orgId, itemId);
     if (isPrimary) {
-      List<ItemImage> existing =
-          itemImageRepository.findAllByItemIdAndOrgId(itemId, orgId);
+      List<ItemImage> existing = itemImageRepository.findAllByItemIdAndOrgId(itemId, orgId);
       for (ItemImage img : existing) {
         if (Boolean.TRUE.equals(img.getIsPrimary())) {
           img.setIsPrimary(false);
@@ -62,12 +60,9 @@ public class ItemImageServiceImpl implements ItemImageService {
         itemImageRepository
             .findByIdAndOrgId(imageId, orgId)
             .orElseThrow(
-                () ->
-                    new NotFoundException(
-                        "ITEM_IMAGE_NOT_FOUND", "Item image not found"));
+                () -> new NotFoundException("ITEM_IMAGE_NOT_FOUND", "Item image not found"));
     if (!image.getItem().getId().equals(itemId)) {
-      throw new NotFoundException(
-          "ITEM_IMAGE_NOT_FOUND", "Item image not found for this item");
+      throw new NotFoundException("ITEM_IMAGE_NOT_FOUND", "Item image not found for this item");
     }
     return image;
   }
@@ -85,14 +80,8 @@ public class ItemImageServiceImpl implements ItemImageService {
     if (itemIds == null || itemIds.isEmpty()) {
       return Map.of();
     }
-    return itemImageRepository
-        .findPrimaryByOrgIdAndItemIdIn(orgId, itemIds)
-        .stream()
-        .collect(
-            Collectors.toMap(
-                img -> img.getItem().getId(),
-                ItemImage::getUrl,
-                (a, b) -> a));
+    return itemImageRepository.findPrimaryByOrgIdAndItemIdIn(orgId, itemIds).stream()
+        .collect(Collectors.toMap(img -> img.getItem().getId(), ItemImage::getUrl, (a, b) -> a));
   }
 
   @Override

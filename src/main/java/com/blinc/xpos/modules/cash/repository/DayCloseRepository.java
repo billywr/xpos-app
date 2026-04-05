@@ -12,8 +12,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface DayCloseRepository extends JpaRepository<DayClose, UUID> {
 
-  @Query(
-      """
+  @Query("""
       select d from DayClose d
       where d.id = :id and d.org.id = :orgId
       """)
@@ -33,6 +32,5 @@ public interface DayCloseRepository extends JpaRepository<DayClose, UUID> {
       where d.branch.id = :branchId
       order by d.businessDate desc
       """)
-  Page<DayClose> findAllByBranchId(
-      @Param("branchId") UUID branchId, Pageable pageable);
+  Page<DayClose> findAllByBranchId(@Param("branchId") UUID branchId, Pageable pageable);
 }

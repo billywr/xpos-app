@@ -8,9 +8,9 @@ import com.blinc.xpos.modules.cash.domain.Shift;
 import com.blinc.xpos.modules.cash.repository.CashMovementRepository;
 import com.blinc.xpos.modules.cash.service.CashMovementService;
 import com.blinc.xpos.modules.cash.service.ShiftService;
-import com.blinc.xpos.modules.ledger.service.LedgerPostingService;
 import com.blinc.xpos.modules.fraud.domain.ReasonCode;
 import com.blinc.xpos.modules.fraud.repository.ReasonCodeRepository;
+import com.blinc.xpos.modules.ledger.service.LedgerPostingService;
 import com.blinc.xpos.modules.organization.service.BranchService;
 import com.blinc.xpos.modules.organization.service.StaffUserService;
 import java.math.BigDecimal;
@@ -72,12 +72,10 @@ public class CashMovementServiceImpl implements CashMovementService {
       throw new IllegalStateException("Cash movement only allowed when shift is open.");
     }
     if (!shift.getTerminal().getId().equals(terminalId)) {
-      throw new NotFoundException(
-          "SHIFT_NOT_FOUND", "Shift does not belong to this terminal");
+      throw new NotFoundException("SHIFT_NOT_FOUND", "Shift does not belong to this terminal");
     }
     if (!shift.getBranch().getId().equals(branchId)) {
-      throw new NotFoundException(
-          "SHIFT_NOT_FOUND", "Shift does not belong to this branch");
+      throw new NotFoundException("SHIFT_NOT_FOUND", "Shift does not belong to this branch");
     }
     var createdBy = staffUserService.require(orgId, createdByStaffUserId);
     CashMovement movement = new CashMovement();
@@ -92,9 +90,7 @@ public class CashMovementServiceImpl implements CashMovementService {
           reasonCodeRepository
               .findByIdAndOrgId(reasonCodeId, orgId)
               .orElseThrow(
-                  () ->
-                      new NotFoundException(
-                          "REASON_CODE_NOT_FOUND", "Reason code not found"));
+                  () -> new NotFoundException("REASON_CODE_NOT_FOUND", "Reason code not found"));
       movement.setReasonCode(reason);
     } else {
       movement.setReasonCode(null);
@@ -112,9 +108,7 @@ public class CashMovementServiceImpl implements CashMovementService {
     return cashMovementRepository
         .findByIdAndOrgId(cashMovementId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "CASH_MOVEMENT_NOT_FOUND", "Cash movement not found"));
+            () -> new NotFoundException("CASH_MOVEMENT_NOT_FOUND", "Cash movement not found"));
   }
 
   @Override

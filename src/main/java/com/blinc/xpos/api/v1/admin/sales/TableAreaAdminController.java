@@ -48,16 +48,13 @@ public class TableAreaAdminController {
   @GetMapping
   public Page<TableAreaResponse> list(
       @PathVariable UUID orgId, @PathVariable UUID branchId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("name").ascending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("name").ascending());
     return tableAreaService.listByBranch(orgId, branchId, normalized).map(this::toResponse);
   }
 
   @GetMapping("/{tableAreaId}")
   public TableAreaResponse get(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      @PathVariable UUID tableAreaId) {
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @PathVariable UUID tableAreaId) {
     return toResponse(tableAreaService.require(orgId, tableAreaId));
   }
 

@@ -37,10 +37,7 @@ public class PostingRuleServiceImpl implements PostingRuleService {
   @Override
   @Transactional
   public PostingRule create(
-      UUID orgId,
-      String eventType,
-      String debitAccountCode,
-      String creditAccountCode) {
+      UUID orgId, String eventType, String debitAccountCode, String creditAccountCode) {
     orgService.require(orgId);
     ledgerAccountService.requireByCode(orgId, debitAccountCode);
     ledgerAccountService.requireByCode(orgId, creditAccountCode);
@@ -62,9 +59,7 @@ public class PostingRuleServiceImpl implements PostingRuleService {
     return postingRuleRepository
         .findByIdAndOrgId(ruleId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "POSTING_RULE_NOT_FOUND", "Posting rule not found"));
+            () -> new NotFoundException("POSTING_RULE_NOT_FOUND", "Posting rule not found"));
   }
 
   @Override

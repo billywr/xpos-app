@@ -43,9 +43,7 @@ public class StdStockCountOperatorController {
 
   @GetMapping
   public StdStockCountSheetDto getSheet(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      @RequestParam LocalDate date) {
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @RequestParam LocalDate date) {
     staffAuthorizationService.requireStaffUserForBranch(
         orgId, branchId, principalResolver.require().iamUserId());
     return stdStockCountService.getSheet(orgId, branchId, date);
@@ -56,8 +54,9 @@ public class StdStockCountOperatorController {
       @PathVariable UUID orgId,
       @PathVariable UUID branchId,
       @Valid @RequestBody StdStockCountSaveRequest request) {
-    var staffUser = staffAuthorizationService.requireStaffUserForBranch(
-        orgId, branchId, principalResolver.require().iamUserId());
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
     StdStockCountSheetDto result =
         stdStockCountService.saveCounts(orgId, branchId, staffUser.getId(), request);
     return ResponseEntity.ok(result);

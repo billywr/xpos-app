@@ -8,7 +8,8 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public record MiscExpenseCreateRequest(
-    @NotNull(message = "Amount is required") @DecimalMin(value = "0.01", message = "Amount must be positive")
+    @NotNull(message = "Amount is required")
+        @DecimalMin(value = "0.01", message = "Amount must be positive")
         BigDecimal amount,
     @NotNull(message = "Category is required") MiscExpenseCategory category,
     @NotBlank(message = "Description is required") String description,

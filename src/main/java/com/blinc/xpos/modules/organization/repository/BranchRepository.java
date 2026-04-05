@@ -22,7 +22,8 @@ select b
             """)
   Optional<Branch> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
-  @Query("""
+  @Query(
+      """
       select b from Branch b
       where b.org.id = :orgId and b.status in :statuses
       """)

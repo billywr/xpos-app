@@ -5,8 +5,4 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record ItemUomResponse(
-    UUID id,
-    UUID itemId,
-    UUID uomId,
-    BigDecimal conversionToBase,
-    Instant createdAt) {}
+    UUID id, UUID itemId, UUID uomId, BigDecimal conversionToBase, Instant createdAt) {}

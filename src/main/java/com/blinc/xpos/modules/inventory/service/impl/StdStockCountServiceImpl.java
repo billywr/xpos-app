@@ -1,6 +1,7 @@
 package com.blinc.xpos.modules.inventory.service.impl;
 
 import com.blinc.xpos.common.error.ConflictException;
+import com.blinc.xpos.modules.catalog.repository.ItemRepository;
 import com.blinc.xpos.modules.inventory.domain.StdStockCountSnapshot;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountCountDto;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountRowDto;
@@ -10,9 +11,8 @@ import com.blinc.xpos.modules.inventory.repository.GrnLineRepository;
 import com.blinc.xpos.modules.inventory.repository.StdStockCountSnapshotRepository;
 import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
 import com.blinc.xpos.modules.inventory.service.StdStockCountService;
-import com.blinc.xpos.modules.organization.service.BranchService;
-import com.blinc.xpos.modules.catalog.repository.ItemRepository;
 import com.blinc.xpos.modules.organization.domain.Branch;
+import com.blinc.xpos.modules.organization.service.BranchService;
 import com.blinc.xpos.modules.pricing.domain.PriceList;
 import com.blinc.xpos.modules.pricing.domain.PriceListItem;
 import com.blinc.xpos.modules.pricing.repository.PriceListItemRepository;
@@ -64,20 +64,19 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       PriceListItemRepository priceListItemRepository,
       ItemRepository itemRepository,
       BranchService branchService) {
-    this.snapshotRepository =
-        Objects.requireNonNull(snapshotRepository, "snapshotRepository");
+    this.snapshotRepository = Objects.requireNonNull(snapshotRepository, "snapshotRepository");
     this.grnLineRepository = Objects.requireNonNull(grnLineRepository, "grnLineRepository");
     this.stockMovementRepository =
         Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
-    this.priceListRepository =
-        Objects.requireNonNull(priceListRepository, "priceListRepository");
+    this.priceListRepository = Objects.requireNonNull(priceListRepository, "priceListRepository");
     this.priceListItemRepository =
         Objects.requireNonNull(priceListItemRepository, "priceListItemRepository");
     this.itemRepository = Objects.requireNonNull(itemRepository, "itemRepository");
     this.branchService = Objects.requireNonNull(branchService, "branchService");
   }
 
-  private static void applyCommentsIfPresent(StdStockCountCountDto dto, StdStockCountSnapshot snap) {
+  private static void applyCommentsIfPresent(
+      StdStockCountCountDto dto, StdStockCountSnapshot snap) {
     dto.comments()
         .ifPresent(
             raw -> {
@@ -157,16 +156,14 @@ public class StdStockCountServiceImpl implements StdStockCountService {
         snapshotRepository.findAllByBranchIdAndBusinessDate(branchId, businessDate);
     Map<UUID, StdStockCountSnapshot> todayByItem =
         todaySnapshots.stream()
-            .collect(
-                Collectors.toMap(s -> s.getItem().getId(), s -> s, (a, b) -> a));
+            .collect(Collectors.toMap(s -> s.getItem().getId(), s -> s, (a, b) -> a));
 
     LocalDate previousBusinessDate = businessDate.minusDays(1);
     List<StdStockCountSnapshot> previousSnapshots =
         snapshotRepository.findAllByBranchIdAndBusinessDate(branchId, previousBusinessDate);
     Map<UUID, StdStockCountSnapshot> previousByItem =
         previousSnapshots.stream()
-            .collect(
-                Collectors.toMap(s -> s.getItem().getId(), s -> s, (a, b) -> a));
+            .collect(Collectors.toMap(s -> s.getItem().getId(), s -> s, (a, b) -> a));
 
     List<StdStockCountRowDto> rows = new ArrayList<>();
     for (PriceListItem pli : items) {
@@ -174,8 +171,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       int addedGrn = addedGrnByItem.getOrDefault(itemId, 0);
       int addedToday = stockTakeAddedByItem.getOrDefault(itemId, 0);
       int systemCountBeforeToday =
-          nonnegativeIntFromLedgerQty(
-              ledgerAtDayEnd.getOrDefault(itemId, BigDecimal.ZERO));
+          nonnegativeIntFromLedgerQty(ledgerAtDayEnd.getOrDefault(itemId, BigDecimal.ZERO));
       int impliedOpening = systemCountBeforeToday - addedGrn - addedToday;
       int fallbackOpening = Math.max(0, impliedOpening);
       StdStockCountSnapshot previousSnap = previousByItem.get(itemId);
@@ -212,8 +208,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
   public StdStockCountSheetDto saveCounts(
       UUID orgId, UUID branchId, UUID staffUserId, StdStockCountSaveRequest request) {
     if (!branchId.equals(request.outletId())) {
-      throw new ConflictException(
-          "OUTLET_MISMATCH", "Branch ID does not match request outlet ID.");
+      throw new ConflictException("OUTLET_MISMATCH", "Branch ID does not match request outlet ID.");
     }
     branchService.require(orgId, branchId);
     Instant now = Instant.now();
@@ -222,8 +217,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
 
     for (StdStockCountCountDto dto : request.counts()) {
       Optional<StdStockCountSnapshot> existingOpt =
-          snapshotRepository.findByBranchAndItemAndDate(
-              branchId, dto.itemId(), request.date());
+          snapshotRepository.findByBranchAndItemAndDate(branchId, dto.itemId(), request.date());
 
       StdStockCountSnapshot snap;
       if (existingOpt.isPresent()) {

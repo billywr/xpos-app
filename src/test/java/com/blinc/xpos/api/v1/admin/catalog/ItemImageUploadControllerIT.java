@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.catalog;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -33,17 +33,14 @@ class ItemImageUploadControllerIT extends AbstractIntegrationTest {
     UUID orgId = createOrg();
     MockMultipartFile file =
         new MockMultipartFile(
-            "file",
-            "item.png",
-            MediaType.IMAGE_PNG_VALUE,
-            "fake-png-content".getBytes());
+            "file", "item.png", MediaType.IMAGE_PNG_VALUE, "fake-png-content".getBytes());
 
     MvcResult result =
         mockMvc
             .perform(
                 multipart("/api/v1/admin/orgs/" + orgId + "/item-images/upload")
                     .file(file)
-                    .with(user("admin").roles("ADMIN")))
+                    .with(adminJwt()))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.url").exists())
             .andReturn();
@@ -51,7 +48,8 @@ class ItemImageUploadControllerIT extends AbstractIntegrationTest {
     String url =
         objectMapper.readTree(result.getResponse().getContentAsString()).get("url").asText();
     if (!url.startsWith("/uploads/items/" + orgId + "/")) {
-      throw new AssertionError("Expected url to start with /uploads/items/" + orgId + "/, got: " + url);
+      throw new AssertionError(
+          "Expected url to start with /uploads/items/" + orgId + "/, got: " + url);
     }
   }
 
@@ -59,17 +57,13 @@ class ItemImageUploadControllerIT extends AbstractIntegrationTest {
   void uploadNonImageReturns400() throws Exception {
     UUID orgId = createOrg();
     MockMultipartFile file =
-        new MockMultipartFile(
-            "file",
-            "document.pdf",
-            "application/pdf",
-            "fake-pdf".getBytes());
+        new MockMultipartFile("file", "document.pdf", "application/pdf", "fake-pdf".getBytes());
 
     mockMvc
         .perform(
             multipart("/api/v1/admin/orgs/" + orgId + "/item-images/upload")
                 .file(file)
-                .with(user("admin").roles("ADMIN")))
+                .with(adminJwt()))
         .andExpect(status().isBadRequest());
   }
 
@@ -81,7 +75,7 @@ class ItemImageUploadControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())

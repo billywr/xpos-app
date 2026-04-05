@@ -7,9 +7,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface AuditVaultRecordService {
 
-  /**
-   * Appends a tamper-evident vault record (hash-chained). Call from critical flows.
-   */
+  /** Appends a tamper-evident vault record (hash-chained). Call from critical flows. */
   AuditVaultRecord append(
       UUID orgId,
       UUID branchId,

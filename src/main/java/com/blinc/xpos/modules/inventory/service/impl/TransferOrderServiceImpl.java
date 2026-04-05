@@ -73,8 +73,7 @@ public class TransferOrderServiceImpl implements TransferOrderService {
         .orElseThrow(
             () ->
                 new NotFoundException(
-                    "TRANSFER_ORDER_NOT_FOUND",
-                    "Transfer order not found: " + transferOrderId));
+                    "TRANSFER_ORDER_NOT_FOUND", "Transfer order not found: " + transferOrderId));
   }
 
   @Override

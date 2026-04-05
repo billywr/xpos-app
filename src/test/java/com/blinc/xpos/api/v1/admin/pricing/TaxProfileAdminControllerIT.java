@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.pricing;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -15,15 +15,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 /**
- * Integration test for Tax Profile admin API. Requires a running Postgres (e.g. via
- * docker-compose or Testcontainers) and valid Spring profile (e.g. dev/local) with
- * datasource configured.
+ * Integration test for Tax Profile admin API. Requires a running Postgres (e.g. via docker-compose
+ * or Testcontainers) and valid Spring profile (e.g. dev/local) with datasource configured.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -44,7 +43,7 @@ class TaxProfileAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/tax-profiles")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -61,8 +60,7 @@ class TaxProfileAdminControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/tax-profiles/" + taxProfileId)
-                .with(user("admin").roles("ADMIN")))
+            get("/api/v1/admin/orgs/" + orgId + "/tax-profiles/" + taxProfileId).with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(taxProfileId.toString()))
         .andExpect(jsonPath("$.name").value("Standard VAT"));
@@ -74,7 +72,7 @@ class TaxProfileAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             patch("/api/v1/admin/orgs/" + orgId + "/tax-profiles/" + taxProfileId)
-                .with(user("admin").roles("ADMIN"))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(updateBody))
         .andExpect(status().isOk())
@@ -89,12 +87,13 @@ class TaxProfileAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    OrgResponse org = objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class);
+    OrgResponse org =
+        objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class);
     return org.id();
   }
 }

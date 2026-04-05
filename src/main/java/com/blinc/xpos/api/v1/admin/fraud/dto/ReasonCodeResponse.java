@@ -4,9 +4,4 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record ReasonCodeResponse(
-    UUID id,
-    UUID orgId,
-    String code,
-    String description,
-    Boolean active,
-    Instant createdAt) {}
+    UUID id, UUID orgId, String code, String description, Boolean active, Instant createdAt) {}

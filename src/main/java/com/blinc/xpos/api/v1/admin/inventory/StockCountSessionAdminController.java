@@ -11,19 +11,19 @@ import com.blinc.xpos.modules.inventory.domain.StockCountLine;
 import com.blinc.xpos.modules.inventory.domain.StockCountSession;
 import com.blinc.xpos.modules.inventory.repository.StockCountLineRepository;
 import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
-import com.blinc.xpos.modules.pricing.repository.PriceListItemRepository;
-import com.blinc.xpos.modules.pricing.repository.PriceListRepository;
 import com.blinc.xpos.modules.inventory.service.StockCountSessionService;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
+import com.blinc.xpos.modules.pricing.repository.PriceListItemRepository;
+import com.blinc.xpos.modules.pricing.repository.PriceListRepository;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import java.math.BigDecimal;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -62,8 +62,7 @@ public class StockCountSessionAdminController {
     this.lineRepository = Objects.requireNonNull(lineRepository, "lineRepository");
     this.stockMovementRepository =
         Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
-    this.priceListRepository =
-        Objects.requireNonNull(priceListRepository, "priceListRepository");
+    this.priceListRepository = Objects.requireNonNull(priceListRepository, "priceListRepository");
     this.priceListItemRepository =
         Objects.requireNonNull(priceListItemRepository, "priceListItemRepository");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
@@ -85,14 +84,12 @@ public class StockCountSessionAdminController {
   @GetMapping
   public Page<StockCountSessionResponse> listByBranch(
       @PathVariable UUID orgId, @RequestParam UUID branchId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("startedAt").descending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("startedAt").descending());
     return sessionService.listByBranch(orgId, branchId, normalized).map(this::toResponse);
   }
 
   @GetMapping("/{sessionId}")
-  public StockCountSessionResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID sessionId) {
+  public StockCountSessionResponse get(@PathVariable UUID orgId, @PathVariable UUID sessionId) {
     return toResponse(sessionService.require(orgId, sessionId));
   }
 
@@ -119,16 +116,13 @@ public class StockCountSessionAdminController {
 
   @DeleteMapping("/{sessionId}/lines/{lineId}")
   public StockCountSessionResponse deleteLine(
-      @PathVariable UUID orgId,
-      @PathVariable UUID sessionId,
-      @PathVariable UUID lineId) {
+      @PathVariable UUID orgId, @PathVariable UUID sessionId, @PathVariable UUID lineId) {
     StockCountSession session = sessionService.deleteLine(orgId, sessionId, lineId);
     return toResponse(session);
   }
 
   @PostMapping("/{sessionId}/close")
-  public StockCountSessionResponse close(
-      @PathVariable UUID orgId, @PathVariable UUID sessionId) {
+  public StockCountSessionResponse close(@PathVariable UUID orgId, @PathVariable UUID sessionId) {
     var staffUser =
         staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
     return toResponse(sessionService.close(orgId, sessionId, staffUser.getId()));
@@ -150,9 +144,7 @@ public class StockCountSessionAdminController {
     List<StockCountLine> lines = lineRepository.findBySessionIdOrderByCreatedAt(s.getId());
     UUID branchId = s.getBranch().getId();
     List<StockCountLineResponse> lineResponses =
-        lines.stream()
-            .map(l -> toLineResponse(l, s, orgId, branchId))
-            .toList();
+        lines.stream().map(l -> toLineResponse(l, s, orgId, branchId)).toList();
     return new StockCountSessionResponse(
         s.getId(),
         s.getOrg().getId(),

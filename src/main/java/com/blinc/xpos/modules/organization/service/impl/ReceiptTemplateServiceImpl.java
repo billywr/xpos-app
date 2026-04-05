@@ -24,9 +24,7 @@ public class ReceiptTemplateServiceImpl implements ReceiptTemplateService {
   private final Clock clock;
 
   public ReceiptTemplateServiceImpl(
-      ReceiptTemplateRepository receiptTemplateRepository,
-      OrgService orgService,
-      Clock clock) {
+      ReceiptTemplateRepository receiptTemplateRepository, OrgService orgService, Clock clock) {
     this.receiptTemplateRepository =
         Objects.requireNonNull(receiptTemplateRepository, "receiptTemplateRepository");
     this.orgService = Objects.requireNonNull(orgService, "orgService");
@@ -56,8 +54,7 @@ public class ReceiptTemplateServiceImpl implements ReceiptTemplateService {
         .findByIdAndOrgId(templateId, orgId)
         .orElseThrow(
             () ->
-                new NotFoundException(
-                    "RECEIPT_TEMPLATE_NOT_FOUND", "Receipt template not found"));
+                new NotFoundException("RECEIPT_TEMPLATE_NOT_FOUND", "Receipt template not found"));
   }
 
   @Override

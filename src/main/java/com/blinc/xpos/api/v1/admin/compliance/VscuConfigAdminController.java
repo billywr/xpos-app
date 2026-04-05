@@ -53,8 +53,7 @@ public class VscuConfigAdminController {
   @GetMapping
   public Page<VscuConfigResponse> list(@PathVariable UUID orgId, Pageable pageable) {
     Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("branch.id").ascending());
-    return vscuConfigService.list(orgId, normalized)
-        .map(VscuConfigAdminController::toResponse);
+    return vscuConfigService.list(orgId, normalized).map(VscuConfigAdminController::toResponse);
   }
 
   @GetMapping("/{configId}")
@@ -64,15 +63,23 @@ public class VscuConfigAdminController {
 
   @PatchMapping("/{configId}")
   public VscuConfigResponse update(
-      @PathVariable UUID orgId, @PathVariable UUID configId,
+      @PathVariable UUID orgId,
+      @PathVariable UUID configId,
       @Valid @RequestBody VscuConfigUpdateRequest request) {
-    JsonNode config = request.configJson() != null ? objectMapper.valueToTree(request.configJson()) : null;
+    JsonNode config =
+        request.configJson() != null ? objectMapper.valueToTree(request.configJson()) : null;
     VscuConfig updated = vscuConfigService.update(orgId, configId, config, request.status());
     return toResponse(updated);
   }
 
   private static VscuConfigResponse toResponse(VscuConfig v) {
-    return new VscuConfigResponse(v.getId(), v.getOrg().getId(), v.getBranch().getId(),
-        v.getConfigJson(), v.getStatus(), v.getCreatedAt(), v.getUpdatedAt());
+    return new VscuConfigResponse(
+        v.getId(),
+        v.getOrg().getId(),
+        v.getBranch().getId(),
+        v.getConfigJson(),
+        v.getStatus(),
+        v.getCreatedAt(),
+        v.getUpdatedAt());
   }
 }

@@ -53,14 +53,12 @@ public class PriceScheduleAdminController {
 
   @GetMapping
   public Page<PriceScheduleResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     return priceScheduleService.list(orgId, normalized).map(this::toResponse);
   }
 
   @GetMapping("/{priceScheduleId}")
-  public PriceScheduleResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID priceScheduleId) {
+  public PriceScheduleResponse get(@PathVariable UUID orgId, @PathVariable UUID priceScheduleId) {
     return toResponse(priceScheduleService.require(orgId, priceScheduleId));
   }
 

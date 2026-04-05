@@ -23,30 +23,27 @@ public class AuditVaultRecordAdminController {
   private final PageRequestFactory pageRequestFactory;
 
   public AuditVaultRecordAdminController(
-      AuditVaultRecordService auditVaultRecordService,
-      PageRequestFactory pageRequestFactory) {
+      AuditVaultRecordService auditVaultRecordService, PageRequestFactory pageRequestFactory) {
     this.auditVaultRecordService = Objects.requireNonNull(auditVaultRecordService);
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory);
   }
 
   @GetMapping
   public Page<AuditVaultRecordResponse> list(
-      @PathVariable UUID orgId,
-      @RequestParam(required = false) UUID branchId,
-      Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+      @PathVariable UUID orgId, @RequestParam(required = false) UUID branchId, Pageable pageable) {
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     if (branchId != null) {
-      return auditVaultRecordService.listByBranch(orgId, branchId, normalized)
+      return auditVaultRecordService
+          .listByBranch(orgId, branchId, normalized)
           .map(AuditVaultRecordAdminController::toResponse);
     }
-    return auditVaultRecordService.list(orgId, normalized)
+    return auditVaultRecordService
+        .list(orgId, normalized)
         .map(AuditVaultRecordAdminController::toResponse);
   }
 
   @GetMapping("/{recordId}")
-  public AuditVaultRecordResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID recordId) {
+  public AuditVaultRecordResponse get(@PathVariable UUID orgId, @PathVariable UUID recordId) {
     return toResponse(auditVaultRecordService.require(orgId, recordId));
   }
 

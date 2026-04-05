@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.catalog;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -44,7 +44,7 @@ class ModifierOptionAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/modifier-groups/" + groupId + "/options")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -59,9 +59,13 @@ class ModifierOptionAdminControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/modifier-groups/" + groupId + "/options/"
+            get("/api/v1/admin/orgs/"
+                    + orgId
+                    + "/modifier-groups/"
+                    + groupId
+                    + "/options/"
                     + optionId)
-                .with(user("admin").roles("ADMIN")))
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(optionId.toString()))
         .andExpect(jsonPath("$.name").value("Large"));
@@ -71,9 +75,14 @@ class ModifierOptionAdminControllerIT extends AbstractIntegrationTest {
         """;
     mockMvc
         .perform(
-            patch("/api/v1/admin/orgs/" + orgId + "/modifier-groups/" + groupId + "/options/"
-                    + optionId)
-                .with(user("admin").roles("ADMIN"))
+            patch(
+                    "/api/v1/admin/orgs/"
+                        + orgId
+                        + "/modifier-groups/"
+                        + groupId
+                        + "/options/"
+                        + optionId)
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(updateBody))
         .andExpect(status().isOk())
@@ -88,7 +97,7 @@ class ModifierOptionAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -108,7 +117,7 @@ class ModifierOptionAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/modifier-groups")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())

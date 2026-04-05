@@ -51,9 +51,7 @@ public class CustomerServiceImpl implements CustomerService {
     return customerRepository
         .findByIdAndOrgId(customerId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "CUSTOMER_NOT_FOUND", "Customer not found: " + customerId));
+            () -> new NotFoundException("CUSTOMER_NOT_FOUND", "Customer not found: " + customerId));
   }
 
   @Override
@@ -66,12 +64,7 @@ public class CustomerServiceImpl implements CustomerService {
   @Override
   @Transactional
   public Customer update(
-      UUID orgId,
-      UUID customerId,
-      String name,
-      String phone,
-      String email,
-      Boolean active) {
+      UUID orgId, UUID customerId, String name, String phone, String email, Boolean active) {
     Customer customer = require(orgId, customerId);
     if (name != null) {
       customer.setName(name.trim());

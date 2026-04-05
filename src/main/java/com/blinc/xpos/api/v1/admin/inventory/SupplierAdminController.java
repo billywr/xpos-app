@@ -16,10 +16,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,8 +31,7 @@ public class SupplierAdminController {
   private final PageRequestFactory pageRequestFactory;
 
   public SupplierAdminController(
-      SupplierService supplierService,
-      PageRequestFactory pageRequestFactory) {
+      SupplierService supplierService, PageRequestFactory pageRequestFactory) {
     this.supplierService = Objects.requireNonNull(supplierService, "supplierService");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
   }
@@ -54,11 +53,7 @@ public class SupplierAdminController {
   public SupplierResponse create(
       @PathVariable UUID orgId, @Valid @RequestBody SupplierCreateRequest request) {
     Supplier created =
-        supplierService.create(
-            orgId,
-            request.name(),
-            request.phone(),
-            request.email());
+        supplierService.create(orgId, request.name(), request.phone(), request.email());
     return toResponse(created);
   }
 
@@ -67,8 +62,7 @@ public class SupplierAdminController {
       @PathVariable UUID orgId,
       @RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive,
       Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("name").ascending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("name").ascending());
     Page<Supplier> page =
         includeInactive
             ? supplierService.list(orgId, normalized)
@@ -88,12 +82,7 @@ public class SupplierAdminController {
       @Valid @RequestBody SupplierUpdateRequest request) {
     Supplier updated =
         supplierService.update(
-            orgId,
-            supplierId,
-            request.name(),
-            request.phone(),
-            request.email(),
-            request.active());
+            orgId, supplierId, request.name(), request.phone(), request.email(), request.active());
     return toResponse(updated);
   }
 }

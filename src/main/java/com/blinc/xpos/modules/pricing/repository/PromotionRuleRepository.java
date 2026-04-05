@@ -18,8 +18,7 @@ public interface PromotionRuleRepository extends JpaRepository<PromotionRule, UU
       """)
   Optional<PromotionRule> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
-  @Query(
-      """
+  @Query("""
       select r from PromotionRule r
       where r.org.id = :orgId
       """)

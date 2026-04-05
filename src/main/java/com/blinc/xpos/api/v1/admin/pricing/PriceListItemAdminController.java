@@ -31,12 +31,10 @@ public class PriceListItemAdminController {
   private final PageRequestFactory pageRequestFactory;
 
   public PriceListItemAdminController(
-      PriceListItemService priceListItemService,
-      PageRequestFactory pageRequestFactory) {
+      PriceListItemService priceListItemService, PageRequestFactory pageRequestFactory) {
     this.priceListItemService =
         Objects.requireNonNull(priceListItemService, "priceListItemService");
-    this.pageRequestFactory =
-        Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
+    this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
   }
 
   @PostMapping
@@ -47,23 +45,15 @@ public class PriceListItemAdminController {
       @Valid @RequestBody PriceListItemCreateRequest request) {
     PriceListItem line =
         priceListItemService.add(
-            orgId,
-            priceListId,
-            request.itemId(),
-            request.price(),
-            request.currency());
+            orgId, priceListId, request.itemId(), request.price(), request.currency());
     return toResponse(line);
   }
 
   @GetMapping
   public Page<PriceListItemResponse> list(
-      @PathVariable UUID orgId,
-      @PathVariable UUID priceListId,
-      Pageable pageable) {
+      @PathVariable UUID orgId, @PathVariable UUID priceListId, Pageable pageable) {
     Pageable normalized =
-        pageRequestFactory.normalize(
-            pageable,
-            Sort.by("item.name").and(Sort.by("createdAt")));
+        pageRequestFactory.normalize(pageable, Sort.by("item.name").and(Sort.by("createdAt")));
     return priceListItemService
         .listByPriceList(orgId, priceListId, normalized)
         .map(this::toResponse);
@@ -74,8 +64,7 @@ public class PriceListItemAdminController {
       @PathVariable UUID orgId,
       @PathVariable UUID priceListId,
       @PathVariable UUID priceListItemId) {
-    return toResponse(
-        priceListItemService.requireInPriceList(orgId, priceListId, priceListItemId));
+    return toResponse(priceListItemService.requireInPriceList(orgId, priceListId, priceListItemId));
   }
 
   @PatchMapping("/{priceListItemId}")
@@ -86,11 +75,7 @@ public class PriceListItemAdminController {
       @Valid @RequestBody PriceListItemUpdateRequest request) {
     PriceListItem line =
         priceListItemService.update(
-            orgId,
-            priceListId,
-            priceListItemId,
-            request.price(),
-            request.currency());
+            orgId, priceListId, priceListItemId, request.price(), request.currency());
     return toResponse(line);
   }
 

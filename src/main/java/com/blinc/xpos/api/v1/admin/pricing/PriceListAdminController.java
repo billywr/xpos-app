@@ -53,14 +53,12 @@ public class PriceListAdminController {
 
   @GetMapping
   public Page<PriceListResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("priority").ascending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("priority").ascending());
     return priceListService.list(orgId, normalized).map(this::toResponse);
   }
 
   @GetMapping("/{priceListId}")
-  public PriceListResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID priceListId) {
+  public PriceListResponse get(@PathVariable UUID orgId, @PathVariable UUID priceListId) {
     return toResponse(priceListService.require(orgId, priceListId));
   }
 

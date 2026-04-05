@@ -5,5 +5,4 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 public record PriceListItemUpdateRequest(
-    @NotNull @DecimalMin(value = "0", inclusive = true) BigDecimal price,
-    String currency) {}
+    @NotNull @DecimalMin(value = "0", inclusive = true) BigDecimal price, String currency) {}

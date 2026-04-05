@@ -57,14 +57,11 @@ public class PurchaseOrderAdminController {
   @ResponseStatus(HttpStatus.CREATED)
   public PurchaseOrderResponse create(
       @PathVariable UUID orgId, @Valid @RequestBody PurchaseOrderCreateRequest request) {
-    var staffUser = staffAuthorizationService.requireStaffUser(
-        orgId, principalResolver.require().iamUserId());
+    var staffUser =
+        staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
     PurchaseOrder po =
         purchaseOrderService.create(
-            orgId,
-            request.branchId(),
-            request.supplierId(),
-            staffUser.getId());
+            orgId, request.branchId(), request.supplierId(), staffUser.getId());
     return toResponse(po);
   }
 
@@ -73,14 +70,12 @@ public class PurchaseOrderAdminController {
       @PathVariable UUID orgId,
       @org.springframework.web.bind.annotation.RequestParam UUID branchId,
       Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     return purchaseOrderService.listByBranch(orgId, branchId, normalized).map(this::toResponse);
   }
 
   @GetMapping("/{purchaseOrderId}")
-  public PurchaseOrderResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID purchaseOrderId) {
+  public PurchaseOrderResponse get(@PathVariable UUID orgId, @PathVariable UUID purchaseOrderId) {
     return toResponse(purchaseOrderService.require(orgId, purchaseOrderId));
   }
 

@@ -15,9 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Read-only operator API for listing tables in a branch (e.g. Select Table on POS).
- */
+/** Read-only operator API for listing tables in a branch (e.g. Select Table on POS). */
 @RestController
 @RequestMapping("/api/v1/operator/orgs/{orgId}/branches/{branchId}/tables")
 public class TableOperatorController {
@@ -37,11 +35,9 @@ public class TableOperatorController {
   }
 
   @GetMapping
-  public List<TableEntityListResponse> list(
-      @PathVariable UUID orgId, @PathVariable UUID branchId) {
+  public List<TableEntityListResponse> list(@PathVariable UUID orgId, @PathVariable UUID branchId) {
     staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
-    var pageable =
-        PageRequest.of(0, 500, Sort.by("name").ascending());
+    var pageable = PageRequest.of(0, 500, Sort.by("name").ascending());
     return tableEntityService.listByBranch(orgId, branchId, pageable).stream()
         .map(this::toListResponse)
         .toList();

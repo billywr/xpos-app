@@ -22,7 +22,8 @@ select b
             """)
   Optional<Business> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
-  @Query("""
+  @Query(
+      """
       select b from Business b
       where b.org.id = :orgId and b.status in :statuses
       """)
@@ -43,5 +44,6 @@ select b
       select count(b) > 0 from Business b
       where b.kraPin is not null and b.kraPin = :kraPin and b.id <> :excludeId
       """)
-  boolean existsByKraPinAndIdNot(@Param("kraPin") String kraPin, @Param("excludeId") UUID excludeId);
+  boolean existsByKraPinAndIdNot(
+      @Param("kraPin") String kraPin, @Param("excludeId") UUID excludeId);
 }

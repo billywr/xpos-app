@@ -28,20 +28,17 @@ public interface StockTakingScheduleRepository extends JpaRepository<StockTaking
   Optional<StockTakingSchedule> findByOrgIdAndBranchId(
       @Param("orgId") UUID orgId, @Param("branchId") UUID branchId);
 
-  @Query(
-      """
+  @Query("""
       select s from StockTakingSchedule s
       where s.isActive = true
       """)
   List<StockTakingSchedule> findAllActive();
 
-  @Query(
-      """
+  @Query("""
       select s from StockTakingSchedule s
       where s.org.id = :orgId
       """)
-  Page<StockTakingSchedule> findAllByOrgId(
-      @Param("orgId") UUID orgId, Pageable pageable);
+  Page<StockTakingSchedule> findAllByOrgId(@Param("orgId") UUID orgId, Pageable pageable);
 
   @Modifying
   @Query(

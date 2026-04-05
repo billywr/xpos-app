@@ -4,8 +4,8 @@ import com.blinc.xpos.api.v1.admin.organization.dto.OrgContextResponse;
 import java.util.UUID;
 
 /**
- * Returns a single aggregate of org-level reference data (branches, users,
- * categories, tax, UoMs, price lists, etc.) for admin/context loading.
+ * Returns a single aggregate of org-level reference data (branches, users, categories, tax, UoMs,
+ * price lists, etc.) for admin/context loading.
  */
 public interface OrgContextService {
 

@@ -25,8 +25,7 @@ public class LedgerEntryAdminController {
   private final PageRequestFactory pageRequestFactory;
 
   public LedgerEntryAdminController(
-      LedgerEntryService ledgerEntryService,
-      PageRequestFactory pageRequestFactory) {
+      LedgerEntryService ledgerEntryService, PageRequestFactory pageRequestFactory) {
     this.ledgerEntryService = Objects.requireNonNull(ledgerEntryService);
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory);
   }
@@ -35,10 +34,10 @@ public class LedgerEntryAdminController {
   public Page<LedgerEntryResponse> list(
       @PathVariable UUID orgId,
       @RequestParam(required = false) UUID branchId,
-      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate businessDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate businessDate,
       Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     if (branchId != null && businessDate != null) {
       return ledgerEntryService
           .listByBranchAndDate(orgId, branchId, businessDate, normalized)
@@ -53,8 +52,7 @@ public class LedgerEntryAdminController {
   }
 
   @GetMapping("/{entryId}")
-  public LedgerEntryResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID entryId) {
+  public LedgerEntryResponse get(@PathVariable UUID orgId, @PathVariable UUID entryId) {
     return toResponse(ledgerEntryService.require(orgId, entryId));
   }
 

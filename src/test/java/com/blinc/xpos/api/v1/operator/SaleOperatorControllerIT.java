@@ -1,7 +1,9 @@
 package com.blinc.xpos.api.v1.operator;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
+import static com.blinc.xpos.TestJwtFactory.noRoleJwt;
+import static com.blinc.xpos.TestJwtFactory.operatorJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -22,8 +24,8 @@ import org.springframework.test.web.servlet.MvcResult;
 
 /**
  * Integration test for Sales operator API: create sale, add line, add tender, complete, get
- * receipt. Requires Postgres (e.g. Testcontainers). Uses JWT mock with subject "admin" for
- * operator calls.
+ * receipt. Requires Postgres (e.g. Testcontainers). Uses JWT mock with subject "admin" for operator
+ * calls.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -57,14 +59,17 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post(base + "/sales")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"priceListId\":\"" + priceListId + "\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
         UUID.fromString(
-            objectMapper.readTree(createSaleResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createSaleResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     String addLineBody =
         """
@@ -74,14 +79,15 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(addLineBody))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.lines.length()").value(1))
         .andExpect(jsonPath("$.lines[0].modifiers").isArray())
         .andExpect(jsonPath("$.lines[0].modifiers.length()").value(1))
-        .andExpect(jsonPath("$.lines[0].modifiers[0].modifierOptionId").value(modifierOptionId.toString()))
+        .andExpect(
+            jsonPath("$.lines[0].modifiers[0].modifierOptionId").value(modifierOptionId.toString()))
         .andExpect(jsonPath("$.lines[0].modifiers[0].qty").value(1));
   }
 
@@ -111,14 +117,17 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post(base + "/sales")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"priceListId\":\"" + priceListId + "\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
         UUID.fromString(
-            objectMapper.readTree(createSaleResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createSaleResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     String addLineBody =
         """
@@ -128,7 +137,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(addLineBody))
         .andExpect(status().isOk())
@@ -160,7 +169,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post(base + "/sales")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"priceListId\":\"" + priceListId + "\"}"))
             .andExpect(status().isCreated())
@@ -170,17 +179,19 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
             .andReturn();
     UUID saleId =
         UUID.fromString(
-            objectMapper.readTree(createSaleResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createSaleResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     String addLineBody =
         """
         {"itemId":"%s","qty":2,"unitPriceOverride":99.50}
-        """
-            .formatted(itemId);
+        """.formatted(itemId);
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(addLineBody))
         .andExpect(status().isOk())
@@ -195,19 +206,19 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/tenders")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(addTenderBody))
         .andExpect(status().isCreated());
 
     mockMvc
-        .perform(post(base + "/sales/" + saleId + "/complete").with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(post(base + "/sales/" + saleId + "/complete").with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("COMPLETED"))
         .andExpect(jsonPath("$.receiptId").exists());
 
     mockMvc
-        .perform(get(base + "/sales/" + saleId + "/receipt").with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(base + "/sales/" + saleId + "/receipt").with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.receiptNumber").isNumber())
         .andExpect(jsonPath("$.businessDate").exists());
@@ -236,19 +247,22 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post(base + "/sales")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"priceListId\":\"" + priceListId + "\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
         UUID.fromString(
-            objectMapper.readTree(createSaleResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createSaleResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
@@ -263,7 +277,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/tenders")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
@@ -273,14 +287,13 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(status().isCreated());
 
     mockMvc
-        .perform(post(base + "/sales/" + saleId + "/complete").with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(post(base + "/sales/" + saleId + "/complete").with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("COMPLETED"))
         .andExpect(jsonPath("$.receiptId").exists());
 
     mockMvc
-        .perform(
-            get(base + "/sales/" + saleId + "/receipt/details").with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(base + "/sales/" + saleId + "/receipt/details").with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").exists())
         .andExpect(jsonPath("$.receiptNumber").isNumber())
@@ -329,22 +342,27 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post(base + "/sales")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"priceListId\":\"" + priceListId + "\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
         UUID.fromString(
-            objectMapper.readTree(createSaleResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createSaleResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
-                    "{\"itemId\":\"" + itemId + "\",\"qty\":1,\"uomId\":null,\"unitPriceOverride\":null}"))
+                    "{\"itemId\":\""
+                        + itemId
+                        + "\",\"qty\":1,\"uomId\":null,\"unitPriceOverride\":null}"))
         .andExpect(status().isOk());
 
     String addTenderBody =
@@ -355,14 +373,14 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/tenders")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(addTenderBody))
         .andExpect(status().isCreated());
 
     MvcResult getSaleResult =
         mockMvc
-            .perform(get(base + "/sales/" + saleId).with(jwt().jwt(j -> j.subject("admin"))))
+            .perform(get(base + "/sales/" + saleId).with(operatorJwt()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.tenders.length()").value(1))
             .andReturn();
@@ -376,13 +394,11 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
                 .asText());
 
     mockMvc
-        .perform(
-            delete(base + "/sales/" + saleId + "/tenders/" + tenderId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(delete(base + "/sales/" + saleId + "/tenders/" + tenderId).with(operatorJwt()))
         .andExpect(status().isNoContent());
 
     mockMvc
-        .perform(get(base + "/sales/" + saleId).with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(base + "/sales/" + saleId).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.tenders").isArray())
         .andExpect(jsonPath("$.tenders.length()").value(0));
@@ -406,14 +422,13 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
 
     String salesBase =
         "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/terminals/" + terminalId;
-    String receiptsBase =
-        "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/receipts";
+    String receiptsBase = "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/receipts";
 
     MvcResult createSaleResult =
         mockMvc
             .perform(
                 post(salesBase + "/sales")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"priceListId\":\"" + priceListId + "\"}"))
             .andExpect(status().isCreated())
@@ -428,7 +443,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(salesBase + "/sales/" + saleId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
@@ -440,7 +455,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(salesBase + "/sales/" + saleId + "/tenders")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
@@ -450,16 +465,12 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(status().isCreated());
 
     mockMvc
-        .perform(
-            post(salesBase + "/sales/" + saleId + "/complete")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(post(salesBase + "/sales/" + saleId + "/complete").with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("COMPLETED"));
 
     mockMvc
-        .perform(
-            post(receiptsBase + "/" + saleId + "/refund")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(post(receiptsBase + "/" + saleId + "/refund").with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(saleId.toString()))
         .andExpect(jsonPath("$.status").value("REFUNDED"));
@@ -495,24 +506,26 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post(base + "/sales")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"priceListId\":\"" + priceListId + "\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
         UUID.fromString(
-            objectMapper.readTree(createSaleResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createSaleResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     String addLineBody =
         """
         {"itemId":"%s","qty":2,"unitPriceOverride":99.50}
-        """
-            .formatted(itemId);
+        """.formatted(itemId);
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(addLineBody))
         .andExpect(status().isOk());
@@ -525,20 +538,24 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/tenders")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(addTenderBody))
         .andExpect(status().isCreated());
 
     mockMvc
-        .perform(post(base + "/sales/" + saleId + "/complete").with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(post(base + "/sales/" + saleId + "/complete").with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("COMPLETED"));
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/ledger-entries?branchId=" + branchId + "&page=0&size=20")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/"
+                    + orgId
+                    + "/ledger-entries?branchId="
+                    + branchId
+                    + "&page=0&size=20")
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(2))
         .andExpect(jsonPath("$.content[0].sourceType").value("SALE"))
@@ -564,18 +581,13 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     UUID tenderTypeId = getCashTenderTypeId(orgId);
 
     String base =
-        "/api/v1/operator/orgs/"
-            + orgId
-            + "/branches/"
-            + branchId
-            + "/terminals/"
-            + terminalId;
+        "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/terminals/" + terminalId;
 
     MvcResult createSaleResult =
         mockMvc
             .perform(
                 post(base + "/sales")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"priceListId\":\"" + priceListId + "\"}"))
             .andExpect(status().isCreated())
@@ -590,7 +602,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
@@ -603,7 +615,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/tenders")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
@@ -619,7 +631,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/complete-with-debt")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(completeWithDebtBody))
         .andExpect(status().isOk())
@@ -629,7 +641,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].customerName").value("John Kamau"))
@@ -647,7 +659,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/ledger-accounts")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());
@@ -664,7 +676,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/posting-rules")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());
@@ -678,7 +690,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -696,7 +708,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -715,7 +727,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -732,7 +744,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/terminals")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -749,7 +761,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -761,12 +773,11 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
   private void assignStaffToBranch(UUID orgId, UUID staffUserId, UUID branchId) throws Exception {
     String body = """
         {"branchId":"%s","primary":true}
-        """
-            .formatted(branchId);
+        """.formatted(branchId);
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());
@@ -775,15 +786,14 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
   private void openShift(UUID orgId, UUID branchId, UUID terminalId) throws Exception {
     mockMvc
         .perform(
-            post(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/terminals/"
-                        + terminalId
-                        + "/shifts")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/terminals/"
+                    + terminalId
+                    + "/shifts")
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"openingFloatAmount\":0}"))
         .andExpect(status().isCreated());
@@ -797,7 +807,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/price-lists")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -817,7 +827,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -835,7 +845,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/tax-profiles")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -848,17 +858,11 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     String body =
         """
         {"itemId":"%s","price":99.50,"currency":"KES"}
-        """
-            .formatted(itemId);
+        """.formatted(itemId);
     mockMvc
         .perform(
-            post(
-                    "/api/v1/admin/orgs/"
-                        + orgId
-                        + "/price-lists/"
-                        + priceListId
-                        + "/items")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());
@@ -869,7 +873,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/suppliers")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"name\":\"Supplier\"}"))
             .andExpect(status().isCreated())
@@ -889,7 +893,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -908,7 +912,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());
@@ -921,9 +925,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
   private UUID getCashTenderTypeId(UUID orgId) throws Exception {
     MvcResult result =
         mockMvc
-            .perform(
-                get("/api/v1/admin/orgs/" + orgId + "/tender-types")
-                    .with(jwt().jwt(j -> j.subject("admin"))))
+            .perform(get("/api/v1/admin/orgs/" + orgId + "/tender-types").with(adminJwt()))
             .andExpect(status().isOk())
             .andReturn();
     var tree = objectMapper.readTree(result.getResponse().getContentAsString());
@@ -940,14 +942,15 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   private UUID createModifierGroup(UUID orgId) throws Exception {
-    String body = """
+    String body =
+        """
         {"name":"Size","minSelect":0,"maxSelect":2,"required":false}
         """;
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/modifier-groups")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -963,13 +966,12 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     MvcResult result =
         mockMvc
             .perform(
-                post(
-                        "/api/v1/admin/orgs/"
-                            + orgId
-                            + "/modifier-groups/"
-                            + modifierGroupId
-                            + "/options")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                post("/api/v1/admin/orgs/"
+                        + orgId
+                        + "/modifier-groups/"
+                        + modifierGroupId
+                        + "/options")
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -978,18 +980,35 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
   }
 
-  private void addItemModifierGroup(UUID orgId, UUID itemId, UUID modifierGroupId) throws Exception {
-    String body =
-        """
+  private void addItemModifierGroup(UUID orgId, UUID itemId, UUID modifierGroupId)
+      throws Exception {
+    String body = """
         {"modifierGroupId":"%s"}
-        """
-            .formatted(modifierGroupId);
+        """.formatted(modifierGroupId);
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/items/" + itemId + "/modifier-groups")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());
+  }
+
+  @Test
+  void operatorEndpointForbiddenForNoRole() throws Exception {
+    UUID fakeOrgId = UUID.randomUUID();
+    UUID fakeBranchId = UUID.randomUUID();
+    UUID fakeTerminalId = UUID.randomUUID();
+    mockMvc
+        .perform(
+            get("/api/v1/operator/orgs/"
+                    + fakeOrgId
+                    + "/branches/"
+                    + fakeBranchId
+                    + "/terminals/"
+                    + fakeTerminalId
+                    + "/sales")
+                .with(noRoleJwt()))
+        .andExpect(status().isForbidden());
   }
 }

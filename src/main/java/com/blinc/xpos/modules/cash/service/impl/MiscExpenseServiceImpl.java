@@ -87,8 +87,7 @@ public class MiscExpenseServiceImpl implements MiscExpenseService {
     if (shiftId != null) {
       Shift shift = shiftService.require(orgId, shiftId);
       if (!shift.getBranch().getId().equals(branchId)) {
-        throw new NotFoundException(
-            "SHIFT_NOT_FOUND", "Shift does not belong to this branch");
+        throw new NotFoundException("SHIFT_NOT_FOUND", "Shift does not belong to this branch");
       }
       expense.setShift(shift);
     }
@@ -103,8 +102,7 @@ public class MiscExpenseServiceImpl implements MiscExpenseService {
         .findByIdAndOrgId(expenseId, orgId)
         .orElseThrow(
             () ->
-                new NotFoundException(
-                    "MISC_EXPENSE_NOT_FOUND", "Miscellaneous expense not found"));
+                new NotFoundException("MISC_EXPENSE_NOT_FOUND", "Miscellaneous expense not found"));
   }
 
   @Override
@@ -121,16 +119,13 @@ public class MiscExpenseServiceImpl implements MiscExpenseService {
     staffUserService.require(orgId, updatedByStaffUserId);
     MiscExpense expense = require(orgId, expenseId);
     if (expense.getDeletedAt() != null) {
-      throw new BadRequestException(
-          "EXPENSE_DELETED", "Cannot edit a deleted expense.");
+      throw new BadRequestException("EXPENSE_DELETED", "Cannot edit a deleted expense.");
     }
     expense.setAmount(amount != null ? amount : expense.getAmount());
     expense.setCategory(category != null ? category : expense.getCategory());
     expense.setDescription(description != null ? description.trim() : expense.getDescription());
-    expense.setIncurredBy(
-        incurredBy != null && !incurredBy.isBlank() ? incurredBy.trim() : null);
-    expense.setReceiptRef(
-        receiptRef != null && !receiptRef.isBlank() ? receiptRef.trim() : null);
+    expense.setIncurredBy(incurredBy != null && !incurredBy.isBlank() ? incurredBy.trim() : null);
+    expense.setReceiptRef(receiptRef != null && !receiptRef.isBlank() ? receiptRef.trim() : null);
     return miscExpenseRepository.save(expense);
   }
 
@@ -140,8 +135,7 @@ public class MiscExpenseServiceImpl implements MiscExpenseService {
     staffUserService.require(orgId, deletedByStaffUserId);
     MiscExpense expense = require(orgId, expenseId);
     if (expense.getDeletedAt() != null) {
-      throw new BadRequestException(
-          "EXPENSE_ALREADY_DELETED", "Expense is already deleted.");
+      throw new BadRequestException("EXPENSE_ALREADY_DELETED", "Expense is already deleted.");
     }
     expense.setDeletedAt(Instant.now(clock));
     return miscExpenseRepository.save(expense);

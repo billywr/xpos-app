@@ -16,10 +16,5 @@ public interface SupplierService {
   Page<Supplier> listActiveOnly(UUID orgId, Pageable pageable);
 
   Supplier update(
-      UUID orgId,
-      UUID supplierId,
-      String name,
-      String phone,
-      String email,
-      Boolean active);
+      UUID orgId, UUID supplierId, String name, String phone, String email, Boolean active);
 }

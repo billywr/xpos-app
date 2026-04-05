@@ -56,18 +56,14 @@ public class ShiftOperatorController {
             ? request.openingFloatAmount()
             : BigDecimal.ZERO;
     Shift shift =
-        shiftService.openShift(
-            orgId, branchId, terminalId, staffUser.getId(), openingFloat);
+        shiftService.openShift(orgId, branchId, terminalId, staffUser.getId(), openingFloat);
     return toResponse(shift, orgId);
   }
 
   @GetMapping("/current")
   public ResponseEntity<ShiftResponse> getCurrentOpenShift(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      @PathVariable UUID terminalId) {
-    Optional<Shift> shift =
-        shiftService.getCurrentOpenShift(orgId, branchId, terminalId);
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @PathVariable UUID terminalId) {
+    Optional<Shift> shift = shiftService.getCurrentOpenShift(orgId, branchId, terminalId);
     return shift
         .map(s -> ResponseEntity.ok(toResponse(s, orgId)))
         .orElseGet(() -> ResponseEntity.notFound().build());

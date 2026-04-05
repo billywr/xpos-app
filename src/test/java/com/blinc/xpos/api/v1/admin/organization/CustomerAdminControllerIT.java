@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.organization;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -34,7 +34,7 @@ class CustomerAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/customers")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         "{\"name\":\"Jane Doe\",\"phone\":\"+254700000000\",\"email\":\"jane@example.com\"}"))
@@ -45,26 +45,25 @@ class CustomerAdminControllerIT extends AbstractIntegrationTest {
             .andReturn();
     UUID customerId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/customers/" + customerId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/customers/" + customerId).with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.name").value("Jane Doe"));
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/customers?page=0&size=10")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/customers?page=0&size=10").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
 
     mockMvc
         .perform(
             patch("/api/v1/admin/orgs/" + orgId + "/customers/" + customerId)
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"name\":\"Jane Updated\",\"active\":false}"))
         .andExpect(status().isOk())
@@ -73,17 +72,18 @@ class CustomerAdminControllerIT extends AbstractIntegrationTest {
   }
 
   private UUID createOrg() throws Exception {
-    String body =
-        objectMapper.writeValueAsString(new OrgCreateRequest("Test Org Customers"));
+    String body = objectMapper.writeValueAsString(new OrgCreateRequest("Test Org Customers"));
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 }

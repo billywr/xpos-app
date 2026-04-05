@@ -56,7 +56,8 @@ public class ManualStockCountServiceImpl implements ManualStockCountService {
     return sheetRepository
         .findByBranchIdAndBusinessDateFetchLines(branchId, businessDate)
         .map(this::toSheetResponse)
-        .orElseGet(() -> new ManualStockCountSheetResponse(businessDate, branchId, null, List.of()));
+        .orElseGet(
+            () -> new ManualStockCountSheetResponse(businessDate, branchId, null, List.of()));
   }
 
   @Override
@@ -65,8 +66,7 @@ public class ManualStockCountServiceImpl implements ManualStockCountService {
       UUID orgId, UUID branchId, UUID staffUserId, ManualStockCountSaveRequest request) {
     Objects.requireNonNull(staffUserId, "staffUserId");
     if (!branchId.equals(request.outletId())) {
-      throw new ConflictException(
-          "OUTLET_MISMATCH", "Branch ID does not match request outlet ID.");
+      throw new ConflictException("OUTLET_MISMATCH", "Branch ID does not match request outlet ID.");
     }
     Branch branch = branchService.require(orgId, branchId);
     Instant now = Instant.now();
@@ -173,10 +173,7 @@ public class ManualStockCountServiceImpl implements ManualStockCountService {
     List<ManualStockCountLineResponse> rows =
         sheet.getLines().stream().map(this::toLineResponse).toList();
     return new ManualStockCountSheetResponse(
-        sheet.getBusinessDate(),
-        sheet.getBranch().getId(),
-        sheet.getLastSavedAt(),
-        rows);
+        sheet.getBusinessDate(), sheet.getBranch().getId(), sheet.getLastSavedAt(), rows);
   }
 
   private ManualStockCountLineResponse toLineResponse(ManualStockCountLine line) {

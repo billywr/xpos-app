@@ -37,11 +37,7 @@ public class ScheduledPriceAdminController {
       @Valid @RequestBody ScheduledPriceCreateRequest request) {
     ScheduledPrice scheduled =
         scheduledPriceService.add(
-            orgId,
-            priceScheduleId,
-            request.itemId(),
-            request.price(),
-            request.currency());
+            orgId, priceScheduleId, request.itemId(), request.price(), request.currency());
     return toResponse(scheduled);
   }
 
@@ -59,8 +55,7 @@ public class ScheduledPriceAdminController {
       @PathVariable UUID priceScheduleId,
       @PathVariable UUID scheduledPriceId) {
     return toResponse(
-        scheduledPriceService.requireInSchedule(
-            orgId, priceScheduleId, scheduledPriceId));
+        scheduledPriceService.requireInSchedule(orgId, priceScheduleId, scheduledPriceId));
   }
 
   @DeleteMapping("/{scheduledPriceId}")

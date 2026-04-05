@@ -22,18 +22,15 @@ public class OutboxEventAdminController {
   private final PageRequestFactory pageRequestFactory;
 
   public OutboxEventAdminController(
-      OutboxEventService outboxEventService,
-      PageRequestFactory pageRequestFactory) {
+      OutboxEventService outboxEventService, PageRequestFactory pageRequestFactory) {
     this.outboxEventService = Objects.requireNonNull(outboxEventService);
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory);
   }
 
   @GetMapping
   public Page<OutboxEventResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
-    return outboxEventService.list(orgId, normalized)
-        .map(OutboxEventAdminController::toResponse);
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    return outboxEventService.list(orgId, normalized).map(OutboxEventAdminController::toResponse);
   }
 
   @GetMapping("/{eventId}")

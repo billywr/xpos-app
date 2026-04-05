@@ -21,8 +21,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Stores closing stock counts for the Standard Stock Count Sheet (bar-style). One row per
- * (branch, item, businessDate). Opening = previous day's closing; Added = sum of IN movements.
+ * Stores closing stock counts for the Standard Stock Count Sheet (bar-style). One row per (branch,
+ * item, businessDate). Opening = previous day's closing; Added = sum of IN movements.
  */
 @Entity
 @Table(name = "std_stock_count_snapshot")

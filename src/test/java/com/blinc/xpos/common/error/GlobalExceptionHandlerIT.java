@@ -1,8 +1,7 @@
 package com.blinc.xpos.common.error;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -33,7 +32,7 @@ class GlobalExceptionHandlerIT extends AbstractIntegrationTest {
   @Test
   void invalidUuidInPathReturnsTypeMismatch() throws Exception {
     mockMvc
-        .perform(get("/api/v1/admin/orgs/not-a-valid-uuid").with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get("/api/v1/admin/orgs/not-a-valid-uuid").with(adminJwt()))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("TYPE_MISMATCH"))
         .andExpect(jsonPath("$.message").isString())
@@ -45,10 +44,7 @@ class GlobalExceptionHandlerIT extends AbstractIntegrationTest {
     String body = objectMapper.writeValueAsString(new OrgCreateRequest(""));
     mockMvc
         .perform(
-            post("/api/v1/admin/orgs")
-                .with(user("admin").roles("ADMIN"))
-                .contentType(APPLICATION_JSON)
-                .content(body))
+            post("/api/v1/admin/orgs").with(adminJwt()).contentType(APPLICATION_JSON).content(body))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
         .andExpect(jsonPath("$.message").value("One or more fields are invalid."))
@@ -61,7 +57,7 @@ class GlobalExceptionHandlerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs")
-                .with(user("admin").roles("ADMIN"))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("not valid json {"))
         .andExpect(status().isBadRequest())
@@ -73,8 +69,7 @@ class GlobalExceptionHandlerIT extends AbstractIntegrationTest {
   void getNonExistentOrgReturnsNotFound() throws Exception {
     UUID randomId = UUID.randomUUID();
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + randomId).with(user("admin").roles("ADMIN")))
+        .perform(get("/api/v1/admin/orgs/" + randomId).with(adminJwt()))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("ORG_NOT_FOUND"))
         .andExpect(jsonPath("$.requestId").exists());
@@ -86,17 +81,11 @@ class GlobalExceptionHandlerIT extends AbstractIntegrationTest {
     String body = objectMapper.writeValueAsString(new OrgCreateRequest(uniqueName));
     mockMvc
         .perform(
-            post("/api/v1/admin/orgs")
-                .with(user("admin").roles("ADMIN"))
-                .contentType(APPLICATION_JSON)
-                .content(body))
+            post("/api/v1/admin/orgs").with(adminJwt()).contentType(APPLICATION_JSON).content(body))
         .andExpect(status().isCreated());
     mockMvc
         .perform(
-            post("/api/v1/admin/orgs")
-                .with(user("admin").roles("ADMIN"))
-                .contentType(APPLICATION_JSON)
-                .content(body))
+            post("/api/v1/admin/orgs").with(adminJwt()).contentType(APPLICATION_JSON).content(body))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").exists())
         .andExpect(jsonPath("$.message").isString())
@@ -109,8 +98,7 @@ class GlobalExceptionHandlerIT extends AbstractIntegrationTest {
     UUID randomBusinessId = UUID.randomUUID();
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/businesses/" + randomBusinessId)
-                .with(user("admin").roles("ADMIN")))
+            get("/api/v1/admin/orgs/" + orgId + "/businesses/" + randomBusinessId).with(adminJwt()))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("BUSINESS_NOT_FOUND"));
   }
@@ -123,7 +111,7 @@ class GlobalExceptionHandlerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())

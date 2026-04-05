@@ -1,7 +1,8 @@
 package com.blinc.xpos.api.v1.operator;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
+import static com.blinc.xpos.TestJwtFactory.operatorJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -33,14 +34,11 @@ import org.springframework.test.web.servlet.MvcResult;
 @AutoConfigureMockMvc
 class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
 
-  @Autowired
-  private MockMvc mockMvc;
+  @Autowired private MockMvc mockMvc;
 
-  @Autowired
-  private ObjectMapper objectMapper;
+  @Autowired private ObjectMapper objectMapper;
 
-  @Autowired
-  private JdbcTemplate jdbcTemplate;
+  @Autowired private JdbcTemplate jdbcTemplate;
 
   @Test
   void getSheetAddedReflectsReceiptsSystemReflectsSalesThroughEndOfSelectedDay() throws Exception {
@@ -63,7 +61,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(grnBody))
         .andExpect(status().isCreated());
@@ -78,18 +76,21 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post(base + "/sales")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"priceListId\":\"" + priceListId + "\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
         UUID.fromString(
-            objectMapper.readTree(createSaleResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createSaleResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/lines")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
@@ -100,7 +101,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(base + "/sales/" + saleId + "/tenders")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
@@ -109,7 +110,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
                         .formatted(tenderTypeId)))
         .andExpect(status().isCreated());
     mockMvc
-        .perform(post(base + "/sales/" + saleId + "/complete").with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(post(base + "/sales/" + saleId + "/complete").with(operatorJwt()))
         .andExpect(status().isOk());
 
     ZoneId zone = ZoneId.of("Africa/Nairobi");
@@ -122,7 +123,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
             + "/std-stock-count?date="
             + date;
     mockMvc
-        .perform(get(url).with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(url).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.rows.length()").value(1))
         .andExpect(jsonPath("$.rows[0].addedStock").value(11))
@@ -159,7 +160,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(grn7))
             .andExpect(status().isCreated())
@@ -190,7 +191,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(grn3))
         .andExpect(status().isCreated());
@@ -204,7 +205,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
             + "/std-stock-count?date="
             + date;
     mockMvc
-        .perform(get(url).with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get(url).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.rows.length()").value(1))
         .andExpect(jsonPath("$.rows[0].openingStock").value(7))
@@ -220,7 +221,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -235,7 +236,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -254,7 +255,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -268,7 +269,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"iamUserId\":\"admin\",\"username\":\"admin\"}"))
             .andExpect(status().isCreated())
@@ -281,7 +282,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId + "/branches")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"branchId\":\"" + branchId + "\",\"primary\":true}"))
         .andExpect(status().isCreated());
@@ -292,7 +293,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/price-lists")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"name\":\"Default\",\"priority\":0,\"active\":true}"))
             .andExpect(status().isCreated())
@@ -306,7 +307,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/tax-profiles")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         "{\"name\":\"VAT\",\"vatCategory\":\"STANDARD\","
@@ -328,7 +329,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -342,7 +343,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/suppliers")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"name\":\"Supplier\"}"))
             .andExpect(status().isCreated())
@@ -355,7 +356,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"itemId\":\"" + itemId + "\",\"price\":99.50,\"currency\":\"KES\"}"))
         .andExpect(status().isCreated());
@@ -366,7 +367,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/terminals")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"terminalCode\":\"T-Ledger\"}"))
             .andExpect(status().isCreated())
@@ -378,15 +379,14 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
   private void openShift(UUID orgId, UUID branchId, UUID terminalId) throws Exception {
     mockMvc
         .perform(
-            post(
-                    "/api/v1/operator/orgs/"
-                        + orgId
-                        + "/branches/"
-                        + branchId
-                        + "/terminals/"
-                        + terminalId
-                        + "/shifts")
-                .with(jwt().jwt(j -> j.subject("admin")))
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/terminals/"
+                    + terminalId
+                    + "/shifts")
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"openingFloatAmount\":0}"))
         .andExpect(status().isCreated());
@@ -395,9 +395,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
   private UUID getCashTenderTypeId(UUID orgId) throws Exception {
     MvcResult result =
         mockMvc
-            .perform(
-                get("/api/v1/admin/orgs/" + orgId + "/tender-types")
-                    .with(jwt().jwt(j -> j.subject("admin"))))
+            .perform(get("/api/v1/admin/orgs/" + orgId + "/tender-types").with(adminJwt()))
             .andExpect(status().isOk())
             .andReturn();
     var tree = objectMapper.readTree(result.getResponse().getContentAsString());

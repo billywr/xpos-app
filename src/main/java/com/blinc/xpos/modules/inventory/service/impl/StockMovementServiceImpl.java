@@ -19,8 +19,7 @@ public class StockMovementServiceImpl implements StockMovementService {
   private final BranchService branchService;
 
   public StockMovementServiceImpl(
-      StockMovementRepository stockMovementRepository,
-      BranchService branchService) {
+      StockMovementRepository stockMovementRepository, BranchService branchService) {
     this.stockMovementRepository =
         Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
     this.branchService = Objects.requireNonNull(branchService, "branchService");
@@ -34,8 +33,7 @@ public class StockMovementServiceImpl implements StockMovementService {
         .orElseThrow(
             () ->
                 new NotFoundException(
-                    "STOCK_MOVEMENT_NOT_FOUND",
-                    "Stock movement not found: " + stockMovementId));
+                    "STOCK_MOVEMENT_NOT_FOUND", "Stock movement not found: " + stockMovementId));
   }
 
   @Override

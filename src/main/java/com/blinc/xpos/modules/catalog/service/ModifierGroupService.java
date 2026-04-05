@@ -14,5 +14,10 @@ public interface ModifierGroupService {
   Page<ModifierGroup> list(UUID orgId, Pageable pageable);
 
   ModifierGroup update(
-      UUID orgId, UUID modifierGroupId, String name, int minSelect, int maxSelect, boolean required);
+      UUID orgId,
+      UUID modifierGroupId,
+      String name,
+      int minSelect,
+      int maxSelect,
+      boolean required);
 }

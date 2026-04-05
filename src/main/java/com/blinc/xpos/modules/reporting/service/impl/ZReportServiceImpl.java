@@ -1,13 +1,13 @@
 package com.blinc.xpos.modules.reporting.service.impl;
 
 import com.blinc.xpos.common.constants.enums.SaleStatus;
+import com.blinc.xpos.modules.organization.service.BranchService;
 import com.blinc.xpos.modules.reporting.dto.ZReportSummaryResponse;
 import com.blinc.xpos.modules.reporting.service.ZReportService;
 import com.blinc.xpos.modules.sales.domain.Sale;
 import com.blinc.xpos.modules.sales.domain.Tender;
 import com.blinc.xpos.modules.sales.repository.SaleRepository;
 import com.blinc.xpos.modules.sales.repository.TenderRepository;
-import com.blinc.xpos.modules.organization.service.BranchService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneOffset;

@@ -80,8 +80,7 @@ public class BusinessAdminController {
 
   @DeleteMapping("/{businessId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(
-      @PathVariable UUID orgId, @PathVariable UUID businessId) {
+  public void delete(@PathVariable UUID orgId, @PathVariable UUID businessId) {
     businessService.softDelete(orgId, businessId);
   }
 

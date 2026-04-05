@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.ledger;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -33,7 +33,7 @@ class LedgerAccountAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/ledger-accounts")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"code\":\"1000\",\"name\":\"Cash\",\"accountType\":\"ASSET\"}"))
             .andExpect(status().isCreated())
@@ -42,32 +42,34 @@ class LedgerAccountAdminControllerIT extends AbstractIntegrationTest {
             .andReturn();
     UUID accountId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/ledger-accounts/" + accountId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/" + orgId + "/ledger-accounts/" + accountId).with(adminJwt()))
         .andExpect(status().isOk());
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/ledger-accounts?page=0&size=10")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/" + orgId + "/ledger-accounts?page=0&size=10").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
   }
 
   private UUID createOrg() throws Exception {
-    String body =
-        objectMapper.writeValueAsString(new OrgCreateRequest("Test Org Ledger"));
+    String body = objectMapper.writeValueAsString(new OrgCreateRequest("Test Org Ledger"));
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 }

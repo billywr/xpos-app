@@ -1,9 +1,9 @@
 package com.blinc.xpos.api.v1.admin.inventory;
 
+import com.blinc.xpos.api.v1.admin.inventory.dto.GoodsReceiptNoteResponse;
 import com.blinc.xpos.api.v1.admin.inventory.dto.GrnCreateRequest;
 import com.blinc.xpos.api.v1.admin.inventory.dto.GrnLineResponse;
 import com.blinc.xpos.api.v1.admin.inventory.dto.GrnUpdateRequest;
-import com.blinc.xpos.api.v1.admin.inventory.dto.GoodsReceiptNoteResponse;
 import com.blinc.xpos.common.security.CurrentPrincipalResolver;
 import com.blinc.xpos.common.web.paging.PageRequestFactory;
 import com.blinc.xpos.modules.catalog.service.ItemBarcodeService;
@@ -21,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -30,7 +31,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -53,8 +53,7 @@ public class GoodsReceiptNoteAdminController {
       StaffAuthorizationService staffAuthorizationService) {
     this.grnService = Objects.requireNonNull(grnService, "grnService");
     this.grnLineRepository = Objects.requireNonNull(grnLineRepository, "grnLineRepository");
-    this.itemBarcodeService =
-        Objects.requireNonNull(itemBarcodeService, "itemBarcodeService");
+    this.itemBarcodeService = Objects.requireNonNull(itemBarcodeService, "itemBarcodeService");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
     this.principalResolver = Objects.requireNonNull(principalResolver, "principalResolver");
     this.staffAuthorizationService =
@@ -65,8 +64,8 @@ public class GoodsReceiptNoteAdminController {
   @ResponseStatus(HttpStatus.CREATED)
   public GoodsReceiptNoteResponse create(
       @PathVariable UUID orgId, @Valid @RequestBody GrnCreateRequest request) {
-    var staffUser = staffAuthorizationService.requireStaffUser(
-        orgId, principalResolver.require().iamUserId());
+    var staffUser =
+        staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
     List<GoodsReceiptNoteService.GrnLineRequest> lineReqs =
         request.lines().stream()
             .map(
@@ -104,8 +103,8 @@ public class GoodsReceiptNoteAdminController {
       @PathVariable UUID orgId,
       @PathVariable UUID grnId,
       @Valid @RequestBody GrnUpdateRequest request) {
-    var staffUser = staffAuthorizationService.requireStaffUser(
-        orgId, principalResolver.require().iamUserId());
+    var staffUser =
+        staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
     List<GoodsReceiptNoteService.GrnLineRequest> lineReqs = null;
     if (request.lines() != null) {
       lineReqs =

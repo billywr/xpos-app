@@ -5,9 +5,9 @@ import com.blinc.xpos.api.v1.operator.dto.CustomerDebtResponse;
 import com.blinc.xpos.api.v1.operator.dto.CustomerDebtUpdateRequest;
 import com.blinc.xpos.api.v1.operator.dto.DebtPendingTotalResponse;
 import com.blinc.xpos.api.v1.operator.dto.DebtSettleRequest;
+import com.blinc.xpos.common.constants.enums.CustomerDebtStatus;
 import com.blinc.xpos.common.security.CurrentPrincipalResolver;
 import com.blinc.xpos.common.web.paging.PageRequestFactory;
-import com.blinc.xpos.common.constants.enums.CustomerDebtStatus;
 import com.blinc.xpos.modules.debt.domain.CustomerDebt;
 import com.blinc.xpos.modules.debt.service.CustomerDebtService;
 import com.blinc.xpos.modules.debt.service.DebtUpdateInput;
@@ -45,8 +45,7 @@ public class CustomerDebtOperatorController {
       PageRequestFactory pageRequestFactory,
       CurrentPrincipalResolver principalResolver,
       StaffAuthorizationService staffAuthorizationService) {
-    this.customerDebtService =
-        Objects.requireNonNull(customerDebtService, "customerDebtService");
+    this.customerDebtService = Objects.requireNonNull(customerDebtService, "customerDebtService");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
     this.principalResolver = Objects.requireNonNull(principalResolver, "principalResolver");
     this.staffAuthorizationService =
@@ -59,8 +58,9 @@ public class CustomerDebtOperatorController {
       @PathVariable UUID orgId,
       @PathVariable UUID branchId,
       @Valid @RequestBody CustomerDebtCreateRequest request) {
-    var staffUser = staffAuthorizationService.requireStaffUserForBranch(
-        orgId, branchId, principalResolver.require().iamUserId());
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
     CustomerDebt debt =
         customerDebtService.create(
             orgId,
@@ -82,8 +82,9 @@ public class CustomerDebtOperatorController {
       @PathVariable UUID branchId,
       @PathVariable UUID debtId,
       @Valid @RequestBody CustomerDebtUpdateRequest request) {
-    var staffUser = staffAuthorizationService.requireStaffUserForBranch(
-        orgId, branchId, principalResolver.require().iamUserId());
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
     CustomerDebt debt =
         customerDebtService.update(
             orgId,
@@ -102,11 +103,10 @@ public class CustomerDebtOperatorController {
 
   @PostMapping("/debts/{debtId}/cancel")
   public CustomerDebtResponse cancel(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      @PathVariable UUID debtId) {
-    var staffUser = staffAuthorizationService.requireStaffUserForBranch(
-        orgId, branchId, principalResolver.require().iamUserId());
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @PathVariable UUID debtId) {
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
     CustomerDebt debt = customerDebtService.cancel(orgId, debtId, staffUser.getId());
     return toResponse(debt);
   }
@@ -117,14 +117,11 @@ public class CustomerDebtOperatorController {
       @PathVariable UUID branchId,
       @PathVariable UUID debtId,
       @Valid @RequestBody DebtSettleRequest request) {
-    var staffUser = staffAuthorizationService.requireStaffUserForBranch(
-        orgId, branchId, principalResolver.require().iamUserId());
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
     CustomerDebt debt =
-        customerDebtService.settle(
-            orgId,
-            debtId,
-            request.paymentAmount(),
-            staffUser.getId());
+        customerDebtService.settle(orgId, debtId, request.paymentAmount(), staffUser.getId());
     return toResponse(debt);
   }
 
@@ -145,10 +142,10 @@ public class CustomerDebtOperatorController {
       Pageable pageable) {
     staffAuthorizationService.requireStaffUserForBranch(
         orgId, branchId, principalResolver.require().iamUserId());
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.unsorted());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.unsorted());
     List<CustomerDebtStatus> statuses = parseStatuses(status);
-    return customerDebtService.listByBranch(orgId, branchId, statuses, normalized)
+    return customerDebtService
+        .listByBranch(orgId, branchId, statuses, normalized)
         .map(CustomerDebtOperatorController::toResponse);
   }
 
@@ -191,7 +188,8 @@ public class CustomerDebtOperatorController {
 
   private static CustomerDebtResponse toResponse(CustomerDebt d) {
     BigDecimal outstanding =
-        d.getAmount().subtract(d.getAmountSettled() != null ? d.getAmountSettled() : BigDecimal.ZERO);
+        d.getAmount()
+            .subtract(d.getAmountSettled() != null ? d.getAmountSettled() : BigDecimal.ZERO);
     return new CustomerDebtResponse(
         d.getId(),
         d.getCustomer().getId(),

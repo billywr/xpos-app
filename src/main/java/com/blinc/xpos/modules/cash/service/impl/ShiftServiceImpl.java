@@ -57,16 +57,11 @@ public class ShiftServiceImpl implements ShiftService {
   @Override
   @Transactional
   public Shift openShift(
-      UUID orgId,
-      UUID branchId,
-      UUID terminalId,
-      UUID staffUserId,
-      BigDecimal openingFloatAmount) {
+      UUID orgId, UUID branchId, UUID terminalId, UUID staffUserId, BigDecimal openingFloatAmount) {
     branchService.require(orgId, branchId);
     Terminal terminal = terminalService.require(orgId, terminalId);
     if (!terminal.getBranch().getId().equals(branchId)) {
-      throw new NotFoundException(
-          "TERMINAL_NOT_FOUND", "Terminal not found in this branch");
+      throw new NotFoundException("TERMINAL_NOT_FOUND", "Terminal not found in this branch");
     }
     Optional<Shift> existing =
         shiftRepository.findByTerminalIdAndStatus(terminalId, ShiftStatus.OPEN);
@@ -114,9 +109,7 @@ public class ShiftServiceImpl implements ShiftService {
           reasonCodeRepository
               .findByIdAndOrgId(varianceReasonCodeId, orgId)
               .orElseThrow(
-                  () ->
-                      new NotFoundException(
-                          "REASON_CODE_NOT_FOUND", "Reason code not found"));
+                  () -> new NotFoundException("REASON_CODE_NOT_FOUND", "Reason code not found"));
       shift.setVarianceReasonCode(reason);
     } else {
       shift.setVarianceReasonCode(null);

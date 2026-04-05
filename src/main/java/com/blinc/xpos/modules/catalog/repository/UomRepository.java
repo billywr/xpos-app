@@ -11,15 +11,13 @@ import org.springframework.data.repository.query.Param;
 
 public interface UomRepository extends JpaRepository<Uom, UUID> {
 
-  @Query(
-      """
+  @Query("""
       select u from Uom u
       where u.id = :id and u.org.id = :orgId
       """)
   Optional<Uom> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
-  @Query(
-      """
+  @Query("""
       select u from Uom u
       where u.org.id = :orgId
       """)

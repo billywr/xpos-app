@@ -49,21 +49,16 @@ public class ShiftExpectedCashServiceImpl implements ShiftExpectedCashService {
       return null;
     }
     BigDecimal opening =
-        shift.getOpeningFloatAmount() != null
-            ? shift.getOpeningFloatAmount()
-            : BigDecimal.ZERO;
-    List<Sale> sales =
-        saleRepository.findByShiftIdAndStatus(shiftId, SaleStatus.COMPLETED);
+        shift.getOpeningFloatAmount() != null ? shift.getOpeningFloatAmount() : BigDecimal.ZERO;
+    List<Sale> sales = saleRepository.findByShiftIdAndStatus(shiftId, SaleStatus.COMPLETED);
     List<UUID> saleIds = sales.stream().map(Sale::getId).toList();
     BigDecimal cashTenders = BigDecimal.ZERO;
     if (!saleIds.isEmpty()) {
       List<Tender> tenders = tenderRepository.findBySaleIdIn(saleIds);
       for (Tender t : tenders) {
-        String code =
-            t.getTenderType().getCode() == null ? "" : t.getTenderType().getCode();
+        String code = t.getTenderType().getCode() == null ? "" : t.getTenderType().getCode();
         if (TENDER_CODE_CASH.equalsIgnoreCase(code)) {
-          cashTenders =
-              cashTenders.add(t.getAmount() != null ? t.getAmount() : BigDecimal.ZERO);
+          cashTenders = cashTenders.add(t.getAmount() != null ? t.getAmount() : BigDecimal.ZERO);
         }
       }
     }

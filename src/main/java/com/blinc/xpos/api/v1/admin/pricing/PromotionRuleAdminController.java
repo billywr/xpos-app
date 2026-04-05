@@ -64,14 +64,12 @@ public class PromotionRuleAdminController {
 
   @GetMapping
   public Page<PromotionRuleResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("priority").ascending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("priority").ascending());
     return promotionRuleService.list(orgId, normalized).map(this::toResponse);
   }
 
   @GetMapping("/{promotionRuleId}")
-  public PromotionRuleResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID promotionRuleId) {
+  public PromotionRuleResponse get(@PathVariable UUID orgId, @PathVariable UUID promotionRuleId) {
     return toResponse(promotionRuleService.require(orgId, promotionRuleId));
   }
 

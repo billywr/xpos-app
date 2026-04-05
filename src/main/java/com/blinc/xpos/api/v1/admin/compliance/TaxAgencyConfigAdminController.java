@@ -30,8 +30,7 @@ public class TaxAgencyConfigAdminController {
   private final PageRequestFactory pageRequestFactory;
 
   public TaxAgencyConfigAdminController(
-      TaxAgencyConfigService service,
-      PageRequestFactory pageRequestFactory) {
+      TaxAgencyConfigService service, PageRequestFactory pageRequestFactory) {
     this.service = Objects.requireNonNull(service);
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory);
   }
@@ -40,8 +39,14 @@ public class TaxAgencyConfigAdminController {
   @ResponseStatus(HttpStatus.CREATED)
   public TaxAgencyConfigResponse create(
       @PathVariable UUID orgId, @Valid @RequestBody TaxAgencyConfigCreateRequest request) {
-    TaxAgencyConfig created = service.create(orgId, request.name(), request.vatStandardRate(),
-        request.vatReducedRate(), request.supportsEtims(), request.etimsMappingJson());
+    TaxAgencyConfig created =
+        service.create(
+            orgId,
+            request.name(),
+            request.vatStandardRate(),
+            request.vatReducedRate(),
+            request.supportsEtims(),
+            request.etimsMappingJson());
     return toResponse(created);
   }
 
@@ -58,17 +63,31 @@ public class TaxAgencyConfigAdminController {
 
   @PatchMapping("/{configId}")
   public TaxAgencyConfigResponse update(
-      @PathVariable UUID orgId, @PathVariable UUID configId,
+      @PathVariable UUID orgId,
+      @PathVariable UUID configId,
       @Valid @RequestBody TaxAgencyConfigUpdateRequest request) {
-    TaxAgencyConfig updated = service.update(orgId, configId, request.name(),
-        request.vatStandardRate(), request.vatReducedRate(),
-        request.supportsEtims(), request.etimsMappingJson());
+    TaxAgencyConfig updated =
+        service.update(
+            orgId,
+            configId,
+            request.name(),
+            request.vatStandardRate(),
+            request.vatReducedRate(),
+            request.supportsEtims(),
+            request.etimsMappingJson());
     return toResponse(updated);
   }
 
   private static TaxAgencyConfigResponse toResponse(TaxAgencyConfig t) {
-    return new TaxAgencyConfigResponse(t.getId(), t.getOrg().getId(), t.getName(),
-        t.getVatStandardRate(), t.getVatReducedRate(), t.getSupportsEtims(),
-        t.getEtimsMappingJson(), t.getCreatedAt(), t.getUpdatedAt());
+    return new TaxAgencyConfigResponse(
+        t.getId(),
+        t.getOrg().getId(),
+        t.getName(),
+        t.getVatStandardRate(),
+        t.getVatReducedRate(),
+        t.getSupportsEtims(),
+        t.getEtimsMappingJson(),
+        t.getCreatedAt(),
+        t.getUpdatedAt());
   }
 }

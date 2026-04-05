@@ -36,36 +36,25 @@ public class ItemImageAdminController {
       @Valid @RequestBody ItemImageCreateRequest request) {
     ItemImage image =
         itemImageService.add(
-            orgId,
-            itemId,
-            request.url(),
-            request.sortOrder(),
-            request.isPrimary());
+            orgId, itemId, request.url(), request.sortOrder(), request.isPrimary());
     return toResponse(image);
   }
 
   @GetMapping
-  public List<ItemImageResponse> list(
-      @PathVariable UUID orgId, @PathVariable UUID itemId) {
-    return itemImageService.listByItem(orgId, itemId).stream()
-        .map(this::toResponse)
-        .toList();
+  public List<ItemImageResponse> list(@PathVariable UUID orgId, @PathVariable UUID itemId) {
+    return itemImageService.listByItem(orgId, itemId).stream().map(this::toResponse).toList();
   }
 
   @GetMapping("/{imageId}")
   public ItemImageResponse get(
-      @PathVariable UUID orgId,
-      @PathVariable UUID itemId,
-      @PathVariable UUID imageId) {
+      @PathVariable UUID orgId, @PathVariable UUID itemId, @PathVariable UUID imageId) {
     return toResponse(itemImageService.requireInItem(orgId, itemId, imageId));
   }
 
   @DeleteMapping("/{imageId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void remove(
-      @PathVariable UUID orgId,
-      @PathVariable UUID itemId,
-      @PathVariable UUID imageId) {
+      @PathVariable UUID orgId, @PathVariable UUID itemId, @PathVariable UUID imageId) {
     itemImageService.remove(orgId, itemId, imageId);
   }
 

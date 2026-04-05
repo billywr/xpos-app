@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.fraud;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -36,10 +36,12 @@ class ApprovalPolicyAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/approval-policies")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
-                        "{\"branchId\":\"" + branchId + "\",\"policyCode\":\"VOID_ABOVE_1000\","
+                        "{\"branchId\":\""
+                            + branchId
+                            + "\",\"policyCode\":\"VOID_ABOVE_1000\","
                             + "\"thresholdValue\":1000,\"requiresManager\":true}"))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").exists())
@@ -48,36 +50,39 @@ class ApprovalPolicyAdminControllerIT extends AbstractIntegrationTest {
             .andReturn();
     UUID policyId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/approval-policies/" + policyId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/" + orgId + "/approval-policies/" + policyId).with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.policyCode").value("VOID_ABOVE_1000"));
 
     mockMvc
         .perform(
             get("/api/v1/admin/orgs/" + orgId + "/approval-policies?page=0&size=10")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+                .with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1));
   }
 
   private UUID createOrg() throws Exception {
-    String body =
-        objectMapper.writeValueAsString(new OrgCreateRequest("Test Org ApprovalPolicy"));
+    String body = objectMapper.writeValueAsString(new OrgCreateRequest("Test Org ApprovalPolicy"));
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 
   private UUID createBusiness(UUID orgId) throws Exception {
@@ -85,7 +90,7 @@ class ApprovalPolicyAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -104,7 +109,7 @@ class ApprovalPolicyAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())

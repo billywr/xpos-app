@@ -7,8 +7,6 @@ import com.blinc.xpos.api.v1.admin.staff.dto.StaffProfileUpsertRequest;
 import com.blinc.xpos.api.v1.admin.staff.dto.StaffUserCreateRequest;
 import com.blinc.xpos.api.v1.admin.staff.dto.StaffUserResponse;
 import com.blinc.xpos.api.v1.admin.staff.dto.StaffUserStatusUpdateRequest;
-import com.blinc.xpos.common.error.ApiException;
-import com.blinc.xpos.common.security.CurrentPrincipalResolver;
 import com.blinc.xpos.common.web.paging.PageRequestFactory;
 import com.blinc.xpos.modules.organization.domain.StaffBranchAssignment;
 import com.blinc.xpos.modules.organization.domain.StaffProfile;
@@ -44,32 +42,22 @@ public class StaffAdminController {
   private final StaffProfileService staffProfileService;
   private final StaffBranchAssignmentService assignmentService;
   private final PageRequestFactory pageRequestFactory;
-  private final CurrentPrincipalResolver principalResolver;
 
   public StaffAdminController(
       StaffUserService staffUserService,
       StaffProfileService staffProfileService,
       StaffBranchAssignmentService assignmentService,
-      PageRequestFactory pageRequestFactory,
-      CurrentPrincipalResolver principalResolver) {
+      PageRequestFactory pageRequestFactory) {
     this.staffUserService = Objects.requireNonNull(staffUserService, "staffUserService");
     this.staffProfileService = Objects.requireNonNull(staffProfileService, "staffProfileService");
     this.assignmentService = Objects.requireNonNull(assignmentService, "assignmentService");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
-    this.principalResolver = Objects.requireNonNull(principalResolver, "principalResolver");
   }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public StaffUserResponse create(
       @PathVariable UUID orgId, @Valid @RequestBody StaffUserCreateRequest request) {
-    String tokenSub = principalResolver.require().iamUserId();
-    if (!request.iamUserId().trim().equals(tokenSub)) {
-      throw new ApiException(
-          HttpStatus.BAD_REQUEST,
-          "IAM_USER_ID_MISMATCH",
-          "iamUserId must match the authenticated user (JWT subject).");
-    }
     StaffUser created = staffUserService.create(orgId, request.iamUserId(), request.username());
     return toResponse(created);
   }
@@ -96,8 +84,7 @@ public class StaffAdminController {
 
   @DeleteMapping("/{staffUserId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(
-      @PathVariable UUID orgId, @PathVariable UUID staffUserId) {
+  public void delete(@PathVariable UUID orgId, @PathVariable UUID staffUserId) {
     staffUserService.softDelete(orgId, staffUserId);
   }
 

@@ -73,8 +73,7 @@ public class DeviceAdminController {
 
   @DeleteMapping("/orgs/{orgId}/devices/{deviceRegistrationId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(
-      @PathVariable UUID orgId, @PathVariable UUID deviceRegistrationId) {
+  public void delete(@PathVariable UUID orgId, @PathVariable UUID deviceRegistrationId) {
     deviceRegistrationService.softDelete(orgId, deviceRegistrationId);
   }
 

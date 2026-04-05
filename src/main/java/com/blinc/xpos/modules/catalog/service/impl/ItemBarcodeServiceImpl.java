@@ -51,12 +51,9 @@ public class ItemBarcodeServiceImpl implements ItemBarcodeService {
         itemBarcodeRepository
             .findByIdAndOrgId(barcodeId, orgId)
             .orElseThrow(
-                () ->
-                    new NotFoundException(
-                        "ITEM_BARCODE_NOT_FOUND", "Item barcode not found"));
+                () -> new NotFoundException("ITEM_BARCODE_NOT_FOUND", "Item barcode not found"));
     if (!barcode.getItem().getId().equals(itemId)) {
-      throw new NotFoundException(
-          "ITEM_BARCODE_NOT_FOUND", "Item barcode not found for this item");
+      throw new NotFoundException("ITEM_BARCODE_NOT_FOUND", "Item barcode not found for this item");
     }
     return barcode;
   }

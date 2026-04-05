@@ -30,13 +30,11 @@ public class AnalyticsOperatorController {
       StaffAuthorizationService staffAuthorizationService,
       BranchService branchService,
       CurrentPrincipalResolver principalResolver) {
-    this.analyticsService =
-        Objects.requireNonNull(analyticsService, "analyticsService");
+    this.analyticsService = Objects.requireNonNull(analyticsService, "analyticsService");
     this.staffAuthorizationService =
         Objects.requireNonNull(staffAuthorizationService, "staffAuthorizationService");
     this.branchService = Objects.requireNonNull(branchService, "branchService");
-    this.principalResolver =
-        Objects.requireNonNull(principalResolver, "principalResolver");
+    this.principalResolver = Objects.requireNonNull(principalResolver, "principalResolver");
   }
 
   @GetMapping("/snapshot")
@@ -45,8 +43,7 @@ public class AnalyticsOperatorController {
       @PathVariable UUID branchId,
       @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate fromDate,
       @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate toDate) {
-    staffAuthorizationService.requireStaffUser(
-        orgId, principalResolver.require().iamUserId());
+    staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
     branchService.require(orgId, branchId);
     return analyticsService.getSnapshot(orgId, branchId, fromDate, toDate);
   }

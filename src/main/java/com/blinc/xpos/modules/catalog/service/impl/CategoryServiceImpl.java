@@ -88,8 +88,7 @@ public class CategoryServiceImpl implements CategoryService {
     Category category = require(orgId, categoryId);
     if (itemRepository.countByOrgIdAndCategoryId(orgId, categoryId) > 0) {
       throw new ConflictException(
-          "CATEGORY_IN_USE",
-          "Cannot delete category: it has items. Move or delete items first.");
+          "CATEGORY_IN_USE", "Cannot delete category: it has items. Move or delete items first.");
     }
     if (categoryRepository.countByOrgIdAndParentId(orgId, categoryId) > 0) {
       throw new ConflictException(

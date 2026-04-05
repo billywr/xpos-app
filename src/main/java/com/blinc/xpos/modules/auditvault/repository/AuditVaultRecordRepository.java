@@ -34,5 +34,4 @@ public interface AuditVaultRecordRepository extends JpaRepository<AuditVaultReco
       """)
   Page<AuditVaultRecord> findAllByOrgIdAndBranchId(
       @Param("orgId") UUID orgId, @Param("branchId") UUID branchId, Pageable pageable);
-
 }

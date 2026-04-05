@@ -1,6 +1,7 @@
 package com.blinc.xpos.modules.catalog.service.impl;
 
 import com.blinc.xpos.common.constants.enums.ItemType;
+import com.blinc.xpos.common.error.BadRequestException;
 import com.blinc.xpos.common.error.NotFoundException;
 import com.blinc.xpos.modules.catalog.domain.Category;
 import com.blinc.xpos.modules.catalog.domain.Item;
@@ -10,7 +11,6 @@ import com.blinc.xpos.modules.catalog.service.CategoryService;
 import com.blinc.xpos.modules.catalog.service.ItemService;
 import com.blinc.xpos.modules.catalog.service.UomService;
 import com.blinc.xpos.modules.organization.service.OrgService;
-import com.blinc.xpos.common.error.BadRequestException;
 import com.blinc.xpos.modules.pricing.domain.TaxProfile;
 import com.blinc.xpos.modules.pricing.service.PriceListItemService;
 import com.blinc.xpos.modules.pricing.service.ScheduledPriceService;
@@ -129,8 +129,7 @@ public class ItemServiceImpl implements ItemService {
     }
     if (defaultSellingPrice.compareTo(buyingPrice) < 0) {
       throw new BadRequestException(
-          "SELLING_PRICE_BELOW_BUYING",
-          "Default selling price cannot be less than buying price.");
+          "SELLING_PRICE_BELOW_BUYING", "Default selling price cannot be less than buying price.");
     }
   }
 

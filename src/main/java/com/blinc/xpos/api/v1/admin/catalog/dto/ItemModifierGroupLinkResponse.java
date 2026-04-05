@@ -4,7 +4,4 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record ItemModifierGroupLinkResponse(
-    UUID id,
-    UUID itemId,
-    UUID modifierGroupId,
-    Instant createdAt) {}
+    UUID id, UUID itemId, UUID modifierGroupId, Instant createdAt) {}

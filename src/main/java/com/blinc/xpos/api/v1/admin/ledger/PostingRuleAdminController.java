@@ -28,8 +28,7 @@ public class PostingRuleAdminController {
   private final PageRequestFactory pageRequestFactory;
 
   public PostingRuleAdminController(
-      PostingRuleService postingRuleService,
-      PageRequestFactory pageRequestFactory) {
+      PostingRuleService postingRuleService, PageRequestFactory pageRequestFactory) {
     this.postingRuleService = Objects.requireNonNull(postingRuleService);
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory);
   }
@@ -40,23 +39,18 @@ public class PostingRuleAdminController {
       @PathVariable UUID orgId, @Valid @RequestBody PostingRuleCreateRequest request) {
     PostingRule created =
         postingRuleService.create(
-            orgId,
-            request.eventType(),
-            request.debitAccountCode(),
-            request.creditAccountCode());
+            orgId, request.eventType(), request.debitAccountCode(), request.creditAccountCode());
     return toResponse(created);
   }
 
   @GetMapping
   public Page<PostingRuleResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("eventType").ascending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("eventType").ascending());
     return postingRuleService.list(orgId, normalized).map(PostingRuleAdminController::toResponse);
   }
 
   @GetMapping("/{ruleId}")
-  public PostingRuleResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID ruleId) {
+  public PostingRuleResponse get(@PathVariable UUID orgId, @PathVariable UUID ruleId) {
     return toResponse(postingRuleService.require(orgId, ruleId));
   }
 

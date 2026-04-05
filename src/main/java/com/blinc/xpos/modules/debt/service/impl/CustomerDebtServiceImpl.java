@@ -97,13 +97,9 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
       Sale sale =
           saleService
               .getByIdAndOrg(orgId, saleId)
-              .orElseThrow(
-                  () ->
-                      new NotFoundException(
-                          "SALE_NOT_FOUND", "Sale not found"));
+              .orElseThrow(() -> new NotFoundException("SALE_NOT_FOUND", "Sale not found"));
       if (!sale.getBranch().getId().equals(branchId)) {
-        throw new NotFoundException(
-            "SALE_NOT_FOUND", "Sale does not belong to this branch");
+        throw new NotFoundException("SALE_NOT_FOUND", "Sale does not belong to this branch");
       }
       debt.setSale(sale);
     }
@@ -120,8 +116,7 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
     if (shiftId != null) {
       Shift shift = shiftService.require(orgId, shiftId);
       if (!shift.getBranch().getId().equals(branchId)) {
-        throw new NotFoundException(
-            "SHIFT_NOT_FOUND", "Shift does not belong to this branch");
+        throw new NotFoundException("SHIFT_NOT_FOUND", "Shift does not belong to this branch");
       }
       debt.setShift(shift);
     }
@@ -135,9 +130,7 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
     return customerDebtRepository
         .findByIdAndOrgId(debtId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "CUSTOMER_DEBT_NOT_FOUND", "Customer debt not found"));
+            () -> new NotFoundException("CUSTOMER_DEBT_NOT_FOUND", "Customer debt not found"));
   }
 
   @Override
@@ -147,12 +140,10 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
     staffUserService.require(orgId, updatedByStaffUserId);
     CustomerDebt debt = require(orgId, debtId);
     if (debt.getStatus() == CustomerDebtStatus.CANCELLED) {
-      throw new BadRequestException(
-          "DEBT_CANCELLED", "Cannot update a cancelled debt.");
+      throw new BadRequestException("DEBT_CANCELLED", "Cannot update a cancelled debt.");
     }
     if (debt.getStatus() == CustomerDebtStatus.SETTLED) {
-      throw new BadRequestException(
-          "DEBT_SETTLED", "Cannot update a settled debt.");
+      throw new BadRequestException("DEBT_SETTLED", "Cannot update a settled debt.");
     }
     BigDecimal currentSettled =
         debt.getAmountSettled() != null ? debt.getAmountSettled() : BigDecimal.ZERO;
@@ -167,20 +158,13 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
     if (input.customerName() != null || input.customerPhone() != null) {
       String name = input.customerName();
       if (name != null && name.trim().isEmpty()) {
-        throw new BadRequestException(
-            "CUSTOMER_NAME_REQUIRED", "Customer name cannot be empty.");
+        throw new BadRequestException("CUSTOMER_NAME_REQUIRED", "Customer name cannot be empty.");
       }
       String phone = input.customerPhone();
       if (phone != null) {
         phone = phone.trim();
       }
-      customerService.update(
-          orgId,
-          debt.getCustomer().getId(),
-          name,
-          phone,
-          null,
-          null);
+      customerService.update(orgId, debt.getCustomer().getId(), name, phone, null, null);
     }
     if (input.amount() != null) {
       if (input.amount().compareTo(BigDecimal.ZERO) <= 0) {
@@ -190,8 +174,7 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
           debt.getAmountSettled() != null ? debt.getAmountSettled() : BigDecimal.ZERO;
       if (input.amount().compareTo(settled) < 0) {
         throw new BadRequestException(
-            "AMOUNT_BELOW_SETTLED",
-            "Original amount cannot be less than amount already repaid.");
+            "AMOUNT_BELOW_SETTLED", "Original amount cannot be less than amount already repaid.");
       }
       debt.setAmount(input.amount());
     }
@@ -199,13 +182,11 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
       BigDecimal orig = debt.getAmount() != null ? debt.getAmount() : BigDecimal.ZERO;
       BigDecimal outstanding = input.outstanding();
       if (outstanding.compareTo(BigDecimal.ZERO) < 0) {
-        throw new BadRequestException(
-            "BALANCE_NEGATIVE", "Balance cannot be negative.");
+        throw new BadRequestException("BALANCE_NEGATIVE", "Balance cannot be negative.");
       }
       if (outstanding.compareTo(orig) > 0) {
         throw new BadRequestException(
-            "BALANCE_EXCEEDS_ORIGINAL",
-            "Balance cannot exceed the original debt.");
+            "BALANCE_EXCEEDS_ORIGINAL", "Balance cannot exceed the original debt.");
       }
       BigDecimal newSettled = orig.subtract(outstanding);
       debt.setAmountSettled(newSettled);
@@ -232,15 +213,13 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
     var cancelledBy = staffUserService.require(orgId, cancelledByStaffUserId);
     CustomerDebt debt = require(orgId, debtId);
     if (debt.getStatus() == CustomerDebtStatus.CANCELLED) {
-      throw new BadRequestException(
-          "DEBT_ALREADY_CANCELLED", "Debt is already cancelled.");
+      throw new BadRequestException("DEBT_ALREADY_CANCELLED", "Debt is already cancelled.");
     }
     BigDecimal currentSettled =
         debt.getAmountSettled() != null ? debt.getAmountSettled() : BigDecimal.ZERO;
     if (currentSettled.compareTo(BigDecimal.ZERO) > 0) {
       throw new BadRequestException(
-          "DEBT_HAS_REPAYMENTS",
-          "Cannot clear debt once repayments have been recorded.");
+          "DEBT_HAS_REPAYMENTS", "Cannot clear debt once repayments have been recorded.");
     }
     debt.setStatus(CustomerDebtStatus.CANCELLED);
     debt.setCancelledAt(Instant.now(clock));
@@ -251,8 +230,7 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
   @Override
   @Transactional
   public void cancelDebtsForSale(UUID orgId, UUID saleId, UUID cancelledByStaffUserId) {
-    List<CustomerDebt> debts =
-        customerDebtRepository.findAllBySaleIdAndOrgId(saleId, orgId);
+    List<CustomerDebt> debts = customerDebtRepository.findAllBySaleIdAndOrgId(saleId, orgId);
     for (CustomerDebt debt : debts) {
       if (debt.getStatus() == CustomerDebtStatus.CANCELLED
           || debt.getStatus() == CustomerDebtStatus.SETTLED) {
@@ -272,23 +250,17 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
   @Override
   @Transactional
   public CustomerDebt settle(
-      UUID orgId,
-      UUID debtId,
-      BigDecimal paymentAmount,
-      UUID settledByStaffUserId) {
+      UUID orgId, UUID debtId, BigDecimal paymentAmount, UUID settledByStaffUserId) {
     staffUserService.require(orgId, settledByStaffUserId);
     CustomerDebt debt = require(orgId, debtId);
     if (debt.getStatus() == CustomerDebtStatus.CANCELLED) {
-      throw new BadRequestException(
-          "DEBT_CANCELLED", "Cannot settle a cancelled debt.");
+      throw new BadRequestException("DEBT_CANCELLED", "Cannot settle a cancelled debt.");
     }
     if (debt.getStatus() == CustomerDebtStatus.SETTLED) {
-      throw new BadRequestException(
-          "DEBT_ALREADY_SETTLED", "Debt is already fully settled.");
+      throw new BadRequestException("DEBT_ALREADY_SETTLED", "Debt is already fully settled.");
     }
     if (paymentAmount == null || paymentAmount.compareTo(BigDecimal.ZERO) <= 0) {
-      throw new BadRequestException(
-          "INVALID_PAYMENT", "Payment amount must be positive.");
+      throw new BadRequestException("INVALID_PAYMENT", "Payment amount must be positive.");
     }
     BigDecimal newSettled =
         (debt.getAmountSettled() != null ? debt.getAmountSettled() : BigDecimal.ZERO)
@@ -314,14 +286,10 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
   @Override
   @Transactional(readOnly = true)
   public Page<CustomerDebt> listByBranch(
-      UUID orgId,
-      UUID branchId,
-      List<CustomerDebtStatus> statuses,
-      Pageable pageable) {
+      UUID orgId, UUID branchId, List<CustomerDebtStatus> statuses, Pageable pageable) {
     branchService.require(orgId, branchId);
     if (statuses != null && !statuses.isEmpty()) {
-      List<String> statusNames =
-          statuses.stream().map(Enum::name).toList();
+      List<String> statusNames = statuses.stream().map(Enum::name).toList();
       return customerDebtRepository.findAllByOrgIdAndBranchIdAndStatusIn(
           orgId, branchId, statusNames, pageable);
     }

@@ -39,35 +39,25 @@ public class ItemBarcodeAdminController {
   }
 
   @GetMapping
-  public List<ItemBarcodeResponse> list(
-      @PathVariable UUID orgId, @PathVariable UUID itemId) {
-    return itemBarcodeService.listByItem(orgId, itemId).stream()
-        .map(this::toResponse)
-        .toList();
+  public List<ItemBarcodeResponse> list(@PathVariable UUID orgId, @PathVariable UUID itemId) {
+    return itemBarcodeService.listByItem(orgId, itemId).stream().map(this::toResponse).toList();
   }
 
   @GetMapping("/{barcodeId}")
   public ItemBarcodeResponse get(
-      @PathVariable UUID orgId,
-      @PathVariable UUID itemId,
-      @PathVariable UUID barcodeId) {
+      @PathVariable UUID orgId, @PathVariable UUID itemId, @PathVariable UUID barcodeId) {
     return toResponse(itemBarcodeService.requireInItem(orgId, itemId, barcodeId));
   }
 
   @DeleteMapping("/{barcodeId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void remove(
-      @PathVariable UUID orgId,
-      @PathVariable UUID itemId,
-      @PathVariable UUID barcodeId) {
+      @PathVariable UUID orgId, @PathVariable UUID itemId, @PathVariable UUID barcodeId) {
     itemBarcodeService.remove(orgId, itemId, barcodeId);
   }
 
   private ItemBarcodeResponse toResponse(ItemBarcode barcode) {
     return new ItemBarcodeResponse(
-        barcode.getId(),
-        barcode.getItem().getId(),
-        barcode.getBarcode(),
-        barcode.getCreatedAt());
+        barcode.getId(), barcode.getItem().getId(), barcode.getBarcode(), barcode.getCreatedAt());
   }
 }

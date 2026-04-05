@@ -6,7 +6,4 @@ import java.util.List;
 import java.util.UUID;
 
 public record ManualStockCountSheetResponse(
-    LocalDate date,
-    UUID outletId,
-    Instant lastSavedAt,
-    List<ManualStockCountLineResponse> rows) {}
+    LocalDate date, UUID outletId, Instant lastSavedAt, List<ManualStockCountLineResponse> rows) {}

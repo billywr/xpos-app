@@ -35,8 +35,7 @@ public class CashMovementOperatorController {
       ShiftService shiftService,
       CurrentPrincipalResolver principalResolver,
       StaffAuthorizationService staffAuthorizationService) {
-    this.cashMovementService =
-        Objects.requireNonNull(cashMovementService, "cashMovementService");
+    this.cashMovementService = Objects.requireNonNull(cashMovementService, "cashMovementService");
     this.shiftService = Objects.requireNonNull(shiftService, "shiftService");
     this.principalResolver = Objects.requireNonNull(principalResolver, "principalResolver");
     this.staffAuthorizationService =
@@ -50,8 +49,9 @@ public class CashMovementOperatorController {
       @PathVariable UUID branchId,
       @PathVariable UUID terminalId,
       @Valid @RequestBody CashMovementCreateRequest request) {
-    var staffUser = staffAuthorizationService.requireStaffUserForBranch(
-        orgId, branchId, principalResolver.require().iamUserId());
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
     Shift current =
         shiftService
             .getCurrentOpenShift(orgId, branchId, terminalId)

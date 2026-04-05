@@ -35,8 +35,7 @@ public class TenderTypeAdminController {
   @ResponseStatus(HttpStatus.CREATED)
   public TenderTypeResponse create(
       @PathVariable UUID orgId, @Valid @RequestBody TenderTypeCreateRequest request) {
-    TenderType created =
-        tenderTypeService.create(orgId, request.code(), request.name());
+    TenderType created = tenderTypeService.create(orgId, request.code(), request.name());
     return toResponse(created);
   }
 
@@ -52,8 +51,7 @@ public class TenderTypeAdminController {
   }
 
   @GetMapping("/{tenderTypeId}")
-  public TenderTypeResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID tenderTypeId) {
+  public TenderTypeResponse get(@PathVariable UUID orgId, @PathVariable UUID tenderTypeId) {
     return toResponse(tenderTypeService.require(orgId, tenderTypeId));
   }
 
@@ -70,18 +68,12 @@ public class TenderTypeAdminController {
 
   @DeleteMapping("/{tenderTypeId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(
-      @PathVariable UUID orgId, @PathVariable UUID tenderTypeId) {
+  public void delete(@PathVariable UUID orgId, @PathVariable UUID tenderTypeId) {
     tenderTypeService.delete(orgId, tenderTypeId);
   }
 
   private static TenderTypeResponse toResponse(TenderType t) {
     return new TenderTypeResponse(
-        t.getId(),
-        t.getOrg().getId(),
-        t.getCode(),
-        t.getName(),
-        t.getActive(),
-        t.getCreatedAt());
+        t.getId(), t.getOrg().getId(), t.getCode(), t.getName(), t.getActive(), t.getCreatedAt());
   }
 }

@@ -23,8 +23,7 @@ public class StockMovementAdminController {
   private final PageRequestFactory pageRequestFactory;
 
   public StockMovementAdminController(
-      StockMovementService stockMovementService,
-      PageRequestFactory pageRequestFactory) {
+      StockMovementService stockMovementService, PageRequestFactory pageRequestFactory) {
     this.stockMovementService =
         Objects.requireNonNull(stockMovementService, "stockMovementService");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
@@ -32,18 +31,15 @@ public class StockMovementAdminController {
 
   @GetMapping
   public Page<StockMovementResponse> listByBranch(
-      @PathVariable UUID orgId,
-      @RequestParam UUID branchId,
-      Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
-    return stockMovementService.listByBranch(orgId, branchId, normalized)
+      @PathVariable UUID orgId, @RequestParam UUID branchId, Pageable pageable) {
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    return stockMovementService
+        .listByBranch(orgId, branchId, normalized)
         .map(StockMovementAdminController::toResponse);
   }
 
   @GetMapping("/{stockMovementId}")
-  public StockMovementResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID stockMovementId) {
+  public StockMovementResponse get(@PathVariable UUID orgId, @PathVariable UUID stockMovementId) {
     return toResponse(stockMovementService.require(orgId, stockMovementId));
   }
 

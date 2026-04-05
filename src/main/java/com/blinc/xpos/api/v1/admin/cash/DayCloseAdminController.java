@@ -7,10 +7,10 @@ import com.blinc.xpos.modules.cash.service.DayCloseService;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,7 +34,8 @@ public class DayCloseAdminController {
       Pageable pageable) {
     Pageable normalized =
         pageRequestFactory.normalize(pageable, Sort.by("businessDate").descending());
-    return dayCloseService.listByBranch(orgId, branchId, normalized)
+    return dayCloseService
+        .listByBranch(orgId, branchId, normalized)
         .map(DayCloseAdminController::toResponse);
   }
 

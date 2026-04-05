@@ -18,8 +18,7 @@ public interface TaxProfileRepository extends JpaRepository<TaxProfile, UUID> {
       """)
   Optional<TaxProfile> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
-  @Query(
-      """
+  @Query("""
       select t from TaxProfile t
       where t.org.id = :orgId
       """)

@@ -42,8 +42,7 @@ public class VscuConfigServiceImpl implements VscuConfigService {
   public VscuConfig create(UUID orgId, UUID branchId, JsonNode configJson) {
     var branch = branchService.require(orgId, branchId);
     if (vscuConfigRepository.findByOrgIdAndBranchId(orgId, branchId).isPresent()) {
-      throw new IllegalArgumentException(
-          "VSCU config already exists for this branch");
+      throw new IllegalArgumentException("VSCU config already exists for this branch");
     }
     if (configJson == null) {
       throw new IllegalArgumentException("configJson is required");
@@ -64,10 +63,7 @@ public class VscuConfigServiceImpl implements VscuConfigService {
   public VscuConfig require(UUID orgId, UUID configId) {
     return vscuConfigRepository
         .findByIdAndOrgId(configId, orgId)
-        .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "VSCU_CONFIG_NOT_FOUND", "VSCU config not found"));
+        .orElseThrow(() -> new NotFoundException("VSCU_CONFIG_NOT_FOUND", "VSCU config not found"));
   }
 
   @Override

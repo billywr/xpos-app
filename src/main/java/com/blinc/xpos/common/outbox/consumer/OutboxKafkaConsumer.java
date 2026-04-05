@@ -20,7 +20,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Polls PENDING outbox events, publishes payloads to Kafka, and updates status to ACKED on success
- * or FAILED on failure. Only active when {@link KafkaTemplate} bean is available (Kafka configured).
+ * or FAILED on failure. Only active when {@link KafkaTemplate} bean is available (Kafka
+ * configured).
  */
 @Component
 @ConditionalOnBean(KafkaTemplate.class)
@@ -52,8 +53,7 @@ public class OutboxKafkaConsumer {
   public void processPending() {
     var page =
         outboxEventRepository.findByStatusOrderByCreatedAtAsc(
-            OutboxStatus.PENDING,
-            PageRequest.of(0, properties.getBatchSize()));
+            OutboxStatus.PENDING, PageRequest.of(0, properties.getBatchSize()));
 
     for (OutboxEvent event : page.getContent()) {
       processOne(event);

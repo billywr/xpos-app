@@ -19,7 +19,8 @@ public class NavVisibilityAdminController {
   private final OrgNavVisibilityService navVisibilityService;
 
   public NavVisibilityAdminController(OrgNavVisibilityService navVisibilityService) {
-    this.navVisibilityService = Objects.requireNonNull(navVisibilityService, "navVisibilityService");
+    this.navVisibilityService =
+        Objects.requireNonNull(navVisibilityService, "navVisibilityService");
   }
 
   @GetMapping

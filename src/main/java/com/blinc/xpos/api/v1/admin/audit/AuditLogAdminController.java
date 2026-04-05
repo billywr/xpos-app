@@ -23,21 +23,18 @@ public class AuditLogAdminController {
   private final PageRequestFactory pageRequestFactory;
 
   public AuditLogAdminController(
-      AuditLogService auditLogService,
-      PageRequestFactory pageRequestFactory) {
+      AuditLogService auditLogService, PageRequestFactory pageRequestFactory) {
     this.auditLogService = Objects.requireNonNull(auditLogService);
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory);
   }
 
   @GetMapping
   public Page<AuditLogResponse> list(
-      @PathVariable UUID orgId,
-      @RequestParam(required = false) UUID branchId,
-      Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+      @PathVariable UUID orgId, @RequestParam(required = false) UUID branchId, Pageable pageable) {
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     if (branchId != null) {
-      return auditLogService.listByBranch(orgId, branchId, normalized)
+      return auditLogService
+          .listByBranch(orgId, branchId, normalized)
           .map(AuditLogAdminController::toResponse);
     }
     return auditLogService.list(orgId, normalized).map(AuditLogAdminController::toResponse);

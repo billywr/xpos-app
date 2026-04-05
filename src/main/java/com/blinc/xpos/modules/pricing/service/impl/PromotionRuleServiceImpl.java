@@ -59,8 +59,7 @@ public class PromotionRuleServiceImpl implements PromotionRuleService {
     rule.setRuleType(ruleType);
     rule.setConditionsJson(
         conditionsJson != null ? conditionsJson : JsonNodeFactory.instance.objectNode());
-    rule.setActionsJson(
-        actionsJson != null ? actionsJson : JsonNodeFactory.instance.objectNode());
+    rule.setActionsJson(actionsJson != null ? actionsJson : JsonNodeFactory.instance.objectNode());
     rule.setPriority(priority);
     rule.setActive(active);
     Instant now = Instant.now(clock);
@@ -75,9 +74,7 @@ public class PromotionRuleServiceImpl implements PromotionRuleService {
     return promotionRuleRepository
         .findByIdAndOrgId(promotionRuleId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "PROMOTION_RULE_NOT_FOUND", "Promotion rule not found"));
+            () -> new NotFoundException("PROMOTION_RULE_NOT_FOUND", "Promotion rule not found"));
   }
 
   @Override

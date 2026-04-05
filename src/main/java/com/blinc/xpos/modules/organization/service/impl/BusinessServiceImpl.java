@@ -35,8 +35,7 @@ public class BusinessServiceImpl implements BusinessService {
   @Transactional
   public Business create(
       UUID orgId, String legalName, String kraPin, String logoUrl, String receiptFooter) {
-    if (kraPin != null && !kraPin.isBlank()
-        && businessRepository.existsByKraPin(kraPin)) {
+    if (kraPin != null && !kraPin.isBlank() && businessRepository.existsByKraPin(kraPin)) {
       throw new ConflictException(
           "KRA_PIN_ALREADY_EXISTS",
           "A business with this KRA PIN already exists. KRA PIN must be unique.");
@@ -82,7 +81,8 @@ public class BusinessServiceImpl implements BusinessService {
       String receiptFooter,
       StatusCommon status) {
     Business business = require(orgId, businessId);
-    if (kraPin != null && !kraPin.isBlank()
+    if (kraPin != null
+        && !kraPin.isBlank()
         && businessRepository.existsByKraPinAndIdNot(kraPin, businessId)) {
       throw new ConflictException(
           "KRA_PIN_ALREADY_EXISTS",

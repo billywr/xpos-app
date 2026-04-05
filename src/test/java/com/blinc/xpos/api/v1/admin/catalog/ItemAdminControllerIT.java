@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.catalog;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -47,7 +47,7 @@ class ItemAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -63,9 +63,7 @@ class ItemAdminControllerIT extends AbstractIntegrationTest {
     UUID itemId = UUID.fromString(objectMapper.readTree(json).get("id").asText());
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/items/" + itemId)
-                .with(user("admin").roles("ADMIN")))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/items/" + itemId).with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(itemId.toString()))
         .andExpect(jsonPath("$.name").value("Coca Cola 500ml"));
@@ -78,7 +76,7 @@ class ItemAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             patch("/api/v1/admin/orgs/" + orgId + "/items/" + itemId)
-                .with(user("admin").roles("ADMIN"))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(updateBody))
         .andExpect(status().isOk())
@@ -94,14 +92,14 @@ class ItemAdminControllerIT extends AbstractIntegrationTest {
 
     String createBody =
         ("{\"name\":\"Tusker 500ml\",\"itemType\":\"STOCK\",\"taxProfileId\":\"%s\","
-            + "\"trackInventory\":false,\"active\":true,\"imageUrl\":\"%s\"}")
+                + "\"trackInventory\":false,\"active\":true,\"imageUrl\":\"%s\"}")
             .formatted(taxProfileId, imageUrl);
 
     MvcResult createResult =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(createBody))
             .andExpect(status().isCreated())
@@ -112,19 +110,19 @@ class ItemAdminControllerIT extends AbstractIntegrationTest {
 
     UUID itemId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/items/" + itemId)
-                .with(user("admin").roles("ADMIN")))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/items/" + itemId).with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.primaryImageUrl").value(imageUrl));
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/items/" + itemId + "/images")
-                .with(user("admin").roles("ADMIN")))
+            get("/api/v1/admin/orgs/" + orgId + "/items/" + itemId + "/images").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].url").value(imageUrl))
@@ -133,22 +131,20 @@ class ItemAdminControllerIT extends AbstractIntegrationTest {
     String newImageUrl = "https://example.com/images/tusker-new.png";
     String updateBody =
         ("{\"name\":\"Tusker 500ml\",\"itemType\":\"STOCK\",\"taxProfileId\":\"%s\","
-            + "\"trackInventory\":false,\"active\":true,\"imageUrl\":\"%s\"}")
+                + "\"trackInventory\":false,\"active\":true,\"imageUrl\":\"%s\"}")
             .formatted(taxProfileId, newImageUrl);
 
     mockMvc
         .perform(
             patch("/api/v1/admin/orgs/" + orgId + "/items/" + itemId)
-                .with(user("admin").roles("ADMIN"))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(updateBody))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.primaryImageUrl").value(newImageUrl));
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/items/" + itemId)
-                .with(user("admin").roles("ADMIN")))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/items/" + itemId).with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.primaryImageUrl").value(newImageUrl));
   }
@@ -160,21 +156,19 @@ class ItemAdminControllerIT extends AbstractIntegrationTest {
     String imageUrl = "https://example.com/images/menu-item.png";
     String createBody =
         ("{\"name\":\"Chicken Wings\",\"itemType\":\"STOCK\",\"taxProfileId\":\"%s\","
-            + "\"trackInventory\":false,\"active\":true,\"imageUrl\":\"%s\"}")
+                + "\"trackInventory\":false,\"active\":true,\"imageUrl\":\"%s\"}")
             .formatted(taxProfileId, imageUrl);
 
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/items")
-                .with(user("admin").roles("ADMIN"))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(createBody))
         .andExpect(status().isCreated());
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/items?size=20")
-                .with(user("admin").roles("ADMIN")))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/items?size=20").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray())
         .andExpect(jsonPath("$.content[0].name").value("Chicken Wings"))
@@ -193,7 +187,7 @@ class ItemAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items/" + itemId + "/barcodes")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(barcodeBody))
             .andExpect(status().isCreated())
@@ -205,8 +199,7 @@ class ItemAdminControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/items/" + itemId + "/barcodes")
-                .with(user("admin").roles("ADMIN")))
+            get("/api/v1/admin/orgs/" + orgId + "/items/" + itemId + "/barcodes").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].barcode").value("5901234123457"));
@@ -214,13 +207,12 @@ class ItemAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             delete("/api/v1/admin/orgs/" + orgId + "/items/" + itemId + "/barcodes/" + barcodeId)
-                .with(user("admin").roles("ADMIN")))
+                .with(adminJwt()))
         .andExpect(status().isNoContent());
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/items/" + itemId + "/barcodes")
-                .with(user("admin").roles("ADMIN")))
+            get("/api/v1/admin/orgs/" + orgId + "/items/" + itemId + "/barcodes").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(0));
   }
@@ -233,7 +225,7 @@ class ItemAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -252,7 +244,7 @@ class ItemAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/tax-profiles")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -272,7 +264,7 @@ class ItemAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(user("admin").roles("ADMIN"))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())

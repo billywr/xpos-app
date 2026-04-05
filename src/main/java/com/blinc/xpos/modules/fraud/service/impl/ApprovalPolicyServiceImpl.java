@@ -62,9 +62,7 @@ public class ApprovalPolicyServiceImpl implements ApprovalPolicyService {
     return approvalPolicyRepository
         .findByIdAndOrgId(policyId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "APPROVAL_POLICY_NOT_FOUND", "Approval policy not found"));
+            () -> new NotFoundException("APPROVAL_POLICY_NOT_FOUND", "Approval policy not found"));
   }
 
   @Override

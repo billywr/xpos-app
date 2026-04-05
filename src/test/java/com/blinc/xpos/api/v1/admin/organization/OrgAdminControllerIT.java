@@ -1,7 +1,9 @@
 package com.blinc.xpos.api.v1.admin.organization;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
+import static com.blinc.xpos.TestJwtFactory.noRoleJwt;
+import static com.blinc.xpos.TestJwtFactory.operatorJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -35,27 +37,26 @@ class OrgAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(new OrgCreateRequest("Test Org Phase B"))))
+                    .content(
+                        objectMapper.writeValueAsString(new OrgCreateRequest("Test Org Phase B"))))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").exists())
             .andExpect(jsonPath("$.name").value("Test Org Phase B"))
             .andReturn();
     UUID orgId =
-        objectMapper.readValue(createResult.getResponse().getContentAsString(), OrgResponse.class).id();
+        objectMapper
+            .readValue(createResult.getResponse().getContentAsString(), OrgResponse.class)
+            .id();
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs?page=0&size=10")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get("/api/v1/admin/orgs?page=0&size=10").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray());
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get("/api/v1/admin/orgs/" + orgId).with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.name").value("Test Org Phase B"))
         .andExpect(jsonPath("$.status").value("ACTIVE"));
@@ -63,7 +64,7 @@ class OrgAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             patch("/api/v1/admin/orgs/" + orgId)
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     objectMapper.writeValueAsString(
@@ -78,18 +79,18 @@ class OrgAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(new OrgCreateRequest("Context Org"))))
             .andExpect(status().isCreated())
             .andReturn();
     UUID orgId =
-        objectMapper.readValue(createResult.getResponse().getContentAsString(), OrgResponse.class).id();
+        objectMapper
+            .readValue(createResult.getResponse().getContentAsString(), OrgResponse.class)
+            .id();
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/context")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get("/api/v1/admin/orgs/" + orgId + "/context").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.org.id").value(orgId.toString()))
         .andExpect(jsonPath("$.org.name").value("Context Org"))
@@ -122,25 +123,34 @@ class OrgAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(new OrgCreateRequest("Org To Delete"))))
+                    .content(
+                        objectMapper.writeValueAsString(new OrgCreateRequest("Org To Delete"))))
             .andExpect(status().isCreated())
             .andReturn();
     UUID orgId =
-        objectMapper.readValue(createResult.getResponse().getContentAsString(), OrgResponse.class).id();
+        objectMapper
+            .readValue(createResult.getResponse().getContentAsString(), OrgResponse.class)
+            .id();
 
     mockMvc
-        .perform(
-            delete("/api/v1/admin/orgs/" + orgId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(delete("/api/v1/admin/orgs/" + orgId).with(adminJwt()))
         .andExpect(status().isNoContent());
 
     mockMvc
-        .perform(
-            get("/api/v1/admin/orgs?page=0&size=100")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+        .perform(get("/api/v1/admin/orgs?page=0&size=100").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[?(@.id == '%s')]", orgId.toString()).isEmpty());
+  }
+
+  @Test
+  void adminEndpointAllowedForOperatorRole() throws Exception {
+    mockMvc.perform(get("/api/v1/admin/orgs").with(operatorJwt())).andExpect(status().isOk());
+  }
+
+  @Test
+  void adminEndpointForbiddenForNoRole() throws Exception {
+    mockMvc.perform(get("/api/v1/admin/orgs").with(noRoleJwt())).andExpect(status().isForbidden());
   }
 }

@@ -58,8 +58,7 @@ public class AuditVaultRecordServiceImpl implements AuditVaultRecordService {
       String payloadHash) {
     var branch = branchService.require(orgId, branchId);
     Terminal terminal = terminalId != null ? terminalService.require(orgId, terminalId) : null;
-    Pageable oneDesc =
-        PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "createdAt"));
+    Pageable oneDesc = PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "createdAt"));
     String previousHash =
         auditVaultRecordRepository
             .findAllByOrgIdAndBranchId(orgId, branchId, oneDesc)

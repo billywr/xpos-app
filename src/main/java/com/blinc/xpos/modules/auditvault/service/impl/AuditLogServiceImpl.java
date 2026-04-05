@@ -84,9 +84,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     return auditLogRepository
         .findByIdAndOrgId(logId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "AUDIT_LOG_NOT_FOUND", "Audit log entry not found"));
+            () -> new NotFoundException("AUDIT_LOG_NOT_FOUND", "Audit log entry not found"));
   }
 
   @Override

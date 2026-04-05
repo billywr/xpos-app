@@ -83,9 +83,7 @@ public class TerminalAdminController {
   @DeleteMapping("/{terminalId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(
-      @PathVariable UUID orgId,
-      @PathVariable UUID branchId,
-      @PathVariable UUID terminalId) {
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @PathVariable UUID terminalId) {
     terminalService.softDelete(orgId, branchId, terminalId);
   }
 

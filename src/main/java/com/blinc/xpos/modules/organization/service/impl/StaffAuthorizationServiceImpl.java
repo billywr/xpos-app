@@ -1,6 +1,7 @@
 package com.blinc.xpos.modules.organization.service.impl;
 
 import com.blinc.xpos.common.error.NotFoundException;
+import com.blinc.xpos.common.security.CurrentPrincipalResolver;
 import com.blinc.xpos.modules.organization.domain.Branch;
 import com.blinc.xpos.modules.organization.domain.StaffBranchAssignment;
 import com.blinc.xpos.modules.organization.domain.StaffProfile;
@@ -12,6 +13,7 @@ import com.blinc.xpos.modules.organization.repository.StaffUserRepository;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
 import com.blinc.xpos.modules.organization.service.StaffUserService;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,13 +26,15 @@ public class StaffAuthorizationServiceImpl implements StaffAuthorizationService 
   private final StaffBranchAssignmentRepository assignmentRepository;
   private final StaffProfileRepository staffProfileRepository;
   private final BranchRepository branchRepository;
+  private final CurrentPrincipalResolver principalResolver;
 
   public StaffAuthorizationServiceImpl(
       StaffUserService staffUserService,
       StaffUserRepository staffUserRepository,
       StaffBranchAssignmentRepository assignmentRepository,
       StaffProfileRepository staffProfileRepository,
-      BranchRepository branchRepository) {
+      BranchRepository branchRepository,
+      CurrentPrincipalResolver principalResolver) {
     this.staffUserService = Objects.requireNonNull(staffUserService, "staffUserService");
     this.staffUserRepository = Objects.requireNonNull(staffUserRepository, "staffUserRepository");
     this.assignmentRepository =
@@ -38,32 +42,59 @@ public class StaffAuthorizationServiceImpl implements StaffAuthorizationService 
     this.staffProfileRepository =
         Objects.requireNonNull(staffProfileRepository, "staffProfileRepository");
     this.branchRepository = Objects.requireNonNull(branchRepository, "branchRepository");
+    this.principalResolver = Objects.requireNonNull(principalResolver, "principalResolver");
   }
 
   @Override
   @Transactional(readOnly = true)
   public StaffUser requireStaffUser(UUID orgId, String iamUserId) {
-    return staffUserService.requireByIamUserId(orgId, iamUserId);
+    Optional<StaffUser> byIam = staffUserRepository.findByOrgIdAndIamUserId(orgId, iamUserId);
+    if (byIam.isPresent()) {
+      return byIam.get();
+    }
+    String username = principalResolver.require().username();
+    if (username != null) {
+      Optional<StaffUser> byName = staffUserRepository.findByOrgIdAndUsername(orgId, username);
+      if (byName.isPresent()) {
+        return byName.get();
+      }
+    }
+    throw new NotFoundException("STAFF_USER_NOT_FOUND", "Staff user not found");
   }
 
   @Override
   @Transactional(readOnly = true)
   public StaffUser requireStaffUserForBranch(UUID orgId, UUID branchId, String iamUserId) {
-    return staffUserRepository
-        .findByOrgIdAndIamUserId(orgId, iamUserId)
-        .orElseGet(
-            () ->
-                assignmentRepository
-                    .findByBranchIdAndStaffUserIamUserId(branchId, iamUserId)
-                    .filter(a -> a.getOrg().getId().equals(orgId))
-                    .map(StaffBranchAssignment::getStaffUser)
-                    .orElseThrow(
-                        () ->
-                            new NotFoundException(
-                                "STAFF_USER_NOT_FOUND",
-                                "Staff user not found for this organization and branch. "
-                                    + "Register as staff in Admin for this org and ensure you are "
-                                    + "assigned to this branch.")));
+    Optional<StaffUser> byIam = staffUserRepository.findByOrgIdAndIamUserId(orgId, iamUserId);
+    if (byIam.isPresent()) {
+      return byIam.get();
+    }
+    Optional<StaffBranchAssignment> byIamBranch =
+        assignmentRepository
+            .findByBranchIdAndStaffUserIamUserId(branchId, iamUserId)
+            .filter(a -> a.getOrg().getId().equals(orgId));
+    if (byIamBranch.isPresent()) {
+      return byIamBranch.get().getStaffUser();
+    }
+    String username = principalResolver.require().username();
+    if (username != null) {
+      Optional<StaffUser> byName = staffUserRepository.findByOrgIdAndUsername(orgId, username);
+      if (byName.isPresent()) {
+        return byName.get();
+      }
+      Optional<StaffBranchAssignment> byNameBranch =
+          assignmentRepository
+              .findByBranchIdAndStaffUserUsername(branchId, username)
+              .filter(a -> a.getOrg().getId().equals(orgId));
+      if (byNameBranch.isPresent()) {
+        return byNameBranch.get().getStaffUser();
+      }
+    }
+    throw new NotFoundException(
+        "STAFF_USER_NOT_FOUND",
+        "Staff user not found for this organization and branch. "
+            + "Register as staff in Admin for this org and ensure you are "
+            + "assigned to this branch.");
   }
 
   @Override
@@ -71,9 +102,7 @@ public class StaffAuthorizationServiceImpl implements StaffAuthorizationService 
   public Branch findPrimaryBranch(UUID orgId, UUID staffUserId) {
     return assignmentRepository
         .findPrimaryByOrgIdAndStaffUserId(orgId, staffUserId)
-        .flatMap(
-            assign ->
-                branchRepository.findByIdAndOrgId(assign.getBranch().getId(), orgId))
+        .flatMap(assign -> branchRepository.findByIdAndOrgId(assign.getBranch().getId(), orgId))
         .orElse(null);
   }
 

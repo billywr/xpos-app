@@ -55,14 +55,12 @@ public class TransferOrderAdminController {
 
   @GetMapping
   public Page<TransferOrderResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     return transferOrderService.list(orgId, normalized).map(this::toResponse);
   }
 
   @GetMapping("/{transferOrderId}")
-  public TransferOrderResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID transferOrderId) {
+  public TransferOrderResponse get(@PathVariable UUID orgId, @PathVariable UUID transferOrderId) {
     return toResponse(transferOrderService.require(orgId, transferOrderId));
   }
 
@@ -83,13 +81,24 @@ public class TransferOrderAdminController {
     List<TransferOrderLineResponse> lineResponses =
         lines.stream().map(this::toLineResponse).toList();
     return new TransferOrderResponse(
-        o.getId(), o.getOrg().getId(), o.getFromBranch().getId(), o.getToBranch().getId(),
-        o.getStatus(), o.getCreatedAt(), o.getUpdatedAt(), lineResponses);
+        o.getId(),
+        o.getOrg().getId(),
+        o.getFromBranch().getId(),
+        o.getToBranch().getId(),
+        o.getStatus(),
+        o.getCreatedAt(),
+        o.getUpdatedAt(),
+        lineResponses);
   }
 
   private TransferOrderLineResponse toLineResponse(TransferOrderLine l) {
     return new TransferOrderLineResponse(
-        l.getId(), l.getTransferOrder().getId(), l.getItem().getId(), l.getItem().getName(),
-        l.getQty(), l.getUom() != null ? l.getUom().getId() : null, l.getCreatedAt());
+        l.getId(),
+        l.getTransferOrder().getId(),
+        l.getItem().getId(),
+        l.getItem().getName(),
+        l.getQty(),
+        l.getUom() != null ? l.getUom().getId() : null,
+        l.getCreatedAt());
   }
 }

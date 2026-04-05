@@ -12,10 +12,10 @@ import com.blinc.xpos.modules.inventory.domain.StockCountSession;
 import com.blinc.xpos.modules.inventory.domain.StockTakingSchedule;
 import com.blinc.xpos.modules.inventory.repository.StockCountLineRepository;
 import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
-import com.blinc.xpos.modules.pricing.repository.PriceListItemRepository;
-import com.blinc.xpos.modules.pricing.repository.PriceListRepository;
 import com.blinc.xpos.modules.inventory.service.StockTakingScheduleService;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
+import com.blinc.xpos.modules.pricing.repository.PriceListItemRepository;
+import com.blinc.xpos.modules.pricing.repository.PriceListRepository;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.List;
@@ -63,8 +63,7 @@ public class StockTakingScheduleAdminController {
     this.lineRepository = Objects.requireNonNull(lineRepository, "lineRepository");
     this.stockMovementRepository =
         Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
-    this.priceListRepository =
-        Objects.requireNonNull(priceListRepository, "priceListRepository");
+    this.priceListRepository = Objects.requireNonNull(priceListRepository, "priceListRepository");
     this.priceListItemRepository =
         Objects.requireNonNull(priceListItemRepository, "priceListItemRepository");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
@@ -89,10 +88,8 @@ public class StockTakingScheduleAdminController {
   }
 
   @GetMapping
-  public Page<StockTakingScheduleResponse> list(
-      @PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+  public Page<StockTakingScheduleResponse> list(@PathVariable UUID orgId, Pageable pageable) {
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     return scheduleService.listByOrg(orgId, normalized).map(this::toResponse);
   }
 
@@ -103,8 +100,7 @@ public class StockTakingScheduleAdminController {
   }
 
   @GetMapping("/{scheduleId}")
-  public StockTakingScheduleResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID scheduleId) {
+  public StockTakingScheduleResponse get(@PathVariable UUID orgId, @PathVariable UUID scheduleId) {
     return toResponse(scheduleService.require(orgId, scheduleId));
   }
 
@@ -127,8 +123,7 @@ public class StockTakingScheduleAdminController {
 
   @DeleteMapping("/{scheduleId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(
-      @PathVariable UUID orgId, @PathVariable UUID scheduleId) {
+  public void delete(@PathVariable UUID orgId, @PathVariable UUID scheduleId) {
     scheduleService.delete(orgId, scheduleId);
   }
 
@@ -162,9 +157,7 @@ public class StockTakingScheduleAdminController {
     UUID orgId = s.getOrg().getId();
     UUID branchId = s.getBranch().getId();
     List<StockCountLineResponse> lineResponses =
-        lines.stream()
-            .map(l -> toLineResponse(l, s, orgId, branchId))
-            .toList();
+        lines.stream().map(l -> toLineResponse(l, s, orgId, branchId)).toList();
     return new StockCountSessionResponse(
         s.getId(),
         s.getOrg().getId(),

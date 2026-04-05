@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.staff;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -33,7 +33,7 @@ class StaffAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"iamUserId\":\"admin\",\"username\":\"cashier1\"}"))
         .andExpect(status().isCreated())
@@ -50,7 +50,7 @@ class StaffAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     "{\"iamUserId\":\"5faeb1ab-87cb-477e-acda-7e27d68e20ee\",\"username\":\"other\"}"))
@@ -68,25 +68,26 @@ class StaffAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"iamUserId\":\"admin\",\"username\":\"staffToDelete\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID staffUserId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
         .perform(
-            delete("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            delete("/api/v1/admin/orgs/" + orgId + "/staff-users/" + staffUserId).with(adminJwt()))
         .andExpect(status().isNoContent());
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/staff-users?page=0&size=100")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/" + orgId + "/staff-users?page=0&size=100").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[?(@.id == '%s')]", staffUserId.toString()).isEmpty());
   }
@@ -96,13 +97,15 @@ class StaffAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         objectMapper.writeValueAsString(
                             new OrgCreateRequest("Staff Admin Test Org " + UUID.randomUUID()))))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 }

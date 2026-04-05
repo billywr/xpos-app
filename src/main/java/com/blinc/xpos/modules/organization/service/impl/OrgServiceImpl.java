@@ -27,12 +27,9 @@ public class OrgServiceImpl implements OrgService {
   private final Clock clock;
 
   public OrgServiceImpl(
-      OrgRepository orgRepository,
-      @Lazy TenderTypeService tenderTypeService,
-      Clock clock) {
+      OrgRepository orgRepository, @Lazy TenderTypeService tenderTypeService, Clock clock) {
     this.orgRepository = Objects.requireNonNull(orgRepository, "orgRepository");
-    this.tenderTypeService =
-        Objects.requireNonNull(tenderTypeService, "tenderTypeService");
+    this.tenderTypeService = Objects.requireNonNull(tenderTypeService, "tenderTypeService");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 

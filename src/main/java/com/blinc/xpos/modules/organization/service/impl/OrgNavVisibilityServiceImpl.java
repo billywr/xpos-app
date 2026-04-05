@@ -90,8 +90,7 @@ public class OrgNavVisibilityServiceImpl implements OrgNavVisibilityService {
   public void saveLabels(UUID orgId, String scope, Map<String, String> labels) {
     validateScope(scope);
     Org org = orgService.require(orgId);
-    Map<String, String> sanitized =
-        labels != null ? new HashMap<>(labels) : Collections.emptyMap();
+    Map<String, String> sanitized = labels != null ? new HashMap<>(labels) : Collections.emptyMap();
     sanitized.entrySet().removeIf(e -> e.getValue() == null || e.getValue().isBlank());
 
     OrgNavVisibility entity =
@@ -113,8 +112,7 @@ public class OrgNavVisibilityServiceImpl implements OrgNavVisibilityService {
     Map<String, String> adminLabels = getLabels(orgId, SCOPE_ADMIN);
     Map<String, String> operatorLabels = getLabels(orgId, SCOPE_OPERATOR);
     Map<String, String> headerLabels = getLabels(orgId, SCOPE_HEADER);
-    return new NavVisibilityDto(
-        admin, operator, header, adminLabels, operatorLabels, headerLabels);
+    return new NavVisibilityDto(admin, operator, header, adminLabels, operatorLabels, headerLabels);
   }
 
   private OrgNavVisibility createNew(Org org, String scope) {

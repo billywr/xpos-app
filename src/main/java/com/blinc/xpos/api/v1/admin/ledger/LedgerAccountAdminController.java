@@ -28,8 +28,7 @@ public class LedgerAccountAdminController {
   private final PageRequestFactory pageRequestFactory;
 
   public LedgerAccountAdminController(
-      LedgerAccountService ledgerAccountService,
-      PageRequestFactory pageRequestFactory) {
+      LedgerAccountService ledgerAccountService, PageRequestFactory pageRequestFactory) {
     this.ledgerAccountService = Objects.requireNonNull(ledgerAccountService);
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory);
   }
@@ -39,24 +38,20 @@ public class LedgerAccountAdminController {
   public LedgerAccountResponse create(
       @PathVariable UUID orgId, @Valid @RequestBody LedgerAccountCreateRequest request) {
     LedgerAccount created =
-        ledgerAccountService.create(
-            orgId,
-            request.code(),
-            request.name(),
-            request.accountType());
+        ledgerAccountService.create(orgId, request.code(), request.name(), request.accountType());
     return toResponse(created);
   }
 
   @GetMapping
   public Page<LedgerAccountResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("code").ascending());
-    return ledgerAccountService.list(orgId, normalized).map(LedgerAccountAdminController::toResponse);
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("code").ascending());
+    return ledgerAccountService
+        .list(orgId, normalized)
+        .map(LedgerAccountAdminController::toResponse);
   }
 
   @GetMapping("/{accountId}")
-  public LedgerAccountResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID accountId) {
+  public LedgerAccountResponse get(@PathVariable UUID orgId, @PathVariable UUID accountId) {
     return toResponse(ledgerAccountService.require(orgId, accountId));
   }
 

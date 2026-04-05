@@ -9,8 +9,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface PriceListItemService {
 
-  PriceListItem add(
-      UUID orgId, UUID priceListId, UUID itemId, BigDecimal price, String currency);
+  PriceListItem add(UUID orgId, UUID priceListId, UUID itemId, BigDecimal price, String currency);
 
   /**
    * Ensures item is in the price list at the given price. Creates or updates the price list entry.
@@ -19,11 +18,7 @@ public interface PriceListItemService {
       UUID orgId, UUID priceListId, UUID itemId, BigDecimal price, String currency);
 
   PriceListItem update(
-      UUID orgId,
-      UUID priceListId,
-      UUID priceListItemId,
-      BigDecimal price,
-      String currency);
+      UUID orgId, UUID priceListId, UUID priceListItemId, BigDecimal price, String currency);
 
   PriceListItem requireInPriceList(UUID orgId, UUID priceListId, UUID priceListItemId);
 

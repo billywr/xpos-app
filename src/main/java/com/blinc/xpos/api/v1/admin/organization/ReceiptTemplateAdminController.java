@@ -47,22 +47,20 @@ public class ReceiptTemplateAdminController {
   public ReceiptTemplateResponse create(
       @PathVariable UUID orgId, @Valid @RequestBody ReceiptTemplateCreateRequest request) {
     JsonNode templateJson = objectMapper.valueToTree(request.templateJson());
-    ReceiptTemplate template =
-        receiptTemplateService.create(orgId, request.name(), templateJson);
+    ReceiptTemplate template = receiptTemplateService.create(orgId, request.name(), templateJson);
     return toResponse(template);
   }
 
   @GetMapping
   public Page<ReceiptTemplateResponse> list(@PathVariable UUID orgId, Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("name").ascending());
-    return receiptTemplateService.list(orgId, normalized)
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("name").ascending());
+    return receiptTemplateService
+        .list(orgId, normalized)
         .map(ReceiptTemplateAdminController::toResponse);
   }
 
   @GetMapping("/{templateId}")
-  public ReceiptTemplateResponse get(
-      @PathVariable UUID orgId, @PathVariable UUID templateId) {
+  public ReceiptTemplateResponse get(@PathVariable UUID orgId, @PathVariable UUID templateId) {
     return toResponse(receiptTemplateService.require(orgId, templateId));
   }
 
@@ -71,15 +69,11 @@ public class ReceiptTemplateAdminController {
       @PathVariable UUID orgId,
       @PathVariable UUID templateId,
       @Valid @RequestBody ReceiptTemplateUpdateRequest request) {
-    JsonNode templateJson = request.templateJson() != null
-        ? objectMapper.valueToTree(request.templateJson()) : null;
+    JsonNode templateJson =
+        request.templateJson() != null ? objectMapper.valueToTree(request.templateJson()) : null;
     ReceiptTemplate updated =
         receiptTemplateService.update(
-            orgId,
-            templateId,
-            request.name(),
-            templateJson,
-            request.active());
+            orgId, templateId, request.name(), templateJson, request.active());
     return toResponse(updated);
   }
 

@@ -59,12 +59,10 @@ public class ItemModifierGroupLinkServiceImpl implements ItemModifierGroupLinkSe
             .orElseThrow(
                 () ->
                     new NotFoundException(
-                        "ITEM_MODIFIER_GROUP_NOT_FOUND",
-                        "Item modifier group link not found"));
+                        "ITEM_MODIFIER_GROUP_NOT_FOUND", "Item modifier group link not found"));
     if (!link.getItem().getId().equals(itemId)) {
       throw new NotFoundException(
-          "ITEM_MODIFIER_GROUP_NOT_FOUND",
-          "Item modifier group link not found for this item");
+          "ITEM_MODIFIER_GROUP_NOT_FOUND", "Item modifier group link not found for this item");
     }
     return link;
   }

@@ -14,9 +14,9 @@ import com.blinc.xpos.modules.pricing.repository.PriceListItemRepository;
 import com.blinc.xpos.modules.pricing.service.PriceListItemService;
 import com.blinc.xpos.modules.pricing.service.PriceListService;
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -67,8 +67,8 @@ public class PriceListItemServiceImpl implements PriceListItemService {
 
   /**
    * Minimum allowed cost floor: max unit cost from active stock receipts (and other IN movements
-   * with unit cost), compared with catalog buying price. Movements from inactive (deleted) GRNs
-   * are ignored; if none remain, catalog buying price is the floor when set.
+   * with unit cost), compared with catalog buying price. Movements from inactive (deleted) GRNs are
+   * ignored; if none remain, catalog buying price is the floor when set.
    */
   private BigDecimal resolveFloorUnitCost(UUID orgId, Item item) {
     BigDecimal maxFromMovements =
@@ -83,8 +83,7 @@ public class PriceListItemServiceImpl implements PriceListItemService {
     return maxFromMovements;
   }
 
-  private boolean trackedItemHasStockInPriceListScope(
-      UUID orgId, Item item, PriceList priceList) {
+  private boolean trackedItemHasStockInPriceListScope(UUID orgId, Item item, PriceList priceList) {
     if (!item.requiresOnHandForSellableListing()) {
       return true;
     }
@@ -128,16 +127,13 @@ public class PriceListItemServiceImpl implements PriceListItemService {
         .findByPriceListIdAndItemIdAndOrgId(priceListId, itemId, orgId)
         .isPresent()) {
       throw new ConflictException(
-          "PRICE_LIST_ITEM_DUPLICATE",
-          "This item already has a price in this price list.");
+          "PRICE_LIST_ITEM_DUPLICATE", "This item already has a price in this price list.");
     }
 
     BigDecimal sellingPrice = price != null ? price : BigDecimal.ZERO;
     BigDecimal floorUnitCost = resolveFloorUnitCost(orgId, item);
     if (floorUnitCost == null) {
-      throw new BadRequestException(
-          "ITEM_NOT_SUPPLIED",
-          MSG_NO_PURCHASE_HISTORY);
+      throw new BadRequestException("ITEM_NOT_SUPPLIED", MSG_NO_PURCHASE_HISTORY);
     }
 
     if (sellingPrice.compareTo(floorUnitCost) <= 0) {
@@ -163,8 +159,7 @@ public class PriceListItemServiceImpl implements PriceListItemService {
   public PriceListItem ensureInPriceList(
       UUID orgId, UUID priceListId, UUID itemId, BigDecimal price, String currency) {
     Optional<PriceListItem> existing =
-        priceListItemRepository.findByPriceListIdAndItemIdAndOrgId(
-            priceListId, itemId, orgId);
+        priceListItemRepository.findByPriceListIdAndItemIdAndOrgId(priceListId, itemId, orgId);
     if (existing.isPresent()) {
       return update(
           orgId,
@@ -196,11 +191,7 @@ public class PriceListItemServiceImpl implements PriceListItemService {
   @Override
   @Transactional
   public PriceListItem update(
-      UUID orgId,
-      UUID priceListId,
-      UUID priceListItemId,
-      BigDecimal price,
-      String currency) {
+      UUID orgId, UUID priceListId, UUID priceListItemId, BigDecimal price, String currency) {
     PriceListItem line = requireInPriceList(orgId, priceListId, priceListItemId);
     itemService.requireActive(orgId, line.getItem().getId());
 
@@ -208,9 +199,7 @@ public class PriceListItemServiceImpl implements PriceListItemService {
     Item lineItem = line.getItem();
     BigDecimal floorUnitCost = resolveFloorUnitCost(orgId, lineItem);
     if (floorUnitCost == null) {
-      throw new BadRequestException(
-          "ITEM_NOT_SUPPLIED",
-          MSG_NO_PURCHASE_HISTORY);
+      throw new BadRequestException("ITEM_NOT_SUPPLIED", MSG_NO_PURCHASE_HISTORY);
     }
 
     if (sellingPrice.compareTo(floorUnitCost) <= 0) {
@@ -222,8 +211,7 @@ public class PriceListItemServiceImpl implements PriceListItemService {
     }
 
     line.setPrice(sellingPrice);
-    line.setCurrency(
-        currency != null && !currency.isBlank() ? currency : DEFAULT_CURRENCY);
+    line.setCurrency(currency != null && !currency.isBlank() ? currency : DEFAULT_CURRENCY);
     return priceListItemRepository.save(line);
   }
 
@@ -236,8 +224,7 @@ public class PriceListItemServiceImpl implements PriceListItemService {
 
   @Override
   @Transactional(readOnly = true)
-  public Page<PriceListItem> listByPriceList(
-      UUID orgId, UUID priceListId, Pageable pageable) {
+  public Page<PriceListItem> listByPriceList(UUID orgId, UUID priceListId, Pageable pageable) {
     priceListService.require(orgId, priceListId);
     return priceListItemRepository.findByPriceListIdAndOrgIdInStockForAdmin(
         priceListId, orgId, pageable);

@@ -7,8 +7,8 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * Serves uploaded item images from the configured upload directory.
- * Maps /uploads/** to the filesystem path (e.g. uploads/items/).
+ * Serves uploaded item images from the configured upload directory. Maps /uploads/** to the
+ * filesystem path (e.g. uploads/items/).
  */
 @Configuration
 public class UploadResourceConfig implements WebMvcConfigurer {
@@ -23,8 +23,6 @@ public class UploadResourceConfig implements WebMvcConfigurer {
   public void addResourceHandlers(ResourceHandlerRegistry registry) {
     Path basePath = Path.of(uploadDir, "items").toAbsolutePath();
     String location = "file:" + basePath + "/";
-    registry
-        .addResourceHandler("/uploads/items/**")
-        .addResourceLocations(location);
+    registry.addResourceHandler("/uploads/items/**").addResourceLocations(location);
   }
 }

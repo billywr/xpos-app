@@ -10,8 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface ItemUomRepository extends JpaRepository<ItemUom, UUID> {
 
-  @Query(
-      """
+  @Query("""
       select u from ItemUom u
       where u.id = :id and u.org.id = :orgId
       """)
@@ -23,8 +22,7 @@ public interface ItemUomRepository extends JpaRepository<ItemUom, UUID> {
       where u.item.id = :itemId and u.org.id = :orgId
       order by u.createdAt
       """)
-  List<ItemUom> findAllByItemIdAndOrgId(
-      @Param("itemId") UUID itemId, @Param("orgId") UUID orgId);
+  List<ItemUom> findAllByItemIdAndOrgId(@Param("itemId") UUID itemId, @Param("orgId") UUID orgId);
 
   @Query(
       """

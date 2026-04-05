@@ -137,9 +137,7 @@ public class InventoryItemServiceImpl implements InventoryItemService {
         .ifPresent(
             inv -> {
               BigDecimal after =
-                  inv.getOnHandQty()
-                      .subtract(qtyScaled)
-                      .setScale(SCALE, RoundingMode.HALF_UP);
+                  inv.getOnHandQty().subtract(qtyScaled).setScale(SCALE, RoundingMode.HALF_UP);
               if (after.compareTo(BigDecimal.ZERO) < 0) {
                 after = BigDecimal.ZERO.setScale(SCALE, RoundingMode.HALF_UP);
               }
@@ -149,8 +147,7 @@ public class InventoryItemServiceImpl implements InventoryItemService {
               if (after.compareTo(BigDecimal.ZERO) <= 0) {
                 Item catalogItem = itemService.require(orgId, itemId);
                 if (catalogItem.requiresOnHandForSellableListing()) {
-                  priceListItemService.purgePriceListLinesForTrackedItemIfOutOfStock(
-                      orgId, itemId);
+                  priceListItemService.purgePriceListLinesForTrackedItemIfOutOfStock(orgId, itemId);
                 }
               }
             });
@@ -192,8 +189,7 @@ public class InventoryItemServiceImpl implements InventoryItemService {
                   created.setUpdatedAt(Instant.now(clock));
                   return inventoryItemRepository.save(created);
                 });
-    inv.setOnHandQty(
-        inv.getOnHandQty().add(delta).setScale(SCALE, RoundingMode.HALF_UP));
+    inv.setOnHandQty(inv.getOnHandQty().add(delta).setScale(SCALE, RoundingMode.HALF_UP));
     inv.setUpdatedAt(Instant.now(clock));
     inventoryItemRepository.save(inv);
     BigDecimal onHand = inv.getOnHandQty();

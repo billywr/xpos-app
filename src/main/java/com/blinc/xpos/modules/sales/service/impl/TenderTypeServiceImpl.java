@@ -21,9 +21,7 @@ public class TenderTypeServiceImpl implements TenderTypeService {
   private final Clock clock;
 
   public TenderTypeServiceImpl(
-      TenderTypeRepository tenderTypeRepository,
-      OrgService orgService,
-      Clock clock) {
+      TenderTypeRepository tenderTypeRepository, OrgService orgService, Clock clock) {
     this.tenderTypeRepository =
         Objects.requireNonNull(tenderTypeRepository, "tenderTypeRepository");
     this.orgService = Objects.requireNonNull(orgService, "orgService");

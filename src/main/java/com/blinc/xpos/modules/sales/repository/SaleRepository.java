@@ -14,8 +14,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface SaleRepository extends JpaRepository<Sale, UUID> {
 
-  @Query(
-      """
+  @Query("""
       select s from Sale s
       where s.id = :id and s.org.id = :orgId
       """)
@@ -33,8 +32,7 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
       left join fetch s.receipt
       where s.id = :id and s.org.id = :orgId
       """)
-  Optional<Sale> findByIdAndOrgIdWithAssociations(
-      @Param("id") UUID id, @Param("orgId") UUID orgId);
+  Optional<Sale> findByIdAndOrgIdWithAssociations(@Param("id") UUID id, @Param("orgId") UUID orgId);
 
   @Query(
       """

@@ -32,7 +32,8 @@ select d
   Optional<DeviceRegistration> findByOrgIdAndDeviceId(
       @Param("orgId") UUID orgId, @Param("deviceId") String deviceId);
 
-  @Query("""
+  @Query(
+      """
       select d from DeviceRegistration d
       where d.org.id = :orgId and d.status in :statuses
       """)

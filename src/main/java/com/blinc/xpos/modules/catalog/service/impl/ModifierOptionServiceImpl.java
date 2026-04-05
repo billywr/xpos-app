@@ -67,9 +67,7 @@ public class ModifierOptionServiceImpl implements ModifierOptionService {
     return modifierOptionRepository
         .findByIdAndOrgId(modifierOptionId, orgId)
         .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "MODIFIER_OPTION_NOT_FOUND", "Modifier option not found"));
+            () -> new NotFoundException("MODIFIER_OPTION_NOT_FOUND", "Modifier option not found"));
   }
 
   @Override
@@ -85,8 +83,7 @@ public class ModifierOptionServiceImpl implements ModifierOptionService {
 
   @Override
   @Transactional(readOnly = true)
-  public Page<ModifierOption> listByGroup(
-      UUID orgId, UUID modifierGroupId, Pageable pageable) {
+  public Page<ModifierOption> listByGroup(UUID orgId, UUID modifierGroupId, Pageable pageable) {
     modifierGroupService.require(orgId, modifierGroupId);
     return modifierOptionRepository.findAllByModifierGroupIdAndOrgId(
         modifierGroupId, orgId, pageable);

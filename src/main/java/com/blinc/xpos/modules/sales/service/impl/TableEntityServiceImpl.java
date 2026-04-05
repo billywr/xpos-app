@@ -63,8 +63,7 @@ public class TableEntityServiceImpl implements TableEntityService {
   public TableEntity require(UUID orgId, UUID tableEntityId) {
     return tableEntityRepository
         .findByIdAndOrgId(tableEntityId, orgId)
-        .orElseThrow(
-            () -> new NotFoundException("TABLE_ENTITY_NOT_FOUND", "Table not found"));
+        .orElseThrow(() -> new NotFoundException("TABLE_ENTITY_NOT_FOUND", "Table not found"));
   }
 
   @Override

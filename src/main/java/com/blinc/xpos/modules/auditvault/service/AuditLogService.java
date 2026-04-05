@@ -8,9 +8,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface AuditLogService {
 
-  /**
-   * Appends an audit log entry. Call from critical flows (sale complete, void, day close).
-   */
+  /** Appends an audit log entry. Call from critical flows (sale complete, void, day close). */
   AuditLog append(
       UUID orgId,
       UUID branchId,

@@ -18,8 +18,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Operator API for creating customers on-the-fly (e.g. when recording a debt).
- * Cashiers can type name and phone without pre-capturing in Admin.
+ * Operator API for creating customers on-the-fly (e.g. when recording a debt). Cashiers can type
+ * name and phone without pre-capturing in Admin.
  */
 @RestController
 @RequestMapping("/api/v1/operator/orgs/{orgId}/customers")
@@ -43,14 +43,9 @@ public class CustomerOperatorController {
   @ResponseStatus(HttpStatus.CREATED)
   public CustomerResponse create(
       @PathVariable UUID orgId, @Valid @RequestBody CustomerCreateRequest request) {
-    staffAuthorizationService.requireStaffUser(
-        orgId, principalResolver.require().iamUserId());
+    staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
     Customer customer =
-        customerService.create(
-            orgId,
-            request.name(),
-            request.phone(),
-            request.email());
+        customerService.create(orgId, request.name(), request.phone(), request.email());
     return toResponse(customer);
   }
 

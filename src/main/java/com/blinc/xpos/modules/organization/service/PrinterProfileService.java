@@ -14,5 +14,6 @@ public interface PrinterProfileService {
 
   Page<PrinterProfile> list(UUID orgId, Pageable pageable);
 
-  PrinterProfile update(UUID orgId, UUID profileId, String name, JsonNode configJson, Boolean active);
+  PrinterProfile update(
+      UUID orgId, UUID profileId, String name, JsonNode configJson, Boolean active);
 }

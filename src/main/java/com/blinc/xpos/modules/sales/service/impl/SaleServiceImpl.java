@@ -5,14 +5,20 @@ import com.blinc.xpos.common.constants.enums.SaleStatus;
 import com.blinc.xpos.common.constants.enums.SourceType;
 import com.blinc.xpos.common.error.ConflictException;
 import com.blinc.xpos.common.error.NotFoundException;
+import com.blinc.xpos.modules.auditvault.service.AuditLogService;
+import com.blinc.xpos.modules.cash.domain.Shift;
+import com.blinc.xpos.modules.cash.service.ShiftService;
 import com.blinc.xpos.modules.catalog.domain.Item;
 import com.blinc.xpos.modules.catalog.domain.ModifierOption;
 import com.blinc.xpos.modules.catalog.domain.Uom;
 import com.blinc.xpos.modules.catalog.service.ItemService;
 import com.blinc.xpos.modules.catalog.service.ModifierOptionService;
 import com.blinc.xpos.modules.catalog.service.UomService;
-import com.blinc.xpos.modules.cash.domain.Shift;
-import com.blinc.xpos.modules.cash.service.ShiftService;
+import com.blinc.xpos.modules.debt.service.CustomerDebtService;
+import com.blinc.xpos.modules.inventory.domain.StockMovement;
+import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
+import com.blinc.xpos.modules.inventory.service.InventoryItemService;
+import com.blinc.xpos.modules.ledger.service.LedgerPostingService;
 import com.blinc.xpos.modules.organization.domain.Branch;
 import com.blinc.xpos.modules.organization.domain.Customer;
 import com.blinc.xpos.modules.organization.domain.StaffUser;
@@ -25,18 +31,12 @@ import com.blinc.xpos.modules.pricing.domain.PriceList;
 import com.blinc.xpos.modules.pricing.domain.PriceListItem;
 import com.blinc.xpos.modules.pricing.repository.PriceListItemRepository;
 import com.blinc.xpos.modules.pricing.repository.PriceListRepository;
-import com.blinc.xpos.modules.inventory.domain.StockMovement;
-import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
-import com.blinc.xpos.modules.inventory.service.InventoryItemService;
 import com.blinc.xpos.modules.sales.domain.Sale;
 import com.blinc.xpos.modules.sales.domain.SaleLine;
-import com.blinc.xpos.modules.debt.service.CustomerDebtService;
 import com.blinc.xpos.modules.sales.domain.SaleLineModifier;
 import com.blinc.xpos.modules.sales.repository.SaleLineModifierRepository;
 import com.blinc.xpos.modules.sales.repository.SaleLineRepository;
 import com.blinc.xpos.modules.sales.repository.SaleRepository;
-import com.blinc.xpos.modules.auditvault.service.AuditLogService;
-import com.blinc.xpos.modules.ledger.service.LedgerPostingService;
 import com.blinc.xpos.modules.sales.service.ReceiptService;
 import com.blinc.xpos.modules.sales.service.SaleService;
 import com.blinc.xpos.modules.sales.service.TenderService;
@@ -119,14 +119,12 @@ public class SaleServiceImpl implements SaleService {
     this.uomService = Objects.requireNonNull(uomService, "uomService");
     this.modifierOptionService =
         Objects.requireNonNull(modifierOptionService, "modifierOptionService");
-    this.priceListRepository =
-        Objects.requireNonNull(priceListRepository, "priceListRepository");
+    this.priceListRepository = Objects.requireNonNull(priceListRepository, "priceListRepository");
     this.priceListItemRepository =
         Objects.requireNonNull(priceListItemRepository, "priceListItemRepository");
     this.receiptService = Objects.requireNonNull(receiptService, "receiptService");
     this.tenderService = Objects.requireNonNull(tenderService, "tenderService");
-    this.customerService =
-        Objects.requireNonNull(customerService, "customerService");
+    this.customerService = Objects.requireNonNull(customerService, "customerService");
     this.auditLogService = Objects.requireNonNull(auditLogService, "auditLogService");
     this.ledgerPostingService =
         Objects.requireNonNull(ledgerPostingService, "ledgerPostingService");
@@ -134,8 +132,7 @@ public class SaleServiceImpl implements SaleService {
         Objects.requireNonNull(inventoryItemService, "inventoryItemService");
     this.stockMovementRepository =
         Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
-    this.customerDebtService =
-        Objects.requireNonNull(customerDebtService, "customerDebtService");
+    this.customerDebtService = Objects.requireNonNull(customerDebtService, "customerDebtService");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 
@@ -151,8 +148,7 @@ public class SaleServiceImpl implements SaleService {
     Branch branch = branchService.require(orgId, branchId);
     Terminal terminal = terminalService.require(orgId, terminalId);
     if (!terminal.getBranch().getId().equals(branchId)) {
-      throw new NotFoundException(
-          "TERMINAL_NOT_FOUND", "Terminal not found in this branch");
+      throw new NotFoundException("TERMINAL_NOT_FOUND", "Terminal not found in this branch");
     }
     Shift shift =
         shiftService
@@ -205,12 +201,7 @@ public class SaleServiceImpl implements SaleService {
   @Override
   @Transactional(readOnly = true)
   public org.springframework.data.domain.Page<Sale> listByBranch(
-      UUID orgId,
-      UUID branchId,
-      SaleStatus status,
-      Instant start,
-      Instant end,
-      Pageable pageable) {
+      UUID orgId, UUID branchId, SaleStatus status, Instant start, Instant end, Pageable pageable) {
     branchService.require(orgId, branchId);
     return saleRepository.findByOrgIdAndBranchIdAndStatusAndCompletedAtBetween(
         orgId, branchId, status, start, end, pageable);
@@ -345,10 +336,7 @@ public class SaleServiceImpl implements SaleService {
         BigDecimal unitCost = BigDecimal.ZERO;
         var latestIn =
             stockMovementRepository.findLatestInByOrgAndBranchAndItem(
-                orgId,
-                sale.getBranch().getId(),
-                line.getItem().getId(),
-                PageRequest.of(0, 1));
+                orgId, sale.getBranch().getId(), line.getItem().getId(), PageRequest.of(0, 1));
         if (!latestIn.isEmpty() && latestIn.getContent().get(0).getUnitCost() != null) {
           unitCost = latestIn.getContent().get(0).getUnitCost();
         }
@@ -421,10 +409,7 @@ public class SaleServiceImpl implements SaleService {
         BigDecimal unitCost = BigDecimal.ZERO;
         var latestIn =
             stockMovementRepository.findLatestInByOrgAndBranchAndItem(
-                orgId,
-                sale.getBranch().getId(),
-                line.getItem().getId(),
-                PageRequest.of(0, 1));
+                orgId, sale.getBranch().getId(), line.getItem().getId(), PageRequest.of(0, 1));
         if (!latestIn.isEmpty() && latestIn.getContent().get(0).getUnitCost() != null) {
           unitCost = latestIn.getContent().get(0).getUnitCost();
         }
@@ -479,8 +464,7 @@ public class SaleServiceImpl implements SaleService {
   private Sale loadSaleWithAssociations(UUID orgId, UUID saleId) {
     return saleRepository
         .findByIdAndOrgIdWithAssociations(saleId, orgId)
-        .orElseThrow(
-            () -> new NotFoundException("SALE_NOT_FOUND", "Sale not found: " + saleId));
+        .orElseThrow(() -> new NotFoundException("SALE_NOT_FOUND", "Sale not found: " + saleId));
   }
 
   private Sale requireOpenSale(UUID orgId, UUID saleId) {
@@ -529,8 +513,7 @@ public class SaleServiceImpl implements SaleService {
             .orElseThrow(
                 () ->
                     new NotFoundException(
-                        "ITEM_NOT_IN_PRICE_LIST",
-                        "Item not found in price list: " + itemId));
+                        "ITEM_NOT_IN_PRICE_LIST", "Item not found in price list: " + itemId));
     return pli.getPrice().setScale(SCALE, RoundingMode.HALF_UP);
   }
 

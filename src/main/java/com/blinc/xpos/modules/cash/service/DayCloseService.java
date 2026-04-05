@@ -9,8 +9,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface DayCloseService {
 
-  DayClose closeDay(
-      UUID orgId, UUID branchId, LocalDate businessDate, UUID closedByStaffUserId);
+  DayClose closeDay(UUID orgId, UUID branchId, LocalDate businessDate, UUID closedByStaffUserId);
 
   DayClose require(UUID orgId, UUID dayCloseId);
 

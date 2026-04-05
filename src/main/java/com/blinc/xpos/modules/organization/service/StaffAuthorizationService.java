@@ -10,9 +10,9 @@ public interface StaffAuthorizationService {
   StaffUser requireStaffUser(UUID orgId, String iamUserId);
 
   /**
-   * Resolves staff user for operator actions: first by (orgId, iamUserId), then
-   * by branch assignment (staff assigned to this branch with this iamUserId).
-   * Ensures the resolved user belongs to the given org.
+   * Resolves staff user for operator actions: first by (orgId, iamUserId), then by branch
+   * assignment (staff assigned to this branch with this iamUserId). Ensures the resolved user
+   * belongs to the given org.
    */
   StaffUser requireStaffUserForBranch(UUID orgId, UUID branchId, String iamUserId);
 

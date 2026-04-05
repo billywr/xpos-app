@@ -17,9 +17,7 @@ public interface InventoryItemRepository extends JpaRepository<InventoryItem, UU
       where i.org.id = :orgId and i.branch.id = :branchId and i.item.id = :itemId
       """)
   Optional<InventoryItem> findByOrgIdAndBranchIdAndItemId(
-      @Param("orgId") UUID orgId,
-      @Param("branchId") UUID branchId,
-      @Param("itemId") UUID itemId);
+      @Param("orgId") UUID orgId, @Param("branchId") UUID branchId, @Param("itemId") UUID itemId);
 
   @Query(
       """
@@ -28,9 +26,7 @@ public interface InventoryItemRepository extends JpaRepository<InventoryItem, UU
       where i.org.id = :orgId and i.branch.id = :branchId
       """)
   Page<InventoryItem> findAllByOrgIdAndBranchIdWithItem(
-      @Param("orgId") UUID orgId,
-      @Param("branchId") UUID branchId,
-      Pageable pageable);
+      @Param("orgId") UUID orgId, @Param("branchId") UUID branchId, Pageable pageable);
 
   @Query(
       """

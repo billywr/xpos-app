@@ -21,8 +21,7 @@ public interface CustomerDebtService {
 
   CustomerDebt require(UUID orgId, UUID debtId);
 
-  CustomerDebt update(
-      UUID orgId, UUID debtId, DebtUpdateInput input, UUID updatedByStaffUserId);
+  CustomerDebt update(UUID orgId, UUID debtId, DebtUpdateInput input, UUID updatedByStaffUserId);
 
   CustomerDebt cancel(UUID orgId, UUID debtId, UUID cancelledByStaffUserId);
 
@@ -33,16 +32,13 @@ public interface CustomerDebtService {
   void cancelDebtsForSale(UUID orgId, UUID saleId, UUID cancelledByStaffUserId);
 
   CustomerDebt settle(
-      UUID orgId,
-      UUID debtId,
-      java.math.BigDecimal paymentAmount,
-      UUID settledByStaffUserId);
+      UUID orgId, UUID debtId, java.math.BigDecimal paymentAmount, UUID settledByStaffUserId);
 
   Page<CustomerDebt> listByBranch(UUID orgId, UUID branchId, Pageable pageable);
 
   /**
-   * List debts by branch, optionally filtered by status. When statuses is null or
-   * empty, returns all statuses.
+   * List debts by branch, optionally filtered by status. When statuses is null or empty, returns
+   * all statuses.
    */
   Page<CustomerDebt> listByBranch(
       UUID orgId,

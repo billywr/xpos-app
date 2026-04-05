@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.organization;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -35,19 +35,17 @@ class BusinessAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
-                .content(
-                    "{\"legalName\":\"First Business\",\"kraPin\":\"" + kraPin + "\"}"))
+                .content("{\"legalName\":\"First Business\",\"kraPin\":\"" + kraPin + "\"}"))
         .andExpect(status().isCreated());
 
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
-                .content(
-                    "{\"legalName\":\"Second Business\",\"kraPin\":\"" + kraPin + "\"}"))
+                .content("{\"legalName\":\"Second Business\",\"kraPin\":\"" + kraPin + "\"}"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").value("KRA_PIN_ALREADY_EXISTS"));
   }
@@ -60,10 +58,9 @@ class BusinessAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
-                    .content(
-                        "{\"legalName\":\"Biz A\",\"kraPin\":\"" + kraPin + "\"}"))
+                    .content("{\"legalName\":\"Biz A\",\"kraPin\":\"" + kraPin + "\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID firstId =
@@ -74,7 +71,7 @@ class BusinessAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz B\",\"kraPin\":\"P999999999Z\"}"))
             .andExpect(status().isCreated())
@@ -86,7 +83,7 @@ class BusinessAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             patch("/api/v1/admin/orgs/" + orgId + "/businesses/" + secondId)
-                .with(jwt().jwt(j -> j.subject("admin")))
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"legalName\":\"Biz B\",\"kraPin\":\"" + kraPin + "\"}"))
         .andExpect(status().isConflict())
@@ -100,25 +97,26 @@ class BusinessAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Business To Delete\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID businessId =
         UUID.fromString(
-            objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
 
     mockMvc
         .perform(
-            delete("/api/v1/admin/orgs/" + orgId + "/businesses/" + businessId)
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            delete("/api/v1/admin/orgs/" + orgId + "/businesses/" + businessId).with(adminJwt()))
         .andExpect(status().isNoContent());
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/businesses?page=0&size=100")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/" + orgId + "/businesses?page=0&size=100").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content[?(@.id == '%s')]", businessId.toString()).isEmpty());
   }
@@ -128,13 +126,15 @@ class BusinessAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(
                         objectMapper.writeValueAsString(
                             new OrgCreateRequest("Business Admin Test Org " + UUID.randomUUID()))))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 }

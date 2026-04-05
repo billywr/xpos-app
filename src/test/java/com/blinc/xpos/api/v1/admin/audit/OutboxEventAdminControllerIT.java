@@ -1,7 +1,7 @@
 package com.blinc.xpos.api.v1.admin.audit;
 
+import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -36,19 +36,15 @@ class OutboxEventAdminControllerIT extends AbstractIntegrationTest {
     UUID businessId = createBusiness(orgId);
     UUID branchId = createBranch(orgId, businessId);
     UUID terminalId = createTerminal(orgId, branchId);
-    ObjectNode payload = objectMapper.createObjectNode().put("saleId", UUID.randomUUID().toString());
+    ObjectNode payload =
+        objectMapper.createObjectNode().put("saleId", UUID.randomUUID().toString());
     OutboxEvent event =
         outboxEventService.enqueue(
-            orgId,
-            terminalId,
-            "SALE_COMPLETED",
-            payload,
-            "idem-" + UUID.randomUUID());
+            orgId, terminalId, "SALE_COMPLETED", payload, "idem-" + UUID.randomUUID());
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/outbox-events?page=0&size=10")
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/" + orgId + "/outbox-events?page=0&size=10").with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray())
         .andExpect(jsonPath("$.content.length()").value(1))
@@ -57,26 +53,26 @@ class OutboxEventAdminControllerIT extends AbstractIntegrationTest {
 
     mockMvc
         .perform(
-            get("/api/v1/admin/orgs/" + orgId + "/outbox-events/" + event.getId())
-                .with(jwt().jwt(j -> j.subject("admin"))))
+            get("/api/v1/admin/orgs/" + orgId + "/outbox-events/" + event.getId()).with(adminJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(event.getId().toString()))
         .andExpect(jsonPath("$.eventType").value("SALE_COMPLETED"));
   }
 
   private UUID createOrg() throws Exception {
-    String body =
-        objectMapper.writeValueAsString(new OrgCreateRequest("Test Org Outbox"));
+    String body = objectMapper.writeValueAsString(new OrgCreateRequest("Test Org Outbox"));
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
             .andReturn();
-    return objectMapper.readValue(result.getResponse().getContentAsString(), OrgResponse.class).id();
+    return objectMapper
+        .readValue(result.getResponse().getContentAsString(), OrgResponse.class)
+        .id();
   }
 
   private UUID createBusiness(UUID orgId) throws Exception {
@@ -84,7 +80,7 @@ class OutboxEventAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/businesses")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"legalName\":\"Biz\"}"))
             .andExpect(status().isCreated())
@@ -103,7 +99,7 @@ class OutboxEventAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
             .andExpect(status().isCreated())
@@ -117,7 +113,7 @@ class OutboxEventAdminControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/terminals")
-                    .with(jwt().jwt(j -> j.subject("admin")))
+                    .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"terminalCode\":\"T1\"}"))
             .andExpect(status().isCreated())

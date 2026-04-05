@@ -14,5 +14,10 @@ public interface TableEntityService {
   Page<TableEntity> listByBranch(UUID orgId, UUID branchId, Pageable pageable);
 
   TableEntity update(
-      UUID orgId, UUID tableEntityId, UUID tableAreaId, String name, Integer capacity, String status);
+      UUID orgId,
+      UUID tableEntityId,
+      UUID tableAreaId,
+      String name,
+      Integer capacity,
+      String status);
 }

@@ -49,15 +49,15 @@ public interface SaleService {
   Sale hold(UUID orgId, UUID saleId);
 
   /**
-   * Completes the sale: creates receipt, links to sale, sets status COMPLETED. Tender total must
-   * be at least sale total.
+   * Completes the sale: creates receipt, links to sale, sets status COMPLETED. Tender total must be
+   * at least sale total.
    */
   Sale complete(UUID orgId, UUID saleId);
 
   /**
    * Completes the sale when tender total is less than sale total, allowing the remainder to be
-   * recorded as debt. Used only when a debt has already been created for the remainder. Skips
-   * the tender-total validation.
+   * recorded as debt. Used only when a debt has already been created for the remainder. Skips the
+   * tender-total validation.
    */
   Sale completeAllowingPartialWithDebt(UUID orgId, UUID saleId);
 
@@ -71,16 +71,11 @@ public interface SaleService {
   Sale refundSale(UUID orgId, UUID saleId, UUID refundedByStaffUserId);
 
   /**
-   * Lists sales by branch with status and completedAt date range (admin).
-   * For COMPLETED status, filters by completedAt between start and end.
+   * Lists sales by branch with status and completedAt date range (admin). For COMPLETED status,
+   * filters by completedAt between start and end.
    */
   Page<Sale> listByBranch(
-      UUID orgId,
-      UUID branchId,
-      SaleStatus status,
-      Instant start,
-      Instant end,
-      Pageable pageable);
+      UUID orgId, UUID branchId, SaleStatus status, Instant start, Instant end, Pageable pageable);
 
   /** Quantity for a modifier option when adding a line. */
   record ModifierQuantity(UUID modifierOptionId, BigDecimal qty) {}
