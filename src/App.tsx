@@ -13,6 +13,7 @@ import { OperatorContextGuard } from "@/components/OperatorContextGuard";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RestoreContext } from "@/components/RestoreContext";
 import { RoleGuard } from "@/components/RoleGuard";
+import { ROLE_ADMIN, ROLE_OPERATOR } from "@/store/selectors/authSelectors";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { SelectContextPage } from "@/features/context/SelectContextPage";
 import { HomePage } from "@/features/home/HomePage";
@@ -88,7 +89,7 @@ function App() {
         <Route
           path="admin"
           element={
-            <RoleGuard requiredRole="xpos-admin" redirectTo="/operator">
+            <RoleGuard requiredRole={ROLE_ADMIN} redirectTo="/operator">
               <AdminLayout />
             </RoleGuard>
           }
@@ -137,7 +138,7 @@ function App() {
         <Route
           path="operator"
           element={
-            <RoleGuard requiredRole={["xpos-operator", "xpos-admin"]} redirectTo="/admin">
+            <RoleGuard requiredRole={[ROLE_OPERATOR, ROLE_ADMIN]} redirectTo="/admin">
               <OperatorContextGuard>
                 <OperatorLayout />
               </OperatorContextGuard>
