@@ -4,6 +4,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 import java.util.List;
 import java.util.Map;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor;
 
 public final class TestJwtFactory {
@@ -16,7 +17,8 @@ public final class TestJwtFactory {
             j ->
                 j.subject("admin")
                     .claim("preferred_username", "admin")
-                    .claim("realm_access", Map.of("roles", List.of("xpos-admin"))));
+                    .claim("realm_access", Map.of("roles", List.of("xpos-admin"))))
+        .authorities(new SimpleGrantedAuthority("ROLE_xpos-admin"));
   }
 
   public static JwtRequestPostProcessor operatorJwt() {
@@ -25,7 +27,8 @@ public final class TestJwtFactory {
             j ->
                 j.subject("operator")
                     .claim("preferred_username", "operator")
-                    .claim("realm_access", Map.of("roles", List.of("xpos-operator"))));
+                    .claim("realm_access", Map.of("roles", List.of("xpos-operator"))))
+        .authorities(new SimpleGrantedAuthority("ROLE_xpos-operator"));
   }
 
   public static JwtRequestPostProcessor allRolesJwt() {
@@ -34,8 +37,10 @@ public final class TestJwtFactory {
             j ->
                 j.subject("admin")
                     .claim("preferred_username", "admin")
-                    .claim(
-                        "realm_access", Map.of("roles", List.of("xpos-admin", "xpos-operator"))));
+                    .claim("realm_access", Map.of("roles", List.of("xpos-admin", "xpos-operator"))))
+        .authorities(
+            new SimpleGrantedAuthority("ROLE_xpos-admin"),
+            new SimpleGrantedAuthority("ROLE_xpos-operator"));
   }
 
   public static JwtRequestPostProcessor noRoleJwt() {
