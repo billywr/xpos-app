@@ -787,7 +787,7 @@ export function GoodsReceiptPage({
               onOrgChange?.(next);
             }}
             placeholder="Select organization…"
-            className="w-56"
+            className="w-full sm:w-56"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -812,7 +812,7 @@ export function GoodsReceiptPage({
               onBranchChange?.(next);
             }}
             placeholder="Select branch…"
-            className="w-56"
+            className="w-full sm:w-56"
           />
         </div>
       </div>
@@ -840,34 +840,36 @@ export function GoodsReceiptPage({
             Recent stock receipts
           </h2>
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search receipts…" className="mb-4" />
+          <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <div className="relative overflow-auto">
+              <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
+              <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "900px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-800/80">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Received at
+                    <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300">
+                      Received
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Supplier
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Name
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Barcode
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Qty
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Buying price
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                      Buy price
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Total
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Line actions
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -905,7 +907,7 @@ export function GoodsReceiptPage({
                           {lineIdx === 0 ? (
                             <td
                               rowSpan={rowSpan}
-                              className="align-top border-r border-slate-100 px-4 py-3 text-slate-800 dark:border-slate-700 dark:text-white"
+                              className="sticky left-0 z-10 bg-white align-top border-r border-slate-100 px-2 py-1.5 text-xs text-slate-800 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                             >
                               {new Date(grn.receivedAt).toLocaleString()}
                             </td>
@@ -913,23 +915,23 @@ export function GoodsReceiptPage({
                           {lineIdx === 0 ? (
                             <td
                               rowSpan={rowSpan}
-                              className="align-top border-r border-slate-100 px-4 py-3 text-slate-600 dark:border-slate-700 dark:text-slate-300"
+                              className="align-top border-r border-slate-100 px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:border-slate-700 dark:text-slate-300"
                             >
                               {grn.supplierName}
                             </td>
                           ) : null}
-                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                          <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                             {line?.itemName ?? "—"}
                           </td>
-                          <td className="px-4 py-3 font-mono text-sm text-slate-600 dark:text-slate-300">
+                          <td className="px-2 py-1.5 font-mono text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                             {line?.barcode?.trim()
                               ? line.barcode
                               : "—"}
                           </td>
-                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300 tabular-nums">
+                          <td className="px-2 py-1.5 text-xs text-slate-600 tabular-nums sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                             {line != null ? line.qty : "—"}
                           </td>
-                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300 tabular-nums">
+                          <td className="px-2 py-1.5 text-xs text-slate-600 tabular-nums sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                             {line != null && line.receivedUnitCost != null
                               ? formatCurrency(line.receivedUnitCost)
                               : "—"}
@@ -937,7 +939,7 @@ export function GoodsReceiptPage({
                           {lineIdx === 0 ? (
                             <td
                               rowSpan={rowSpan}
-                              className="align-top px-4 py-3 text-slate-600 dark:text-slate-300 tabular-nums"
+                              className="align-top px-2 py-1.5 text-xs text-slate-600 tabular-nums sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300"
                             >
                               <div className="font-medium tabular-nums">
                                 {formatCurrency(receiptTotal)}
@@ -960,7 +962,7 @@ export function GoodsReceiptPage({
                               </div>
                             </td>
                           ) : null}
-                          <td className="whitespace-nowrap px-4 py-3 text-left align-middle">
+                          <td className="whitespace-nowrap px-2 py-1.5 text-left text-xs align-middle sm:px-3 sm:py-2 sm:text-sm">
                             {line != null ? (
                               <>
                                 <button
@@ -1228,7 +1230,7 @@ export function GoodsReceiptPage({
                     onChange={(id) => handleUpdateLine(idx, "itemId", id)}
                   />
                 </div>
-                <div className="w-24">
+                <div className="w-full sm:w-24">
                   <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
                     Qty *
                   </label>
@@ -1242,7 +1244,7 @@ export function GoodsReceiptPage({
                     className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm tabular-nums dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   />
                 </div>
-                <div className="w-24">
+                <div className="w-full sm:w-24">
                   <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
                     Unit cost
                     {items.find((i) => i.id === line.itemId)?.buyingPrice != null && (
@@ -1271,7 +1273,7 @@ export function GoodsReceiptPage({
                     className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm tabular-nums dark:border-slate-600 dark:bg-slate-700 dark:text-white disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:cursor-not-allowed"
                   />
                 </div>
-                <div className="w-28">
+                <div className="w-full sm:w-28">
                   <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
                     Total cost
                   </label>

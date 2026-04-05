@@ -74,6 +74,7 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
+  ShoppingCart,
 } from "lucide-react";
 
 function isItemOutOfStock(item: Item, stockMap: Map<string, number>): boolean {
@@ -128,6 +129,7 @@ export function MenuOrderPage() {
   const queryClient = useQueryClient();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [hideOutOfStock, setHideOutOfStock] = useState(false);
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [itemSearchOpen, setItemSearchOpen] = useState(false);
   const [itemSearchQuery, setItemSearchQuery] = useState("");
   const itemSearchRef = useRef<HTMLDivElement>(null);
@@ -701,7 +703,7 @@ export function MenuOrderPage() {
     <>
     <div className="flex h-full min-h-0 touch-manipulation flex-col lg:flex-row">
       {/* Main content: categories + item grid */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 pb-20 lg:pb-4">
         <PageHeader
           title="POS"
           subtitle="Select items and proceed to payment"
@@ -711,11 +713,11 @@ export function MenuOrderPage() {
         />
         {showItemList ? (
         <>
-        <div className="mb-2 flex shrink-0 flex-wrap items-center gap-1.5">
+        <div className="mb-2 flex shrink-0 items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
           <button
             type="button"
             onClick={() => setSelectedCategoryId(null)}
-            className={`min-h-[28px] min-w-0 touch-manipulation rounded-md px-2 py-1.5 text-xs font-medium transition ${
+            className={`min-h-[28px] shrink-0 whitespace-nowrap touch-manipulation rounded-md px-2 py-1.5 text-xs font-medium transition ${
               selectedCategoryId === null
                 ? "bg-primary-600 text-white"
                 : "bg-slate-200 text-slate-700 hover:bg-slate-300 active:scale-[0.98] dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
@@ -730,7 +732,7 @@ export function MenuOrderPage() {
                   key={cat.id}
                   type="button"
                   onClick={() => setSelectedCategoryId(cat.id)}
-                  className={`min-h-[28px] min-w-0 touch-manipulation rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                  className={`min-h-[28px] shrink-0 whitespace-nowrap touch-manipulation rounded-md px-2 py-1.5 text-xs font-medium transition ${
                     selectedCategoryId === cat.id
                       ? "bg-primary-600 text-white"
                       : "bg-slate-200 text-slate-700 hover:bg-slate-300 active:scale-[0.98] dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
@@ -769,7 +771,7 @@ export function MenuOrderPage() {
               {hideOutOfStock ? "Show OOS" : "Hide OOS"}
             </span>
           </button>
-          <div ref={itemSearchRef} className="relative z-10 ml-auto shrink-0 mr-[3cm]">
+          <div ref={itemSearchRef} className="relative z-10 ml-auto shrink-0">
             <button
               type="button"
               onClick={() => setItemSearchOpen((o) => !o)}
@@ -790,7 +792,7 @@ export function MenuOrderPage() {
             </button>
             {itemSearchOpen && (
               <div
-                className="absolute right-0 top-full mt-1 w-full min-w-[280px] max-w-md max-h-[min(60vh,400px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-600 dark:bg-slate-800"
+                className="absolute right-0 top-full mt-1 w-[calc(100vw-2rem)] min-w-[280px] max-w-md max-h-[min(60vh,400px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg sm:w-full dark:border-slate-600 dark:bg-slate-800"
               role="listbox"
               aria-multiselectable
               aria-label="Sellable items"
@@ -905,7 +907,7 @@ export function MenuOrderPage() {
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {itemsLoading
             ? Array.from({ length: 10 }).map((_, i) => (
                 <div
@@ -947,122 +949,97 @@ export function MenuOrderPage() {
         )}
       </div>
 
-      {/* Order summary sidebar */}
-      <aside className="flex min-h-0 w-full shrink-0 flex-col border-t border-slate-200 bg-white lg:w-96 lg:border-l lg:border-t-0 dark:border-slate-700 dark:bg-slate-800/80">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
-          <div className="mb-2 shrink-0 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-              Order Summary
-            </h2>
-            <span className="text-sm text-slate-500">#—</span>
-          </div>
-          {showBarcode && (
-            <div className="mb-2 shrink-0">
-              <BarcodeCaptureInput
-                onScan={handleBarcodeScan}
-                placeholder="Scan barcode to add…"
-                compact
-                disabled={!token || !orgId}
-              />
-              {barcodeScanError && (
-                <p className="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">
-                  {barcodeScanError}
-                </p>
-              )}
-            </div>
-          )}
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden">
-            {cartLines.length === 0 ? (
-              <p className="py-4 text-center text-slate-500">No items yet</p>
-            ) : (
-              cartLines.map((line: CartLine) => (
-                <OrderLineRow
-                  key={line.tempId}
-                  line={line}
-                  stockOnHand={
-                    (() => {
-                      const item = itemMap.get(line.itemId);
-                      if (!item?.trackInventory) return undefined;
-                      return stockMap.get(line.itemId) ?? 0;
-                    })()
-                  }
-                  trackInventory={itemMap.get(line.itemId)?.trackInventory ?? false}
-                />
-              ))
-            )}
-          </div>
-          <div className="mt-1 shrink-0 space-y-0.5 border-t border-slate-200 pt-1.5 text-sm dark:border-slate-600">
-            <div className="flex justify-between text-slate-600 dark:text-slate-300">
-              <span>Subtotal</span>
-              <span>{formatCurrency(cartSubtotal)}</span>
-            </div>
-            <div className="flex justify-between font-semibold text-slate-900 dark:text-white">
-              <span>Total</span>
-              <span>{formatCurrency(total)}</span>
-            </div>
-          </div>
-          <div className="mt-1.5 shrink-0 flex flex-col gap-2">
-            {showOrderType && (
-              <SearchableSelect
-                options={orderTypeSelectOptions}
-                value={orderType}
-                onChange={(v) =>
-                  dispatch(setOrderType(v as "DINE_IN" | "TAKEAWAY" | "DELIVERY"))
-                }
-                placeholder="Search order type…"
-                className="min-h-[48px] touch-manipulation"
-                controlClassName="min-h-[48px] rounded-xl border-slate-300 bg-slate-50 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
-                aria-label="Order type"
-              />
-            )}
-            {showTableSelect && (
-              <SearchableSelect
-                options={operatorTableSelectOptions}
-                value={tableId ?? ""}
-                onChange={(v) => dispatch(setTableId(v || null))}
-                placeholder="Search table…"
-                className="min-h-[48px] touch-manipulation"
-                controlClassName="min-h-[48px] rounded-xl border-slate-300 bg-slate-50 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
-                aria-label="Select table"
-              />
-            )}
-          </div>
+      {/* Order summary sidebar — desktop only */}
+      <aside className="hidden min-h-0 w-96 shrink-0 flex-col border-l border-slate-200 bg-white lg:flex dark:border-slate-700 dark:bg-slate-800/80">
+        <CartSidebarContent
+          showBarcode={showBarcode}
+          handleBarcodeScan={handleBarcodeScan}
+          token={token}
+          orgId={orgId}
+          barcodeScanError={barcodeScanError}
+          cartLines={cartLines}
+          itemMap={itemMap}
+          stockMap={stockMap}
+          cartSubtotal={cartSubtotal}
+          total={total}
+          showOrderType={showOrderType}
+          orderTypeSelectOptions={orderTypeSelectOptions}
+          orderType={orderType}
+          dispatch={dispatch}
+          showTableSelect={showTableSelect}
+          operatorTableSelectOptions={operatorTableSelectOptions}
+          tableId={tableId}
+          createSaleAndLinesMutation={createSaleAndLinesMutation}
+          currentShift={currentShift}
+          tenderTypes={tenderTypes}
+          hasInsufficientStock={hasInsufficientStock}
+          insufficientStockMessage={insufficientStockMessage}
+        />
+      </aside>
+
+      {/* Mobile floating cart bar — shown only when cart has items and mobile overlay is closed */}
+      {cartLines.length > 0 && !mobileCartOpen && (
         <button
           type="button"
-          disabled={
-            cartLines.length === 0 ||
-            createSaleAndLinesMutation.isPending ||
-            !currentShift ||
-            tenderTypes.length === 0 ||
-            hasInsufficientStock
-          }
-          onClick={() => createSaleAndLinesMutation.mutate()}
-          className="mt-1.5 shrink-0 min-h-[48px] w-full touch-manipulation rounded-xl bg-primary-600 py-3 text-lg font-semibold text-white transition hover:bg-primary-500 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-primary-500"
+          onClick={() => setMobileCartOpen(true)}
+          className="fixed bottom-4 left-4 right-4 z-40 flex items-center justify-between rounded-2xl bg-primary-600 px-5 py-3.5 shadow-xl transition active:scale-[0.98] lg:hidden dark:bg-primary-700"
         >
-          {createSaleAndLinesMutation.isPending ? "Processing…" : "Proceed to payment"}
+          <span className="flex items-center gap-2 text-white">
+            <ShoppingCart className="h-5 w-5" />
+            <span className="text-base font-semibold">
+              Cart ({cartLines.reduce((s, l) => s + l.qty, 0)})
+            </span>
+          </span>
+          <span className="text-base font-bold text-white">
+            {formatCurrency(total)}
+          </span>
         </button>
-        {!currentShift && orgId && branchId && terminalId && (
-          <p className="mt-2 text-sm text-amber-600 dark:text-amber-400" role="status">
-            Open a shift on the Dashboard first to accept payments.
-          </p>
-        )}
-        {currentShift && tenderTypes.length === 0 && (
-          <p className="mt-2 text-sm text-amber-600 dark:text-amber-400" role="status">
-            No payment method configured. Add a Cash tender type in Admin.
-          </p>
-        )}
-        {hasInsufficientStock && (
-          <p className="mt-2 text-sm text-amber-600 dark:text-amber-400" role="status">
-            {insufficientStockMessage}
-          </p>
-        )}
-        {createSaleAndLinesMutation.isError && (
-          <p className="mt-2 text-sm text-red-400" role="alert">
-            {getApiErrorMessage(createSaleAndLinesMutation.error)}
-          </p>
-        )}
+      )}
+
+      {/* Mobile cart overlay — full-screen on < lg */}
+      {mobileCartOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-white lg:hidden dark:bg-slate-900">
+          <header className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
+              <ShoppingCart className="h-5 w-5" />
+              Order Summary
+            </h2>
+            <button
+              type="button"
+              onClick={() => setMobileCartOpen(false)}
+              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+              aria-label="Close cart"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </header>
+          <CartSidebarContent
+            showBarcode={showBarcode}
+            handleBarcodeScan={handleBarcodeScan}
+            token={token}
+            orgId={orgId}
+            barcodeScanError={barcodeScanError}
+            cartLines={cartLines}
+            itemMap={itemMap}
+            stockMap={stockMap}
+            cartSubtotal={cartSubtotal}
+            total={total}
+            showOrderType={showOrderType}
+            orderTypeSelectOptions={orderTypeSelectOptions}
+            orderType={orderType}
+            dispatch={dispatch}
+            showTableSelect={showTableSelect}
+            operatorTableSelectOptions={operatorTableSelectOptions}
+            tableId={tableId}
+            createSaleAndLinesMutation={createSaleAndLinesMutation}
+            currentShift={currentShift}
+            tenderTypes={tenderTypes}
+            hasInsufficientStock={hasInsufficientStock}
+            insufficientStockMessage={insufficientStockMessage}
+            onProceedExtra={() => setMobileCartOpen(false)}
+          />
         </div>
-      </aside>
+      )}
 
       {saleForPayment && (
         <PaymentModal
@@ -1123,6 +1100,177 @@ export function MenuOrderPage() {
     </>
   );
 }
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function CartSidebarContent({
+  showBarcode,
+  handleBarcodeScan,
+  token,
+  orgId,
+  barcodeScanError,
+  cartLines,
+  itemMap,
+  stockMap,
+  cartSubtotal,
+  total,
+  showOrderType,
+  orderTypeSelectOptions,
+  orderType,
+  dispatch,
+  showTableSelect,
+  operatorTableSelectOptions,
+  tableId,
+  createSaleAndLinesMutation,
+  currentShift,
+  tenderTypes,
+  hasInsufficientStock,
+  insufficientStockMessage,
+  onProceedExtra,
+}: {
+  showBarcode: boolean;
+  handleBarcodeScan: (barcode: string) => void;
+  token: string | null;
+  orgId: string | null;
+  barcodeScanError: string | null;
+  cartLines: CartLine[];
+  itemMap: Map<string, Item>;
+  stockMap: Map<string, number>;
+  cartSubtotal: number;
+  total: number;
+  showOrderType: boolean;
+  orderTypeSelectOptions: { value: string; label: string }[];
+  orderType: string;
+  dispatch: any;
+  showTableSelect: boolean;
+  operatorTableSelectOptions: { value: string; label: string }[];
+  tableId: string | null;
+  createSaleAndLinesMutation: any;
+  currentShift: any;
+  tenderTypes: any[];
+  hasInsufficientStock: boolean;
+  insufficientStockMessage: string;
+  onProceedExtra?: () => void;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
+      <div className="mb-2 flex shrink-0 items-center justify-between">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+          Order Summary
+        </h2>
+        <span className="text-sm text-slate-500">#—</span>
+      </div>
+      {showBarcode && (
+        <div className="mb-2 shrink-0">
+          <BarcodeCaptureInput
+            onScan={handleBarcodeScan}
+            placeholder="Scan barcode to add…"
+            compact
+            disabled={!token || !orgId}
+          />
+          {barcodeScanError && (
+            <p className="mt-1 text-xs text-red-600 dark:text-red-400" role="alert">
+              {barcodeScanError}
+            </p>
+          )}
+        </div>
+      )}
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden">
+        {cartLines.length === 0 ? (
+          <p className="py-4 text-center text-slate-500">No items yet</p>
+        ) : (
+          cartLines.map((line: CartLine) => (
+            <OrderLineRow
+              key={line.tempId}
+              line={line}
+              stockOnHand={
+                (() => {
+                  const item = itemMap.get(line.itemId);
+                  if (!item?.trackInventory) return undefined;
+                  return stockMap.get(line.itemId) ?? 0;
+                })()
+              }
+              trackInventory={itemMap.get(line.itemId)?.trackInventory ?? false}
+            />
+          ))
+        )}
+      </div>
+      <div className="mt-1 shrink-0 space-y-0.5 border-t border-slate-200 pt-1.5 text-sm dark:border-slate-600">
+        <div className="flex justify-between text-slate-600 dark:text-slate-300">
+          <span>Subtotal</span>
+          <span>{formatCurrency(cartSubtotal)}</span>
+        </div>
+        <div className="flex justify-between font-semibold text-slate-900 dark:text-white">
+          <span>Total</span>
+          <span>{formatCurrency(total)}</span>
+        </div>
+      </div>
+      <div className="mt-1.5 shrink-0 flex flex-col gap-2">
+        {showOrderType && (
+          <SearchableSelect
+            options={orderTypeSelectOptions}
+            value={orderType}
+            onChange={(v: string) =>
+              dispatch(setOrderType(v as "DINE_IN" | "TAKEAWAY" | "DELIVERY"))
+            }
+            placeholder="Search order type…"
+            className="min-h-[48px] touch-manipulation"
+            controlClassName="min-h-[48px] rounded-xl border-slate-300 bg-slate-50 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+            aria-label="Order type"
+          />
+        )}
+        {showTableSelect && (
+          <SearchableSelect
+            options={operatorTableSelectOptions}
+            value={tableId ?? ""}
+            onChange={(v: string) => dispatch(setTableId(v || null))}
+            placeholder="Search table…"
+            className="min-h-[48px] touch-manipulation"
+            controlClassName="min-h-[48px] rounded-xl border-slate-300 bg-slate-50 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+            aria-label="Select table"
+          />
+        )}
+      </div>
+      <button
+        type="button"
+        disabled={
+          cartLines.length === 0 ||
+          createSaleAndLinesMutation.isPending ||
+          !currentShift ||
+          tenderTypes.length === 0 ||
+          hasInsufficientStock
+        }
+        onClick={() => {
+          createSaleAndLinesMutation.mutate();
+          onProceedExtra?.();
+        }}
+        className="mt-1.5 shrink-0 min-h-[48px] w-full touch-manipulation rounded-xl bg-primary-600 py-3 text-lg font-semibold text-white transition hover:bg-primary-500 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-primary-500"
+      >
+        {createSaleAndLinesMutation.isPending ? "Processing…" : "Proceed to payment"}
+      </button>
+      {!currentShift && (
+        <p className="mt-2 text-sm text-amber-600 dark:text-amber-400" role="status">
+          Open a shift on the Dashboard first to accept payments.
+        </p>
+      )}
+      {currentShift && tenderTypes.length === 0 && (
+        <p className="mt-2 text-sm text-amber-600 dark:text-amber-400" role="status">
+          No payment method configured. Add a Cash tender type in Admin.
+        </p>
+      )}
+      {hasInsufficientStock && (
+        <p className="mt-2 text-sm text-amber-600 dark:text-amber-400" role="status">
+          {insufficientStockMessage}
+        </p>
+      )}
+      {createSaleAndLinesMutation.isError && (
+        <p className="mt-2 text-sm text-red-400" role="alert">
+          {getApiErrorMessage(createSaleAndLinesMutation.error)}
+        </p>
+      )}
+    </div>
+  );
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 function PaymentModal({
   sale,
@@ -1195,7 +1343,7 @@ function PaymentModal({
       aria-modal="true"
       aria-labelledby="payment-modal-title"
     >
-      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-600 dark:bg-slate-800">
+      <div className="flex max-h-[95vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:max-h-[90vh] dark:border-slate-600 dark:bg-slate-800">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-600">
           <h2
             id="payment-modal-title"
@@ -1219,32 +1367,34 @@ function PaymentModal({
               <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                 Items to pay
               </h3>
+              <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
               <div
-                className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600"
+                className="relative overflow-auto rounded-xl border border-slate-200 dark:border-slate-600"
                 role="region"
                 aria-label="Sale line items and subtotals"
               >
-                <table className="w-full text-left text-sm">
+                <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
+                <table className="w-full text-left text-xs sm:text-sm" style={{ minWidth: "420px" }}>
                   <thead className="border-b border-slate-200 bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500 dark:border-slate-600 dark:bg-slate-700/40 dark:text-slate-400">
                     <tr>
-                      <th className="px-3 py-2">Item</th>
-                      <th className="px-3 py-2 text-right">Qty</th>
-                      <th className="hidden px-3 py-2 text-right sm:table-cell">Unit</th>
-                      <th className="px-3 py-2 text-right">Subtotal</th>
+                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 sm:px-3 dark:bg-slate-700/80">Item</th>
+                      <th className="px-2 py-2 text-right sm:px-3">Qty</th>
+                      <th className="px-2 py-2 text-right sm:px-3">Unit</th>
+                      <th className="px-2 py-2 text-right sm:px-3">Subtotal</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                     {(sale.lines ?? []).map((line) => (
                       <Fragment key={line.id}>
                         <tr className="text-slate-800 dark:text-white">
-                          <td className="max-w-[10rem] px-3 py-2 align-top">
+                          <td className="sticky left-0 z-10 max-w-[7rem] bg-white px-2 py-1.5 align-top sm:max-w-[10rem] sm:px-3 sm:py-2 dark:bg-slate-800">
                             <span className="font-medium leading-snug">{line.itemName}</span>
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums align-top">{line.qty}</td>
-                          <td className="hidden px-3 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300 sm:table-cell align-top">
+                          <td className="px-2 py-1.5 text-right tabular-nums align-top sm:px-3 sm:py-2">{line.qty}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums text-slate-600 align-top sm:px-3 sm:py-2 dark:text-slate-300">
                             {formatCurrency(line.unitPrice)}
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums font-semibold align-top">
+                          <td className="px-2 py-1.5 text-right tabular-nums font-semibold align-top sm:px-3 sm:py-2">
                             {formatCurrency(line.lineTotal)}
                           </td>
                         </tr>
@@ -1255,14 +1405,14 @@ function PaymentModal({
                               key={`${line.id}-mod-${m.id}`}
                               className="bg-slate-50/80 text-xs text-slate-600 dark:bg-slate-800/40 dark:text-slate-400"
                             >
-                              <td className="px-3 py-1.5 pl-6" colSpan={2}>
+                              <td className="px-2 py-1.5 pl-6 sm:px-3" colSpan={2}>
                                 + {m.modifierOptionName}
                                 {m.qty > 1 ? ` × ${m.qty}` : ""}
                               </td>
-                              <td className="hidden px-3 py-1.5 text-right tabular-nums sm:table-cell">
+                              <td className="px-2 py-1.5 text-right tabular-nums sm:px-3">
                                 {modAmt !== 0 ? formatCurrency(m.unitPriceDelta) : "—"}
                               </td>
-                              <td className="px-3 py-1.5 text-right tabular-nums">
+                              <td className="px-2 py-1.5 text-right tabular-nums sm:px-3">
                                 {modAmt !== 0 ? formatCurrency(modAmt) : "—"}
                               </td>
                             </tr>
@@ -1341,14 +1491,14 @@ function PaymentModal({
               <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                 Add payment
               </h3>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 sm:flex-nowrap">
                 <SearchableSelect
                   options={paymentTenderTypeOptions}
                   value={addTenderTypeId}
                   onChange={setAddTenderTypeId}
                   placeholder="Search payment type…"
                   matchOptionValue
-                  className="min-h-[48px] min-w-0 flex-1"
+                  className="min-h-[48px] min-w-0 flex-1 basis-full sm:basis-auto"
                   controlClassName="min-h-[48px] rounded-xl border-slate-300 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500 dark:border-slate-600"
                   aria-label="Payment type"
                 />
@@ -1359,7 +1509,7 @@ function PaymentModal({
                   value={addTenderAmount}
                   onChange={(e) => setAddTenderAmount(e.target.value)}
                   placeholder="Amount"
-                  className="min-h-[48px] w-28 rounded-xl border border-slate-300 bg-white px-3 py-2 text-right tabular-nums text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  className="min-h-[48px] min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-right tabular-nums text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:w-28 sm:flex-none dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   aria-label="Amount"
                 />
                 <button

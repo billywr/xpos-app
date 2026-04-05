@@ -396,7 +396,7 @@ export function StandardStockCountSheetPage({
             dateFormat="dd/MM/yyyy"
             showPopperArrow={false}
             placeholderText="Select date"
-            className="w-32 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+            className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 sm:w-32 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
           />
           <button
             type="button"
@@ -458,77 +458,83 @@ export function StandardStockCountSheetPage({
 
       {!isLoading && !isError && sheet && (
         <>
+          {/* Swipe hint — visible only on small screens */}
+          <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">
+            ← swipe table to see all columns →
+          </p>
           <div className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-            <div className="max-h-[55vh] min-h-0 overflow-auto">
-              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
+            <div className="relative max-h-[55vh] min-h-0 overflow-auto">
+              {/* Gradient fade on right edge */}
+              <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
+              <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "600px" }}>
               <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700/80">
                 <tr>
                   <th
-                    className="px-4 py-3 text-left text-base font-medium text-slate-700 dark:text-slate-300"
+                    className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300"
                     title="Product name"
                   >
                     Item
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
+                    className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300"
                     title="Previous business day's saved closing, or ledger fallback if that day was not saved"
                   >
-                    Opening
+                    Open
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
+                    className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300"
                     title="Received today per receipt date (sum of current GRN lines; edits apply immediately)"
                   >
                     Added
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
+                    className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300"
                     title="Opening + Added + stock-take adds; equals System when counts align with the ledger"
                   >
-                    Total Stock
+                    Total
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
+                    className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300"
                     title="Physical count at end of day"
                   >
-                    Closing
+                    Close
                   </th>
                   {showSystemAndVariance && (
                     <>
                       <th
-                        className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
+                        className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300"
                         title="Ledger on-hand at end of this day (from stock movements; excludes later receipts)"
                       >
-                        System
+                        Sys
                       </th>
                       <th
-                        className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
+                        className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300"
                         title="Closing count minus ledger on-hand (positive = physical excess, negative = short)"
                       >
-                        Variance
+                        Var
                       </th>
                     </>
                   )}
                   <th
-                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
+                    className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300"
                     title="Total Stock − Closing (units sold)"
                   >
-                    Units Sold
+                    Sold
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
+                    className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300"
                     title="Selling price per unit from price list"
                   >
-                    Selling Price
+                    Price
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-base font-medium text-slate-700 dark:text-slate-300"
+                    className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300"
                     title="Units Sold × Selling Price (revenue value)"
                   >
-                    Amount
+                    Amt
                   </th>
                   <th
-                    className="px-4 py-3 text-left text-base font-medium text-slate-700 dark:text-slate-300"
+                    className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300"
                     title="Notes saved with this count line"
                   >
                     Notes
@@ -541,19 +547,19 @@ export function StandardStockCountSheetPage({
                     key={r.itemId}
                     className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
                   >
-                    <td className="px-4 py-2 text-base font-bold text-slate-900 dark:text-white">
+                    <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs font-bold text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white">
                       {r.name || "—"}
                     </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums text-slate-700 dark:text-slate-300">
+                    <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                       {r.openingStock}
                     </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums text-slate-700 dark:text-slate-300">
+                    <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                       {r.addedStock}
                     </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums text-slate-700 dark:text-slate-300">
+                    <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                       {r.totalStock}
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-2 py-1.5 sm:px-3 sm:py-2">
                       {canEdit ? (
                         <div className="flex flex-col items-end">
                           <input
@@ -568,7 +574,7 @@ export function StandardStockCountSheetPage({
                             onChange={(e) =>
                               handleClosingChange(r.itemId, e.target.value)
                             }
-                            className={`w-20 rounded border px-2 py-1 text-right text-base tabular-nums ${
+                            className={`w-12 rounded border px-1 py-0.5 text-right text-xs tabular-nums sm:w-16 sm:px-2 sm:py-1 sm:text-sm ${
                               r.closingError
                                 ? "border-red-500 bg-red-50 dark:border-red-600 dark:bg-red-950/20"
                                 : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800"
@@ -581,18 +587,18 @@ export function StandardStockCountSheetPage({
                           )}
                         </div>
                       ) : (
-                        <span className="text-right text-base tabular-nums">
+                        <span className="text-right text-xs tabular-nums sm:text-sm">
                           {r.closingStock}
                         </span>
                       )}
                     </td>
                     {showSystemAndVariance && (
                       <>
-                        <td className="px-4 py-2 text-right text-base tabular-nums text-slate-700 dark:text-slate-300">
+                        <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                           {r.systemCountBeforeToday}
                         </td>
                         <td
-                          className={`px-4 py-2 text-right text-base tabular-nums ${
+                          className={`px-2 py-1.5 text-right text-xs tabular-nums sm:px-3 sm:py-2 sm:text-sm ${
                             r.variance > 0
                               ? "font-medium text-emerald-600 dark:text-emerald-400"
                               : r.variance < 0
@@ -612,16 +618,16 @@ export function StandardStockCountSheetPage({
                         </td>
                       </>
                     )}
-                    <td className="px-4 py-2 text-right text-base tabular-nums text-slate-700 dark:text-slate-300">
+                    <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                       {r.unitsSold}
                     </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums text-slate-700 dark:text-slate-300">
+                    <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                       {formatCurrency(r.sellingPrice)}
                     </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-900 dark:text-white">
+                    <td className="px-2 py-1.5 text-right text-xs tabular-nums font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
                       {formatCurrency(r.amount)}
                     </td>
-                    <td className="px-4 py-2 align-top">
+                    <td className="px-2 py-1.5 align-top sm:px-3 sm:py-2">
                       {canEdit ? (
                         <textarea
                           value={r.comments}
@@ -630,7 +636,7 @@ export function StandardStockCountSheetPage({
                           }
                           rows={2}
                           maxLength={2000}
-                          className="min-w-[10rem] max-w-[18rem] resize-y rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500"
+                          className="w-full min-w-[5rem] max-w-[18rem] resize-y rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 sm:min-w-[8rem] sm:px-2 sm:py-1 sm:text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500"
                           placeholder="Notes…"
                           aria-label={`comments for ${r.name}`}
                         />

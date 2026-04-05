@@ -427,7 +427,7 @@ export function AdminTablesPage() {
             value={selectedOrgId}
             onChange={setSelectedOrgId}
             placeholder="Search organization…"
-            className="w-56"
+            className="w-full sm:w-56"
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
           />
         </div>
@@ -444,7 +444,7 @@ export function AdminTablesPage() {
             value={selectedBranchId}
             onChange={setSelectedBranchId}
             placeholder="Search branch…"
-            className="w-56"
+            className="w-full sm:w-56"
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
           />
         </div>
@@ -467,19 +467,22 @@ export function AdminTablesPage() {
               </button>
             </div>
             <TableSearchInput value={areasSearchQuery} onChange={setAreasSearchQuery} placeholder="Search areas…" className="mb-4" />
+            <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
               {filteredAreas.length === 0 ? (
                 <p className="p-8 text-center text-slate-500 dark:text-slate-400">
                   {areas.length === 0 ? "No table areas. Add one to group tables (e.g. Patio, Main Hall)." : "No results match your search."}
                 </p>
               ) : (
-                <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                <div className="relative overflow-auto">
+                  <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
+                <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "280px" }}>
                   <thead>
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300">
                         Name
                       </th>
-                      <th className="w-24 px-4 py-3" aria-label="Actions" />
+                      <th className="w-24 px-2 py-2 sm:px-3 sm:py-3" aria-label="Actions" />
                     </tr>
                   </thead>
                   <tbody>
@@ -488,10 +491,10 @@ export function AdminTablesPage() {
                         key={area.id}
                         className="border-t border-slate-200 dark:border-slate-700"
                       >
-                        <td className="px-4 py-3 text-slate-900 dark:text-white">
+                        <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white">
                           {area.name}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-1.5 sm:px-3 sm:py-2">
                           <button
                             type="button"
                             onClick={() => openAreaEdit(area)}
@@ -506,6 +509,7 @@ export function AdminTablesPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           </section>
@@ -525,28 +529,31 @@ export function AdminTablesPage() {
               </button>
             </div>
             <TableSearchInput value={tablesSearchQuery} onChange={setTablesSearchQuery} placeholder="Search tables…" className="mb-4" />
+            <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
               {filteredTables.length === 0 ? (
                 <p className="p-8 text-center text-slate-500 dark:text-slate-400">
                   {tables.length === 0 ? "No tables. Add tables for dine-in service." : "No results match your search."}
                 </p>
               ) : (
-                <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                <div className="relative overflow-auto">
+                  <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
+                <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "500px" }}>
                   <thead>
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300">
                         Name
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                         Area
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                         Capacity
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                         Status
                       </th>
-                      <th className="w-24 px-4 py-3" aria-label="Actions" />
+                      <th className="w-24 px-2 py-2 sm:px-3 sm:py-3" aria-label="Actions" />
                     </tr>
                   </thead>
                   <tbody>
@@ -555,19 +562,19 @@ export function AdminTablesPage() {
                         key={table.id}
                         className="border-t border-slate-200 dark:border-slate-700"
                       >
-                        <td className="px-4 py-3 text-slate-900 dark:text-white">
+                        <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white">
                           {table.name}
                         </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                        <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
                           {table.tableAreaId
                             ? areas.find((a) => a.id === table.tableAreaId)
                                 ?.name ?? "—"
                             : "—"}
                         </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                        <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
                           {table.capacity ?? "—"}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm">
                           <span
                             className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
                               table.status === "ACTIVE" ||
@@ -580,7 +587,7 @@ export function AdminTablesPage() {
                             {table.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-1.5 sm:px-3 sm:py-2">
                           <button
                             type="button"
                             onClick={() => openTableEdit(table)}
@@ -595,6 +602,7 @@ export function AdminTablesPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
               {totalElements > size && (
                 <div className="border-t border-slate-200 px-4 py-2 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">

@@ -307,7 +307,7 @@ export function StockTakingSchedulesPage() {
           fallbackTo="/admin"
           noMargin
         />
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <label
             htmlFor="stock-schedule-org"
             className="text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -323,7 +323,7 @@ export function StockTakingSchedulesPage() {
               setPage(0);
             }}
             placeholder="Search organization…"
-            className="min-w-[12rem]"
+            className="w-full sm:w-auto min-w-[12rem]"
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
           />
           <button
@@ -368,23 +368,25 @@ export function StockTakingSchedulesPage() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-                <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
+              <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
+              <div className="relative overflow-auto rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+                <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
+                <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "600px" }}>
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-700/50">
-                      <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300">
                         Branch
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                         Schedule
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                         Last run
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                         Status
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                         Actions
                       </th>
                     </tr>
@@ -395,16 +397,16 @@ export function StockTakingSchedulesPage() {
                         key={s.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
                       >
-                        <td className="px-4 py-3 text-sm text-slate-900 dark:text-white">
+                        <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white">
                           {branchMap.get(s.branchId) ?? s.branchId}
                         </td>
-                        <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
+                        <td className="px-2 py-1.5 text-xs text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                           {formatSchedule(s)}
                         </td>
-                        <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                        <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
                           {formatLastRun(s.lastRunAt)}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm">
                           <span
                             className={`inline-flex justify-start rounded-full px-2 py-1 text-left text-xs font-medium ${
                               s.isActive
@@ -415,7 +417,7 @@ export function StockTakingSchedulesPage() {
                             {s.isActive ? "Active" : "Inactive"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-left">
+                        <td className="px-2 py-1.5 text-left text-xs sm:px-3 sm:py-2 sm:text-sm">
                           <div className="flex items-center justify-start gap-2">
                             <button
                               type="button"

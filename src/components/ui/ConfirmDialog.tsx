@@ -59,20 +59,20 @@ export function ConfirmDialog({
         aria-hidden
         onClick={onClose}
       />
-      <div className="relative z-10 w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+      <div className="relative z-10 w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-xl sm:p-6 dark:border-slate-700 dark:bg-slate-800">
         <h3
           id="confirm-dialog-title"
-          className="text-lg font-semibold text-slate-900 dark:text-white"
+          className="text-base font-semibold text-slate-900 sm:text-lg dark:text-white"
         >
           {title}
         </h3>
         <p
           id="confirm-dialog-desc"
-          className="mt-2 text-slate-600 dark:text-slate-300"
+          className="mt-2 text-sm text-slate-600 sm:text-base dark:text-slate-300"
         >
           {message}
         </p>
-        <div className="mt-6 flex flex-wrap justify-end gap-3">
+        <div className="mt-4 flex flex-wrap justify-end gap-2 sm:mt-6 sm:gap-3">
           <button
             type="button"
             onClick={onClose}

@@ -373,7 +373,7 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
             value={selectedOrgId}
             onChange={setSelectedOrgId}
             placeholder="Search organization…"
-            className="w-56"
+            className="w-full sm:w-56"
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
           />
         </div>
@@ -394,7 +394,7 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
             }}
             disabled={!selectedOrgId}
             placeholder="Search branch…"
-            className="w-56"
+            className="w-full sm:w-56"
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 disabled:opacity-50"
           />
         </div>

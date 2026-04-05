@@ -554,7 +554,7 @@ export function PriceListEditPage() {
                               step="0.01"
                               value={editingPrice}
                               onChange={(e) => setEditingPrice(e.target.value)}
-                              className="w-24 rounded border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                              className="w-20 sm:w-24 rounded border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                               autoFocus
                             />
                             <button
@@ -679,7 +679,7 @@ export function PriceListEditPage() {
                   controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
                 />
               </div>
-              <div className="w-28 min-w-[7.5rem]">
+              <div className="w-full sm:w-28 min-w-[7.5rem]">
                 <label
                   htmlFor="new-price"
                   className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400"

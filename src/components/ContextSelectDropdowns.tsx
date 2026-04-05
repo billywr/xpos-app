@@ -103,7 +103,7 @@ export function ContextSelectDropdowns() {
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {showOrgDropdown ? (
         <SearchableSelect
           aria-label="Select organization"
@@ -111,11 +111,11 @@ export function ContextSelectDropdowns() {
           value={orgId ?? ""}
           onChange={handleOrgChange}
           compact
-          className="min-w-[140px] max-w-[220px]"
+          className="min-w-[120px] max-w-[180px] sm:min-w-[140px] sm:max-w-[220px]"
           controlClassName="border-slate-200 dark:border-slate-600 dark:bg-slate-800"
         />
       ) : orgName ? (
-        <span className="text-sm text-slate-600 dark:text-slate-400">
+        <span className="max-w-[120px] truncate text-sm text-slate-600 sm:max-w-none dark:text-slate-400">
           {orgName}
         </span>
       ) : null}
@@ -131,11 +131,11 @@ export function ContextSelectDropdowns() {
           value={branchId ?? ""}
           onChange={handleBranchChange}
           compact
-          className="min-w-[140px] max-w-[220px]"
+          className="min-w-[120px] max-w-[180px] sm:min-w-[140px] sm:max-w-[220px]"
           controlClassName="border-slate-200 dark:border-slate-600 dark:bg-slate-800"
         />
       ) : branchName && orgId ? (
-        <span className="text-sm text-slate-600 dark:text-slate-400">
+        <span className="max-w-[120px] truncate text-sm text-slate-600 sm:max-w-none dark:text-slate-400">
           {branchName}
         </span>
       ) : null}

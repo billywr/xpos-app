@@ -55,10 +55,10 @@ export function PageHeader({
         {subtitle && subtitleRevealOnTitleHover ? (
           <div className="group inline-block max-w-full cursor-default">
             <h1
-              className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white"
+              className="flex items-center gap-2 text-xl font-bold text-slate-800 sm:text-2xl dark:text-white"
               aria-describedby={subtitleDescriptionId}
             >
-              {Icon && <Icon className="h-7 w-7 shrink-0" />}
+              {Icon && <Icon className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />}
               {title}
             </h1>
             <div
@@ -79,8 +79,8 @@ export function PageHeader({
           </div>
         ) : (
           <>
-            <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-              {Icon && <Icon className="h-7 w-7 shrink-0" />}
+            <h1 className="flex items-center gap-2 text-xl font-bold text-slate-800 sm:text-2xl dark:text-white">
+              {Icon && <Icon className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />}
               {title}
             </h1>
             {subtitle && (

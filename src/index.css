@@ -45,6 +45,38 @@ body {
   }
 }
 
+/* Responsive table: always-visible horizontal scrollbar on mobile */
+@media (max-width: 639px) {
+  .overflow-x-auto,
+  .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Force scrollbar visible on webkit (iOS Safari / Chrome) */
+  .overflow-x-auto::-webkit-scrollbar,
+  .overflow-auto::-webkit-scrollbar {
+    height: 6px;
+    background: transparent;
+  }
+  .overflow-x-auto::-webkit-scrollbar-thumb,
+  .overflow-auto::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.45);
+    border-radius: 3px;
+  }
+  .dark .overflow-x-auto::-webkit-scrollbar-thumb,
+  .dark .overflow-auto::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.5);
+  }
+  .overflow-x-auto::-webkit-scrollbar-track,
+  .overflow-auto::-webkit-scrollbar-track {
+    background: rgba(241, 245, 249, 0.6);
+    border-radius: 3px;
+  }
+  .dark .overflow-x-auto::-webkit-scrollbar-track,
+  .dark .overflow-auto::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.4);
+  }
+}
+
 /* Receipt thermal-print style */
 .receipt-body {
   width: 72mm;

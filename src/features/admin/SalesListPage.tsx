@@ -246,7 +246,7 @@ export function SalesListPage() {
               setPage(0);
             }}
             placeholder="Search organization…"
-            className="w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
+            className="w-full sm:w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
           />
         </div>
@@ -266,7 +266,7 @@ export function SalesListPage() {
               setPage(0);
             }}
             placeholder="Search branch…"
-            className="w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
+            className="w-full sm:w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
           />
         </div>
@@ -317,22 +317,24 @@ export function SalesListPage() {
       ) : (
         <>
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search sales…" className="mb-4" />
+          <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <div className="relative overflow-auto">
+              <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
+              <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "600px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-800/80">
                   <tr>
-                    <th className="w-10 px-2 py-3" aria-label="Expand" />
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 w-10 bg-slate-50 px-2 py-2 sm:py-3 dark:bg-slate-700/80" aria-label="Expand" />
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Receipt #
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Completed at
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                      Completed
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Cashier
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Total
                     </th>
                   </tr>
@@ -354,7 +356,7 @@ export function SalesListPage() {
                           key={sale.id}
                           className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
                         >
-                          <td className="w-10 px-2 py-3">
+                          <td className="sticky left-0 z-10 w-10 bg-white px-2 py-1.5 sm:py-2 dark:bg-slate-800">
                             <button
                               type="button"
                               onClick={() =>
@@ -376,18 +378,18 @@ export function SalesListPage() {
                               )}
                             </button>
                           </td>
-                          <td className="px-4 py-3 font-mono text-slate-800 dark:text-white">
+                          <td className="px-2 py-1.5 font-mono text-xs text-slate-800 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
                             {sale.receiptNumber ?? "—"}
                           </td>
-                          <td className="px-4 py-3 text-slate-800 dark:text-white">
+                          <td className="px-2 py-1.5 text-xs text-slate-800 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
                             {sale.completedAt
                               ? new Date(sale.completedAt).toLocaleString()
                               : "—"}
                           </td>
-                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                          <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                             {sale.createdByUsername ?? "—"}
                           </td>
-                          <td className="px-4 py-3 text-left tabular-nums font-medium text-slate-800 dark:text-white">
+                          <td className="px-2 py-1.5 text-left text-xs tabular-nums font-medium text-slate-800 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
                             {formatCurrency(sale.total)}
                           </td>
                         </tr>

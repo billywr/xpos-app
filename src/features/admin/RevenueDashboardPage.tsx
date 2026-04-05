@@ -254,71 +254,79 @@ export function RevenueDashboardPage() {
       </div>
 
       <form onSubmit={handleLoad} className="mb-6 flex flex-wrap items-end gap-4">
-        <label
-          htmlFor="revenue-dash-org"
-          className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Organization
-        </label>
-        <SearchableSelect
-          id="revenue-dash-org"
-          options={orgSelectOptions}
-          value={selectedOrgId}
-          onChange={(next) => {
-            setSelectedOrgId(next);
-            setSelectedBranchId("");
-            setSubmittedRange(null);
-          }}
-          placeholder="Search organization…"
-          className="min-w-[12rem]"
-          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-        />
-        <label
-          htmlFor="revenue-dash-branch"
-          className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Branch
-        </label>
-        <SearchableSelect
-          id="revenue-dash-branch"
-          options={branchSelectOptions}
-          value={selectedBranchId}
-          onChange={(next) => {
-            setSelectedBranchId(next);
-            setSubmittedRange(null);
-          }}
-          placeholder="Search branch…"
-          className="min-w-[12rem]"
-          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-        />
-        <label className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
-          Start date
-        </label>
-        <input
-          type="date"
-          value={startDate}
-          onChange={(e) => {
-            setStartDate(e.target.value);
-            setSubmittedRange(null);
-          }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        />
-        <label className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
-          End date
-        </label>
-        <input
-          type="date"
-          value={endDate}
-          onChange={(e) => {
-            setEndDate(e.target.value);
-            setSubmittedRange(null);
-          }}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        />
+        <div className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:flex-initial">
+          <label
+            htmlFor="revenue-dash-org"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Organization
+          </label>
+          <SearchableSelect
+            id="revenue-dash-org"
+            options={orgSelectOptions}
+            value={selectedOrgId}
+            onChange={(next) => {
+              setSelectedOrgId(next);
+              setSelectedBranchId("");
+              setSubmittedRange(null);
+            }}
+            placeholder="Search organization…"
+            className="min-w-[12rem]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
+        </div>
+        <div className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:flex-initial">
+          <label
+            htmlFor="revenue-dash-branch"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Branch
+          </label>
+          <SearchableSelect
+            id="revenue-dash-branch"
+            options={branchSelectOptions}
+            value={selectedBranchId}
+            onChange={(next) => {
+              setSelectedBranchId(next);
+              setSubmittedRange(null);
+            }}
+            placeholder="Search branch…"
+            className="min-w-[12rem]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-initial">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            Start date
+          </label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => {
+              setStartDate(e.target.value);
+              setSubmittedRange(null);
+            }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+          />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-initial">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            End date
+          </label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => {
+              setEndDate(e.target.value);
+              setSubmittedRange(null);
+            }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+          />
+        </div>
         <button
           type="submit"
           disabled={!selectedOrgId || !selectedBranchId || !startDate || !endDate}
-          className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-500 disabled:opacity-50"
+          className="w-full rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-500 disabled:opacity-50 sm:w-auto"
         >
           Load dashboard
         </button>

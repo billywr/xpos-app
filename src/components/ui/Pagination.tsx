@@ -30,10 +30,10 @@ export function Pagination({
   const last = Math.min((page + 1) * size, totalElements);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/50">
-      <div className="flex items-center gap-4">
-        <p className="text-sm text-slate-600 dark:text-slate-400">
-          Showing <span className="font-medium">{first}</span>–
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-3 py-2 sm:gap-4 sm:px-4 sm:py-3 dark:border-slate-700 dark:bg-slate-800/50">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+        <p className="text-xs text-slate-600 sm:text-sm dark:text-slate-400">
+          <span className="font-medium">{first}</span>–
           <span className="font-medium">{last}</span> of{" "}
           <span className="font-medium">{totalElements}</span>
         </p>
@@ -42,36 +42,36 @@ export function Pagination({
             aria-label="Items per page"
             options={sizeOptions.map((n) => ({
               value: String(n),
-              label: `${n} per page`,
+              label: `${n} / pg`,
             }))}
             value={String(size)}
             onChange={(v) => onSizeChange(Number(v))}
             compact
-            className="w-auto min-w-[9rem]"
+            className="hidden w-auto min-w-[7rem] sm:block sm:min-w-[9rem]"
           />
         )}
       </div>
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-slate-600 dark:text-slate-400">
-          Page {page + 1} of {totalPages}
+      <div className="flex items-center gap-1 sm:gap-2">
+        <span className="text-xs text-slate-600 sm:text-sm dark:text-slate-400">
+          {page + 1}/{totalPages}
         </span>
         <button
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 0}
-          className="rounded-lg p-2 text-slate-600 hover:bg-slate-200 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-700 dark:disabled:hover:bg-transparent"
+          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-200 disabled:opacity-40 sm:p-2 dark:text-slate-400 dark:hover:bg-slate-700 dark:disabled:hover:bg-transparent"
           aria-label="Previous page"
         >
-          <ChevronLeft className="h-5 w-5" />
+          <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
         <button
           type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages - 1}
-          className="rounded-lg p-2 text-slate-600 hover:bg-slate-200 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-700 dark:disabled:hover:bg-transparent"
+          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-200 disabled:opacity-40 sm:p-2 dark:text-slate-400 dark:hover:bg-slate-700 dark:disabled:hover:bg-transparent"
           aria-label="Next page"
         >
-          <ChevronRight className="h-5 w-5" />
+          <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
       </div>
     </div>

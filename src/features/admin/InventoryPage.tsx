@@ -206,27 +206,29 @@ export function InventoryPage({
             Sold vs remaining
           </h2>
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search inventory…" className="mb-4" />
+          <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <div className="relative overflow-auto">
+              <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
+              <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "700px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-800/80">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300">
                       Item
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       SKU
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Received
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Remaining (on hand)
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                      On hand
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Sold
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Reserved
                     </th>
                   </tr>
@@ -258,7 +260,7 @@ export function InventoryPage({
                         key={line.itemId}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
                       >
-                        <td className="px-4 py-3">
+                        <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800">
                           <span className="font-medium text-slate-800 dark:text-white">
                             {line.itemName}
                           </span>
@@ -268,25 +270,25 @@ export function InventoryPage({
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                        <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                           {line.sku ?? "—"}
                         </td>
-                        <td className="px-4 py-3 text-left tabular-nums text-slate-600 dark:text-slate-400">
+                        <td className="px-2 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
                           {formatQty(line.receivedQty)}
                         </td>
-                        <td className="px-4 py-3 text-left tabular-nums">
+                        <td className="px-2 py-1.5 text-left text-xs tabular-nums sm:px-3 sm:py-2 sm:text-sm">
                           <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
                             <TrendingUp className="h-4 w-4" />
                             {formatQty(line.onHandQty)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-left tabular-nums">
+                        <td className="px-2 py-1.5 text-left text-xs tabular-nums sm:px-3 sm:py-2 sm:text-sm">
                           <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300">
                             <TrendingDown className="h-4 w-4" />
                             {formatQty(line.soldQty)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-left tabular-nums text-slate-600 dark:text-slate-400">
+                        <td className="px-2 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
                           {formatQty(line.reservedQty)}
                         </td>
                       </tr>

@@ -310,7 +310,7 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
               setPage(0);
             }}
             placeholder="Search organization…"
-            className="w-56"
+            className="w-full sm:w-56"
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
           />
         </div>

@@ -330,7 +330,7 @@ export function AdminSettingsPage() {
             Operator, Org links. Database values (org dropdown, user name) are
             shown as-is.
           </p>
-          <div className="min-w-[280px] max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+          <div className="max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
             <div className="space-y-3">
               <LogoUploadRow
                 logoDataUrl={getHeaderLogo()}
@@ -383,7 +383,7 @@ export function AdminSettingsPage() {
             {adminNavGroups.map(({ label: groupLabel, items: groupItems }) => (
               <div
                 key={groupLabel}
-                className="min-w-[280px] rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
+                className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
               >
                 <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   {groupLabel}
@@ -435,7 +435,7 @@ export function AdminSettingsPage() {
             {operatorNavGroups.map(({ label: groupLabel, items: groupItems }) => (
               <div
                 key={groupLabel}
-                className="min-w-[280px] rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
+                className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
               >
                 <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   {groupLabel}
@@ -488,7 +488,7 @@ export function AdminSettingsPage() {
             (Dine-in / Takeaway / Delivery), table selector, and the item list
             (categories and search).
           </p>
-          <div className="min-w-[280px] max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+          <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
             <div className="space-y-4">
               <MenuOrderVisibilityRow
                 label="Order type (Dine-in / Takeaway / Delivery)"
@@ -527,7 +527,7 @@ export function AdminSettingsPage() {
             hidden, the barcode input is not shown on that screen.
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="min-w-[280px] rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+            <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Admin
               </h3>
@@ -547,7 +547,7 @@ export function AdminSettingsPage() {
                 />
               </div>
             </div>
-            <div className="min-w-[280px] rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+            <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Operator
               </h3>

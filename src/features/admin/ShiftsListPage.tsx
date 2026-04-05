@@ -157,7 +157,7 @@ export function ShiftsListPage() {
               setPage(0);
             }}
             placeholder="Search organization…"
-            className="w-56"
+            className="w-full sm:w-56"
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
           />
         </div>
@@ -177,7 +177,7 @@ export function ShiftsListPage() {
               setPage(0);
             }}
             placeholder="Search branch…"
-            className="w-56"
+            className="w-full sm:w-56"
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
           />
         </div>
@@ -191,27 +191,29 @@ export function ShiftsListPage() {
         <>
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search shifts…" className="mb-4" />
 
+          <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <div className="relative overflow-auto">
+              <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
+              <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "720px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-800/80">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Opened at
+                    <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300">
+                      Opened
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Closed at
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                      Closed
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Opening float
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                      Float
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Closing counted
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                      Counted
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Variance
                     </th>
                   </tr>
@@ -232,15 +234,15 @@ export function ShiftsListPage() {
                         key={shift.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
                       >
-                        <td className="px-4 py-3 text-slate-800 dark:text-white">
+                        <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs text-slate-800 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white">
                           {new Date(shift.openedAt).toLocaleString()}
                         </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                        <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                           {shift.closedAt
                             ? new Date(shift.closedAt).toLocaleString()
                             : "—"}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm">
                           <span
                             className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
                               shift.status === "OPEN"
@@ -251,15 +253,15 @@ export function ShiftsListPage() {
                             {shift.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-left tabular-nums text-slate-800 dark:text-white">
+                        <td className="px-2 py-1.5 text-left text-xs tabular-nums text-slate-800 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
                           {formatCurrency(shift.openingFloatAmount)}
                         </td>
-                        <td className="px-4 py-3 text-left tabular-nums text-slate-600 dark:text-slate-300">
+                        <td className="px-2 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                           {shift.closingCountedAmount != null
                             ? formatCurrency(shift.closingCountedAmount)
                             : "—"}
                         </td>
-                        <td className="px-4 py-3 text-left tabular-nums text-slate-600 dark:text-slate-300">
+                        <td className="px-2 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                           {shift.varianceAmount != null
                             ? formatCurrency(shift.varianceAmount)
                             : "—"}

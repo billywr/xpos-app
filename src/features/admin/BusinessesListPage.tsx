@@ -288,7 +288,7 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
               setPage(0);
             }}
             placeholder="Search organization…"
-            className="w-56"
+            className="w-full sm:w-56"
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
           />
         </div>
@@ -312,18 +312,20 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
         <>
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search businesses…" className="mb-4" />
 
+          <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <div className="relative overflow-auto">
+              <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
+              <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "360px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-800/80">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300">
                       Legal name
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       KRA PIN
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -333,7 +335,7 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                     <tr>
                       <td
                         colSpan={3}
-                        className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                        className="px-2 py-8 text-center text-xs text-slate-500 sm:px-3 sm:text-sm dark:text-slate-400"
                       >
                         {businesses.length === 0 ? "No businesses yet. Add one to use when creating branches." : "No results match your search."}
                       </td>
@@ -344,13 +346,13 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                         key={business.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
                       >
-                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">
+                        <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs font-medium text-slate-800 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white">
                           {business.legalName}
                         </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                        <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                           {business.kraPin ?? "—"}
                         </td>
-                        <td className="px-4 py-3 text-left">
+                        <td className="px-2 py-1.5 text-left sm:px-3 sm:py-2">
                           <div className="flex justify-start gap-2">
                             <button
                               type="button"

@@ -49,8 +49,8 @@ export function SlideOver({
         aria-modal="true"
         aria-labelledby="slideover-title"
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
-          <h2 id="slideover-title" className="text-lg font-semibold text-slate-900 dark:text-white">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-6 sm:py-4 dark:border-slate-700">
+          <h2 id="slideover-title" className="text-base font-semibold text-slate-900 sm:text-lg dark:text-white">
             {title}
           </h2>
           <button
@@ -62,7 +62,7 @@ export function SlideOver({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="flex-1 overflow-auto p-6">{children}</div>
+        <div className="flex-1 overflow-auto p-4 sm:p-6">{children}</div>
       </div>
     </>
   );

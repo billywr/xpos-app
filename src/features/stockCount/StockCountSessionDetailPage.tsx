@@ -296,7 +296,7 @@ export function StockCountSessionDetailPage({
   );
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto p-6">
+    <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-6">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <PageHeader
           title={`Stock count ${session.status === "OPEN" ? "(open)" : "(closed)"}`}
@@ -312,7 +312,7 @@ export function StockCountSessionDetailPage({
             className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             <Download className="h-4 w-4" />
-            Download PDF
+            <span className="hidden sm:inline">Download PDF</span>
           </button>
           <button
             type="button"
@@ -320,7 +320,7 @@ export function StockCountSessionDetailPage({
             className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             <Share2 className="h-4 w-4" />
-            Share report
+            <span className="hidden sm:inline">Share report</span>
           </button>
           {session.status === "OPEN" && (
             <button
@@ -334,7 +334,7 @@ export function StockCountSessionDetailPage({
               ) : (
                 <Check className="h-4 w-4" />
               )}
-              Close session
+              <span className="hidden sm:inline">Close session</span>
             </button>
           )}
         </div>
@@ -353,33 +353,36 @@ export function StockCountSessionDetailPage({
             {lines.length === 0 ? "No items counted yet. Add items below when the session is open." : "No results match your search."}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
+          <>
+          <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
+          <div className="relative overflow-auto">
+            <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
+            <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "900px" }}>
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-700/50">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300">
                     Item
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
-                    System qty
+                  <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    Sys qty
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Counted qty
+                  <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    Counted
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Variance
+                  <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    Var.
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                     Unit cost
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Qty sold
+                  <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    Sold
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Selling price
+                  <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    Sell price
                   </th>
                   {session.status === "OPEN" && (
-                    <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Actions
                     </th>
                   )}
@@ -391,17 +394,17 @@ export function StockCountSessionDetailPage({
                     key={l.id}
                     className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
                   >
-                    <td className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white">
+                    <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white">
                       {l.itemName}
                     </td>
-                    <td className="px-4 py-3 text-left text-sm text-slate-600 dark:text-slate-400">
+                    <td className="px-2 py-1.5 text-left text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
                       {l.systemQty}
                     </td>
-                    <td className="px-4 py-3 text-left text-sm font-medium text-slate-900 dark:text-white">
+                    <td className="px-2 py-1.5 text-left text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
                       {l.countedQty}
                     </td>
                     <td
-                      className={`px-4 py-3 text-left text-sm font-medium ${
+                      className={`px-2 py-1.5 text-left text-xs font-medium sm:px-3 sm:py-2 sm:text-sm ${
                         l.varianceQty > 0
                           ? "text-emerald-600 dark:text-emerald-400"
                           : l.varianceQty < 0
@@ -411,17 +414,17 @@ export function StockCountSessionDetailPage({
                     >
                       {formatVariance(l.varianceQty)}
                     </td>
-                    <td className="px-4 py-3 text-left text-sm text-slate-600 dark:text-slate-400">
+                    <td className="px-2 py-1.5 text-left text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
                       {l.unitCost != null ? formatCurrency(l.unitCost) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-left text-sm text-slate-600 dark:text-slate-400">
+                    <td className="px-2 py-1.5 text-left text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
                       {l.qtySold ?? 0}
                     </td>
-                    <td className="px-4 py-3 text-left text-sm text-slate-600 dark:text-slate-400">
+                    <td className="px-2 py-1.5 text-left text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
                       {l.sellingPrice != null ? formatCurrency(l.sellingPrice) : "—"}
                     </td>
                     {session.status === "OPEN" && (
-                      <td className="px-4 py-3 text-left">
+                      <td className="px-2 py-1.5 text-left sm:px-3 sm:py-2">
                         {editingLineId === l.id ? (
                           <div className="flex items-center justify-start gap-1">
                             <input
@@ -482,12 +485,13 @@ export function StockCountSessionDetailPage({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
       {/* Summary badges */}
       {lines.length > 0 && (
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-600 dark:bg-slate-800/50">
             <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
               Total value (counted)
@@ -553,14 +557,14 @@ export function StockCountSessionDetailPage({
           <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
             Add count line
           </h3>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <SearchableSelect
               id="stock-count-add-item"
               options={addLineItemOptions}
               value={addLineItemId}
               onChange={setAddLineItemId}
               placeholder="Search item…"
-              className="min-w-[200px]"
+              className="w-full sm:min-w-[200px] sm:max-w-xs"
               controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
             />
             <input
@@ -570,7 +574,7 @@ export function StockCountSessionDetailPage({
               placeholder="Qty"
               value={addLineQty}
               onChange={(e) => setAddLineQty(e.target.value)}
-              className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 sm:w-28 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
             <button
               type="button"

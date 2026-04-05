@@ -116,52 +116,58 @@ export function ZReportPage() {
       </div>
 
       <div className="mb-6 flex flex-wrap items-end gap-4">
-        <label
-          htmlFor="zreport-org-select"
-          className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Organization
-        </label>
-        <SearchableSelect
-          id="zreport-org-select"
-          options={orgSelectOptions}
-          value={selectedOrgId}
-          onChange={(next) => {
-            setSelectedOrgId(next);
-            setSelectedBranchId("");
-          }}
-          placeholder="Search organization…"
-          className="min-w-[12rem]"
-          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-        />
-        <label
-          htmlFor="zreport-branch-select"
-          className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Branch
-        </label>
-        <SearchableSelect
-          id="zreport-branch-select"
-          options={branchSelectOptions}
-          value={selectedBranchId}
-          onChange={setSelectedBranchId}
-          placeholder="Search branch…"
-          className="min-w-[12rem]"
-          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-        />
-        <label
-          htmlFor="zreport-date"
-          className="flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Business date
-        </label>
-        <input
-          id="zreport-date"
-          type="date"
-          value={businessDate}
-          onChange={(e) => setBusinessDate(e.target.value)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-        />
+        <div className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:flex-initial">
+          <label
+            htmlFor="zreport-org-select"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Organization
+          </label>
+          <SearchableSelect
+            id="zreport-org-select"
+            options={orgSelectOptions}
+            value={selectedOrgId}
+            onChange={(next) => {
+              setSelectedOrgId(next);
+              setSelectedBranchId("");
+            }}
+            placeholder="Search organization…"
+            className="min-w-[12rem]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
+        </div>
+        <div className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:flex-initial">
+          <label
+            htmlFor="zreport-branch-select"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Branch
+          </label>
+          <SearchableSelect
+            id="zreport-branch-select"
+            options={branchSelectOptions}
+            value={selectedBranchId}
+            onChange={setSelectedBranchId}
+            placeholder="Search branch…"
+            className="min-w-[12rem]"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-initial">
+          <label
+            htmlFor="zreport-date"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Business date
+          </label>
+          <input
+            id="zreport-date"
+            type="date"
+            value={businessDate}
+            onChange={(e) => setBusinessDate(e.target.value)}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+          />
+        </div>
       </div>
 
       {!selectedOrgId || !selectedBranchId ? (
