@@ -118,16 +118,7 @@ xpos:
       max-size: 200
     cors:
       enabled: ${XPOS_CORS_ENABLED:true}
-      allowed-origins:
-        - http://localhost:9011
-        - http://localhost:80
-        - http://127.0.0.1:9011
-        - http://127.0.0.1:80
-        - https://xpos.com
-        - http://xpos.com
-        - http://xpos.com:9011
-        - https://www.xpos.com
-        - https://62.169.22.51:9011
+      allowed-origins: ${XPOS_CORS_ALLOWED_ORIGINS:}
         - http://www.xpos.com
         - http://www.xpos.com:9011
 
