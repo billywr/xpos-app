@@ -24,7 +24,9 @@ function wrap(component: React.ReactElement) {
       auth: {
         token: "test-token",
         iamUserId: "user-1",
+        username: null,
         expiresAt: null,
+        roles: [],
       },
       orgContext: {
         orgId: "org-1",

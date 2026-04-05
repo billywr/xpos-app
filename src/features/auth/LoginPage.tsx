@@ -6,6 +6,7 @@ import { loginWithPassword } from "@/api/auth";
 import { setStoredAuth } from "@/utils/authStorage";
 import { getStoredBranding } from "@/utils/brandingStorage";
 import { getEnv } from "@/utils/env";
+import { getRolesFromToken, getUsernameFromToken } from "@/utils/jwt";
 import { Store } from "lucide-react";
 
 export function LoginPage() {
@@ -53,8 +54,10 @@ export function LoginPage() {
         username: username.trim(),
         password,
       });
-      dispatch(setCredentials({ token, iamUserId, expiresAt: expiresAt ?? undefined }));
-      setStoredAuth({ token, iamUserId, expiresAt: expiresAt ?? null });
+      const roles = getRolesFromToken(token);
+      const keycloakUsername = getUsernameFromToken(token);
+      dispatch(setCredentials({ token, iamUserId, username: keycloakUsername ?? undefined, expiresAt: expiresAt ?? undefined, roles }));
+      setStoredAuth({ token, iamUserId, username: keycloakUsername, expiresAt: expiresAt ?? null, roles });
       navigate(returnTo, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");

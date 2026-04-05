@@ -359,41 +359,45 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
         fallbackTo="/admin"
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-4">
-        <label
-          htmlFor="terminal-org-select"
-          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Organization
-        </label>
-        <SearchableSelect
-          id="terminal-org-select"
-          options={orgSelectOptions}
-          value={selectedOrgId}
-          onChange={setSelectedOrgId}
-          placeholder="Search organization…"
-          className="min-w-[12rem]"
-          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-        />
-        <label
-          htmlFor="terminal-branch-select"
-          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Branch
-        </label>
-        <SearchableSelect
-          id="terminal-branch-select"
-          options={branchSelectOptions}
-          value={selectedBranchId}
-          onChange={(next) => {
-            setSelectedBranchId(next);
-            setPage(0);
-          }}
-          disabled={!selectedOrgId}
-          placeholder="Search branch…"
-          className="min-w-[12rem]"
-          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 disabled:opacity-50"
-        />
+      <div className="mb-4 flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="terminal-org-select"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Organization
+          </label>
+          <SearchableSelect
+            id="terminal-org-select"
+            options={orgSelectOptions}
+            value={selectedOrgId}
+            onChange={setSelectedOrgId}
+            placeholder="Search organization…"
+            className="w-56"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="terminal-branch-select"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Branch
+          </label>
+          <SearchableSelect
+            id="terminal-branch-select"
+            options={branchSelectOptions}
+            value={selectedBranchId}
+            onChange={(next) => {
+              setSelectedBranchId(next);
+              setPage(0);
+            }}
+            disabled={!selectedOrgId}
+            placeholder="Search branch…"
+            className="w-56"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 disabled:opacity-50"
+          />
+        </div>
         {selectedOrgId && selectedBranchId && (
           <button
             type="button"

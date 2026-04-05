@@ -766,51 +766,55 @@ export function GoodsReceiptPage({
         </button>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-4">
-        <label
-          htmlFor="grn-org-select"
-          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Organization
-        </label>
-        <SearchableSelect
-          id="grn-org-select"
-          options={[
-            { value: "", label: "Select organization…" },
-            ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
-          ]}
-          value={selectedOrgId}
-          onChange={(next) => {
-            setSelectedOrgId(next);
-            setSelectedBranchId("");
-            onOrgChange?.(next);
-          }}
-          placeholder="Select organization…"
-          className="min-w-[200px] max-w-xs"
-        />
-        <label
-          htmlFor="grn-branch-select"
-          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Branch
-        </label>
-        <SearchableSelect
-          id="grn-branch-select"
-          options={[
-            { value: "", label: "Select branch…" },
-            ...branches.map((branch: Branch) => ({
-              value: branch.id,
-              label: branch.name,
-            })),
-          ]}
-          value={selectedBranchId}
-          onChange={(next) => {
-            setSelectedBranchId(next);
-            onBranchChange?.(next);
-          }}
-          placeholder="Select branch…"
-          className="min-w-[200px] max-w-xs"
-        />
+      <div className="mb-4 flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="grn-org-select"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Organization
+          </label>
+          <SearchableSelect
+            id="grn-org-select"
+            options={[
+              { value: "", label: "Select organization…" },
+              ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
+            ]}
+            value={selectedOrgId}
+            onChange={(next) => {
+              setSelectedOrgId(next);
+              setSelectedBranchId("");
+              onOrgChange?.(next);
+            }}
+            placeholder="Select organization…"
+            className="w-56"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="grn-branch-select"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Branch
+          </label>
+          <SearchableSelect
+            id="grn-branch-select"
+            options={[
+              { value: "", label: "Select branch…" },
+              ...branches.map((branch: Branch) => ({
+                value: branch.id,
+                label: branch.name,
+              })),
+            ]}
+            value={selectedBranchId}
+            onChange={(next) => {
+              setSelectedBranchId(next);
+              onBranchChange?.(next);
+            }}
+            placeholder="Select branch…"
+            className="w-56"
+          />
+        </div>
       </div>
 
       {suppliers.length === 0 && selectedOrgId && (

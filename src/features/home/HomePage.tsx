@@ -1,14 +1,22 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { LayoutDashboard, ShoppingCart, Settings } from "lucide-react";
+import { useAppSelector } from "@/hooks/useAppSelector";
+import { selectIsAdmin, selectIsOperator } from "@/store/selectors/authSelectors";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { APP_NAME_KEY } from "@/config/headerNavItems";
 import { FLOATING_MENU_CARD } from "@/utils/floatingCardClasses";
 import { PageHeader } from "@/components/PageHeader";
 
 export function HomePage() {
+  const isAdmin = useAppSelector(selectIsAdmin);
+  const isOperator = useAppSelector(selectIsOperator);
   const navVisibility = useNavVisibilityContextOrNull();
   const getHeaderLabel = navVisibility?.getHeaderLabel ?? ((_, l) => l);
   const appName = navVisibility ? getHeaderLabel(APP_NAME_KEY, "XPOS") : "XPOS";
+
+  // Auto-redirect if user has only one role
+  if (isAdmin && !isOperator) return <Navigate to="/admin" replace />;
+  if (isOperator && !isAdmin) return <Navigate to="/operator" replace />;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">

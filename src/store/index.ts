@@ -20,7 +20,9 @@ export const store = configureStore({
           auth: {
             token: storedAuth.token,
             iamUserId: storedAuth.iamUserId,
+            username: storedAuth.username ?? null,
             expiresAt: storedAuth.expiresAt,
+            roles: storedAuth.roles ?? [],
           },
         }
       : undefined,

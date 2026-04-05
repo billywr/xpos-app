@@ -6,7 +6,7 @@ import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
 import { clearCredentials } from "@/store/slices/authSlice";
 import { clearContext } from "@/store/slices/orgContextSlice";
-import { selectToken, selectIamUserId } from "@/store/selectors/authSelectors";
+import { selectToken, selectIamUserId, selectUsername, selectIsAdmin, selectIsOperator } from "@/store/selectors/authSelectors";
 import { useIdleLogout } from "@/hooks/useIdleLogout";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
@@ -29,6 +29,9 @@ export function Layout() {
   const dispatch = useAppDispatch();
   const token = useAppSelector(selectToken);
   const iamUserId = useAppSelector(selectIamUserId);
+  const username = useAppSelector(selectUsername);
+  const isAdmin = useAppSelector(selectIsAdmin);
+  const isOperator = useAppSelector(selectIsOperator);
   const { theme, toggleTheme } = useTheme();
   const navVisibility = useNavVisibilityContextOrNull();
   const headerVisibility = navVisibility?.headerVisibility ?? {};
@@ -91,9 +94,11 @@ export function Layout() {
               <span>{appName}</span>
             </Link>
             <nav className="flex items-center gap-4">
-              {HEADER_NAV_LINKS.filter((item) =>
-                isHeaderNavItemVisible(item.to, true, headerVisibility)
-              ).map((item) => (
+              {HEADER_NAV_LINKS.filter((item) => {
+                if (item.to === "/admin" && !isAdmin) return false;
+                if (item.to === "/operator" && !isOperator) return false;
+                return isHeaderNavItemVisible(item.to, true, headerVisibility);
+              }).map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
@@ -127,7 +132,7 @@ export function Layout() {
                   aria-label="Log out"
                 >
                   <LogOut className="h-4 w-4" />
-                  <span className="hidden sm:inline">{iamUserId ?? "User"}</span>
+                  <span className="hidden sm:inline">{username ?? iamUserId ?? "User"}</span>
                   <span className="sm:ml-1">Logout</span>
                 </button>
               )}

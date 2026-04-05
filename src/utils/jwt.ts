@@ -24,3 +24,24 @@ export function getSubFromToken(token: string): string | null {
   if (!payload || typeof payload.sub !== "string") return null;
   return payload.sub;
 }
+
+export function getUsernameFromToken(token: string): string | null {
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload.preferred_username !== "string") return null;
+  return payload.preferred_username;
+}
+
+export function getRolesFromToken(token: string): string[] {
+  const payload = decodeJwtPayload(token);
+  if (!payload) return [];
+  const realmAccess = payload.realm_access;
+  if (
+    typeof realmAccess === "object" &&
+    realmAccess !== null &&
+    "roles" in realmAccess &&
+    Array.isArray((realmAccess as { roles: unknown }).roles)
+  ) {
+    return (realmAccess as { roles: string[] }).roles;
+  }
+  return [];
+}

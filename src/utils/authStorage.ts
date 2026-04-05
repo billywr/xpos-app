@@ -8,7 +8,9 @@ const AUTH_STORAGE_KEY = "xpos_auth";
 export interface StoredAuth {
   token: string;
   iamUserId: string;
+  username: string | null;
   expiresAt: number | null;
+  roles: string[];
 }
 
 /** Returns stored auth if present and not expired; otherwise clears storage and returns null. */

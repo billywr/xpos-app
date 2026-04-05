@@ -78,40 +78,44 @@ export function StandardStockCountAdminPage() {
           icon={FileSpreadsheet}
           fallbackTo="/admin"
         />
-        <div className="mb-4 flex flex-wrap items-center gap-4">
-          <label
-            htmlFor="std-org-select"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Organization
-          </label>
-          <SearchableSelect
-            id="std-org-select"
-            options={orgSelectOptions}
-            value={selectedOrgId}
-            onChange={(next) => {
-              setSelectedOrgId(next);
-              setSelectedBranchId("");
-            }}
-            placeholder="Search organization…"
-            className="min-w-[12rem]"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
-          <label
-            htmlFor="std-branch-select"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Branch
-          </label>
-          <SearchableSelect
-            id="std-branch-select"
-            options={branchSelectOptions}
-            value={selectedBranchId}
-            onChange={setSelectedBranchId}
-            placeholder="Search branch…"
-            className="min-w-[12rem]"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
+        <div className="mb-4 flex flex-wrap items-end gap-4">
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="std-org-select"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Organization
+            </label>
+            <SearchableSelect
+              id="std-org-select"
+              options={orgSelectOptions}
+              value={selectedOrgId}
+              onChange={(next) => {
+                setSelectedOrgId(next);
+                setSelectedBranchId("");
+              }}
+              placeholder="Search organization…"
+              className="w-56"
+              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="std-branch-select"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Branch
+            </label>
+            <SearchableSelect
+              id="std-branch-select"
+              options={branchSelectOptions}
+              value={selectedBranchId}
+              onChange={setSelectedBranchId}
+              placeholder="Search branch…"
+              className="w-56"
+              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            />
+          </div>
         </div>
         <div className="rounded-xl border border-sky-200/70 bg-white/90 p-8 text-center text-slate-500 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400">
           Select organization and branch to view the standard stock count sheet

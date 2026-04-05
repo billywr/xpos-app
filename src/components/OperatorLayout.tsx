@@ -20,7 +20,7 @@ import {
   selectBranchName,
   selectTerminalName,
 } from "@/store/selectors/orgContextSelectors";
-import { selectToken } from "@/store/selectors/authSelectors";
+import { selectToken, selectUsername } from "@/store/selectors/authSelectors";
 import { fetchMe } from "@/api/me";
 import { clearCredentials } from "@/store/slices/authSlice";
 import { clearContext } from "@/store/slices/orgContextSlice";
@@ -55,6 +55,7 @@ export function OperatorLayout() {
   const dispatch = useAppDispatch();
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
   const token = useAppSelector(selectToken);
+  const keycloakUsername = useAppSelector(selectUsername);
   const orgId = useAppSelector(selectOrgId);
   const orgName = useAppSelector(selectOrgName);
   const branchName = useAppSelector(selectBranchName);
@@ -67,7 +68,7 @@ export function OperatorLayout() {
     enabled: Boolean(token && orgId),
   });
 
-  const displayName = meData?.profile?.displayName ?? meData?.username ?? "User";
+  const displayName = meData?.profile?.displayName ?? meData?.username ?? keycloakUsername ?? "User";
   const displayInitial = displayName.charAt(0).toUpperCase() || "U";
   const [globalError, setGlobalError] = useState<{ message: string; requestId: string } | null>(null);
   const [manageOpen, setManageOpen] = useState(true);

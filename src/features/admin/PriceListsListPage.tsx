@@ -260,26 +260,28 @@ export function PriceListsListPage({ initialOrgId, onOrgChange }: PriceListsList
         fallbackTo="/admin"
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-4">
-        <label
-          htmlFor="price-list-org-select"
-          className="text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
-          Organization
-        </label>
-        <SearchableSelect
-          id="price-list-org-select"
-          options={orgSelectOptions}
-          value={selectedOrgId}
-          onChange={(next) => {
-            setSelectedOrgId(next);
-            setPage(0);
-            onOrgChange?.(next);
-          }}
-          placeholder="Search organization…"
-          className="min-w-[12rem]"
-          controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-        />
+      <div className="mb-4 flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="price-list-org-select"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
+            Organization
+          </label>
+          <SearchableSelect
+            id="price-list-org-select"
+            options={orgSelectOptions}
+            value={selectedOrgId}
+            onChange={(next) => {
+              setSelectedOrgId(next);
+              setPage(0);
+              onOrgChange?.(next);
+            }}
+            placeholder="Search organization…"
+            className="w-56"
+            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+          />
+        </div>
         {selectedOrgId && (
           <button
             type="button"
