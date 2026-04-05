@@ -127,6 +127,9 @@ xpos:
     require-branch-scope: true
     issuer: ${XPOS_KEYCLOAK_ISSUER:}
     audience: ""
+    roles:
+      admin: ${XPOS_ROLE_ADMIN:xpos-admin}
+      operator: ${XPOS_ROLE_OPERATOR:xpos-operator}
 
   receipt:
     block-size: 100

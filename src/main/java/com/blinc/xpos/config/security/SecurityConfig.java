@@ -1,6 +1,7 @@
 package com.blinc.xpos.config.security;
 
 import java.util.Objects;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -11,17 +12,25 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableMethodSecurity
+@EnableConfigurationProperties(XposSecurityProperties.class)
 public class SecurityConfig {
 
   private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
+  private final XposSecurityProperties securityProperties;
 
-  public SecurityConfig(KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter) {
+  public SecurityConfig(
+      KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter,
+      XposSecurityProperties securityProperties) {
     this.keycloakJwtAuthenticationConverter =
         Objects.requireNonNull(keycloakJwtAuthenticationConverter);
+    this.securityProperties = Objects.requireNonNull(securityProperties);
   }
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    String adminRole = securityProperties.getRoles().getAdmin();
+    String operatorRole = securityProperties.getRoles().getOperator();
+
     http.csrf(csrf -> csrf.disable())
         .cors(Customizer.withDefaults())
         .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -32,9 +41,9 @@ public class SecurityConfig {
                     .requestMatchers("/uploads/**")
                     .permitAll()
                     .requestMatchers("/api/v1/admin/**")
-                    .hasAnyRole("xpos-admin", "xpos-operator")
+                    .hasAnyRole(adminRole, operatorRole)
                     .requestMatchers("/api/v1/operator/**")
-                    .hasAnyRole("xpos-admin", "xpos-operator")
+                    .hasAnyRole(adminRole, operatorRole)
                     .anyRequest()
                     .authenticated())
         .oauth2ResourceServer(

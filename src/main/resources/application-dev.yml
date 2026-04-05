@@ -131,6 +131,9 @@ xpos:
     require-branch-scope: true
     issuer: http://localhost:8088/realms/xpos
     audience: ""
+    roles:
+      admin: xpos-admin
+      operator: xpos-operator
 
   receipt:
     block-size: 100
