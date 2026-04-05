@@ -146,7 +146,7 @@ class TableOperatorControllerIT extends AbstractIntegrationTest {
 
   private UUID createStaffUser(UUID orgId) throws Exception {
     String body = """
-        {"iamUserId":"admin","username":"admin"}
+        {"iamUserId":"operator","username":"operator"}
         """;
     MvcResult result =
         mockMvc

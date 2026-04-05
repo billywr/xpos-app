@@ -61,7 +61,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(adminJwt())
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(grnBody))
         .andExpect(status().isCreated());
@@ -160,7 +160,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                    .with(adminJwt())
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content(grn7))
             .andExpect(status().isCreated())
@@ -191,7 +191,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(adminJwt())
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(grn3))
         .andExpect(status().isCreated());
@@ -271,7 +271,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
                     .with(adminJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"iamUserId\":\"admin\",\"username\":\"admin\"}"))
+                    .content("{\"iamUserId\":\"operator\",\"username\":\"operator\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     return UUID.fromString(

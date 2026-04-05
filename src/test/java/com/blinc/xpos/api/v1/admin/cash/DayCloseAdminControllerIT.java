@@ -1,7 +1,6 @@
 package com.blinc.xpos.api.v1.admin.cash;
 
 import static com.blinc.xpos.TestJwtFactory.adminJwt;
-import static com.blinc.xpos.TestJwtFactory.operatorJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -92,7 +91,7 @@ class DayCloseAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             patch(base + "/shifts/" + shiftId)
-                .with(operatorJwt())
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(
                     "{\"closingCountedAmount\":0,\"expectedCashAmount\":0,\"varianceAmount\":0}"))

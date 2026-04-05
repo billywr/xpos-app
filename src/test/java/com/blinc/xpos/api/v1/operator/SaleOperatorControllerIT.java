@@ -755,7 +755,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
 
   private UUID createStaffUser(UUID orgId) throws Exception {
     String body = """
-        {"iamUserId":"admin","username":"admin"}
+        {"iamUserId":"operator","username":"operator"}
         """;
     MvcResult result =
         mockMvc
@@ -912,7 +912,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(adminJwt())
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());

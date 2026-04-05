@@ -1,7 +1,6 @@
 package com.blinc.xpos.api.v1.admin.cash;
 
 import static com.blinc.xpos.TestJwtFactory.adminJwt;
-import static com.blinc.xpos.TestJwtFactory.operatorJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -140,7 +139,7 @@ class ShiftAdminControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post(base + "/shifts")
-                .with(operatorJwt())
+                .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content("{\"openingFloatAmount\":0}"))
         .andExpect(status().isCreated());

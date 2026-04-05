@@ -291,7 +291,7 @@ class StockCountSessionOperatorControllerIT extends AbstractIntegrationTest {
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
                     .with(adminJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"iamUserId\":\"admin\",\"username\":\"admin\"}"))
+                    .content("{\"iamUserId\":\"operator\",\"username\":\"operator\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     return UUID.fromString(

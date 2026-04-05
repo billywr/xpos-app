@@ -45,7 +45,7 @@ class StaffAdminControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
-  void createStaffUserWhenIamUserIdDiffersFromTokenSubReturns400() throws Exception {
+  void createStaffUserWithDifferentIamUserIdSucceeds() throws Exception {
     UUID orgId = createOrg();
     mockMvc
         .perform(
@@ -54,11 +54,9 @@ class StaffAdminControllerIT extends AbstractIntegrationTest {
                 .contentType(APPLICATION_JSON)
                 .content(
                     "{\"iamUserId\":\"5faeb1ab-87cb-477e-acda-7e27d68e20ee\",\"username\":\"other\"}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("IAM_USER_ID_MISMATCH"))
-        .andExpect(
-            jsonPath("$.message")
-                .value("iamUserId must match the authenticated user (JWT subject)."));
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.iamUserId").value("5faeb1ab-87cb-477e-acda-7e27d68e20ee"))
+        .andExpect(jsonPath("$.username").value("other"));
   }
 
   @Test

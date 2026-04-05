@@ -86,7 +86,7 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions")
-                    .with(adminJwt())
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content(sessionBody))
             .andExpect(status().isCreated())
@@ -152,7 +152,7 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                    .with(adminJwt())
+                    .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
                     .content(grnBody))
             .andExpect(status().isCreated())
@@ -172,7 +172,7 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             patch("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes/" + grnId)
-                .with(adminJwt())
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(patchBody))
         .andExpect(status().isOk());
@@ -407,7 +407,7 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
                     .with(adminJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"iamUserId\":\"admin\",\"username\":\"admin\"}"))
+                    .content("{\"iamUserId\":\"operator\",\"username\":\"operator\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     return UUID.fromString(
@@ -503,7 +503,7 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(adminJwt())
+                .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated());
