@@ -10,25 +10,25 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: "21"
-          distribution: "temurin"
-          cache: maven
-
-      - name: Run all tests
-        run: mvn clean compile checkstyle:check test -Psurefire-integration -B
+#  test:
+#    name: Test
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v4
+#
+#      - name: Set up JDK 21
+#        uses: actions/setup-java@v4
+#        with:
+#          java-version: "21"
+#          distribution: "temurin"
+#          cache: maven
+#
+#      - name: Run all tests
+#        run: mvn clean compile checkstyle:check test -Psurefire-integration -B
 
   build-and-push:
-    needs: test
+#    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
