@@ -137,7 +137,7 @@ function App() {
         <Route
           path="operator"
           element={
-            <RoleGuard requiredRole="xpos-operator" redirectTo="/admin">
+            <RoleGuard requiredRole={["xpos-operator", "xpos-admin"]} redirectTo="/admin">
               <OperatorContextGuard>
                 <OperatorLayout />
               </OperatorContextGuard>

@@ -96,7 +96,7 @@ export function Layout() {
             <nav className="flex items-center gap-4">
               {HEADER_NAV_LINKS.filter((item) => {
                 if (item.to === "/admin" && !isAdmin) return false;
-                if (item.to === "/operator" && !isOperator) return false;
+                if (item.to === "/operator" && !isOperator && !isAdmin) return false;
                 return isHeaderNavItemVisible(item.to, true, headerVisibility);
               }).map((item) => (
                 <NavLink
