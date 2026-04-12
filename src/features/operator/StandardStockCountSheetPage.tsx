@@ -752,52 +752,52 @@ export function StandardStockCountSheetPage({
             )}
           </div>
 
-          <div className="mt-4 flex flex-wrap justify-end gap-3">
-            {/* Today's Debts badge — hover or click to open modal */}
+          <div className="mt-4 flex flex-wrap justify-end gap-2 sm:gap-3">
+            {/* Today's Debts badge */}
             <button
               type="button"
               onClick={() => dayDebts.length > 0 && setDebtModal("day")}
-              className="inline-flex cursor-pointer items-center gap-3 rounded-xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-4 py-3 shadow-lg ring-2 ring-amber-100/50 transition hover:shadow-xl active:scale-[0.98] sm:px-6 sm:py-4 dark:border-amber-800 dark:from-amber-950/50 dark:to-orange-950/50 dark:ring-amber-900/30"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-2.5 py-2 shadow-lg ring-2 ring-amber-100/50 transition hover:shadow-xl active:scale-[0.98] sm:gap-3 sm:rounded-xl sm:px-6 sm:py-4 dark:border-amber-800 dark:from-amber-950/50 dark:to-orange-950/50 dark:ring-amber-900/30"
             >
-              <span className="text-xs font-medium uppercase tracking-wider text-amber-700 sm:text-base dark:text-amber-400">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-amber-700 sm:text-base dark:text-amber-400">
                 Today Debts
               </span>
-              <span className="text-lg font-bold tabular-nums text-amber-900 sm:text-2xl dark:text-amber-100">
+              <span className="text-sm font-bold tabular-nums text-amber-900 sm:text-2xl dark:text-amber-100">
                 {formatCurrency(dayDebtsTotal)}
               </span>
             </button>
-            {/* Total Debts badge — hover or click to open modal */}
+            {/* Total Debts badge */}
             <button
               type="button"
               onClick={() => allDebts.length > 0 && setDebtModal("all")}
-              className="inline-flex cursor-pointer items-center gap-3 rounded-xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 px-4 py-3 shadow-lg ring-2 ring-orange-100/50 transition hover:shadow-xl active:scale-[0.98] sm:px-6 sm:py-4 dark:border-orange-800 dark:from-orange-950/50 dark:to-amber-950/50 dark:ring-orange-900/30"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 px-2.5 py-2 shadow-lg ring-2 ring-orange-100/50 transition hover:shadow-xl active:scale-[0.98] sm:gap-3 sm:rounded-xl sm:px-6 sm:py-4 dark:border-orange-800 dark:from-orange-950/50 dark:to-amber-950/50 dark:ring-orange-900/30"
             >
-              <span className="text-xs font-medium uppercase tracking-wider text-orange-700 sm:text-base dark:text-orange-400">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-orange-700 sm:text-base dark:text-orange-400">
                 Total Debts
               </span>
-              <span className="text-lg font-bold tabular-nums text-orange-900 sm:text-2xl dark:text-orange-100">
+              <span className="text-sm font-bold tabular-nums text-orange-900 sm:text-2xl dark:text-orange-100">
                 {formatCurrency(allDebtsTotal)}
               </span>
             </button>
             <div
-              className="inline-flex items-center gap-3 rounded-xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-rose-50 px-4 py-3 shadow-lg ring-2 ring-red-100/50 sm:px-6 sm:py-4 dark:border-red-800 dark:from-red-950/50 dark:to-rose-950/50 dark:ring-red-900/30"
+              className="inline-flex items-center gap-1.5 rounded-lg border-2 border-red-200 bg-gradient-to-br from-red-50 to-rose-50 px-2.5 py-2 shadow-lg ring-2 ring-red-100/50 sm:gap-3 sm:rounded-xl sm:px-6 sm:py-4 dark:border-red-800 dark:from-red-950/50 dark:to-rose-950/50 dark:ring-red-900/30"
               role="status"
             >
-              <span className="text-xs font-medium uppercase tracking-wider text-red-700 sm:text-base dark:text-red-400">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-red-700 sm:text-base dark:text-red-400">
                 Expenses
               </span>
-              <span className="text-lg font-bold tabular-nums text-red-900 sm:text-2xl dark:text-red-100">
+              <span className="text-sm font-bold tabular-nums text-red-900 sm:text-2xl dark:text-red-100">
                 {formatCurrency(analytics?.expenseIntelligence?.todayTotal ?? 0)}
               </span>
             </div>
             <div
-              className="inline-flex items-center gap-3 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 px-4 py-3 shadow-lg ring-2 ring-emerald-100/50 sm:px-6 sm:py-4 dark:border-emerald-800 dark:from-emerald-950/50 dark:to-teal-950/50 dark:ring-emerald-900/30"
+              className="inline-flex items-center gap-1.5 rounded-lg border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 px-2.5 py-2 shadow-lg ring-2 ring-emerald-100/50 sm:gap-3 sm:rounded-xl sm:px-6 sm:py-4 dark:border-emerald-800 dark:from-emerald-950/50 dark:to-teal-950/50 dark:ring-emerald-900/30"
               role="status"
             >
-              <span className="text-xs font-medium uppercase tracking-wider text-emerald-700 sm:text-base dark:text-emerald-400">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-emerald-700 sm:text-base dark:text-emerald-400">
                 Total Sales
               </span>
-              <span className="text-lg font-bold tabular-nums text-emerald-900 sm:text-2xl dark:text-emerald-100">
+              <span className="text-sm font-bold tabular-nums text-emerald-900 sm:text-2xl dark:text-emerald-100">
                 {formatCurrency(totals.amount)}
               </span>
             </div>
