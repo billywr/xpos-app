@@ -17,6 +17,7 @@ import {
   type StdStockCountRowResponse,
 } from "@/api/stdStockCount";
 import { fetchOperatorAnalyticsSnapshot } from "@/api/operatorAnalytics";
+import { fetchDebts } from "@/api/debts";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -182,6 +183,36 @@ export function StandardStockCountSheetPage({
       fetchOperatorAnalyticsSnapshot(token, orgId, branchId, dateStr, dateStr),
     enabled: Boolean(token && orgId && branchId),
   });
+
+  // Debts for selected date (today's debts) and all outstanding debts
+  const { data: dayDebtsPage } = useQuery({
+    queryKey: ["stock-sheet-day-debts", token, orgId, branchId, dateStr],
+    queryFn: () =>
+      fetchDebts(token, orgId, branchId, {
+        page: 0,
+        size: 500,
+        status: ["OPEN", "PARTIAL"],
+        fromDate: dateStr,
+        toDate: dateStr,
+      }),
+    enabled: Boolean(token && orgId && branchId),
+  });
+
+  const { data: allDebtsPage } = useQuery({
+    queryKey: ["stock-sheet-all-debts", token, orgId, branchId],
+    queryFn: () =>
+      fetchDebts(token, orgId, branchId, {
+        page: 0,
+        size: 500,
+        status: ["OPEN", "PARTIAL"],
+      }),
+    enabled: Boolean(token && orgId && branchId),
+  });
+
+  const dayDebts = dayDebtsPage?.content ?? [];
+  const allDebts = allDebtsPage?.content ?? [];
+  const dayDebtsTotal = dayDebts.reduce((s, d) => s + (d.outstanding ?? 0), 0);
+  const allDebtsTotal = allDebts.reduce((s, d) => s + (d.outstanding ?? 0), 0);
 
   function parseClosing(itemId: string, row: StdStockCountRowResponse): number {
     const s = localClosings[itemId];
@@ -701,16 +732,65 @@ export function StandardStockCountSheetPage({
           </div>
 
           <div className="mt-4 flex flex-wrap justify-end gap-3">
-            <div
-              className="inline-flex items-center gap-3 rounded-xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-4 py-3 shadow-lg ring-2 ring-amber-100/50 sm:px-6 sm:py-4 dark:border-amber-800 dark:from-amber-950/50 dark:to-orange-950/50 dark:ring-amber-900/30"
-              role="status"
-            >
-              <span className="text-xs font-medium uppercase tracking-wider text-amber-700 sm:text-base dark:text-amber-400">
-                Debts
-              </span>
-              <span className="text-lg font-bold tabular-nums text-amber-900 sm:text-2xl dark:text-amber-100">
-                {formatCurrency(analytics?.debtIntelligence?.totalOutstanding ?? 0)}
-              </span>
+            {/* Today's Debts badge with hover dropdown */}
+            <div className="group relative">
+              <div
+                className="inline-flex cursor-default items-center gap-3 rounded-xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-4 py-3 shadow-lg ring-2 ring-amber-100/50 sm:px-6 sm:py-4 dark:border-amber-800 dark:from-amber-950/50 dark:to-orange-950/50 dark:ring-amber-900/30"
+                role="status"
+              >
+                <span className="text-xs font-medium uppercase tracking-wider text-amber-700 sm:text-base dark:text-amber-400">
+                  Today Debts
+                </span>
+                <span className="text-lg font-bold tabular-nums text-amber-900 sm:text-2xl dark:text-amber-100">
+                  {formatCurrency(dayDebtsTotal)}
+                </span>
+              </div>
+              {dayDebts.length > 0 && (
+                <div className="absolute right-0 top-full z-20 mt-1 hidden w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl group-hover:block sm:w-80 dark:border-slate-600 dark:bg-slate-800">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Debtors — {dateStr}</p>
+                  <div className="max-h-48 space-y-1.5 overflow-y-auto">
+                    {dayDebts.map((d) => (
+                      <div key={d.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-sm dark:bg-slate-700/50">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-slate-900 dark:text-white">{d.customerName}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{d.customerPhone ?? "—"} · Due: {d.dueDate ?? "—"}</p>
+                        </div>
+                        <span className="shrink-0 font-semibold tabular-nums text-amber-600 dark:text-amber-400">{formatCurrency(d.outstanding)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Total Debts badge with hover dropdown */}
+            <div className="group relative">
+              <div
+                className="inline-flex cursor-default items-center gap-3 rounded-xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 px-4 py-3 shadow-lg ring-2 ring-orange-100/50 sm:px-6 sm:py-4 dark:border-orange-800 dark:from-orange-950/50 dark:to-amber-950/50 dark:ring-orange-900/30"
+                role="status"
+              >
+                <span className="text-xs font-medium uppercase tracking-wider text-orange-700 sm:text-base dark:text-orange-400">
+                  Total Debts
+                </span>
+                <span className="text-lg font-bold tabular-nums text-orange-900 sm:text-2xl dark:text-orange-100">
+                  {formatCurrency(allDebtsTotal)}
+                </span>
+              </div>
+              {allDebts.length > 0 && (
+                <div className="absolute right-0 top-full z-20 mt-1 hidden w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl group-hover:block sm:w-80 dark:border-slate-600 dark:bg-slate-800">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">All outstanding debtors</p>
+                  <div className="max-h-48 space-y-1.5 overflow-y-auto">
+                    {allDebts.map((d) => (
+                      <div key={d.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-sm dark:bg-slate-700/50">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-slate-900 dark:text-white">{d.customerName}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{d.customerPhone ?? "—"} · Due: {d.dueDate ?? "—"} · {d.createdAt?.slice(0, 10) ?? "—"}</p>
+                        </div>
+                        <span className="shrink-0 font-semibold tabular-nums text-orange-600 dark:text-orange-400">{formatCurrency(d.outstanding)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div
               className="inline-flex items-center gap-3 rounded-xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-rose-50 px-4 py-3 shadow-lg ring-2 ring-red-100/50 sm:px-6 sm:py-4 dark:border-red-800 dark:from-red-950/50 dark:to-rose-950/50 dark:ring-red-900/30"
