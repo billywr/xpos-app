@@ -303,58 +303,62 @@ export function OperatorLayout() {
           </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
-          <NavLink
-            to="/operator/menu-order"
-            className={({ isActive }) =>
-              `hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition sm:flex ${
-                isActive
-                  ? "bg-primary-600 text-white"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
-              }`
-            }
-          >
-            <ShoppingCart className="h-4 w-4" />
-            POS
-          </NavLink>
-          <NavLink
-            to="/operator/inventory/stock-count"
-            className={({ isActive }) =>
-              `hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition lg:flex ${
-                isActive
-                  ? "bg-primary-600 text-white"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
-              }`
-            }
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            Stock Taking
-          </NavLink>
-          <NavLink
-            to="/operator/debts"
-            className={({ isActive }) =>
-              `hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition lg:flex ${
-                isActive
-                  ? "bg-primary-600 text-white"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
-              }`
-            }
-          >
-            <HandCoins className="h-4 w-4" />
-            Debts
-          </NavLink>
-          <NavLink
-            to="/operator/misc-expenses"
-            className={({ isActive }) =>
-              `hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition xl:flex ${
-                isActive
-                  ? "bg-primary-600 text-white"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
-              }`
-            }
-          >
-            <ReceiptText className="h-4 w-4" />
-            Expenses
-          </NavLink>
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+            <NavLink
+              to="/operator/menu-order"
+              className={({ isActive }) =>
+                `flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition sm:gap-1.5 sm:px-2.5 sm:text-sm ${
+                  isActive
+                    ? "bg-primary-600 text-white"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
+                }`
+              }
+            >
+              <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              POS
+            </NavLink>
+            <NavLink
+              to="/operator/inventory/stock-count"
+              className={({ isActive }) =>
+                `flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition sm:gap-1.5 sm:px-2.5 sm:text-sm ${
+                  isActive
+                    ? "bg-primary-600 text-white"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
+                }`
+              }
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Stock Taking</span>
+              <span className="sm:hidden">Stock</span>
+            </NavLink>
+            <NavLink
+              to="/operator/debts"
+              className={({ isActive }) =>
+                `flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition sm:gap-1.5 sm:px-2.5 sm:text-sm ${
+                  isActive
+                    ? "bg-primary-600 text-white"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
+                }`
+              }
+            >
+              <HandCoins className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              Debts
+            </NavLink>
+            <NavLink
+              to="/operator/misc-expenses"
+              className={({ isActive }) =>
+                `flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition sm:gap-1.5 sm:px-2.5 sm:text-sm ${
+                  isActive
+                    ? "bg-primary-600 text-white"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
+                }`
+              }
+            >
+              <ReceiptText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Expenses</span>
+              <span className="sm:hidden">Exp</span>
+            </NavLink>
+          </div>
           <button
             type="button"
             onClick={() => queryClient.invalidateQueries()}

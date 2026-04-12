@@ -90,6 +90,7 @@ Six modules: `auth`, `context`, `home`, `admin` (30+ pages), `operator` (15+ pag
 - **IDs**: all UUIDs are strings, suffixed with `Id` (e.g. `orgId`, `branchId`)
 - **No star imports**. Keep imports explicit.
 - **No dead code, no console logs, no leftover TODOs**.
+- **Responsive always**. All UI changes must work across all screen sizes (mobile, tablet, desktop, large monitors). Use Tailwind responsive prefixes (`sm:`, `md:`, `lg:`, `xl:`) for layout, sizing, spacing, and visibility. Test touch targets (min 44px), overflow/scrolling, and text truncation at narrow widths. Never use fixed pixel widths that break on small screens.
 
 ## Docs
 
