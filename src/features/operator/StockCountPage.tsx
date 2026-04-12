@@ -197,6 +197,15 @@ export function StockCountPage() {
             </div>
           ) : (
             <>
+              {totalElements > 0 && (
+                <Pagination
+                  position="top"
+                  page={page}
+                  size={PAGE_SIZE}
+                  totalElements={totalElements}
+                  onPageChange={setPage}
+                />
+              )}
               <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
               <div className="relative overflow-auto rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
                 <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />

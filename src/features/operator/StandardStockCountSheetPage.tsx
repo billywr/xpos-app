@@ -459,6 +459,15 @@ export function StandardStockCountSheetPage({
       {!isLoading && !isError && sheet && (
         <>
           {/* Swipe hint — visible only on small screens */}
+          {computedRows.length > 0 && (
+            <Pagination
+              position="top"
+              page={page}
+              size={pageSize}
+              totalElements={computedRows.length}
+              onPageChange={setPage}
+            />
+          )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">
             ← swipe table to see all columns →
           </p>

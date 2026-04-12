@@ -448,6 +448,15 @@ export function ManualStockCountSheetPage() {
 
       {!isLoading && !isError && (
         <>
+          {filteredRows.length > 0 && (
+            <Pagination
+              position="top"
+              page={page}
+              size={pageSize}
+              totalElements={filteredRows.length}
+              onPageChange={setPage}
+            />
+          )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">
             ← swipe table to see all columns →
           </p>

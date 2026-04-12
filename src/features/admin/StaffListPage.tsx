@@ -495,6 +495,15 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
         <>
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search staff…" className="mb-4" />
 
+          {totalElements > 0 && (
+            <Pagination
+              position="top"
+              page={page}
+              size={size}
+              totalElements={totalElements}
+              onPageChange={setPage}
+            />
+          )}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">

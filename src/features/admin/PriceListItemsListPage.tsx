@@ -360,6 +360,15 @@ export function PriceListItemsListPage({
             </div>
           ) : (
             <>
+              {totalItems > 0 && (
+                <Pagination
+                  position="top"
+                  page={itemsPage}
+                  size={itemsSize}
+                  totalElements={totalItems}
+                  onPageChange={setItemsPage}
+                />
+              )}
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
                   <thead>

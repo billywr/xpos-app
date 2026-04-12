@@ -1106,6 +1106,7 @@ export function MenuOrderPage() {
             hasInsufficientStock={hasInsufficientStock}
             insufficientStockMessage={insufficientStockMessage}
             onProceedExtra={() => setMobileCartOpen(false)}
+            onClose={() => setMobileCartOpen(false)}
           />
         </div>
       )}
@@ -1194,6 +1195,7 @@ function CartSidebarContent({
   hasInsufficientStock,
   insufficientStockMessage,
   onProceedExtra,
+  onClose,
 }: {
   showBarcode: boolean;
   handleBarcodeScan: (barcode: string) => void;
@@ -1217,12 +1219,18 @@ function CartSidebarContent({
   hasInsufficientStock: boolean;
   insufficientStockMessage: string;
   onProceedExtra?: () => void;
+  onClose?: () => void;
 }) {
   return (
     <div className="flex min-h-0 max-h-full flex-1 flex-col overflow-hidden px-4 pb-2 pt-3">
       <div className="mb-2 flex shrink-0 items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
           Order Summary
+          {cartLines.length > 0 && (
+            <span className="inline-flex h-9 min-w-[2.25rem] items-center justify-center rounded-full bg-primary-600 px-3 text-base font-bold tabular-nums text-white" style={{ lineHeight: '36px' }}>
+              {cartLines.reduce((sum, l) => sum + l.qty, 0)}
+            </span>
+          )}
         </h2>
         {cartLines.length > 0 && (
           <button
@@ -1338,6 +1346,15 @@ function CartSidebarContent({
         <p className="mt-2 text-sm text-red-400" role="alert">
           {getApiErrorMessage(createSaleAndLinesMutation.error)}
         </p>
+      )}
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-2 shrink-0 min-h-[44px] w-full touch-manipulation rounded-xl border border-slate-300 py-2.5 text-base font-semibold text-slate-600 transition hover:bg-slate-100 active:scale-[0.99] dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+        >
+          Back to menu
+        </button>
       )}
     </div>
   );

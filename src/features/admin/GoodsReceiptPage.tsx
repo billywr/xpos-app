@@ -840,6 +840,15 @@ export function GoodsReceiptPage({
             Recent stock receipts
           </h2>
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search receipts…" className="mb-4" />
+          {totalElements > 0 && (
+            <Pagination
+              position="top"
+              page={page}
+              size={size}
+              totalElements={totalElements}
+              onPageChange={setPage}
+            />
+          )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="relative overflow-auto">
