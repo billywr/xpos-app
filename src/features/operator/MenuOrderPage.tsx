@@ -729,8 +729,8 @@ export function MenuOrderPage() {
         {showItemList ? (
         <>
         {/* Category tabs row — swipe/scroll horizontally when many */}
-        <div className="mb-2 flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="flex flex-1 items-center gap-1.5 overflow-x-auto scroll-smooth pb-1 scrollbar-thin snap-x snap-mandatory">
+        <div className="mb-4 flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex flex-1 items-center gap-1.5 overflow-x-auto scroll-smooth pb-1 snap-x snap-mandatory scrollbar-blend">
           <button
             type="button"
             onClick={() => setSelectedCategoryId(null)}
