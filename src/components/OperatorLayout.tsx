@@ -2,10 +2,12 @@ import { Outlet, Link, NavLink, useNavigate, useLocation } from "react-router-do
 import {
   ChevronDown,
   FileSpreadsheet,
+  HandCoins,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
+  ReceiptText,
   RefreshCw,
   Search,
   Settings,
@@ -326,6 +328,32 @@ export function OperatorLayout() {
           >
             <FileSpreadsheet className="h-4 w-4" />
             Stock Taking
+          </NavLink>
+          <NavLink
+            to="/operator/debts"
+            className={({ isActive }) =>
+              `hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition lg:flex ${
+                isActive
+                  ? "bg-primary-600 text-white"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
+              }`
+            }
+          >
+            <HandCoins className="h-4 w-4" />
+            Debts
+          </NavLink>
+          <NavLink
+            to="/operator/misc-expenses"
+            className={({ isActive }) =>
+              `hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition xl:flex ${
+                isActive
+                  ? "bg-primary-600 text-white"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
+              }`
+            }
+          >
+            <ReceiptText className="h-4 w-4" />
+            Expenses
           </NavLink>
           <button
             type="button"
