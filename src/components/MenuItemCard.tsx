@@ -59,13 +59,39 @@ export function MenuItemCard({
       ? "Available"
       : "—";
 
+  const canTapToAdd = available && !addDisabled;
+
+  function handleCardClick() {
+    if (canTapToAdd) onAdd();
+  }
+
   return (
-    <div className={`flex flex-col overflow-hidden ${FLOATING_CARD}`}>
+    <div
+      role={canTapToAdd ? "button" : undefined}
+      tabIndex={canTapToAdd ? 0 : undefined}
+      onClick={handleCardClick}
+      onKeyDown={
+        canTapToAdd
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onAdd();
+              }
+            }
+          : undefined
+      }
+      className={`flex flex-col overflow-hidden ${FLOATING_CARD} ${
+        canTapToAdd
+          ? "cursor-pointer select-none active:scale-[0.97]"
+          : ""
+      }`}
+    >
       <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-700">
         {primaryImageUrl ? (
           <img
             src={getItemImageUrl(primaryImageUrl) ?? primaryImageUrl}
             alt=""
+            draggable={false}
             className="absolute inset-0 h-full w-full object-cover"
           />
         ) : (
@@ -90,7 +116,10 @@ export function MenuItemCard({
               <div className="flex flex-col gap-1 sm:flex-row sm:justify-end sm:gap-2 md:gap-3">
                 <button
                   type="button"
-                  onClick={onReduce}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReduce();
+                  }}
                   className="flex min-h-[40px] w-full shrink-0 touch-manipulation items-center justify-center rounded-lg bg-primary-600 transition hover:bg-primary-500 active:scale-[0.98] sm:min-h-[44px] sm:min-w-[44px] sm:w-auto dark:bg-primary-600 dark:hover:bg-primary-500"
                   aria-label={`Reduce ${name} quantity`}
                 >
@@ -98,7 +127,7 @@ export function MenuItemCard({
                 </button>
                 <button
                   type="button"
-                  onClick={onAdd}
+                  onClick={(e) => e.stopPropagation()}
                   disabled={addDisabled}
                   title={addTooltip}
                   className="flex min-h-[40px] w-full shrink-0 touch-manipulation items-center justify-center rounded-lg bg-emerald-600 transition hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600 sm:min-h-[44px] sm:min-w-[44px] sm:w-auto dark:bg-emerald-600 dark:hover:bg-emerald-500"
@@ -108,17 +137,10 @@ export function MenuItemCard({
                 </button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={onAdd}
-                disabled={addDisabled}
-                title={addTooltip}
-                className="flex w-full min-h-[40px] touch-manipulation items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-2 text-xs font-medium text-white transition hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600 sm:min-h-[44px] sm:text-sm sm:px-3 dark:bg-emerald-600 dark:hover:bg-emerald-500"
-                aria-label={addTooltip ?? `Add ${name} to cart`}
-              >
+              <span className="flex w-full min-h-[40px] touch-manipulation items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-2 text-xs font-medium text-white sm:min-h-[44px] sm:text-sm sm:px-3 dark:bg-emerald-600">
                 <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
                 Add
-              </button>
+              </span>
             )
           ) : (
             <span className="inline-block rounded bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-600 dark:text-slate-400">
