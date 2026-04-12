@@ -38,14 +38,14 @@ export function Pagination({
       : "border-t border-slate-200 dark:border-slate-700";
 
   return (
-    <div className={`flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-3 py-2 sm:gap-4 sm:px-4 sm:py-3 dark:bg-slate-800/50 ${borderClass}`}>
-      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+    <div className={`flex items-center justify-between gap-2 bg-slate-50 px-3 py-2 sm:gap-4 sm:px-4 sm:py-3 dark:bg-slate-800/50 ${borderClass}`}>
+      <div className="flex items-center gap-2 sm:gap-4">
         <p className="text-xs text-slate-600 sm:text-sm dark:text-slate-400">
           <span className="font-medium">{first}</span>–
           <span className="font-medium">{last}</span> of{" "}
           <span className="font-medium">{totalElements}</span>
         </p>
-        {onSizeChange && position === "bottom" && (
+        {onSizeChange && (
           <SearchableSelect
             aria-label="Items per page"
             options={sizeOptions.map((n) => ({
@@ -55,7 +55,7 @@ export function Pagination({
             value={String(size)}
             onChange={(v) => onSizeChange(Number(v))}
             compact
-            className="hidden w-auto min-w-[7rem] sm:block sm:min-w-[9rem]"
+            className="w-auto min-w-[5.5rem] text-xs sm:min-w-[7rem] sm:text-sm"
           />
         )}
       </div>

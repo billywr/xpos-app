@@ -26,6 +26,8 @@ import { APP_NAME_KEY } from "@/config/headerNavItems";
 import {
   ChevronLeft,
   ChevronRight,
+  Maximize2,
+  Minimize2,
   Save,
   Loader2,
   FileSpreadsheet,
@@ -166,6 +168,7 @@ export function StandardStockCountSheetPage({
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
   const [debtModal, setDebtModal] = useState<"day" | "all" | null>(null);
+  const [tableExpanded, setTableExpanded] = useState(false);
 
   const isToday = dateStr === todayStr();
   const isYesterday = dateStr === yesterdayStr();
@@ -435,14 +438,16 @@ export function StandardStockCountSheetPage({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
-      <PageHeader
-        title="Stock Count Sheet"
-        subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = previous day's saved Closing when you saved the sheet; if none, ledger fallback (max(0, System − same-day Added and stock-take adds)). Total Stock = Opening + Added + Added today. Closing = physical count (defaults to ledger on-hand; editable); Units Sold = Total Stock − Closing.${showSystemAndVariance ? " System = ledger at end of this day; Variance = Closing − System (positive = excess)." : ""}`}
-        subtitleRevealOnTitleHover
-        icon={FileSpreadsheet}
-        fallbackTo="/operator"
-      />
+    <div className={`flex flex-col overflow-hidden ${tableExpanded ? "fixed inset-0 z-40 bg-white p-2 dark:bg-slate-900" : "min-h-0 flex-1 p-6"}`}>
+      {!tableExpanded && (
+        <PageHeader
+          title="Stock Count Sheet"
+          subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = previous day's saved Closing when you saved the sheet; if none, ledger fallback (max(0, System − same-day Added and stock-take adds)). Total Stock = Opening + Added + Added today. Closing = physical count (defaults to ledger on-hand; editable); Units Sold = Total Stock − Closing.${showSystemAndVariance ? " System = ledger at end of this day; Variance = Closing − System (positive = excess)." : ""}`}
+          subtitleRevealOnTitleHover
+          icon={FileSpreadsheet}
+          fallbackTo="/operator"
+        />
+      )}
 
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
         {sheet ? (
@@ -508,10 +513,19 @@ export function StandardStockCountSheetPage({
             )}
             <span className="hidden xs:inline">Save</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setTableExpanded((v) => !v)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:gap-2 sm:px-4 sm:py-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            title={tableExpanded ? "Exit full screen" : "Expand table"}
+            aria-label={tableExpanded ? "Exit full screen" : "Expand table"}
+          >
+            {tableExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </button>
         </div>
       </div>
 
-      {!canEdit && (
+      {!canEdit && !tableExpanded && (
         <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
           Viewing past date. Edits are disabled; only today and yesterday are
           editable (yesterday for testing).
@@ -543,6 +557,11 @@ export function StandardStockCountSheetPage({
               size={pageSize}
               totalElements={computedRows.length}
               onPageChange={setPage}
+              onSizeChange={(s) => {
+                setPageSize(s);
+                setPage(0);
+              }}
+              sizeOptions={[10, 25, 50, 100]}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">
@@ -737,22 +756,9 @@ export function StandardStockCountSheetPage({
               </tbody>
             </table>
             </div>
-            {computedRows.length > 0 && (
-              <Pagination
-              page={page}
-              size={pageSize}
-              totalElements={computedRows.length}
-              onPageChange={setPage}
-              onSizeChange={(s) => {
-                setPageSize(s);
-                setPage(0);
-              }}
-              sizeOptions={[10, 25, 50, 100]}
-              />
-            )}
           </div>
 
-          <div className="mt-4 flex flex-wrap justify-end gap-1.5 sm:gap-3">
+          <div className={`mt-4 flex flex-wrap justify-end gap-1.5 sm:gap-3 ${tableExpanded ? "hidden" : ""}`}>
             {/* Today's Debts badge */}
             <button
               type="button"

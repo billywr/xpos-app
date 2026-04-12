@@ -252,6 +252,8 @@ export function OrgsListPage() {
           size={size}
           totalElements={totalElements}
           onPageChange={setPage}
+          onSizeChange={handleSizeChange}
+          sizeOptions={[10, 25, 50, 100]}
         />
       )}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -341,16 +343,6 @@ export function OrgsListPage() {
             </tbody>
           </table>
         </div>
-        {totalElements > 0 && (
-          <Pagination
-            page={page}
-            size={size}
-            totalElements={totalElements}
-            onPageChange={setPage}
-            onSizeChange={handleSizeChange}
-            sizeOptions={[10, 25, 50, 100]}
-          />
-        )}
       </div>
 
       <SlideOver

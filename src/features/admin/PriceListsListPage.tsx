@@ -308,6 +308,8 @@ export function PriceListsListPage({ initialOrgId, onOrgChange }: PriceListsList
               size={size}
               totalElements={totalElements}
               onPageChange={setPage}
+              onSizeChange={handleSizeChange}
+              sizeOptions={[10, 25, 50, 100]}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -395,16 +397,6 @@ export function PriceListsListPage({ initialOrgId, onOrgChange }: PriceListsList
                 </tbody>
               </table>
             </div>
-            {totalElements > 0 && (
-              <Pagination
-                page={page}
-                size={size}
-                totalElements={totalElements}
-                onPageChange={setPage}
-                onSizeChange={handleSizeChange}
-                sizeOptions={[10, 25, 50, 100]}
-              />
-            )}
           </div>
 
           <SlideOver

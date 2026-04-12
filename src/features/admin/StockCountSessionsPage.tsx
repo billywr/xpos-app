@@ -83,7 +83,6 @@ export function StockCountSessionsPage() {
   const sessions = sessionsData?.content ?? [];
   const { searchQuery, setSearchQuery, filteredRows: filteredSessions } = useTableSearch(sessions);
   const totalElements = sessionsData?.totalElements ?? 0;
-  const totalPages = sessionsData?.totalPages ?? 0;
 
   useEffect(() => {
     if (!selectedOrgId && filteredOrgs.length > 0) {
@@ -399,16 +398,6 @@ export function StockCountSessionsPage() {
                 variant="danger"
                 loading={deleteMutation.isPending}
               />
-              {totalPages > 1 && (
-                <div className="mt-4">
-                  <Pagination
-                    page={page}
-                    size={PAGE_SIZE}
-                    totalElements={totalElements}
-                    onPageChange={setPage}
-                  />
-                </div>
-              )}
             </>
           )}
         </>

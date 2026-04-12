@@ -108,7 +108,6 @@ export function StockTakingSchedulesPage() {
   const schedules = schedulesData?.content ?? [];
   const { searchQuery, setSearchQuery, filteredRows: filteredSchedules } = useTableSearch(schedules);
   const totalElements = schedulesData?.totalElements ?? 0;
-  const totalPages = schedulesData?.totalPages ?? 0;
   const branchMap = new Map(branches.map((b: Branch) => [b.id, b.name]));
 
   useEffect(() => {
@@ -469,16 +468,6 @@ export function StockTakingSchedulesPage() {
                   </tbody>
                 </table>
               </div>
-              {totalPages > 1 && (
-                <div className="mt-4">
-                  <Pagination
-                    page={page}
-                    size={PAGE_SIZE}
-                    totalElements={totalElements}
-                    onPageChange={setPage}
-                  />
-                </div>
-              )}
             </>
           )}
         </>

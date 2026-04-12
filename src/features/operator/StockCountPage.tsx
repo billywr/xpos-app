@@ -67,7 +67,6 @@ export function StockCountPage() {
   const sessions = sessionsData?.content ?? [];
   const { searchQuery, setSearchQuery, filteredRows: filteredSessions } = useTableSearch(sessions);
   const totalElements = sessionsData?.totalElements ?? 0;
-  const totalPages = sessionsData?.totalPages ?? 0;
 
   const startMutation = useMutation({
     mutationFn: () => startOperatorStockCountSession(token, orgId, branchId),
@@ -295,16 +294,6 @@ export function StockCountPage() {
                   </tbody>
                 </table>
               </div>
-              {totalPages > 1 && (
-                <div className="mt-4">
-                  <Pagination
-                    page={page}
-                    size={PAGE_SIZE}
-                    totalElements={totalElements}
-                    onPageChange={setPage}
-                  />
-                </div>
-              )}
             </>
           )}
         </>

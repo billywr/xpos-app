@@ -208,6 +208,11 @@ export function ReceiptsPage() {
             size={size}
             totalElements={totalElements}
             onPageChange={setPage}
+            onSizeChange={(s) => {
+              setSize(s);
+              setPage(0);
+            }}
+            sizeOptions={[10, 20, 50]}
           />
         )}
         <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
@@ -281,19 +286,6 @@ export function ReceiptsPage() {
               </tbody>
             </table>
           </div>
-          {totalElements > 0 && (
-            <Pagination
-              page={page}
-              size={size}
-              totalElements={totalElements}
-              onPageChange={setPage}
-              onSizeChange={(s) => {
-                setSize(s);
-                setPage(0);
-              }}
-              sizeOptions={[10, 20, 50]}
-            />
-          )}
         </div>
         </>
       )}

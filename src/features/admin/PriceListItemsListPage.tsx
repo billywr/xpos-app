@@ -367,6 +367,8 @@ export function PriceListItemsListPage({
                   size={itemsSize}
                   totalElements={totalItems}
                   onPageChange={setItemsPage}
+                  onSizeChange={handleSizeChange}
+                  sizeOptions={[10, 25, 50, 100]}
                 />
               )}
               <div className="overflow-x-auto">
@@ -470,16 +472,6 @@ export function PriceListItemsListPage({
                   </tbody>
                 </table>
               </div>
-              {totalItems > 0 && (
-                <Pagination
-                  page={itemsPage}
-                  size={itemsSize}
-                  totalElements={totalItems}
-                  onPageChange={setItemsPage}
-                  onSizeChange={handleSizeChange}
-                  sizeOptions={[10, 25, 50, 100]}
-                />
-              )}
             </>
           )}
 

@@ -995,16 +995,6 @@ export function DebtsAndExpensesPage() {
                     </div>
                   </>
                 )}
-                {debts.length > 0 ? (
-                  <div className="border-t border-slate-200 bg-slate-50/90 px-4 py-4 dark:border-slate-600 dark:bg-slate-900/50">
-                    <Pagination
-                      page={debtsData?.number ?? 0}
-                      size={DEBTS_PAGE_SIZE}
-                      totalElements={debtTotalElements}
-                      onPageChange={setDebtsPage}
-                    />
-                  </div>
-                ) : null}
               </div>
               <div className="mt-3 flex justify-end">
                 <DebtPendingTotalDisplay
@@ -1129,16 +1119,6 @@ export function DebtsAndExpensesPage() {
                     </div>
                   </>
                 )}
-                {expenses.length > 0 ? (
-                  <div className="border-t border-slate-200 bg-slate-50/90 px-4 py-4 dark:border-slate-600 dark:bg-slate-900/50">
-                    <Pagination
-                      page={expensesData?.number ?? 0}
-                      size={EXPENSES_PAGE_SIZE}
-                      totalElements={expTotalElements}
-                      onPageChange={setExpensesPage}
-                    />
-                  </div>
-                ) : null}
               </div>
               {expenses.length > 0 ? (
                 <div className="mt-3 flex justify-end">

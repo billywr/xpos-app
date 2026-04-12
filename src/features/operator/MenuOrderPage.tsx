@@ -76,6 +76,8 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
+  Maximize2,
+  Minimize2,
   ShoppingCart,
 } from "lucide-react";
 
@@ -134,6 +136,7 @@ export function MenuOrderPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [hideOutOfStock, setHideOutOfStock] = useState(false);
   const [gridPage, setGridPage] = useState(0);
+  const [posExpanded, setPosExpanded] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [itemSearchOpen, setItemSearchOpen] = useState(false);
   const [itemSearchQuery, setItemSearchQuery] = useState("");
@@ -716,16 +719,18 @@ export function MenuOrderPage() {
 
   return (
     <>
-    <div className="flex h-full min-h-0 touch-manipulation flex-col lg:flex-row">
+    <div className={`flex touch-manipulation flex-col lg:flex-row ${posExpanded ? "fixed inset-0 z-40 bg-white dark:bg-slate-900" : "h-full min-h-0"}`}>
       {/* Main content: categories + item grid */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 pb-20 lg:pb-4">
-        <PageHeader
-          title="POS"
-          subtitle="Select items and proceed to payment"
-          fallbackTo="/operator"
-          noMargin
-          className="mb-2 shrink-0"
-        />
+        {!posExpanded && (
+          <PageHeader
+            title="POS"
+            subtitle="Select items and proceed to payment"
+            fallbackTo="/operator"
+            noMargin
+            className="mb-2 shrink-0"
+          />
+        )}
         {showItemList ? (
         <>
         {/* Category tabs row — swipe/scroll horizontally when many */}
@@ -920,6 +925,15 @@ export function MenuOrderPage() {
               </div>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => setPosExpanded((v) => !v)}
+            className="flex min-h-[36px] shrink-0 touch-manipulation items-center justify-center rounded-lg border border-slate-300 px-2 text-slate-600 hover:bg-slate-100 active:scale-[0.97] dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+            title={posExpanded ? "Exit full screen" : "Expand"}
+            aria-label={posExpanded ? "Exit full screen" : "Expand"}
+          >
+            {posExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
           {!itemsLoading && items.length > GRID_PAGE_SIZE && (

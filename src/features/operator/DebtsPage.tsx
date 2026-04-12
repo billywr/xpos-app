@@ -761,16 +761,6 @@ export function DebtsPage() {
               </div>
               </>
             )}
-            {debts.length > 0 ? (
-              <div className="border-t border-slate-200 bg-slate-50/90 px-4 py-4 dark:border-slate-600 dark:bg-slate-900/50">
-                <Pagination
-                  page={data?.number ?? 0}
-                  size={PAGE_SIZE}
-                  totalElements={totalElements}
-                  onPageChange={setPage}
-                />
-              </div>
-            ) : null}
           </div>
           <div className="mt-3 flex justify-end">
             <DebtPendingTotalDisplay
