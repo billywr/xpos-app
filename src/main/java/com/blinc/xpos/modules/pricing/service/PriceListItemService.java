@@ -1,5 +1,6 @@
 package com.blinc.xpos.modules.pricing.service;
 
+import com.blinc.xpos.modules.catalog.domain.Item;
 import com.blinc.xpos.modules.pricing.domain.PriceListItem;
 import java.math.BigDecimal;
 import java.util.List;
@@ -8,6 +9,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface PriceListItemService {
+
+  /**
+   * Returns the cost floor for display: the higher of the max stock-movement unit cost and the
+   * catalog buying price. Returns {@code null} when no purchase history or buying price exists.
+   */
+  BigDecimal resolveCostFloor(UUID orgId, Item item);
 
   PriceListItem add(UUID orgId, UUID priceListId, UUID itemId, BigDecimal price, String currency);
 

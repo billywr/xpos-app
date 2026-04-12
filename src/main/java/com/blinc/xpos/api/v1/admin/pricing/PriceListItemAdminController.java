@@ -7,6 +7,7 @@ import com.blinc.xpos.common.web.paging.PageRequestFactory;
 import com.blinc.xpos.modules.pricing.domain.PriceListItem;
 import com.blinc.xpos.modules.pricing.service.PriceListItemService;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -46,7 +47,7 @@ public class PriceListItemAdminController {
     PriceListItem line =
         priceListItemService.add(
             orgId, priceListId, request.itemId(), request.price(), request.currency());
-    return toResponse(line);
+    return toResponse(orgId, line);
   }
 
   @GetMapping
@@ -56,7 +57,7 @@ public class PriceListItemAdminController {
         pageRequestFactory.normalize(pageable, Sort.by("item.name").and(Sort.by("createdAt")));
     return priceListItemService
         .listByPriceList(orgId, priceListId, normalized)
-        .map(this::toResponse);
+        .map(line -> toResponse(orgId, line));
   }
 
   @GetMapping("/{priceListItemId}")
@@ -64,7 +65,8 @@ public class PriceListItemAdminController {
       @PathVariable UUID orgId,
       @PathVariable UUID priceListId,
       @PathVariable UUID priceListItemId) {
-    return toResponse(priceListItemService.requireInPriceList(orgId, priceListId, priceListItemId));
+    return toResponse(
+        orgId, priceListItemService.requireInPriceList(orgId, priceListId, priceListItemId));
   }
 
   @PatchMapping("/{priceListItemId}")
@@ -76,7 +78,7 @@ public class PriceListItemAdminController {
     PriceListItem line =
         priceListItemService.update(
             orgId, priceListId, priceListItemId, request.price(), request.currency());
-    return toResponse(line);
+    return toResponse(orgId, line);
   }
 
   @DeleteMapping("/{priceListItemId}")
@@ -88,13 +90,15 @@ public class PriceListItemAdminController {
     priceListItemService.remove(orgId, priceListId, priceListItemId);
   }
 
-  private PriceListItemResponse toResponse(PriceListItem line) {
+  private PriceListItemResponse toResponse(UUID orgId, PriceListItem line) {
+    BigDecimal costFloor = priceListItemService.resolveCostFloor(orgId, line.getItem());
     return new PriceListItemResponse(
         line.getId(),
         line.getPriceList().getId(),
         line.getItem().getId(),
         line.getItem().getName(),
         line.getPrice(),
+        costFloor,
         line.getCurrency(),
         line.getCreatedAt());
   }

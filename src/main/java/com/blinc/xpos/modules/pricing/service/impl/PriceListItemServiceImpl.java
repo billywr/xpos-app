@@ -65,6 +65,12 @@ public class PriceListItemServiceImpl implements PriceListItemService {
           + "Go to Inventory → Stock, receive stock when stock arrives, "
           + "record the unit cost, then add the item to this price list.";
 
+  @Override
+  @Transactional(readOnly = true)
+  public BigDecimal resolveCostFloor(UUID orgId, Item item) {
+    return resolveFloorUnitCost(orgId, item);
+  }
+
   /**
    * Minimum allowed cost floor: max unit cost from active stock receipts (and other IN movements
    * with unit cost), compared with catalog buying price. Movements from inactive (deleted) GRNs are
