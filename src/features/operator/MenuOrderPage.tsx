@@ -719,7 +719,7 @@ export function MenuOrderPage() {
     <>
     <div className="flex h-full min-h-0 touch-manipulation flex-col lg:flex-row">
       {/* Main content: categories + item grid */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 pb-20 lg:pb-4">
+      <div className="flex min-h-0 flex-1 flex-col p-4 pb-20 lg:pb-4">
         <PageHeader
           title="POS"
           subtitle="Select items and proceed to payment"
@@ -729,11 +729,13 @@ export function MenuOrderPage() {
         />
         {showItemList ? (
         <>
-        <div className="mb-2 flex shrink-0 items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+        {/* Category tabs row — swipe/scroll horizontally when many */}
+        <div className="mb-2 flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex flex-1 items-center gap-1.5 overflow-x-auto scroll-smooth pb-1 scrollbar-thin snap-x snap-mandatory">
           <button
             type="button"
             onClick={() => setSelectedCategoryId(null)}
-            className={`min-h-[28px] shrink-0 whitespace-nowrap touch-manipulation rounded-md px-2 py-1.5 text-xs font-medium transition ${
+            className={`min-h-[36px] snap-start shrink-0 whitespace-nowrap touch-manipulation rounded-md px-3 py-2 text-sm font-medium transition ${
               selectedCategoryId === null
                 ? "bg-primary-600 text-white"
                 : "bg-slate-200 text-slate-700 hover:bg-slate-300 active:scale-[0.98] dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
@@ -748,7 +750,7 @@ export function MenuOrderPage() {
                   key={cat.id}
                   type="button"
                   onClick={() => setSelectedCategoryId(cat.id)}
-                  className={`min-h-[28px] shrink-0 whitespace-nowrap touch-manipulation rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                  className={`min-h-[36px] snap-start shrink-0 whitespace-nowrap touch-manipulation rounded-md px-3 py-2 text-sm font-medium transition ${
                     selectedCategoryId === cat.id
                       ? "bg-primary-600 text-white"
                       : "bg-slate-200 text-slate-700 hover:bg-slate-300 active:scale-[0.98] dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
@@ -767,7 +769,7 @@ export function MenuOrderPage() {
                 : "Hide out-of-stock items from the menu."
             }
             onClick={() => setHideOutOfStock((v) => !v)}
-            className={`ml-1 flex min-h-[28px] touch-manipulation items-center gap-1 rounded-md border px-2 py-1.5 text-xs font-medium transition active:scale-[0.98] ${
+            className={`ml-1 flex min-h-[36px] snap-start touch-manipulation items-center gap-1 rounded-md border px-3 py-2 text-sm font-medium transition active:scale-[0.98] ${
               hideOutOfStock
                 ? "border-primary-500 bg-primary-600/15 text-primary-700 dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-200"
                 : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
@@ -779,36 +781,37 @@ export function MenuOrderPage() {
             }
           >
             {hideOutOfStock ? (
-              <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <Eye className="h-4 w-4 shrink-0" aria-hidden />
             ) : (
-              <EyeOff className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <EyeOff className="h-4 w-4 shrink-0" aria-hidden />
             )}
             <span className="max-w-[9rem] truncate sm:max-w-none">
               {hideOutOfStock ? "Show OOS" : "Hide OOS"}
             </span>
           </button>
-          <div ref={itemSearchRef} className="relative z-10 ml-auto shrink-0">
+          </div>
+          <div ref={itemSearchRef} className="relative z-30 shrink-0">
             <button
               type="button"
               onClick={() => setItemSearchOpen((o) => !o)}
-              className="flex min-h-[28px] min-w-0 touch-manipulation items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-left text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              className="flex min-h-[36px] min-w-0 touch-manipulation items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
               aria-expanded={itemSearchOpen}
               aria-haspopup="listbox"
               aria-label="Search and select items"
             >
-              <Search className="h-3.5 w-3.5 shrink-0 text-slate-500 dark:text-slate-400" />
+              <Search className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
               <span className="max-w-[140px] truncate sm:max-w-[180px]">
                 {itemSearchOpen ? "Search items…" : "Search & add items…"}
               </span>
               <ChevronDown
-                className={`h-3.5 w-3.5 shrink-0 text-slate-500 transition dark:text-slate-400 ${
+                className={`h-4 w-4 shrink-0 text-slate-500 transition dark:text-slate-400 ${
                   itemSearchOpen ? "rotate-180" : ""
                 }`}
               />
             </button>
             {itemSearchOpen && (
               <div
-                className="absolute right-0 top-full mt-1 w-[calc(100vw-2rem)] min-w-[280px] max-w-md max-h-[min(60vh,400px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg sm:w-full dark:border-slate-600 dark:bg-slate-800"
+                className="fixed inset-x-4 top-auto z-50 mt-1 max-h-[min(60vh,400px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:w-[380px] dark:border-slate-600 dark:bg-slate-800"
               role="listbox"
               aria-multiselectable
               aria-label="Sellable items"
@@ -888,13 +891,10 @@ export function MenuOrderPage() {
                               className="h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
                               aria-label={`${item.name}, ${formatCurrency(price)}`}
                             />
-                            <span className="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-white">
+                            <span className="min-w-0 flex-1 truncate font-semibold text-white">
                               {item.name}
                             </span>
-                            <span className="shrink-0 tabular-nums text-slate-600 dark:text-slate-300">
-                              <span className="text-slate-500 dark:text-slate-400">
-                                Price{" "}
-                              </span>
+                            <span className="shrink-0 tabular-nums font-medium text-primary-400">
                               {formatCurrency(price)}
                             </span>
                             {item.trackInventory && (
@@ -925,7 +925,7 @@ export function MenuOrderPage() {
         <div className="min-h-0 flex-1 overflow-auto">
           {!itemsLoading && items.length > GRID_PAGE_SIZE && (
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="text-sm text-slate-500 dark:text-slate-400">
                 {gridPage * GRID_PAGE_SIZE + 1}–{Math.min((gridPage + 1) * GRID_PAGE_SIZE, items.length)} of {items.length}
               </span>
               <div className="flex items-center gap-1">
@@ -933,20 +933,20 @@ export function MenuOrderPage() {
                   type="button"
                   disabled={gridPage === 0}
                   onClick={() => setGridPage((p) => p - 1)}
-                  className="flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-700"
+                  className="flex min-h-[36px] touch-manipulation items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 active:scale-[0.97] disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-700"
                 >
-                  <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                  <ChevronLeft className="h-4 w-4" /> Prev
                 </button>
-                <span className="min-w-[3rem] text-center text-xs text-slate-500 dark:text-slate-400">
+                <span className="min-w-[3.5rem] text-center text-sm text-slate-500 dark:text-slate-400">
                   {gridPage + 1} / {gridTotalPages}
                 </span>
                 <button
                   type="button"
                   disabled={gridPage >= gridTotalPages - 1}
                   onClick={() => setGridPage((p) => p + 1)}
-                  className="flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-700"
+                  className="flex min-h-[36px] touch-manipulation items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 active:scale-[0.97] disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-700"
                 >
-                  Next <ChevronRight className="h-3.5 w-3.5" />
+                  Next <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -986,7 +986,7 @@ export function MenuOrderPage() {
           </div>
           {!itemsLoading && items.length > GRID_PAGE_SIZE && (
             <div className="mt-2 flex items-center justify-between">
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="text-sm text-slate-500 dark:text-slate-400">
                 {gridPage * GRID_PAGE_SIZE + 1}–{Math.min((gridPage + 1) * GRID_PAGE_SIZE, items.length)} of {items.length}
               </span>
               <div className="flex items-center gap-1">
@@ -994,20 +994,20 @@ export function MenuOrderPage() {
                   type="button"
                   disabled={gridPage === 0}
                   onClick={() => setGridPage((p) => p - 1)}
-                  className="flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-700"
+                  className="flex min-h-[36px] touch-manipulation items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 active:scale-[0.97] disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-700"
                 >
-                  <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                  <ChevronLeft className="h-4 w-4" /> Prev
                 </button>
-                <span className="min-w-[3rem] text-center text-xs text-slate-500 dark:text-slate-400">
+                <span className="min-w-[3.5rem] text-center text-sm text-slate-500 dark:text-slate-400">
                   {gridPage + 1} / {gridTotalPages}
                 </span>
                 <button
                   type="button"
                   disabled={gridPage >= gridTotalPages - 1}
                   onClick={() => setGridPage((p) => p + 1)}
-                  className="flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-700"
+                  className="flex min-h-[36px] touch-manipulation items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 active:scale-[0.97] disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-700"
                 >
-                  Next <ChevronRight className="h-3.5 w-3.5" />
+                  Next <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
             </div>
