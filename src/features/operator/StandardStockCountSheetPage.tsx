@@ -349,7 +349,26 @@ export function StandardStockCountSheetPage({
       branchName,
       orgName,
       showSystemAndVariance,
-      appName
+      appName,
+      {
+        dayDebts: dayDebts.map((d) => ({
+          customerName: d.customerName,
+          customerPhone: d.customerPhone,
+          outstanding: d.outstanding,
+          dueDate: d.dueDate,
+          createdAt: d.createdAt,
+        })),
+        dayDebtsTotal,
+        allDebts: allDebts.map((d) => ({
+          customerName: d.customerName,
+          customerPhone: d.customerPhone,
+          outstanding: d.outstanding,
+          dueDate: d.dueDate,
+          createdAt: d.createdAt,
+        })),
+        allDebtsTotal,
+        expensesTotal: analytics?.expenseIntelligence?.todayTotal ?? 0,
+      }
     );
     toast.success("PDF downloaded.", { title: "Stock Count Sheet" });
   }
