@@ -98,6 +98,38 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
   const [submitLoading, setSubmitLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Item | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [inlineUploadingItemId, setInlineUploadingItemId] = useState<string | null>(null);
+  const inlineFileInputRef = useRef<HTMLInputElement>(null);
+  const inlineUploadItemRef = useRef<Item | null>(null);
+
+  async function handleInlineImageUpload(file: File, item: Item) {
+    if (!token || !selectedOrgId) return;
+    setInlineUploadingItemId(item.id);
+    try {
+      const { url } = await uploadItemImage(token, selectedOrgId, file);
+      await updateItem(token, selectedOrgId, item.id, {
+        sku: item.sku,
+        name: item.name,
+        itemType: item.itemType,
+        categoryId: item.categoryId,
+        baseUomId: item.baseUomId,
+        taxProfileId: item.taxProfileId,
+        trackInventory: item.trackInventory,
+        active: item.active,
+        buyingPrice: item.buyingPrice,
+        defaultSellingPrice: item.defaultSellingPrice,
+        defaultPriceListId: null,
+        imageUrl: url,
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin-items", token, selectedOrgId] });
+      queryClient.invalidateQueries({ queryKey: ["items", selectedOrgId] });
+      toast.success("Image updated.", { title: "Saved" });
+    } catch (err) {
+      toast.error(getApiErrorMessage(err));
+    } finally {
+      setInlineUploadingItemId(null);
+    }
+  }
 
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
@@ -915,8 +947,24 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                               <span className="text-slate-500">—</span>
                             )}
                           </td>
-                          <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                            {getItemImageName(item.primaryImageUrl) ?? "—"}
+                          <td className="px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm">
+                            <button
+                              type="button"
+                              disabled={inlineUploadingItemId === item.id}
+                              onClick={() => {
+                                inlineUploadItemRef.current = item;
+                                inlineFileInputRef.current?.click();
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/30"
+                              title={item.primaryImageUrl ? "Change image" : "Upload image"}
+                            >
+                              {inlineUploadingItemId === item.id ? (
+                                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-300 border-t-primary-600" />
+                              ) : (
+                                <Upload className="h-3.5 w-3.5" />
+                              )}
+                              {item.primaryImageUrl ? getItemImageName(item.primaryImageUrl) : "Upload"}
+                            </button>
                           </td>
                           <td className="px-2 py-1.5 text-left text-xs sm:px-3 sm:py-2 sm:text-sm">
                             <div className="flex justify-start gap-2">
@@ -1296,6 +1344,21 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               </div>
             </form>
           </SlideOver>
+
+          <input
+            ref={inlineFileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              const item = inlineUploadItemRef.current;
+              if (file && item) {
+                handleInlineImageUpload(file, item);
+              }
+              e.target.value = "";
+            }}
+          />
 
           <ConfirmDialog
             open={Boolean(confirmDelete)}
