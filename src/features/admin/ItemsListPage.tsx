@@ -894,8 +894,8 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                           key={item.id}
                           className={
                             item.hasPurchaseHistory === false
-                              ? "bg-amber-50/60 hover:bg-amber-100/60 dark:bg-amber-900/15 dark:hover:bg-amber-900/25"
-                              : "hover:bg-slate-50 dark:hover:bg-slate-700/30"
+                              ? "bg-amber-50/60 hover:bg-amber-100/80 dark:bg-amber-900/15 dark:hover:bg-amber-900/30"
+                              : "hover:bg-blue-50 dark:hover:bg-blue-900/30"
                           }
                           title={
                             item.hasPurchaseHistory === false
