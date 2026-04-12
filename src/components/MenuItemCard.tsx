@@ -127,7 +127,10 @@ export function MenuItemCard({
                 </button>
                 <button
                   type="button"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!addDisabled) onAdd();
+                  }}
                   disabled={addDisabled}
                   title={addTooltip}
                   className="flex min-h-[40px] w-full shrink-0 touch-manipulation items-center justify-center rounded-lg bg-emerald-600 transition hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-emerald-600 sm:min-h-[44px] sm:min-w-[44px] sm:w-auto dark:bg-emerald-600 dark:hover:bg-emerald-500"
