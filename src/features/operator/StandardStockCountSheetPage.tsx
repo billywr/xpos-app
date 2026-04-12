@@ -757,7 +757,6 @@ export function StandardStockCountSheetPage({
             <button
               type="button"
               onClick={() => dayDebts.length > 0 && setDebtModal("day")}
-              onMouseEnter={() => dayDebts.length > 0 && setDebtModal("day")}
               className="inline-flex cursor-pointer items-center gap-3 rounded-xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-4 py-3 shadow-lg ring-2 ring-amber-100/50 transition hover:shadow-xl active:scale-[0.98] sm:px-6 sm:py-4 dark:border-amber-800 dark:from-amber-950/50 dark:to-orange-950/50 dark:ring-amber-900/30"
             >
               <span className="text-xs font-medium uppercase tracking-wider text-amber-700 sm:text-base dark:text-amber-400">
@@ -771,7 +770,6 @@ export function StandardStockCountSheetPage({
             <button
               type="button"
               onClick={() => allDebts.length > 0 && setDebtModal("all")}
-              onMouseEnter={() => allDebts.length > 0 && setDebtModal("all")}
               className="inline-flex cursor-pointer items-center gap-3 rounded-xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 px-4 py-3 shadow-lg ring-2 ring-orange-100/50 transition hover:shadow-xl active:scale-[0.98] sm:px-6 sm:py-4 dark:border-orange-800 dark:from-orange-950/50 dark:to-amber-950/50 dark:ring-orange-900/30"
             >
               <span className="text-xs font-medium uppercase tracking-wider text-orange-700 sm:text-base dark:text-orange-400">
