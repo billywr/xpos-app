@@ -107,6 +107,7 @@ export interface PriceListItem {
   itemId: string;
   itemName?: string;
   price: number;
+  buyingPrice: number | null;
   currency: string;
 }
 

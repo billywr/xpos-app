@@ -5,6 +5,7 @@ export interface AuthState {
   iamUserId: string | null;
   username: string | null;
   expiresAt: number | null;
+  refreshToken: string | null;
   roles: string[];
 }
 
@@ -13,6 +14,7 @@ const initialState: AuthState = {
   iamUserId: null,
   username: null,
   expiresAt: null,
+  refreshToken: null,
   roles: [],
 };
 
@@ -28,6 +30,7 @@ const authSlice = createSlice({
           iamUserId: string;
           username?: string;
           expiresAt?: number;
+          refreshToken?: string | null;
           roles?: string[];
         };
       }
@@ -36,6 +39,7 @@ const authSlice = createSlice({
       state.iamUserId = action.payload.iamUserId;
       state.username = action.payload.username ?? null;
       state.expiresAt = action.payload.expiresAt ?? null;
+      state.refreshToken = action.payload.refreshToken ?? null;
       state.roles = action.payload.roles ?? [];
     },
     clearCredentials: (state) => {
@@ -43,6 +47,7 @@ const authSlice = createSlice({
       state.iamUserId = null;
       state.username = null;
       state.expiresAt = null;
+      state.refreshToken = null;
       state.roles = [];
     },
   },

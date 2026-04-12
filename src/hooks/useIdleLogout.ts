@@ -92,10 +92,12 @@ export function useIdleLogout(
     const captureOpts: AddEventListenerOptions = { capture: true, passive: true };
     const activityEvents = [
       "mousedown",
+      "mousemove",
       "pointerdown",
       "pointermove",
       "keydown",
       "touchstart",
+      "touchmove",
       "wheel",
       "scroll",
       "click",

@@ -8,6 +8,7 @@ import { clearCredentials } from "@/store/slices/authSlice";
 import { clearContext } from "@/store/slices/orgContextSlice";
 import { selectToken, selectIamUserId, selectUsername, selectIsAdmin, selectIsOperator } from "@/store/selectors/authSelectors";
 import { useIdleLogout } from "@/hooks/useIdleLogout";
+import { useTokenRefresh } from "@/hooks/useTokenRefresh";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { isHeaderNavItemVisible } from "@/hooks/useHeaderNavVisibility";
@@ -55,6 +56,8 @@ export function Layout() {
     });
     return () => set401Handler(null);
   }, [dispatch, navigate]);
+
+  useTokenRefresh();
 
   useIdleLogout(() => {
     clearStoredAuth();

@@ -24,3 +24,9 @@ export const selectIsAdmin = (state: RootState): boolean =>
 
 export const selectIsOperator = (state: RootState): boolean =>
   state.auth.roles.includes(ROLE_OPERATOR);
+
+export const selectExpiresAt = (state: RootState): number | null =>
+  state.auth.expiresAt;
+
+export const selectRefreshToken = (state: RootState): string | null =>
+  state.auth.refreshToken;

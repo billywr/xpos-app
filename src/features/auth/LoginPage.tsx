@@ -47,7 +47,7 @@ export function LoginPage() {
     }
     setLoading(true);
     try {
-      const { token, iamUserId, expiresAt } = await loginWithPassword({
+      const { token, iamUserId, expiresAt, refreshToken } = await loginWithPassword({
         keycloakUrl,
         realm,
         clientId,
@@ -56,8 +56,8 @@ export function LoginPage() {
       });
       const roles = getRolesFromToken(token);
       const keycloakUsername = getUsernameFromToken(token);
-      dispatch(setCredentials({ token, iamUserId, username: keycloakUsername ?? undefined, expiresAt: expiresAt ?? undefined, roles }));
-      setStoredAuth({ token, iamUserId, username: keycloakUsername, expiresAt: expiresAt ?? null, roles });
+      dispatch(setCredentials({ token, iamUserId, username: keycloakUsername ?? undefined, expiresAt: expiresAt ?? undefined, refreshToken, roles }));
+      setStoredAuth({ token, iamUserId, username: keycloakUsername, expiresAt: expiresAt ?? null, refreshToken, roles });
       navigate(returnTo, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");

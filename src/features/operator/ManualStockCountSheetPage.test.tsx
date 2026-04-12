@@ -26,6 +26,7 @@ function wrap(component: React.ReactElement) {
         iamUserId: "user-1",
         username: null,
         expiresAt: null,
+        refreshToken: null,
         roles: [],
       },
       orgContext: {

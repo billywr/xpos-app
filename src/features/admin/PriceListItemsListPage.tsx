@@ -368,7 +368,10 @@ export function PriceListItemsListPage({
                         Item
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
-                        Price
+                        Buying Price
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Selling Price
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-slate-700 dark:text-slate-300">
                         Actions
@@ -383,6 +386,11 @@ export function PriceListItemsListPage({
                       >
                         <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">
                           {pli.itemName ?? pli.itemId}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+                          {pli.buyingPrice != null
+                            ? formatCurrency(Number(pli.buyingPrice))
+                            : "—"}
                         </td>
                         <td className="px-4 py-3 text-left">
                           {editingLineId === pli.id ? (

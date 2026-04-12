@@ -72,10 +72,14 @@ import {
   X,
   Search,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   EyeOff,
   ShoppingCart,
 } from "lucide-react";
+
+const GRID_PAGE_SIZE = 20;
 
 function isItemOutOfStock(item: Item, stockMap: Map<string, number>): boolean {
   if (!item.trackInventory) {
@@ -129,6 +133,7 @@ export function MenuOrderPage() {
   const queryClient = useQueryClient();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [hideOutOfStock, setHideOutOfStock] = useState(false);
+  const [gridPage, setGridPage] = useState(0);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [itemSearchOpen, setItemSearchOpen] = useState(false);
   const [itemSearchQuery, setItemSearchQuery] = useState("");
@@ -486,6 +491,17 @@ export function MenuOrderPage() {
         : catalogItemsForPos.filter((i: Item) => i.categoryId === selectedCategoryId);
     return filterOutOfStockItems(byCategory, stockMap, hideOutOfStock);
   }, [catalogItemsForPos, selectedCategoryId, stockMap, hideOutOfStock]);
+
+  // Reset grid page when filters change
+  useEffect(() => {
+    setGridPage(0);
+  }, [selectedCategoryId, hideOutOfStock]);
+
+  const gridTotalPages = Math.max(1, Math.ceil(items.length / GRID_PAGE_SIZE));
+  const pagedItems = useMemo(
+    () => items.slice(gridPage * GRID_PAGE_SIZE, (gridPage + 1) * GRID_PAGE_SIZE),
+    [items, gridPage],
+  );
 
   const visibleCountForCategory = useCallback(
     (categoryId: string | null) => {
@@ -907,6 +923,34 @@ export function MenuOrderPage() {
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
+          {!itemsLoading && items.length > GRID_PAGE_SIZE && (
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {gridPage * GRID_PAGE_SIZE + 1}–{Math.min((gridPage + 1) * GRID_PAGE_SIZE, items.length)} of {items.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={gridPage === 0}
+                  onClick={() => setGridPage((p) => p - 1)}
+                  className="flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                </button>
+                <span className="min-w-[3rem] text-center text-xs text-slate-500 dark:text-slate-400">
+                  {gridPage + 1} / {gridTotalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={gridPage >= gridTotalPages - 1}
+                  onClick={() => setGridPage((p) => p + 1)}
+                  className="flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  Next <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {itemsLoading
             ? Array.from({ length: 10 }).map((_, i) => (
@@ -918,7 +962,7 @@ export function MenuOrderPage() {
                   <div className="h-10 animate-pulse rounded-b-lg bg-slate-100 dark:bg-slate-700/50" />
                 </div>
               ))
-            : items.map((item: Item) => {
+            : pagedItems.map((item: Item) => {
                 const onHand = item.trackInventory
                   ? (stockMap.get(item.id) ?? 0)
                   : Infinity;
@@ -940,6 +984,34 @@ export function MenuOrderPage() {
                 );
               })}
           </div>
+          {!itemsLoading && items.length > GRID_PAGE_SIZE && (
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {gridPage * GRID_PAGE_SIZE + 1}–{Math.min((gridPage + 1) * GRID_PAGE_SIZE, items.length)} of {items.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={gridPage === 0}
+                  onClick={() => setGridPage((p) => p - 1)}
+                  className="flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                </button>
+                <span className="min-w-[3rem] text-center text-xs text-slate-500 dark:text-slate-400">
+                  {gridPage + 1} / {gridTotalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={gridPage >= gridTotalPages - 1}
+                  onClick={() => setGridPage((p) => p + 1)}
+                  className="flex items-center gap-0.5 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  Next <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         </>
         ) : (

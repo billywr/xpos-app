@@ -10,6 +10,7 @@ export interface StoredAuth {
   iamUserId: string;
   username: string | null;
   expiresAt: number | null;
+  refreshToken?: string | null;
   roles: string[];
 }
 
