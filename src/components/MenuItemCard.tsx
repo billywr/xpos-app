@@ -61,12 +61,12 @@ export function MenuItemCard({
 
   return (
     <div className={`flex flex-col overflow-hidden ${FLOATING_CARD}`}>
-      <div className="relative h-[84px] w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-700">
+      <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-700">
         {primaryImageUrl ? (
           <img
             src={getItemImageUrl(primaryImageUrl) ?? primaryImageUrl}
             alt=""
-            className="h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-2xl text-slate-400 dark:text-slate-500">

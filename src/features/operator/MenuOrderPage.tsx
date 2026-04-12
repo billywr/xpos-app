@@ -951,7 +951,7 @@ export function MenuOrderPage() {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
           {itemsLoading
             ? Array.from({ length: 10 }).map((_, i) => (
                 <div
