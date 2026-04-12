@@ -14,12 +14,15 @@ import com.blinc.xpos.modules.debt.service.DebtUpdateInput;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -139,13 +142,23 @@ public class CustomerDebtOperatorController {
       @PathVariable UUID orgId,
       @PathVariable UUID branchId,
       @RequestParam(required = false) List<String> status,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate fromDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate toDate,
       Pageable pageable) {
     staffAuthorizationService.requireStaffUserForBranch(
         orgId, branchId, principalResolver.require().iamUserId());
     Pageable normalized = pageRequestFactory.normalize(pageable, Sort.unsorted());
     List<CustomerDebtStatus> statuses = parseStatuses(status);
+    Instant fromInstant =
+        fromDate != null ? fromDate.atStartOfDay().toInstant(java.time.ZoneOffset.UTC) : null;
+    Instant toInstant =
+        toDate != null
+            ? toDate.plusDays(1).atStartOfDay().toInstant(java.time.ZoneOffset.UTC)
+            : null;
     return customerDebtService
-        .listByBranch(orgId, branchId, statuses, normalized)
+        .listByBranch(orgId, branchId, statuses, fromInstant, toInstant, normalized)
         .map(CustomerDebtOperatorController::toResponse);
   }
 

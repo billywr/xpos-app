@@ -10,10 +10,13 @@ import com.blinc.xpos.modules.cash.domain.MiscExpense;
 import com.blinc.xpos.modules.cash.service.MiscExpenseService;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
 import jakarta.validation.Valid;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -103,15 +107,35 @@ public class MiscExpenseOperatorController {
 
   @GetMapping("/misc-expenses")
   public MiscExpenseListResponse list(
-      @PathVariable UUID orgId, @PathVariable UUID branchId, Pageable pageable) {
+      @PathVariable UUID orgId,
+      @PathVariable UUID branchId,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate fromDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate toDate,
+      Pageable pageable) {
     staffAuthorizationService.requireStaffUserForBranch(
         orgId, branchId, principalResolver.require().iamUserId());
     Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
+    Instant fromInstant =
+        fromDate != null ? fromDate.atStartOfDay().toInstant(java.time.ZoneOffset.UTC) : null;
+    Instant toInstant =
+        toDate != null
+            ? toDate.plusDays(1).atStartOfDay().toInstant(java.time.ZoneOffset.UTC)
+            : null;
+    boolean hasDates = fromInstant != null && toInstant != null;
     var page =
-        miscExpenseService
-            .listByBranch(orgId, branchId, normalized)
-            .map(MiscExpenseOperatorController::toResponse);
-    var totalAmount = miscExpenseService.sumAmountByBranch(orgId, branchId);
+        hasDates
+            ? miscExpenseService
+                .listByBranch(orgId, branchId, fromInstant, toInstant, normalized)
+                .map(MiscExpenseOperatorController::toResponse)
+            : miscExpenseService
+                .listByBranch(orgId, branchId, normalized)
+                .map(MiscExpenseOperatorController::toResponse);
+    var totalAmount =
+        hasDates
+            ? miscExpenseService.sumAmountByBranch(orgId, branchId, fromInstant, toInstant)
+            : miscExpenseService.sumAmountByBranch(orgId, branchId);
     return MiscExpenseListResponse.from(page, totalAmount);
   }
 

@@ -64,6 +64,33 @@ public interface CustomerDebtRepository
   @Query(
       value =
           """
+          select d from CustomerDebt d
+          left join fetch d.customer
+          left join fetch d.createdBy
+          where d.org.id = :orgId and d.branch.id = :branchId
+          and d.createdAt >= :fromTs and d.createdAt < :toTs
+          order by case when (d.status
+              = com.blinc.xpos.common.constants.enums.CustomerDebtStatus.SETTLED
+              or d.status
+              = com.blinc.xpos.common.constants.enums.CustomerDebtStatus.CANCELLED)
+              then 1 else 0 end asc, d.createdAt desc
+          """,
+      countQuery =
+          """
+          select count(d) from CustomerDebt d
+          where d.org.id = :orgId and d.branch.id = :branchId
+          and d.createdAt >= :fromTs and d.createdAt < :toTs
+          """)
+  Page<CustomerDebt> findAllByOrgIdAndBranchIdAndCreatedAtBetween(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("fromTs") Instant fromTs,
+      @Param("toTs") Instant toTs,
+      Pageable pageable);
+
+  @Query(
+      value =
+          """
           select * from customer_debt cd
           where cd.org_id = :orgId and cd.branch_id = :branchId
           and cd.status::text in (:statusNames) and cd.created_at >= :from and cd.created_at < :to

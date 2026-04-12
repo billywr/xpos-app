@@ -150,8 +150,26 @@ public class MiscExpenseServiceImpl implements MiscExpenseService {
 
   @Override
   @Transactional(readOnly = true)
+  public BigDecimal sumAmountByBranch(
+      UUID orgId, UUID branchId, Instant fromInstant, Instant toInstant) {
+    branchService.require(orgId, branchId);
+    return miscExpenseRepository.sumAmountByOrgIdAndBranchIdAndDateRange(
+        orgId, branchId, fromInstant, toInstant);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public Page<MiscExpense> listByBranch(UUID orgId, UUID branchId, Pageable pageable) {
     branchService.require(orgId, branchId);
     return miscExpenseRepository.findAllByOrgIdAndBranchId(orgId, branchId, pageable);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<MiscExpense> listByBranch(
+      UUID orgId, UUID branchId, Instant fromInstant, Instant toInstant, Pageable pageable) {
+    branchService.require(orgId, branchId);
+    return miscExpenseRepository.findAllByOrgIdAndBranchIdAndCreatedAtBetween(
+        orgId, branchId, fromInstant, toInstant, pageable);
   }
 }

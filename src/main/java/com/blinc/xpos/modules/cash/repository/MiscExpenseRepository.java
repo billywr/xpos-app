@@ -39,6 +39,30 @@ public interface MiscExpenseRepository extends JpaRepository<MiscExpense, UUID> 
       @Param("orgId") UUID orgId, @Param("branchId") UUID branchId, Pageable pageable);
 
   @Query(
+      value =
+          """
+          select e from MiscExpense e
+          left join fetch e.createdBy
+          where e.org.id = :orgId and e.branch.id = :branchId
+          and e.deletedAt is null
+          and e.createdAt >= :fromTs and e.createdAt < :toTs
+          order by e.createdAt desc
+          """,
+      countQuery =
+          """
+          select count(e) from MiscExpense e
+          where e.org.id = :orgId and e.branch.id = :branchId
+          and e.deletedAt is null
+          and e.createdAt >= :fromTs and e.createdAt < :toTs
+          """)
+  Page<MiscExpense> findAllByOrgIdAndBranchIdAndCreatedAtBetween(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("fromTs") Instant fromTs,
+      @Param("toTs") Instant toTs,
+      Pageable pageable);
+
+  @Query(
       """
       select e from MiscExpense e
       where e.org.id = :orgId and e.branch.id = :branchId and e.deletedAt is null
@@ -82,4 +106,17 @@ public interface MiscExpenseRepository extends JpaRepository<MiscExpense, UUID> 
       """)
   BigDecimal sumAmountByOrgIdAndBranchId(
       @Param("orgId") UUID orgId, @Param("branchId") UUID branchId);
+
+  @Query(
+      """
+      select coalesce(sum(e.amount), 0) from MiscExpense e
+      where e.org.id = :orgId and e.branch.id = :branchId
+      and e.deletedAt is null
+      and e.createdAt >= :fromTs and e.createdAt < :toTs
+      """)
+  BigDecimal sumAmountByOrgIdAndBranchIdAndDateRange(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("fromTs") Instant fromTs,
+      @Param("toTs") Instant toTs);
 }

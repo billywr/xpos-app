@@ -1,6 +1,7 @@
 package com.blinc.xpos.modules.debt.service;
 
 import com.blinc.xpos.modules.debt.domain.CustomerDebt;
+import java.time.Instant;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -44,6 +45,18 @@ public interface CustomerDebtService {
       UUID orgId,
       UUID branchId,
       java.util.List<com.blinc.xpos.common.constants.enums.CustomerDebtStatus> statuses,
+      Pageable pageable);
+
+  /**
+   * List debts by branch, optionally filtered by status and date range. When statuses is null or
+   * empty, returns all statuses. When fromDate/toDate are null, no date filtering is applied.
+   */
+  Page<CustomerDebt> listByBranch(
+      UUID orgId,
+      UUID branchId,
+      java.util.List<com.blinc.xpos.common.constants.enums.CustomerDebtStatus> statuses,
+      Instant fromInstant,
+      Instant toInstant,
       Pageable pageable);
 
   Page<CustomerDebt> listByCustomer(UUID orgId, UUID customerId, Pageable pageable);

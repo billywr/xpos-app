@@ -287,11 +287,35 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
   @Transactional(readOnly = true)
   public Page<CustomerDebt> listByBranch(
       UUID orgId, UUID branchId, List<CustomerDebtStatus> statuses, Pageable pageable) {
+    return listByBranch(orgId, branchId, statuses, null, null, pageable);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<CustomerDebt> listByBranch(
+      UUID orgId,
+      UUID branchId,
+      List<CustomerDebtStatus> statuses,
+      Instant fromInstant,
+      Instant toInstant,
+      Pageable pageable) {
     branchService.require(orgId, branchId);
-    if (statuses != null && !statuses.isEmpty()) {
+    boolean hasStatuses = statuses != null && !statuses.isEmpty();
+    boolean hasDates = fromInstant != null && toInstant != null;
+
+    if (hasStatuses && hasDates) {
+      List<String> statusNames = statuses.stream().map(Enum::name).toList();
+      return customerDebtRepository.findAllByOrgIdAndBranchIdAndStatusInAndCreatedAtBetween(
+          orgId, branchId, statusNames, fromInstant, toInstant, pageable);
+    }
+    if (hasStatuses) {
       List<String> statusNames = statuses.stream().map(Enum::name).toList();
       return customerDebtRepository.findAllByOrgIdAndBranchIdAndStatusIn(
           orgId, branchId, statusNames, pageable);
+    }
+    if (hasDates) {
+      return customerDebtRepository.findAllByOrgIdAndBranchIdAndCreatedAtBetween(
+          orgId, branchId, fromInstant, toInstant, pageable);
     }
     return customerDebtRepository.findAllByOrgIdAndBranchId(orgId, branchId, pageable);
   }
