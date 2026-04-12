@@ -525,6 +525,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
             queryKey: ["admin-item-barcodes", token, selectedOrgId, editingItem.id],
           });
           queryClient.invalidateQueries({ queryKey: ["items", selectedOrgId] });
+          setSlideOpen(false);
+          setEditingItem(null);
+          resetForm();
         } catch (err: unknown) {
           const requestId = getApiErrorRequestId(err);
           toast.error(getApiErrorMessage(err), {
