@@ -30,6 +30,7 @@ import {
   Loader2,
   FileSpreadsheet,
   Download,
+  X,
 } from "lucide-react";
 import { downloadStdStockCountPdf } from "@/utils/stdStockCountPdf";
 import { Pagination, TableSearchInput } from "@/components/ui";
@@ -164,6 +165,7 @@ export function StandardStockCountSheetPage({
   const [localComments, setLocalComments] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
+  const [debtModal, setDebtModal] = useState<"day" | "all" | null>(null);
 
   const isToday = dateStr === todayStr();
   const isYesterday = dateStr === yesterdayStr();
@@ -751,66 +753,34 @@ export function StandardStockCountSheetPage({
           </div>
 
           <div className="mt-4 flex flex-wrap justify-end gap-3">
-            {/* Today's Debts badge with hover dropdown */}
-            <div className="group relative">
-              <div
-                className="inline-flex cursor-default items-center gap-3 rounded-xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-4 py-3 shadow-lg ring-2 ring-amber-100/50 sm:px-6 sm:py-4 dark:border-amber-800 dark:from-amber-950/50 dark:to-orange-950/50 dark:ring-amber-900/30"
-                role="status"
-              >
-                <span className="text-xs font-medium uppercase tracking-wider text-amber-700 sm:text-base dark:text-amber-400">
-                  Today Debts
-                </span>
-                <span className="text-lg font-bold tabular-nums text-amber-900 sm:text-2xl dark:text-amber-100">
-                  {formatCurrency(dayDebtsTotal)}
-                </span>
-              </div>
-              {dayDebts.length > 0 && (
-                <div className="absolute right-0 top-full z-20 mt-1 hidden w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl group-hover:block sm:w-80 dark:border-slate-600 dark:bg-slate-800">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Debtors — {dateStr}</p>
-                  <div className="max-h-48 space-y-1.5 overflow-y-auto">
-                    {dayDebts.map((d) => (
-                      <div key={d.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-sm dark:bg-slate-700/50">
-                        <div className="min-w-0">
-                          <p className="truncate font-medium text-slate-900 dark:text-white">{d.customerName}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{d.customerPhone ?? "—"} · Due: {d.dueDate ?? "—"}</p>
-                        </div>
-                        <span className="shrink-0 font-semibold tabular-nums text-amber-600 dark:text-amber-400">{formatCurrency(d.outstanding)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            {/* Total Debts badge with hover dropdown */}
-            <div className="group relative">
-              <div
-                className="inline-flex cursor-default items-center gap-3 rounded-xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 px-4 py-3 shadow-lg ring-2 ring-orange-100/50 sm:px-6 sm:py-4 dark:border-orange-800 dark:from-orange-950/50 dark:to-amber-950/50 dark:ring-orange-900/30"
-                role="status"
-              >
-                <span className="text-xs font-medium uppercase tracking-wider text-orange-700 sm:text-base dark:text-orange-400">
-                  Total Debts
-                </span>
-                <span className="text-lg font-bold tabular-nums text-orange-900 sm:text-2xl dark:text-orange-100">
-                  {formatCurrency(allDebtsTotal)}
-                </span>
-              </div>
-              {allDebts.length > 0 && (
-                <div className="absolute right-0 top-full z-20 mt-1 hidden w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl group-hover:block sm:w-80 dark:border-slate-600 dark:bg-slate-800">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">All outstanding debtors</p>
-                  <div className="max-h-48 space-y-1.5 overflow-y-auto">
-                    {allDebts.map((d) => (
-                      <div key={d.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-sm dark:bg-slate-700/50">
-                        <div className="min-w-0">
-                          <p className="truncate font-medium text-slate-900 dark:text-white">{d.customerName}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{d.customerPhone ?? "—"} · Due: {d.dueDate ?? "—"} · {d.createdAt?.slice(0, 10) ?? "—"}</p>
-                        </div>
-                        <span className="shrink-0 font-semibold tabular-nums text-orange-600 dark:text-orange-400">{formatCurrency(d.outstanding)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Today's Debts badge — hover or click to open modal */}
+            <button
+              type="button"
+              onClick={() => dayDebts.length > 0 && setDebtModal("day")}
+              onMouseEnter={() => dayDebts.length > 0 && setDebtModal("day")}
+              className="inline-flex cursor-pointer items-center gap-3 rounded-xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-4 py-3 shadow-lg ring-2 ring-amber-100/50 transition hover:shadow-xl active:scale-[0.98] sm:px-6 sm:py-4 dark:border-amber-800 dark:from-amber-950/50 dark:to-orange-950/50 dark:ring-amber-900/30"
+            >
+              <span className="text-xs font-medium uppercase tracking-wider text-amber-700 sm:text-base dark:text-amber-400">
+                Today Debts
+              </span>
+              <span className="text-lg font-bold tabular-nums text-amber-900 sm:text-2xl dark:text-amber-100">
+                {formatCurrency(dayDebtsTotal)}
+              </span>
+            </button>
+            {/* Total Debts badge — hover or click to open modal */}
+            <button
+              type="button"
+              onClick={() => allDebts.length > 0 && setDebtModal("all")}
+              onMouseEnter={() => allDebts.length > 0 && setDebtModal("all")}
+              className="inline-flex cursor-pointer items-center gap-3 rounded-xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 px-4 py-3 shadow-lg ring-2 ring-orange-100/50 transition hover:shadow-xl active:scale-[0.98] sm:px-6 sm:py-4 dark:border-orange-800 dark:from-orange-950/50 dark:to-amber-950/50 dark:ring-orange-900/30"
+            >
+              <span className="text-xs font-medium uppercase tracking-wider text-orange-700 sm:text-base dark:text-orange-400">
+                Total Debts
+              </span>
+              <span className="text-lg font-bold tabular-nums text-orange-900 sm:text-2xl dark:text-orange-100">
+                {formatCurrency(allDebtsTotal)}
+              </span>
+            </button>
             <div
               className="inline-flex items-center gap-3 rounded-xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-rose-50 px-4 py-3 shadow-lg ring-2 ring-red-100/50 sm:px-6 sm:py-4 dark:border-red-800 dark:from-red-950/50 dark:to-rose-950/50 dark:ring-red-900/30"
               role="status"
@@ -842,6 +812,60 @@ export function StandardStockCountSheetPage({
             </p>
           )}
         </>
+      )}
+
+      {/* Debtors modal */}
+      {debtModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
+          onClick={() => setDebtModal(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-600 dark:bg-slate-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                {debtModal === "day" ? `Debtors — ${dateStr}` : "All Outstanding Debtors"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setDebtModal(null)}
+                className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto p-4">
+              {(debtModal === "day" ? dayDebts : allDebts).length === 0 ? (
+                <p className="py-6 text-center text-slate-500 dark:text-slate-400">No debtors</p>
+              ) : (
+                <div className="space-y-2">
+                  {(debtModal === "day" ? dayDebts : allDebts).map((d) => (
+                    <div key={d.id} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-700/50">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900 dark:text-white">{d.customerName}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          {d.customerPhone ?? "—"} · Due: {d.dueDate ?? "—"}
+                          {debtModal === "all" ? ` · Recorded: ${d.createdAt?.slice(0, 10) ?? "—"}` : ""}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 text-lg font-bold tabular-nums ${debtModal === "day" ? "text-amber-600 dark:text-amber-400" : "text-orange-600 dark:text-orange-400"}`}>
+                        {formatCurrency(d.outstanding)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="border-t border-slate-200 px-5 py-3 text-right dark:border-slate-700">
+              <span className="text-sm font-bold text-slate-900 dark:text-white">
+                Total: {formatCurrency(debtModal === "day" ? dayDebtsTotal : allDebtsTotal)}
+              </span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

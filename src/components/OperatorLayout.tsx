@@ -33,6 +33,7 @@ import { clearStoredAuth } from "@/utils/authStorage";
 import { clearStoredContext } from "@/utils/contextStorage";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
+import { useCartPersistence } from "@/hooks/useCartPersistence";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { isOperatorNavItemVisible } from "@/hooks/useOperatorNavVisibility";
 import { OPERATOR_NAV_ITEMS } from "@/config/operatorNavItems";
@@ -62,6 +63,7 @@ export function OperatorLayout() {
   const queryClient = useQueryClient();
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
   const [mobileOpen, setMobileOpen] = useState(false);
+  useCartPersistence();
   const token = useAppSelector(selectToken);
   const keycloakUsername = useAppSelector(selectUsername);
   const orgId = useAppSelector(selectOrgId);

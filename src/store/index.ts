@@ -1,11 +1,10 @@
 import { configureStore } from "@reduxjs/toolkit";
 import authReducer from "./slices/authSlice";
-import cartReducer, { addLine } from "./slices/cartSlice";
+import cartReducer from "./slices/cartSlice";
 import orgContextReducer from "./slices/orgContextSlice";
 import { setOrg, setBranch, setTerminal } from "./slices/orgContextSlice";
 import { getStoredAuth } from "@/utils/authStorage";
 import { getStoredContext, getStoredAdminContext } from "@/utils/contextStorage";
-import { getStoredCart, setStoredCart } from "@/utils/cartStorage";
 
 const storedAuth = getStoredAuth();
 
@@ -30,28 +29,7 @@ export const store = configureStore({
       : undefined,
 });
 
-// Restore cart from sessionStorage
-const storedCart = getStoredCart();
-if (storedCart) {
-  for (const line of storedCart.lines) {
-    store.dispatch(
-      addLine({
-        itemId: line.itemId,
-        itemName: line.itemName,
-        primaryImageUrl: line.primaryImageUrl,
-        qty: line.qty,
-        unitPrice: line.unitPrice,
-        modifiers: line.modifiers,
-        notes: line.notes,
-      }),
-    );
-  }
-}
-
-// Persist cart to sessionStorage on every change
-store.subscribe(() => {
-  setStoredCart(store.getState().cart);
-});
+// Cart persistence is handled by useCartPersistence hook (backend API, not sessionStorage)
 
 // Restore context from sessionStorage so refresh keeps user context (Analytics, Revenue, etc.)
 const storedContext = getStoredContext();

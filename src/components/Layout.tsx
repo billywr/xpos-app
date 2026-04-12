@@ -16,7 +16,6 @@ import { APP_NAME_KEY } from "@/config/headerNavItems";
 import { set401Handler } from "@/api/client";
 import { clearStoredAuth } from "@/utils/authStorage";
 import { clearStoredContext } from "@/utils/contextStorage";
-import { clearStoredCart } from "@/utils/cartStorage";
 
 const HEADER_NAV_LINKS = [
   { to: "/", label: "Home", end: true },
@@ -51,7 +50,6 @@ export function Layout() {
     set401Handler(() => {
       clearStoredAuth();
       clearStoredContext();
-      clearStoredCart();
       dispatch(clearCredentials());
       dispatch(clearContext());
       navigate("/login", { replace: true });
@@ -64,7 +62,6 @@ export function Layout() {
   useIdleLogout(() => {
     clearStoredAuth();
     clearStoredContext();
-    clearStoredCart();
     dispatch(clearCredentials());
     dispatch(clearContext());
     navigate("/login", { replace: true, state: { from: "idle" } });
@@ -78,7 +75,6 @@ export function Layout() {
   const handleLogout = () => {
     clearStoredAuth();
     clearStoredContext();
-    clearStoredCart();
     dispatch(clearCredentials());
     dispatch(clearContext());
     const returnTo = location.pathname + location.search || "/";
