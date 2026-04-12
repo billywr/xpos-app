@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -338,6 +338,23 @@ export function StandardStockCountSheetPage({
       setLocalComments((prev) => ({ ...prev, [itemId]: value }));
     }
   }
+
+  // Auto-save with 1.5s debounce after edits
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const doAutoSave = useCallback(() => {
+    if (!hasErrors && canEdit && hasChanges && !saveMutation.isPending) {
+      saveMutation.mutate();
+    }
+  }, [hasErrors, canEdit, hasChanges, saveMutation]);
+
+  useEffect(() => {
+    if (!hasChanges || hasErrors || !canEdit) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(doAutoSave, 1500);
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [localClosings, localComments, hasChanges, hasErrors, canEdit, doAutoSave]);
 
   function handleSave() {
     if (hasErrors) {

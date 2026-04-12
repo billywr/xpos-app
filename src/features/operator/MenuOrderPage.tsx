@@ -1279,7 +1279,7 @@ function CartSidebarContent({
         )}
       </div>
       <div className="mt-1 shrink-0 border-t border-slate-200 pt-2 dark:border-slate-600">
-        <div className="flex items-center justify-between text-xl font-bold text-slate-900 dark:text-white">
+        <div className="flex items-center justify-between text-3xl font-bold text-slate-900 dark:text-white">
           <span>Total</span>
           <span>{formatCurrency(total)}</span>
         </div>

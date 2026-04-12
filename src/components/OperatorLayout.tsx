@@ -1,6 +1,7 @@
 import { Outlet, Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   ChevronDown,
+  FileSpreadsheet,
   LogOut,
   Menu,
   PanelLeftClose,
@@ -8,12 +9,13 @@ import {
   RefreshCw,
   Search,
   Settings,
+  ShoppingCart,
   Store,
   UtensilsCrossed,
   X,
 } from "lucide-react";
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
 import {
@@ -56,6 +58,7 @@ export function OperatorLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
   const [mobileOpen, setMobileOpen] = useState(false);
   const token = useAppSelector(selectToken);
@@ -298,8 +301,35 @@ export function OperatorLayout() {
           </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
+          <NavLink
+            to="/operator/menu-order"
+            className={({ isActive }) =>
+              `hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition sm:flex ${
+                isActive
+                  ? "bg-primary-600 text-white"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
+              }`
+            }
+          >
+            <ShoppingCart className="h-4 w-4" />
+            POS
+          </NavLink>
+          <NavLink
+            to="/operator/inventory/stock-count"
+            className={({ isActive }) =>
+              `hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition lg:flex ${
+                isActive
+                  ? "bg-primary-600 text-white"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
+              }`
+            }
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Stock Taking
+          </NavLink>
           <button
             type="button"
+            onClick={() => queryClient.invalidateQueries()}
             className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
             aria-label="Refresh"
           >

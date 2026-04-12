@@ -63,7 +63,7 @@ export function PageHeader({
             </h1>
             <div
               className={
-                "grid grid-rows-[1fr] transition-[grid-template-rows] duration-200 ease-out " +
+                "hidden lg:grid grid-rows-[1fr] transition-[grid-template-rows] duration-200 ease-out " +
                 "[@media(hover:hover)]:grid-rows-[0fr] [@media(hover:hover)]:group-hover:grid-rows-[1fr]"
               }
             >
@@ -84,7 +84,7 @@ export function PageHeader({
               {title}
             </h1>
             {subtitle && (
-              <p className="mt-1 text-slate-600 dark:text-slate-400">{subtitle}</p>
+              <p className="mt-1 hidden text-slate-600 lg:block dark:text-slate-400">{subtitle}</p>
             )}
           </>
         )}
