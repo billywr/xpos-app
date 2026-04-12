@@ -77,6 +77,8 @@ services:
       SPRING_DATA_REDIS_PORT: "6379"
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       XPOS_KEYCLOAK_JWK_URI: http://keycloak:8080/realms/master/protocol/openid-connect/certs
+    volumes:
+      - xpos-uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,3 +88,6 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+
+volumes:
+  xpos-uploads:
