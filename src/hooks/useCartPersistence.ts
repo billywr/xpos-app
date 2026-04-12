@@ -1,60 +1,63 @@
 import { useEffect, useRef } from "react";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
-import { addLine } from "@/store/slices/cartSlice";
-import { selectToken } from "@/store/selectors/authSelectors";
+import { addLine, clearCart } from "@/store/slices/cartSlice";
+import { selectToken, selectIamUserId } from "@/store/selectors/authSelectors";
 import { selectOrgId, selectBranchId } from "@/store/selectors/orgContextSelectors";
 import { fetchPendingCart, savePendingCart, deletePendingCart } from "@/api/pendingCart";
 import { store } from "@/store";
 
 /**
- * Loads the pending cart from the backend on mount, and debounce-saves
- * cart changes back to the backend (1s delay).
- *
- * Place this hook once in the operator layout or POS page.
+ * Loads the pending cart from the backend when the operator layout mounts
+ * or when the user/branch context changes. Debounce-saves cart changes
+ * back to the backend (1s delay).
  */
 export function useCartPersistence() {
   const dispatch = useAppDispatch();
   const token = useAppSelector(selectToken);
   const orgId = useAppSelector(selectOrgId);
   const branchId = useAppSelector(selectBranchId);
-  const loadedRef = useRef(false);
+  const iamUserId = useAppSelector(selectIamUserId);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevCartJsonRef = useRef<string>("");
+  const loadedKeyRef = useRef<string>("");
 
-  // Load cart from backend on first mount (when context is ready)
+  // Load cart from backend whenever user or branch changes
   useEffect(() => {
-    if (!token || !orgId || !branchId || loadedRef.current) return;
-    loadedRef.current = true;
+    if (!token || !orgId || !branchId || !iamUserId) return;
+
+    const key = `${iamUserId}:${orgId}:${branchId}`;
+    if (loadedKeyRef.current === key) return;
+    loadedKeyRef.current = key;
+
+    // Clear any stale cart from a previous session
+    dispatch(clearCart());
 
     fetchPendingCart(token, orgId, branchId)
       .then((saved) => {
+        // Verify context hasn't changed during the async fetch
+        const currentState = store.getState();
+        if (currentState.auth.iamUserId !== iamUserId) return;
+
         if (saved && Array.isArray(saved.lines) && saved.lines.length > 0) {
-          // Only restore if the current cart is empty
-          const current = store.getState().cart;
-          if (current.lines.length === 0) {
-            for (const line of saved.lines) {
-              dispatch(
-                addLine({
-                  itemId: line.itemId,
-                  itemName: line.itemName,
-                  primaryImageUrl: line.primaryImageUrl,
-                  qty: line.qty,
-                  unitPrice: line.unitPrice,
-                  modifiers: line.modifiers,
-                  notes: line.notes,
-                }),
-              );
-            }
+          for (const line of saved.lines) {
+            dispatch(
+              addLine({
+                itemId: line.itemId,
+                itemName: line.itemName,
+                primaryImageUrl: line.primaryImageUrl,
+                qty: line.qty,
+                unitPrice: line.unitPrice,
+                modifiers: line.modifiers,
+                notes: line.notes,
+              }),
+            );
           }
         }
-        // Snapshot current state so we don't immediately re-save what we just loaded
         prevCartJsonRef.current = JSON.stringify(store.getState().cart);
       })
-      .catch(() => {
-        // Silently ignore — cart just won't be restored
-      });
-  }, [token, orgId, branchId, dispatch]);
+      .catch(() => {});
+  }, [token, orgId, branchId, iamUserId, dispatch]);
 
   // Debounce-save cart to backend on every change
   useEffect(() => {
@@ -64,7 +67,6 @@ export function useCartPersistence() {
       const cart = store.getState().cart;
       const json = JSON.stringify(cart);
 
-      // Skip if nothing changed
       if (json === prevCartJsonRef.current) return;
       prevCartJsonRef.current = json;
 
@@ -83,7 +85,6 @@ export function useCartPersistence() {
       unsubscribe();
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
-        // Flush pending save immediately on unmount
         const cart = store.getState().cart;
         if (cart.lines.length === 0) {
           deletePendingCart(token, orgId, branchId).catch(() => {});
@@ -93,20 +94,4 @@ export function useCartPersistence() {
       }
     };
   }, [token, orgId, branchId]);
-}
-
-/**
- * Clears the pending cart on the backend (call on logout/idle).
- */
-export async function clearPendingCartOnServer(
-  token: string | null,
-  orgId: string | null,
-  branchId: string | null
-): Promise<void> {
-  if (!token || !orgId || !branchId) return;
-  try {
-    await deletePendingCart(token, orgId, branchId);
-  } catch {
-    // Best-effort
-  }
 }
