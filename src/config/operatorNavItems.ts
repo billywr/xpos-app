@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   NotebookPen,
   Receipt,
-  ReceiptText,
   ShoppingCart,
   UtensilsCrossed,
   Wallet,
@@ -45,8 +44,7 @@ export const OPERATOR_NAV_ITEMS: OperatorNavItemConfig[] = [
   navItem("/operator/menu-order", "POS", "Main", true, ShoppingCart),
   navItem("/operator/receipts", "Receipts", "Main", true, Receipt),
   navItem("/operator/analytics", "Analytics", "Main", true, BarChart3),
-  navItem("/operator/debts", "Customer Debts", "Main", true, HandCoins),
-  navItem("/operator/misc-expenses", "Misc Expenses", "Main", true, ReceiptText),
+  navItem("/operator/debts", "Debts & Expenses", "Main", true, HandCoins),
   navItem("/operator/stock-count", "Stock count sessions", "Main", true, ClipboardList),
   navItem(
     "/operator/manual-stock-sheet",

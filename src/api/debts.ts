@@ -59,8 +59,10 @@ export async function fetchDebts(
     page?: number;
     size?: number;
     sort?: string;
-    /** Single status or multiple (e.g. OPEN + PARTIAL for “still owed”). */
+    /** Single status or multiple (e.g. OPEN + PARTIAL for "still owed"). */
     status?: string | readonly string[];
+    fromDate?: string;
+    toDate?: string;
   }
 ): Promise<PageResponse<CustomerDebtResponse>> {
   const search = new URLSearchParams();
@@ -68,6 +70,8 @@ export async function fetchDebts(
   if (p.page !== undefined) search.set("page", String(p.page));
   if (p.size !== undefined) search.set("size", String(p.size));
   if (p.sort) search.set("sort", p.sort);
+  if (p.fromDate) search.set("fromDate", p.fromDate);
+  if (p.toDate) search.set("toDate", p.toDate);
   if (p.status !== undefined && p.status !== "") {
     const list = Array.isArray(p.status) ? p.status : [p.status];
     for (const s of list) {

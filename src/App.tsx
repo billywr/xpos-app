@@ -41,8 +41,7 @@ import { RevenueDashboardPage } from "@/features/admin/RevenueDashboardPage";
 import { StockTakingSchedulesPage } from "@/features/admin/StockTakingSchedulesPage";
 import { StockCountSessionsPage } from "@/features/admin/StockCountSessionsPage";
 import { AnalyticsPage } from "@/features/operator/AnalyticsPage";
-import { DebtsPage } from "@/features/operator/DebtsPage";
-import { MiscExpensesPage } from "@/features/operator/MiscExpensesPage";
+import { DebtsAndExpensesPage } from "@/features/operator/DebtsAndExpensesPage";
 import { StockCountPage } from "@/features/operator/StockCountPage";
 import { StockCountSessionPage } from "@/features/operator/StockCountSessionPage";
 import { StandardStockCountSheetPage } from "@/features/operator/StandardStockCountSheetPage";
@@ -150,8 +149,8 @@ function App() {
           <Route path="receipts" element={<ReceiptsPage />} />
           <Route path="tables/*" element={<TablesPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
-          <Route path="debts" element={<DebtsPage />} />
-          <Route path="misc-expenses" element={<MiscExpensesPage />} />
+          <Route path="debts" element={<DebtsAndExpensesPage />} />
+          <Route path="misc-expenses" element={<Navigate to="/operator/debts" replace />} />
           <Route path="stock-count" element={<StockCountPage />} />
           <Route
             path="stock-count/:sessionId"

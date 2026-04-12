@@ -7,7 +7,6 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  ReceiptText,
   RefreshCw,
   Search,
   Settings,
@@ -342,21 +341,8 @@ export function OperatorLayout() {
               }
             >
               <HandCoins className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              Debts
-            </NavLink>
-            <NavLink
-              to="/operator/misc-expenses"
-              className={({ isActive }) =>
-                `flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition sm:gap-1.5 sm:px-2.5 sm:text-sm ${
-                  isActive
-                    ? "bg-primary-600 text-white"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
-                }`
-              }
-            >
-              <ReceiptText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Expenses</span>
-              <span className="sm:hidden">Exp</span>
+              <span className="hidden sm:inline">Debts & Expenses</span>
+              <span className="sm:hidden">Debts</span>
             </NavLink>
           </div>
           <button

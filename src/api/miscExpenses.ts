@@ -1,4 +1,4 @@
-import { apiFetch, buildPageQuery } from "@/api/client";
+import { apiFetch } from "@/api/client";
 
 export type MiscExpenseCategory =
   | "UTILITIES"
@@ -52,11 +52,18 @@ export async function fetchMiscExpenses(
   token: string | null,
   orgId: string,
   branchId: string,
-  params?: { page?: number; size?: number; sort?: string }
+  params?: { page?: number; size?: number; sort?: string; fromDate?: string; toDate?: string }
 ): Promise<MiscExpenseListResponse> {
-  const query = buildPageQuery(params ?? {});
+  const search = new URLSearchParams();
+  const p = params ?? {};
+  if (p.page !== undefined) search.set("page", String(p.page));
+  if (p.size !== undefined) search.set("size", String(p.size));
+  if (p.sort) search.set("sort", p.sort);
+  if (p.fromDate) search.set("fromDate", p.fromDate);
+  if (p.toDate) search.set("toDate", p.toDate);
+  const qs = search.toString();
   return apiFetch<MiscExpenseListResponse>(
-    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/misc-expenses${query}`,
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/misc-expenses${qs ? `?${qs}` : ""}`,
     { token }
   );
 }

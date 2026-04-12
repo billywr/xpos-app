@@ -16,6 +16,7 @@ import {
   saveStdStockCount,
   type StdStockCountRowResponse,
 } from "@/api/stdStockCount";
+import { fetchOperatorAnalyticsSnapshot } from "@/api/operatorAnalytics";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -173,6 +174,13 @@ export function StandardStockCountSheetPage({
     enabled: Boolean(token && orgId && branchId),
     staleTime: 0,
     refetchOnMount: "always",
+  });
+
+  const { data: analytics } = useQuery({
+    queryKey: ["stock-sheet-analytics", token, orgId, branchId, dateStr],
+    queryFn: () =>
+      fetchOperatorAnalyticsSnapshot(token, orgId, branchId, dateStr, dateStr),
+    enabled: Boolean(token && orgId && branchId),
   });
 
   function parseClosing(itemId: string, row: StdStockCountRowResponse): number {
@@ -692,15 +700,37 @@ export function StandardStockCountSheetPage({
             )}
           </div>
 
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex flex-wrap justify-end gap-3">
             <div
-              className="total-sales-badge inline-flex items-center gap-3 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 px-6 py-4 shadow-lg ring-2 ring-emerald-100/50 dark:border-emerald-800 dark:from-emerald-950/50 dark:to-teal-950/50 dark:ring-emerald-900/30"
+              className="inline-flex items-center gap-3 rounded-xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-4 py-3 shadow-lg ring-2 ring-amber-100/50 sm:px-6 sm:py-4 dark:border-amber-800 dark:from-amber-950/50 dark:to-orange-950/50 dark:ring-amber-900/30"
               role="status"
             >
-              <span className="text-base font-medium uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+              <span className="text-xs font-medium uppercase tracking-wider text-amber-700 sm:text-base dark:text-amber-400">
+                Debts
+              </span>
+              <span className="text-lg font-bold tabular-nums text-amber-900 sm:text-2xl dark:text-amber-100">
+                {formatCurrency(analytics?.debtIntelligence?.totalOutstanding ?? 0)}
+              </span>
+            </div>
+            <div
+              className="inline-flex items-center gap-3 rounded-xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-rose-50 px-4 py-3 shadow-lg ring-2 ring-red-100/50 sm:px-6 sm:py-4 dark:border-red-800 dark:from-red-950/50 dark:to-rose-950/50 dark:ring-red-900/30"
+              role="status"
+            >
+              <span className="text-xs font-medium uppercase tracking-wider text-red-700 sm:text-base dark:text-red-400">
+                Expenses
+              </span>
+              <span className="text-lg font-bold tabular-nums text-red-900 sm:text-2xl dark:text-red-100">
+                {formatCurrency(analytics?.expenseIntelligence?.todayTotal ?? 0)}
+              </span>
+            </div>
+            <div
+              className="inline-flex items-center gap-3 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 px-4 py-3 shadow-lg ring-2 ring-emerald-100/50 sm:px-6 sm:py-4 dark:border-emerald-800 dark:from-emerald-950/50 dark:to-teal-950/50 dark:ring-emerald-900/30"
+              role="status"
+            >
+              <span className="text-xs font-medium uppercase tracking-wider text-emerald-700 sm:text-base dark:text-emerald-400">
                 Total Sales
               </span>
-              <span className="text-2xl font-bold tabular-nums text-emerald-900 dark:text-emerald-100">
+              <span className="text-lg font-bold tabular-nums text-emerald-900 sm:text-2xl dark:text-emerald-100">
                 {formatCurrency(totals.amount)}
               </span>
             </div>
