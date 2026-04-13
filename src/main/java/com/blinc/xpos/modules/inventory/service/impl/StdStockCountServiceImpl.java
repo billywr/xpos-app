@@ -90,16 +90,28 @@ public class StdStockCountServiceImpl implements StdStockCountService {
             });
   }
 
-  private static Map<UUID, Integer> qtyByItemFromSumRows(List<Object[]> rows) {
+  private static Map<UUID, BigDecimal> qtyByItemFromSumRows(List<Object[]> rows) {
     return rows.stream()
         .collect(
             Collectors.toMap(
-                row -> (UUID) row[0],
-                row -> ((BigDecimal) row[1]).setScale(0, ROUNDING).intValue()));
+                row -> (UUID) row[0], row -> ((BigDecimal) row[1]).setScale(SCALE, ROUNDING)));
   }
 
-  private static int nonnegativeIntFromLedgerQty(BigDecimal qty) {
-    return Math.max(0, qty.setScale(0, ROUNDING).intValue());
+  private static BigDecimal nonnegativeQtyFromLedgerQty(BigDecimal qty) {
+    BigDecimal scaled = qty.setScale(SCALE, ROUNDING);
+    return scaled.signum() < 0 ? BigDecimal.ZERO.setScale(SCALE) : scaled;
+  }
+
+  /**
+   * Strip trailing zeros so whole-number quantities serialize as integers (e.g. {@code 5} not
+   * {@code 5.000}).
+   */
+  private static BigDecimal compact(BigDecimal x) {
+    if (x == null) {
+      return null;
+    }
+    BigDecimal s = x.stripTrailingZeros();
+    return s.scale() < 0 ? s.setScale(0) : s;
   }
 
   private Map<UUID, BigDecimal> ledgerNetQtyByItemUpToExclusive(
@@ -137,12 +149,12 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       return new StdStockCountSheetDto(businessDate, branchId, List.of());
     }
 
-    Map<UUID, Integer> addedGrnByItem =
+    Map<UUID, BigDecimal> addedGrnByItem =
         qtyByItemFromSumRows(
             grnLineRepository.sumLineQtyByItemIdForBranchAndGrnReceivedAtRange(
                 orgId, branchId, dayStart, dayEnd));
 
-    Map<UUID, Integer> stockTakeAddedByItem =
+    Map<UUID, BigDecimal> stockTakeAddedByItem =
         qtyByItemFromSumRows(
             stockMovementRepository.sumStockTakePositiveAdjustQtyByItemIdForBranchAndDateRange(
                 orgId, branchId, dayStart, dayEnd));
@@ -168,20 +180,21 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     List<StdStockCountRowDto> rows = new ArrayList<>();
     for (PriceListItem pli : items) {
       UUID itemId = pli.getItem().getId();
-      int addedGrn = addedGrnByItem.getOrDefault(itemId, 0);
-      int addedToday = stockTakeAddedByItem.getOrDefault(itemId, 0);
-      int systemCountBeforeToday =
-          nonnegativeIntFromLedgerQty(ledgerAtDayEnd.getOrDefault(itemId, BigDecimal.ZERO));
-      int impliedOpening = systemCountBeforeToday - addedGrn - addedToday;
-      int fallbackOpening = Math.max(0, impliedOpening);
+      BigDecimal addedGrn = addedGrnByItem.getOrDefault(itemId, BigDecimal.ZERO);
+      BigDecimal addedToday = stockTakeAddedByItem.getOrDefault(itemId, BigDecimal.ZERO);
+      BigDecimal systemCountBeforeToday =
+          nonnegativeQtyFromLedgerQty(ledgerAtDayEnd.getOrDefault(itemId, BigDecimal.ZERO));
+      BigDecimal impliedOpening = systemCountBeforeToday.subtract(addedGrn).subtract(addedToday);
+      BigDecimal fallbackOpening =
+          impliedOpening.signum() < 0 ? BigDecimal.ZERO.setScale(SCALE) : impliedOpening;
       StdStockCountSnapshot previousSnap = previousByItem.get(itemId);
-      int opening =
+      BigDecimal opening =
           previousSnap != null
-              ? nonnegativeIntFromLedgerQty(previousSnap.getClosingQty())
+              ? nonnegativeQtyFromLedgerQty(previousSnap.getClosingQty())
               : fallbackOpening;
       BigDecimal price = pli.getPrice() != null ? pli.getPrice() : BigDecimal.ZERO;
       StdStockCountSnapshot snap = todayByItem.get(itemId);
-      Integer closing = snap != null ? snap.getClosingQty().setScale(0, ROUNDING).intValue() : null;
+      BigDecimal closing = snap != null ? snap.getClosingQty().setScale(SCALE, ROUNDING) : null;
       Instant lastSavedAt = snap != null ? snap.getLastSavedAt() : null;
       String rowComments = snap != null ? snap.getComments() : null;
 
@@ -190,12 +203,12 @@ public class StdStockCountServiceImpl implements StdStockCountService {
               itemId,
               pli.getItem().getSku() != null ? pli.getItem().getSku() : "",
               pli.getItem().getName(),
-              opening,
-              addedGrn,
-              addedToday,
-              systemCountBeforeToday,
+              compact(opening),
+              compact(addedGrn),
+              compact(addedToday),
+              compact(systemCountBeforeToday),
               price,
-              closing,
+              compact(closing),
               lastSavedAt,
               rowComments));
     }
