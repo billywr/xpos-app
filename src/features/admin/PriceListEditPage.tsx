@@ -501,7 +501,7 @@ export function PriceListEditPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+      <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
         <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-600">
           <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
             Menu item prices
@@ -532,7 +532,7 @@ export function PriceListEditPage() {
                 sizeOptions={[10, 25, 50, 100]}
               />
             )}
-            <div className="overflow-x-auto">
+            <div className="min-h-0 flex-1 overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-700/50">

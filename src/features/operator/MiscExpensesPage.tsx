@@ -269,7 +269,7 @@ export function MiscExpensesPage() {
       {!isLoading && !isError && (
         <>
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search expenses…" className="mb-4" />
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             {filteredExpenses.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16">
                 <Receipt className="h-12 w-12 text-slate-400 dark:text-slate-500" />
@@ -299,7 +299,7 @@ export function MiscExpensesPage() {
                 />
               )}
               <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
-              <div className="relative overflow-auto">
+              <div className="relative min-h-0 flex-1 overflow-auto">
                 <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "840px" }}>
                   <thead>

@@ -1,4 +1,3 @@
-import { useId } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 
@@ -21,8 +20,6 @@ export interface PageHeaderProps {
 
 export function PageHeader({
   title,
-  subtitle,
-  subtitleRevealOnTitleHover = false,
   icon: Icon,
   fallbackTo,
   className = "",
@@ -30,7 +27,6 @@ export function PageHeader({
   children,
 }: PageHeaderProps) {
   const navigate = useNavigate();
-  const subtitleDescriptionId = useId();
 
   const handleBack = () => {
     if (fallbackTo && window.history.length <= 1) {
@@ -52,42 +48,10 @@ export function PageHeader({
         <ChevronLeft className="h-6 w-6" />
       </button>
       <div className="min-w-0 flex-1">
-        {subtitle && subtitleRevealOnTitleHover ? (
-          <div className="group inline-block max-w-full cursor-default">
-            <h1
-              className="flex items-center gap-2 text-xl font-bold text-slate-800 sm:text-2xl dark:text-white"
-              aria-describedby={subtitleDescriptionId}
-            >
-              {Icon && <Icon className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />}
-              {title}
-            </h1>
-            <div
-              className={
-                "hidden lg:grid grid-rows-[1fr] transition-[grid-template-rows] duration-200 ease-out " +
-                "[@media(hover:hover)]:grid-rows-[0fr] [@media(hover:hover)]:group-hover:grid-rows-[1fr]"
-              }
-            >
-              <div className="min-h-0 overflow-hidden">
-                <p
-                  id={subtitleDescriptionId}
-                  className="mt-1 text-slate-600 dark:text-slate-400"
-                >
-                  {subtitle}
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            <h1 className="flex items-center gap-2 text-xl font-bold text-slate-800 sm:text-2xl dark:text-white">
-              {Icon && <Icon className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />}
-              {title}
-            </h1>
-            {subtitle && (
-              <p className="mt-1 hidden text-slate-600 lg:block dark:text-slate-400">{subtitle}</p>
-            )}
-          </>
-        )}
+        <h1 className="flex items-center gap-2 text-xl font-bold text-slate-800 sm:text-2xl dark:text-white">
+          {Icon && <Icon className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />}
+          {title}
+        </h1>
         {children}
       </div>
     </header>
