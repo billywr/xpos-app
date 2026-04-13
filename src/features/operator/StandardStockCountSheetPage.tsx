@@ -222,9 +222,10 @@ export function StandardStockCountSheetPage({
   function parseClosing(itemId: string, row: StdStockCountRowResponse): number {
     const s = localClosings[itemId];
     if (s === undefined) return defaultClosingFromRow(row);
-    if (s === "") return 0;
-    const n = parseInt(s, 10);
-    return Number.isNaN(n) ? 0 : n;
+    if (s === "" || s === ".") return 0;
+    const n = parseFloat(s);
+    if (Number.isNaN(n)) return 0;
+    return Math.round(n * 1000) / 1000;
   }
 
   function parseCommentForSave(itemId: string, row: StdStockCountRowResponse): string {
@@ -320,7 +321,10 @@ export function StandardStockCountSheetPage({
     return rows.some((r) => {
       const closingLocal = localClosings[r.itemId];
       if (closingLocal !== undefined) {
-        const parsed = closingLocal === "" ? 0 : (parseInt(closingLocal, 10) || 0);
+        const parsed =
+          closingLocal === "" || closingLocal === "."
+            ? 0
+            : parseFloat(closingLocal) || 0;
         const baseline = defaultClosingFromRow(r);
         if (parsed !== baseline) return true;
       }
@@ -391,7 +395,8 @@ export function StandardStockCountSheetPage({
   }
 
   function handleClosingChange(itemId: string, value: string) {
-    if (value === "" || /^\d+$/.test(value)) {
+    // Allow empty, an in-progress decimal point, and up to 3 fractional digits.
+    if (value === "" || /^\d*(\.\d{0,3})?$/.test(value)) {
       setLocalClosings((prev) => ({ ...prev, [itemId]: value }));
     }
   }
@@ -669,8 +674,8 @@ export function StandardStockCountSheetPage({
                         <div className="flex flex-col items-end">
                           <input
                             type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
+                            inputMode="decimal"
+                            pattern="[0-9]*\.?[0-9]{0,3}"
                             value={
                               r.itemId in localClosings
                                 ? localClosings[r.itemId]
@@ -679,7 +684,7 @@ export function StandardStockCountSheetPage({
                             onChange={(e) =>
                               handleClosingChange(r.itemId, e.target.value)
                             }
-                            className={`w-12 rounded border px-1 py-0.5 text-right text-xs tabular-nums sm:w-16 sm:px-2 sm:py-1 sm:text-sm ${
+                            className={`w-16 rounded border px-1 py-0.5 text-right text-xs tabular-nums sm:w-20 sm:px-2 sm:py-1 sm:text-sm ${
                               r.closingError
                                 ? "border-red-500 bg-red-50 dark:border-red-600 dark:bg-red-950/20"
                                 : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800"
