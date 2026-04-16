@@ -12,6 +12,7 @@ import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
@@ -139,11 +140,18 @@ public class MiscExpenseOperatorController {
     return MiscExpenseListResponse.from(page, totalAmount);
   }
 
+  @GetMapping("/misc-expenses/categories")
+  public List<String> listCategories(@PathVariable UUID orgId, @PathVariable UUID branchId) {
+    staffAuthorizationService.requireStaffUserForBranch(
+        orgId, branchId, principalResolver.require().iamUserId());
+    return miscExpenseService.listCategoriesByOrg(orgId);
+  }
+
   private static MiscExpenseResponse toResponse(MiscExpense e) {
     return new MiscExpenseResponse(
         e.getId(),
         e.getAmount(),
-        e.getCategory() != null ? e.getCategory().name() : null,
+        e.getCategory(),
         e.getDescription(),
         e.getIncurredBy(),
         e.getReceiptRef(),

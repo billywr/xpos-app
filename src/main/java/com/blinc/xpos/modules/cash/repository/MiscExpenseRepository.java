@@ -119,4 +119,12 @@ public interface MiscExpenseRepository extends JpaRepository<MiscExpense, UUID> 
       @Param("branchId") UUID branchId,
       @Param("fromTs") Instant fromTs,
       @Param("toTs") Instant toTs);
+
+  @Query(
+      """
+      select distinct e.category from MiscExpense e
+      where e.org.id = :orgId and e.deletedAt is null
+      order by e.category
+      """)
+  List<String> findDistinctCategoriesByOrgId(@Param("orgId") UUID orgId);
 }

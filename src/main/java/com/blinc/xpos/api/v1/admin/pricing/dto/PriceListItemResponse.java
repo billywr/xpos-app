@@ -12,4 +12,5 @@ public record PriceListItemResponse(
     BigDecimal price,
     BigDecimal buyingPrice,
     String currency,
+    boolean visibleInPos,
     Instant createdAt) {}

@@ -28,7 +28,7 @@ public class PendingCartOperatorController {
 
   private static final String EMPTY_CART_JSON =
       "{\"lines\":[],\"orderType\":\"DINE_IN\",\"tableId\":null,"
-          + "\"customerId\":null,\"priceListId\":null,\"saleId\":null}";
+          + "\"customerId\":null,\"saleId\":null}";
 
   private final PendingCartRepository pendingCartRepository;
   private final CurrentPrincipalResolver principalResolver;

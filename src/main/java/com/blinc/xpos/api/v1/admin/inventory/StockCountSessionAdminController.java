@@ -13,8 +13,6 @@ import com.blinc.xpos.modules.inventory.repository.StockCountLineRepository;
 import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
 import com.blinc.xpos.modules.inventory.service.StockCountSessionService;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
-import com.blinc.xpos.modules.pricing.repository.PriceListItemRepository;
-import com.blinc.xpos.modules.pricing.repository.PriceListRepository;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.List;
@@ -43,8 +41,6 @@ public class StockCountSessionAdminController {
   private final StockCountSessionService sessionService;
   private final StockCountLineRepository lineRepository;
   private final StockMovementRepository stockMovementRepository;
-  private final PriceListRepository priceListRepository;
-  private final PriceListItemRepository priceListItemRepository;
   private final PageRequestFactory pageRequestFactory;
   private final CurrentPrincipalResolver principalResolver;
   private final StaffAuthorizationService staffAuthorizationService;
@@ -53,8 +49,6 @@ public class StockCountSessionAdminController {
       StockCountSessionService sessionService,
       StockCountLineRepository lineRepository,
       StockMovementRepository stockMovementRepository,
-      PriceListRepository priceListRepository,
-      PriceListItemRepository priceListItemRepository,
       PageRequestFactory pageRequestFactory,
       CurrentPrincipalResolver principalResolver,
       StaffAuthorizationService staffAuthorizationService) {
@@ -62,9 +56,6 @@ public class StockCountSessionAdminController {
     this.lineRepository = Objects.requireNonNull(lineRepository, "lineRepository");
     this.stockMovementRepository =
         Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
-    this.priceListRepository = Objects.requireNonNull(priceListRepository, "priceListRepository");
-    this.priceListItemRepository =
-        Objects.requireNonNull(priceListItemRepository, "priceListItemRepository");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
     this.principalResolver = Objects.requireNonNull(principalResolver, "principalResolver");
     this.staffAuthorizationService =
@@ -180,18 +171,7 @@ public class StockCountSessionAdminController {
       }
     }
 
-    BigDecimal sellingPrice = null;
-    var priceLists =
-        priceListRepository.findActiveByOrgIdAndBranchIdOrderByPriorityDesc(orgId, branchId);
-    for (var pl : priceLists) {
-      var pli =
-          priceListItemRepository.findByPriceListIdAndItemIdAndOrgId(
-              pl.getId(), l.getItem().getId(), orgId);
-      if (pli.isPresent() && pli.get().getPrice() != null) {
-        sellingPrice = pli.get().getPrice();
-        break;
-      }
-    }
+    BigDecimal sellingPrice = l.getItem().getDefaultSellingPrice();
 
     return new StockCountLineResponse(
         l.getId(),

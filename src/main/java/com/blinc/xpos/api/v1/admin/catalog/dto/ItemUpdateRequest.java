@@ -17,5 +17,5 @@ public record ItemUpdateRequest(
     boolean active,
     BigDecimal buyingPrice,
     BigDecimal defaultSellingPrice,
-    UUID defaultPriceListId,
+    Boolean visibleInPos,
     String imageUrl) {}

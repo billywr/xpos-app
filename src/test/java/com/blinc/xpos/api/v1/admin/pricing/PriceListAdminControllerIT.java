@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.UUID;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,6 +28,7 @@ import org.springframework.test.web.servlet.MvcResult;
  * Integration test for PriceList and PriceListItem admin API. Requires Postgres (e.g.
  * Testcontainers).
  */
+@Disabled("Price lists removed — prices live on Item directly")
 @SpringBootTest
 @AutoConfigureMockMvc
 class PriceListAdminControllerIT extends AbstractIntegrationTest {

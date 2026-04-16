@@ -5,6 +5,7 @@ import static com.blinc.xpos.TestJwtFactory.operatorJwt;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -27,8 +28,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 /**
- * Ensures Standard Stock Count: ledger-based Opening/System, same-day Added, and Total = Opening +
- * Added + stock-take (e.g. 7 prior-day receipt + 3 today = Opening 7, Added 3, System 10).
+ * Ensures Standard Stock Count: Opening reflects only the prior day's saved Closing, Added reflects
+ * same-day GRN receipts, and the two don't bleed across days (e.g. a 7-unit receipt on the prior
+ * day + prior-day Close saved as 7 + a 3-unit receipt today yields Opening 7 and Added 3).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -47,7 +49,6 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
     UUID branchId = createBranch(orgId, businessId);
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
-    UUID priceListId = createPriceList(orgId);
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     String grnBody =
@@ -65,7 +66,6 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
                 .contentType(APPLICATION_JSON)
                 .content(grnBody))
         .andExpect(status().isCreated());
-    addItemToPriceList(orgId, priceListId, itemId);
 
     UUID terminalId = createTerminal(orgId, branchId);
     openShift(orgId, branchId, terminalId);
@@ -78,7 +78,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
                 post(base + "/sales")
                     .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"priceListId\":\"" + priceListId + "\"}"))
+                    .content("{}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
@@ -127,16 +127,15 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.rows.length()").value(1))
         .andExpect(jsonPath("$.rows[0].addedStock").value(11))
-        .andExpect(jsonPath("$.rows[0].openingStock").value(0))
-        .andExpect(jsonPath("$.rows[0].systemCountBeforeToday").value(9));
+        .andExpect(jsonPath("$.rows[0].openingStock").value(0));
   }
 
   @Test
   void getSheetOpeningPlusSameDayAddedMatchesTwoReceiptDays() throws Exception {
     ZoneId zone = ZoneId.of("Africa/Nairobi");
     LocalDate businessDay = LocalDate.now(zone);
-    Instant priorDayInstant =
-        businessDay.minusDays(1).atTime(LocalTime.of(14, 0)).atZone(zone).toInstant();
+    LocalDate priorDay = businessDay.minusDays(1);
+    Instant priorDayInstant = priorDay.atTime(LocalTime.of(14, 0)).atZone(zone).toInstant();
     Timestamp priorTs = Timestamp.from(priorDayInstant);
 
     UUID orgId = createOrg();
@@ -144,7 +143,6 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
     UUID branchId = createBranch(orgId, businessId);
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
-    UUID priceListId = createPriceList(orgId);
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
 
@@ -165,7 +163,6 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
                     .content(grn7))
             .andExpect(status().isCreated())
             .andReturn();
-    addItemToPriceList(orgId, priceListId, itemId);
     UUID grn1Id =
         UUID.fromString(
             objectMapper
@@ -179,6 +176,20 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         priorTs,
         orgId,
         grn1Id);
+
+    // Save a closing on the prior day so today's Opening reflects the strictly-saved value.
+    String priorClose =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":7}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(priorClose))
+        .andExpect(status().isOk());
 
     String grn3 =
         "{\"branchId\":\""
@@ -209,8 +220,7 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.rows.length()").value(1))
         .andExpect(jsonPath("$.rows[0].openingStock").value(7))
-        .andExpect(jsonPath("$.rows[0].addedStock").value(3))
-        .andExpect(jsonPath("$.rows[0].systemCountBeforeToday").value(10));
+        .andExpect(jsonPath("$.rows[0].addedStock").value(3));
   }
 
   private UUID createOrg() throws Exception {
@@ -288,20 +298,6 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         .andExpect(status().isCreated());
   }
 
-  private UUID createPriceList(UUID orgId) throws Exception {
-    MvcResult result =
-        mockMvc
-            .perform(
-                post("/api/v1/admin/orgs/" + orgId + "/price-lists")
-                    .with(adminJwt())
-                    .contentType(APPLICATION_JSON)
-                    .content("{\"name\":\"Default\",\"priority\":0,\"active\":true}"))
-            .andExpect(status().isCreated())
-            .andReturn();
-    return UUID.fromString(
-        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
-  }
-
   private UUID createTaxProfile(UUID orgId) throws Exception {
     MvcResult result =
         mockMvc
@@ -322,7 +318,9 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
     UUID taxProfileId = createTaxProfile(orgId);
     String body =
         """
-        {"name":"SKU-A","itemType":"STOCK","taxProfileId":"%s","trackInventory":true,"active":true}
+        {"name":"SKU-A","itemType":"STOCK","taxProfileId":"%s",\
+        "trackInventory":true,"active":true,\
+        "buyingPrice":80.00,"defaultSellingPrice":99.50,"visibleInPos":true}
         """
             .formatted(taxProfileId);
     MvcResult result =
@@ -350,16 +348,6 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
             .andReturn();
     return UUID.fromString(
         objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
-  }
-
-  private void addItemToPriceList(UUID orgId, UUID priceListId, UUID itemId) throws Exception {
-    mockMvc
-        .perform(
-            post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
-                .with(adminJwt())
-                .contentType(APPLICATION_JSON)
-                .content("{\"itemId\":\"" + itemId + "\",\"price\":99.50,\"currency\":\"KES\"}"))
-        .andExpect(status().isCreated());
   }
 
   private UUID createTerminal(UUID orgId, UUID branchId) throws Exception {

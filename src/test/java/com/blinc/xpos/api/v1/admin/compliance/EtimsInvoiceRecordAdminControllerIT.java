@@ -35,11 +35,9 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
-    UUID priceListId = createPriceList(orgId);
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
     UUID tenderTypeId = getCashTenderTypeId(orgId);
     UUID saleId = createCompletedSale(orgId, branchId, terminalId, itemId, tenderTypeId);
 
@@ -227,20 +225,6 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
         .andExpect(status().isCreated());
   }
 
-  private UUID createPriceList(UUID orgId) throws Exception {
-    MvcResult result =
-        mockMvc
-            .perform(
-                post("/api/v1/admin/orgs/" + orgId + "/price-lists")
-                    .with(adminJwt())
-                    .contentType(APPLICATION_JSON)
-                    .content("{\"name\":\"Default\",\"priority\":0,\"active\":true}"))
-            .andExpect(status().isCreated())
-            .andReturn();
-    return UUID.fromString(
-        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
-  }
-
   private UUID createItem(UUID orgId) throws Exception {
     UUID taxProfileId = createTaxProfile(orgId);
     MvcResult result =
@@ -252,7 +236,9 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
                     .content(
                         "{\"name\":\"Item\",\"itemType\":\"STOCK\",\"taxProfileId\":\""
                             + taxProfileId
-                            + "\",\"trackInventory\":false,\"active\":true}"))
+                            + "\",\"trackInventory\":false,\"active\":true"
+                            + ",\"buyingPrice\":80.00,\"defaultSellingPrice\":99.50"
+                            + ",\"visibleInPos\":true}"))
             .andExpect(status().isCreated())
             .andReturn();
     return UUID.fromString(
@@ -302,16 +288,6 @@ class EtimsInvoiceRecordAdminControllerIT extends AbstractIntegrationTest {
                 .with(adminJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
-        .andExpect(status().isCreated());
-  }
-
-  private void addItemToPriceList(UUID orgId, UUID priceListId, UUID itemId) throws Exception {
-    mockMvc
-        .perform(
-            post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
-                .with(adminJwt())
-                .contentType(APPLICATION_JSON)
-                .content("{\"itemId\":\"" + itemId + "\",\"price\":50,\"currency\":\"KES\"}"))
         .andExpect(status().isCreated());
   }
 

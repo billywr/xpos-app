@@ -45,8 +45,7 @@ class E2EPostmanFlowIT extends AbstractIntegrationTest {
             + "/terminals/"
             + ctx.terminalId;
 
-    UUID saleId =
-        createSaleAndCompleteWithOneLine(base, ctx.priceListId, ctx.itemId, ctx.tenderTypeId);
+    UUID saleId = createSaleAndCompleteWithOneLine(base, ctx.itemId, ctx.tenderTypeId);
 
     mockMvc
         .perform(get(base + "/sales/" + saleId + "/receipt").with(allRolesJwt()))
@@ -68,9 +67,7 @@ class E2EPostmanFlowIT extends AbstractIntegrationTest {
             + ctx.branchId
             + "/terminals/"
             + ctx.terminalId;
-    UUID saleId =
-        createSaleAndCompleteWithOneLine(
-            operatorBase, ctx.priceListId, ctx.itemId, ctx.tenderTypeId);
+    UUID saleId = createSaleAndCompleteWithOneLine(operatorBase, ctx.itemId, ctx.tenderTypeId);
     smokeAllGetEndpoints(ctx, operatorBase, saleId);
   }
 
@@ -210,25 +207,23 @@ class E2EPostmanFlowIT extends AbstractIntegrationTest {
     UUID itemId = createItem(orgId, categoryId, uomId, taxProfileId);
     UUID supplierId = createSupplier(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    UUID priceListId = createPriceList(orgId, branchId);
-    addItemToPriceList(orgId, priceListId, itemId);
     UUID tenderTypeId = getCashTenderTypeId(orgId);
     createLedgerAccount(orgId, "1000", "Cash", "ASSET");
     createLedgerAccount(orgId, "4000", "Sales", "INCOME");
     createPostingRule(orgId, "SALE_COMPLETE", "1000", "4000");
     openShift(orgId, branchId, terminalId);
-    return new E2EContext(orgId, branchId, terminalId, priceListId, itemId, tenderTypeId);
+    return new E2EContext(orgId, branchId, terminalId, itemId, tenderTypeId);
   }
 
-  private UUID createSaleAndCompleteWithOneLine(
-      String base, UUID priceListId, UUID itemId, UUID tenderTypeId) throws Exception {
+  private UUID createSaleAndCompleteWithOneLine(String base, UUID itemId, UUID tenderTypeId)
+      throws Exception {
     MvcResult createSaleResult =
         mockMvc
             .perform(
                 post(base + "/sales")
                     .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"priceListId\":\"" + priceListId + "\"}"))
+                    .content("{}"))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").exists())
             .andExpect(jsonPath("$.status").value("OPEN"))
@@ -290,12 +285,7 @@ class E2EPostmanFlowIT extends AbstractIntegrationTest {
   }
 
   private record E2EContext(
-      UUID orgId,
-      UUID branchId,
-      UUID terminalId,
-      UUID priceListId,
-      UUID itemId,
-      UUID tenderTypeId) {}
+      UUID orgId, UUID branchId, UUID terminalId, UUID itemId, UUID tenderTypeId) {}
 
   private void createLedgerAccount(UUID orgId, String code, String name, String accountType)
       throws Exception {
@@ -541,31 +531,13 @@ class E2EPostmanFlowIT extends AbstractIntegrationTest {
     String body =
         ("{\"sku\":\"BEER-001\",\"name\":\"Tusker Bottle 500ml\",\"itemType\":\"STOCK\","
                 + "\"categoryId\":\"%s\",\"baseUomId\":\"%s\",\"taxProfileId\":\"%s\","
-                + "\"trackInventory\":false,\"active\":true}")
+                + "\"trackInventory\":false,\"active\":true,"
+                + "\"buyingPrice\":80.00,\"defaultSellingPrice\":99.50,\"visibleInPos\":true}")
             .formatted(categoryId, baseUomId, taxProfileId);
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(allRolesJwt())
-                    .contentType(APPLICATION_JSON)
-                    .content(body))
-            .andExpect(status().isCreated())
-            .andReturn();
-    return UUID.fromString(
-        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
-  }
-
-  private UUID createPriceList(UUID orgId, UUID branchId) throws Exception {
-    String body =
-        """
-        {"branchId":"%s","channel":null,"name":"Default","priority":0,"active":true}
-        """
-            .formatted(branchId);
-    MvcResult result =
-        mockMvc
-            .perform(
-                post("/api/v1/admin/orgs/" + orgId + "/price-lists")
                     .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
@@ -599,20 +571,6 @@ class E2EPostmanFlowIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(allRolesJwt())
-                .contentType(APPLICATION_JSON)
-                .content(body))
-        .andExpect(status().isCreated());
-  }
-
-  private void addItemToPriceList(UUID orgId, UUID priceListId, UUID itemId) throws Exception {
-    String body =
-        """
-        {"itemId":"%s","price":150,"currency":"KES"}
-        """.formatted(itemId);
-    mockMvc
-        .perform(
-            post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
                 .with(allRolesJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))

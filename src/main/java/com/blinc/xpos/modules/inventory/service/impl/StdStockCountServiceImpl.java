@@ -1,6 +1,7 @@
 package com.blinc.xpos.modules.inventory.service.impl;
 
 import com.blinc.xpos.common.error.ConflictException;
+import com.blinc.xpos.modules.catalog.domain.Item;
 import com.blinc.xpos.modules.catalog.repository.ItemRepository;
 import com.blinc.xpos.modules.inventory.domain.StdStockCountSnapshot;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountCountDto;
@@ -13,33 +14,27 @@ import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
 import com.blinc.xpos.modules.inventory.service.StdStockCountService;
 import com.blinc.xpos.modules.organization.domain.Branch;
 import com.blinc.xpos.modules.organization.service.BranchService;
-import com.blinc.xpos.modules.pricing.domain.PriceList;
-import com.blinc.xpos.modules.pricing.domain.PriceListItem;
-import com.blinc.xpos.modules.pricing.repository.PriceListItemRepository;
-import com.blinc.xpos.modules.pricing.repository.PriceListRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Standard Stock Count Sheet service. Bar-style: {@code openingStock} is the previous branch
- * business day's saved physical closing when a snapshot exists; otherwise {@code max(0, System −
- * same-day GRN − stock-take adds)}. Opening + Added + Added today may differ from System when
- * yesterday's count diverged from the ledger. Units Sold = Total − Closing. Closing may default to
- * System.
+ * Standard Stock Count Sheet service. Bar-style: {@code openingStock} is strictly the previous
+ * branch business day's saved physical closing when a snapshot exists; otherwise {@code 0} (no
+ * ledger-derived fallback — operators must save a closing to seed the next day's opening). Opening
+ * + Added + Added today may differ from System when yesterday's count diverged from the ledger.
+ * Units Sold = Total − Closing.
  */
 @Service
 public class StdStockCountServiceImpl implements StdStockCountService {
@@ -51,8 +46,6 @@ public class StdStockCountServiceImpl implements StdStockCountService {
   private final StdStockCountSnapshotRepository snapshotRepository;
   private final GrnLineRepository grnLineRepository;
   private final StockMovementRepository stockMovementRepository;
-  private final PriceListRepository priceListRepository;
-  private final PriceListItemRepository priceListItemRepository;
   private final ItemRepository itemRepository;
   private final BranchService branchService;
 
@@ -60,17 +53,12 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       StdStockCountSnapshotRepository snapshotRepository,
       GrnLineRepository grnLineRepository,
       StockMovementRepository stockMovementRepository,
-      PriceListRepository priceListRepository,
-      PriceListItemRepository priceListItemRepository,
       ItemRepository itemRepository,
       BranchService branchService) {
     this.snapshotRepository = Objects.requireNonNull(snapshotRepository, "snapshotRepository");
     this.grnLineRepository = Objects.requireNonNull(grnLineRepository, "grnLineRepository");
     this.stockMovementRepository =
         Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
-    this.priceListRepository = Objects.requireNonNull(priceListRepository, "priceListRepository");
-    this.priceListItemRepository =
-        Objects.requireNonNull(priceListItemRepository, "priceListItemRepository");
     this.itemRepository = Objects.requireNonNull(itemRepository, "itemRepository");
     this.branchService = Objects.requireNonNull(branchService, "branchService");
   }
@@ -114,21 +102,6 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     return s.scale() < 0 ? s.setScale(0) : s;
   }
 
-  private Map<UUID, BigDecimal> ledgerNetQtyByItemUpToExclusive(
-      UUID orgId, UUID branchId, Set<UUID> itemIds, Instant asOfExclusive) {
-    if (itemIds.isEmpty()) {
-      return Map.of();
-    }
-    List<Object[]> rows =
-        stockMovementRepository.sumNetQtyByItemForBranchUpToExclusive(
-            orgId, branchId, new ArrayList<>(itemIds), asOfExclusive);
-    Map<UUID, BigDecimal> map = new HashMap<>();
-    for (Object[] row : rows) {
-      map.put((UUID) row[0], (BigDecimal) row[1]);
-    }
-    return map;
-  }
-
   @Override
   @Transactional(readOnly = true)
   public StdStockCountSheetDto getSheet(UUID orgId, UUID branchId, LocalDate businessDate) {
@@ -137,14 +110,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     Instant dayStart = businessDate.atStartOfDay(zone).toInstant();
     Instant dayEnd = businessDate.plusDays(1).atStartOfDay(zone).toInstant();
 
-    List<PriceList> priceLists =
-        priceListRepository.findActiveByOrgIdAndBranchIdOrderByPriorityDesc(orgId, branchId);
-    if (priceLists.isEmpty()) {
-      return new StdStockCountSheetDto(businessDate, branchId, List.of());
-    }
-    var priceList = priceLists.getFirst();
-    List<PriceListItem> items =
-        priceListItemRepository.findAllByPriceListIdAndOrgId(priceList.getId(), orgId);
+    List<Item> items = itemRepository.findActiveWithSellingPriceByOrgId(orgId);
     if (items.isEmpty()) {
       return new StdStockCountSheetDto(businessDate, branchId, List.of());
     }
@@ -158,11 +124,6 @@ public class StdStockCountServiceImpl implements StdStockCountService {
         qtyByItemFromSumRows(
             stockMovementRepository.sumStockTakePositiveAdjustQtyByItemIdForBranchAndDateRange(
                 orgId, branchId, dayStart, dayEnd));
-
-    Set<UUID> itemIds =
-        items.stream().map(pli -> pli.getItem().getId()).collect(Collectors.toSet());
-    Map<UUID, BigDecimal> ledgerAtDayEnd =
-        ledgerNetQtyByItemUpToExclusive(orgId, branchId, itemIds, dayEnd);
 
     List<StdStockCountSnapshot> todaySnapshots =
         snapshotRepository.findAllByBranchIdAndBusinessDate(branchId, businessDate);
@@ -178,21 +139,17 @@ public class StdStockCountServiceImpl implements StdStockCountService {
             .collect(Collectors.toMap(s -> s.getItem().getId(), s -> s, (a, b) -> a));
 
     List<StdStockCountRowDto> rows = new ArrayList<>();
-    for (PriceListItem pli : items) {
-      UUID itemId = pli.getItem().getId();
+    for (Item item : items) {
+      UUID itemId = item.getId();
       BigDecimal addedGrn = addedGrnByItem.getOrDefault(itemId, BigDecimal.ZERO);
       BigDecimal addedToday = stockTakeAddedByItem.getOrDefault(itemId, BigDecimal.ZERO);
-      BigDecimal systemCountBeforeToday =
-          nonnegativeQtyFromLedgerQty(ledgerAtDayEnd.getOrDefault(itemId, BigDecimal.ZERO));
-      BigDecimal impliedOpening = systemCountBeforeToday.subtract(addedGrn).subtract(addedToday);
-      BigDecimal fallbackOpening =
-          impliedOpening.signum() < 0 ? BigDecimal.ZERO.setScale(SCALE) : impliedOpening;
       StdStockCountSnapshot previousSnap = previousByItem.get(itemId);
       BigDecimal opening =
           previousSnap != null
               ? nonnegativeQtyFromLedgerQty(previousSnap.getClosingQty())
-              : fallbackOpening;
-      BigDecimal price = pli.getPrice() != null ? pli.getPrice() : BigDecimal.ZERO;
+              : BigDecimal.ZERO.setScale(SCALE);
+      BigDecimal price =
+          item.getDefaultSellingPrice() != null ? item.getDefaultSellingPrice() : BigDecimal.ZERO;
       StdStockCountSnapshot snap = todayByItem.get(itemId);
       BigDecimal closing = snap != null ? snap.getClosingQty().setScale(SCALE, ROUNDING) : null;
       Instant lastSavedAt = snap != null ? snap.getLastSavedAt() : null;
@@ -201,12 +158,11 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       rows.add(
           new StdStockCountRowDto(
               itemId,
-              pli.getItem().getSku() != null ? pli.getItem().getSku() : "",
-              pli.getItem().getName(),
+              item.getSku() != null ? item.getSku() : "",
+              item.getName(),
               compact(opening),
               compact(addedGrn),
               compact(addedToday),
-              compact(systemCountBeforeToday),
               price,
               compact(closing),
               lastSavedAt,

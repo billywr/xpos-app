@@ -47,14 +47,12 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
     UUID uomId = step8bCreateUom(orgId);
     UUID taxProfileId = step8cCreateTaxProfile(orgId);
     UUID itemId = step8dCreateItem(orgId, categoryId, uomId, taxProfileId);
-    UUID priceListId = step9aCreatePriceList(orgId, branchId);
     UUID supplierId = step9a1CreateSupplier(orgId);
     step9a2CreateGrnForItem(orgId, branchId, supplierId, itemId);
-    step9bAddPriceListItem(orgId, priceListId, itemId);
     UUID tenderTypeId = step10CreateTenderType(orgId);
     step10aLedgerAndPostingRule(orgId);
     String operatorBase = step11OpenShift(orgId, branchId, terminalId);
-    UUID saleId = step12CreateSale(operatorBase, priceListId);
+    UUID saleId = step12CreateSale(operatorBase);
     step13AddLine(operatorBase, saleId, itemId);
     step14AddTender(operatorBase, saleId, tenderTypeId);
     step15CompleteSale(operatorBase, saleId);
@@ -288,33 +286,14 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
     String body =
         """
         {"sku":"BEER-001","name":"Tusker Bottle 500ml","itemType":"STOCK","categoryId":"%s",
-        "baseUomId":"%s","taxProfileId":"%s","trackInventory":false,"active":true}
+        "baseUomId":"%s","taxProfileId":"%s","trackInventory":false,"active":true,
+        "buyingPrice":80.00,"defaultSellingPrice":99.50,"visibleInPos":true}
         """
             .formatted(categoryId, uomId, taxProfileId);
     MvcResult r =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/items")
-                    .with(allRolesJwt())
-                    .contentType(APPLICATION_JSON)
-                    .content(body))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.id").exists())
-            .andReturn();
-    return UUID.fromString(
-        objectMapper.readTree(r.getResponse().getContentAsString()).get("id").asText());
-  }
-
-  private UUID step9aCreatePriceList(UUID orgId, UUID branchId) throws Exception {
-    String body =
-        """
-        {"branchId":"%s","channel":null,"name":"Default","priority":0,"active":true}
-        """
-            .formatted(branchId);
-    MvcResult r =
-        mockMvc
-            .perform(
-                post("/api/v1/admin/orgs/" + orgId + "/price-lists")
                     .with(allRolesJwt())
                     .contentType(APPLICATION_JSON)
                     .content(body))
@@ -350,20 +329,6 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(allRolesJwt())
-                .contentType(APPLICATION_JSON)
-                .content(body))
-        .andExpect(status().isCreated());
-  }
-
-  private void step9bAddPriceListItem(UUID orgId, UUID priceListId, UUID itemId) throws Exception {
-    String body =
-        """
-        {"itemId":"%s","price":150,"currency":"KES"}
-        """.formatted(itemId);
-    mockMvc
-        .perform(
-            post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
                 .with(allRolesJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))
@@ -433,11 +398,8 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
     return "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/terminals/" + terminalId;
   }
 
-  private UUID step12CreateSale(String operatorBase, UUID priceListId) throws Exception {
-    String body =
-        """
-        {"customerId":null,"priceListId":"%s"}
-        """.formatted(priceListId);
+  private UUID step12CreateSale(String operatorBase) throws Exception {
+    String body = "{}";
     MvcResult r =
         mockMvc
             .perform(
@@ -470,7 +432,7 @@ class E2EPostmanGuideIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.lines.length()").value(1))
         .andExpect(jsonPath("$.lines[0].itemId").value(itemId.toString()))
         .andExpect(jsonPath("$.lines[0].qty").value(1))
-        .andExpect(jsonPath("$.total").value(150));
+        .andExpect(jsonPath("$.total").value(99.50));
   }
 
   private void step14AddTender(String operatorBase, UUID saleId, UUID tenderTypeId)

@@ -43,11 +43,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
-    UUID priceListId = createPriceList(orgId);
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
     UUID modifierGroupId = createModifierGroup(orgId);
     UUID modifierOptionId = createModifierOption(orgId, modifierGroupId);
     addItemModifierGroup(orgId, itemId, modifierGroupId);
@@ -61,7 +59,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
                 post(base + "/sales")
                     .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"priceListId\":\"" + priceListId + "\"}"))
+                    .content("{}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
@@ -104,11 +102,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
-    UUID priceListId = createPriceList(orgId);
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
 
     String base =
         "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/terminals/" + terminalId;
@@ -119,7 +115,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
                 post(base + "/sales")
                     .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"priceListId\":\"" + priceListId + "\"}"))
+                    .content("{}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
@@ -155,11 +151,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
-    UUID priceListId = createPriceList(orgId);
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
     UUID tenderTypeId = getCashTenderTypeId(orgId);
 
     String base =
@@ -171,7 +165,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
                 post(base + "/sales")
                     .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"priceListId\":\"" + priceListId + "\"}"))
+                    .content("{}"))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").exists())
             .andExpect(jsonPath("$.status").value("OPEN"))
@@ -233,11 +227,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
-    UUID priceListId = createPriceList(orgId);
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
     UUID tenderTypeId = getCashTenderTypeId(orgId);
 
     String base =
@@ -249,7 +241,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
                 post(base + "/sales")
                     .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"priceListId\":\"" + priceListId + "\"}"))
+                    .content("{}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
@@ -328,11 +320,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
-    UUID priceListId = createPriceList(orgId);
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
     UUID tenderTypeId = getCashTenderTypeId(orgId);
 
     String base =
@@ -344,7 +334,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
                 post(base + "/sales")
                     .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"priceListId\":\"" + priceListId + "\"}"))
+                    .content("{}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
@@ -414,10 +404,8 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
     UUID supplierId = createSupplier(orgId);
-    UUID priceListId = createPriceList(orgId);
     UUID itemId = createItemForRefundTest(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
     UUID tenderTypeId = getCashTenderTypeId(orgId);
 
     String salesBase =
@@ -430,7 +418,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
                 post(salesBase + "/sales")
                     .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"priceListId\":\"" + priceListId + "\"}"))
+                    .content("{}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
@@ -489,11 +477,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
-    UUID priceListId = createPriceList(orgId);
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
     UUID tenderTypeId = getCashTenderTypeId(orgId);
     createLedgerAccount(orgId, "1000", "Cash", "ASSET");
     createLedgerAccount(orgId, "4000", "Sales", "INCOME");
@@ -508,7 +494,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
                 post(base + "/sales")
                     .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"priceListId\":\"" + priceListId + "\"}"))
+                    .content("{}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
@@ -573,11 +559,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
     openShift(orgId, branchId, terminalId);
-    UUID priceListId = createPriceList(orgId);
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
     UUID tenderTypeId = getCashTenderTypeId(orgId);
 
     String base =
@@ -589,7 +573,7 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
                 post(base + "/sales")
                     .with(operatorJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"priceListId\":\"" + priceListId + "\"}"))
+                    .content("{}"))
             .andExpect(status().isCreated())
             .andReturn();
     UUID saleId =
@@ -799,28 +783,13 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(status().isCreated());
   }
 
-  private UUID createPriceList(UUID orgId) throws Exception {
-    String body = """
-        {"name":"Default","priority":0,"active":true}
-        """;
-    MvcResult result =
-        mockMvc
-            .perform(
-                post("/api/v1/admin/orgs/" + orgId + "/price-lists")
-                    .with(adminJwt())
-                    .contentType(APPLICATION_JSON)
-                    .content(body))
-            .andExpect(status().isCreated())
-            .andReturn();
-    return UUID.fromString(
-        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
-  }
-
   private UUID createItem(UUID orgId) throws Exception {
     UUID taxProfileId = createTaxProfile(orgId);
     String body =
         """
-        {"name":"Test Product","itemType":"STOCK","taxProfileId":"%s","trackInventory":false,"active":true}
+        {"name":"Test Product","itemType":"STOCK","taxProfileId":"%s",\
+        "trackInventory":false,"active":true,\
+        "buyingPrice":80.00,"defaultSellingPrice":99.50,"visibleInPos":true}
         """
             .formatted(taxProfileId);
     MvcResult result =
@@ -854,20 +823,6 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
   }
 
-  private void addItemToPriceList(UUID orgId, UUID priceListId, UUID itemId) throws Exception {
-    String body =
-        """
-        {"itemId":"%s","price":99.50,"currency":"KES"}
-        """.formatted(itemId);
-    mockMvc
-        .perform(
-            post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
-                .with(operatorJwt())
-                .contentType(APPLICATION_JSON)
-                .content(body))
-        .andExpect(status().isCreated());
-  }
-
   private UUID createSupplier(UUID orgId) throws Exception {
     MvcResult result =
         mockMvc
@@ -886,7 +841,9 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
     UUID taxProfileId = createTaxProfile(orgId);
     String body =
         """
-        {"name":"Test Product","itemType":"STOCK","taxProfileId":"%s","trackInventory":true,"active":true}
+        {"name":"Test Product","itemType":"STOCK","taxProfileId":"%s",\
+        "trackInventory":true,"active":true,\
+        "buyingPrice":80.00,"defaultSellingPrice":99.50,"visibleInPos":true}
         """
             .formatted(taxProfileId);
     MvcResult result =

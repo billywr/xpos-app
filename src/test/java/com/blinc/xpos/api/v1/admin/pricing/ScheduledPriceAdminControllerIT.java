@@ -230,7 +230,8 @@ class ScheduledPriceAdminControllerIT extends AbstractIntegrationTest {
     String body =
         ("{\"sku\":\"SKU-1\",\"name\":\"Item One\",\"itemType\":\"STOCK\",\"categoryId\":\"%s\","
                 + "\"baseUomId\":\"%s\",\"taxProfileId\":\"%s\",\"trackInventory\":false,"
-                + "\"active\":true}")
+                + "\"active\":true,\"buyingPrice\":80.00,\"defaultSellingPrice\":99.50,"
+                + "\"visibleInPos\":true}")
             .formatted(categoryId, uomId, taxProfileId);
     MvcResult result =
         mockMvc

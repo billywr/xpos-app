@@ -3,6 +3,7 @@ package com.blinc.xpos.modules.sales.service.impl;
 import com.blinc.xpos.common.constants.enums.MovementType;
 import com.blinc.xpos.common.constants.enums.SaleStatus;
 import com.blinc.xpos.common.constants.enums.SourceType;
+import com.blinc.xpos.common.error.BadRequestException;
 import com.blinc.xpos.common.error.ConflictException;
 import com.blinc.xpos.common.error.NotFoundException;
 import com.blinc.xpos.modules.auditvault.service.AuditLogService;
@@ -27,10 +28,6 @@ import com.blinc.xpos.modules.organization.service.BranchService;
 import com.blinc.xpos.modules.organization.service.CustomerService;
 import com.blinc.xpos.modules.organization.service.StaffUserService;
 import com.blinc.xpos.modules.organization.service.TerminalService;
-import com.blinc.xpos.modules.pricing.domain.PriceList;
-import com.blinc.xpos.modules.pricing.domain.PriceListItem;
-import com.blinc.xpos.modules.pricing.repository.PriceListItemRepository;
-import com.blinc.xpos.modules.pricing.repository.PriceListRepository;
 import com.blinc.xpos.modules.sales.domain.Sale;
 import com.blinc.xpos.modules.sales.domain.SaleLine;
 import com.blinc.xpos.modules.sales.domain.SaleLineModifier;
@@ -40,7 +37,6 @@ import com.blinc.xpos.modules.sales.repository.SaleRepository;
 import com.blinc.xpos.modules.sales.service.ReceiptService;
 import com.blinc.xpos.modules.sales.service.SaleService;
 import com.blinc.xpos.modules.sales.service.TenderService;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -73,8 +69,6 @@ public class SaleServiceImpl implements SaleService {
   private final ItemService itemService;
   private final UomService uomService;
   private final ModifierOptionService modifierOptionService;
-  private final PriceListRepository priceListRepository;
-  private final PriceListItemRepository priceListItemRepository;
   private final ReceiptService receiptService;
   private final TenderService tenderService;
   private final CustomerService customerService;
@@ -96,8 +90,6 @@ public class SaleServiceImpl implements SaleService {
       ItemService itemService,
       UomService uomService,
       ModifierOptionService modifierOptionService,
-      PriceListRepository priceListRepository,
-      PriceListItemRepository priceListItemRepository,
       ReceiptService receiptService,
       TenderService tenderService,
       CustomerService customerService,
@@ -119,9 +111,6 @@ public class SaleServiceImpl implements SaleService {
     this.uomService = Objects.requireNonNull(uomService, "uomService");
     this.modifierOptionService =
         Objects.requireNonNull(modifierOptionService, "modifierOptionService");
-    this.priceListRepository = Objects.requireNonNull(priceListRepository, "priceListRepository");
-    this.priceListItemRepository =
-        Objects.requireNonNull(priceListItemRepository, "priceListItemRepository");
     this.receiptService = Objects.requireNonNull(receiptService, "receiptService");
     this.tenderService = Objects.requireNonNull(tenderService, "tenderService");
     this.customerService = Objects.requireNonNull(customerService, "customerService");
@@ -139,12 +128,7 @@ public class SaleServiceImpl implements SaleService {
   @Override
   @Transactional
   public Sale create(
-      UUID orgId,
-      UUID branchId,
-      UUID terminalId,
-      UUID staffUserId,
-      UUID customerId,
-      UUID priceListId) {
+      UUID orgId, UUID branchId, UUID terminalId, UUID staffUserId, UUID customerId) {
     Branch branch = branchService.require(orgId, branchId);
     Terminal terminal = terminalService.require(orgId, terminalId);
     if (!terminal.getBranch().getId().equals(branchId)) {
@@ -177,10 +161,6 @@ public class SaleServiceImpl implements SaleService {
     sale.setCreatedByStaffUser(staffUser);
     Instant now = Instant.now(clock);
     sale.setCreatedAt(now);
-    if (priceListId != null) {
-      sale.setPricingContextJson(
-          JsonNodeFactory.instance.objectNode().put("priceListId", priceListId.toString()));
-    }
     Sale saved = saleRepository.save(sale);
     return loadSaleWithAssociations(orgId, saved.getId());
   }
@@ -496,33 +476,14 @@ public class SaleServiceImpl implements SaleService {
     if (override != null && override.compareTo(BigDecimal.ZERO) >= 0) {
       return override.setScale(SCALE, RoundingMode.HALF_UP);
     }
-    UUID priceListId = priceListIdFromContext(sale);
-    if (priceListId == null) {
-      List<PriceList> lists =
-          priceListRepository.findActiveByOrgIdAndBranchIdOrderByPriorityDesc(
-              orgId, sale.getBranch().getId());
-      if (lists.isEmpty()) {
-        throw new IllegalStateException(
-            "No price list configured for branch. Set priceListId on sale or add a price list.");
-      }
-      priceListId = lists.get(0).getId();
+    Item item = itemService.requireActive(orgId, itemId);
+    if (item.getDefaultSellingPrice() == null
+        || item.getDefaultSellingPrice().compareTo(BigDecimal.ZERO) <= 0) {
+      throw new BadRequestException(
+          "ITEM_NO_SELLING_PRICE",
+          "Item '" + item.getName() + "' has no selling price. Set a selling price in Catalog.");
     }
-    PriceListItem pli =
-        priceListItemRepository
-            .findByPriceListIdAndItemIdAndOrgId(priceListId, itemId, orgId)
-            .orElseThrow(
-                () ->
-                    new NotFoundException(
-                        "ITEM_NOT_IN_PRICE_LIST", "Item not found in price list: " + itemId));
-    return pli.getPrice().setScale(SCALE, RoundingMode.HALF_UP);
-  }
-
-  private UUID priceListIdFromContext(Sale sale) {
-    if (sale.getPricingContextJson() == null || !sale.getPricingContextJson().has("priceListId")) {
-      return null;
-    }
-    String id = sale.getPricingContextJson().get("priceListId").asText();
-    return UUID.fromString(id);
+    return item.getDefaultSellingPrice().setScale(SCALE, RoundingMode.HALF_UP);
   }
 
   private void recalcSaleTotals(Sale sale) {

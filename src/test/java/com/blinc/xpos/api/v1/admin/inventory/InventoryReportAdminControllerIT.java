@@ -169,7 +169,9 @@ class InventoryReportAdminControllerIT extends AbstractIntegrationTest {
     String body =
         "{\"name\":\"Item\",\"itemType\":\"STOCK\",\"taxProfileId\":\""
             + taxProfileId
-            + "\",\"trackInventory\":true,\"active\":true}";
+            + "\",\"trackInventory\":true,\"active\":true"
+            + ",\"buyingPrice\":80.00,\"defaultSellingPrice\":99.50"
+            + ",\"visibleInPos\":true}";
     MvcResult result =
         mockMvc
             .perform(

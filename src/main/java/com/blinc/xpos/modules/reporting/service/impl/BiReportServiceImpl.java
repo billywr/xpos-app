@@ -166,7 +166,7 @@ public class BiReportServiceImpl implements BiReportService {
     for (ExpenseCategorySum s : byCategory) {
       addCell(
           expenseTable,
-          s.getCategory() != null ? s.getCategory().name() : "OTHER",
+          s.getCategory() != null ? s.getCategory() : "Other",
           formatCurrency(s.getAmount() != null ? s.getAmount() : BigDecimal.ZERO),
           normalFont);
     }

@@ -15,15 +15,9 @@ public interface SaleService {
 
   /**
    * Creates a new open sale for the terminal. Requires an open shift. Optionally associates a
-   * customer and/or price list for line pricing.
+   * customer. Selling prices are resolved from each item's defaultSellingPrice.
    */
-  Sale create(
-      UUID orgId,
-      UUID branchId,
-      UUID terminalId,
-      UUID staffUserId,
-      UUID customerId,
-      UUID priceListId);
+  Sale create(UUID orgId, UUID branchId, UUID terminalId, UUID staffUserId, UUID customerId);
 
   Optional<Sale> getByIdAndOrg(UUID orgId, UUID saleId);
 

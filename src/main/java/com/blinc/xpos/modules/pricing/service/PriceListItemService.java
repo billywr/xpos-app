@@ -24,6 +24,15 @@ public interface PriceListItemService {
   PriceListItem ensureInPriceList(
       UUID orgId, UUID priceListId, UUID itemId, BigDecimal price, String currency);
 
+  /** Same as above but also sets the POS/menu visibility flag. */
+  PriceListItem ensureInPriceList(
+      UUID orgId,
+      UUID priceListId,
+      UUID itemId,
+      BigDecimal price,
+      String currency,
+      boolean visibleInPos);
+
   PriceListItem update(
       UUID orgId, UUID priceListId, UUID priceListItemId, BigDecimal price, String currency);
 

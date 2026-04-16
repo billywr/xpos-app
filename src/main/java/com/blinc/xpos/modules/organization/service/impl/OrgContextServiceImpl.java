@@ -18,7 +18,6 @@ import com.blinc.xpos.api.v1.admin.organization.dto.OrgContextResponse;
 import com.blinc.xpos.api.v1.admin.organization.dto.OrgResponse;
 import com.blinc.xpos.api.v1.admin.organization.dto.PrinterProfileResponse;
 import com.blinc.xpos.api.v1.admin.organization.dto.ReceiptTemplateResponse;
-import com.blinc.xpos.api.v1.admin.pricing.dto.PriceListResponse;
 import com.blinc.xpos.api.v1.admin.pricing.dto.TaxProfileResponse;
 import com.blinc.xpos.api.v1.admin.sales.dto.TenderTypeResponse;
 import com.blinc.xpos.api.v1.admin.staff.dto.StaffUserResponse;
@@ -64,9 +63,7 @@ import com.blinc.xpos.modules.organization.service.OrgService;
 import com.blinc.xpos.modules.organization.service.PrinterProfileService;
 import com.blinc.xpos.modules.organization.service.ReceiptTemplateService;
 import com.blinc.xpos.modules.organization.service.StaffUserService;
-import com.blinc.xpos.modules.pricing.domain.PriceList;
 import com.blinc.xpos.modules.pricing.domain.TaxProfile;
-import com.blinc.xpos.modules.pricing.service.PriceListService;
 import com.blinc.xpos.modules.pricing.service.TaxProfileService;
 import com.blinc.xpos.modules.sales.domain.TenderType;
 import com.blinc.xpos.modules.sales.service.TenderTypeService;
@@ -92,7 +89,6 @@ public class OrgContextServiceImpl implements OrgContextService {
   private final TaxProfileService taxProfileService;
   private final UomService uomService;
   private final ModifierGroupService modifierGroupService;
-  private final PriceListService priceListService;
   private final TenderTypeService tenderTypeService;
   private final TaxAgencyConfigService taxAgencyConfigService;
   private final SupplierService supplierService;
@@ -118,7 +114,6 @@ public class OrgContextServiceImpl implements OrgContextService {
       TaxProfileService taxProfileService,
       UomService uomService,
       ModifierGroupService modifierGroupService,
-      PriceListService priceListService,
       TenderTypeService tenderTypeService,
       TaxAgencyConfigService taxAgencyConfigService,
       SupplierService supplierService,
@@ -143,7 +138,6 @@ public class OrgContextServiceImpl implements OrgContextService {
     this.uomService = Objects.requireNonNull(uomService, "uomService");
     this.modifierGroupService =
         Objects.requireNonNull(modifierGroupService, "modifierGroupService");
-    this.priceListService = Objects.requireNonNull(priceListService, "priceListService");
     this.tenderTypeService = Objects.requireNonNull(tenderTypeService, "tenderTypeService");
     this.taxAgencyConfigService =
         Objects.requireNonNull(taxAgencyConfigService, "taxAgencyConfigService");
@@ -193,9 +187,6 @@ public class OrgContextServiceImpl implements OrgContextService {
         uomService.list(orgId, page).getContent().stream().map(this::toUomResponse).toList(),
         modifierGroupService.list(orgId, page).getContent().stream()
             .map(this::toModifierGroupResponse)
-            .toList(),
-        priceListService.list(orgId, page).getContent().stream()
-            .map(this::toPriceListResponse)
             .toList(),
         tenderTypeService.listActiveByOrg(orgId).stream().map(this::toTenderTypeResponse).toList(),
         taxAgencyConfigService.list(orgId, page).getContent().stream()
@@ -331,19 +322,6 @@ public class OrgContextServiceImpl implements OrgContextService {
         g.getUpdatedAt());
   }
 
-  private PriceListResponse toPriceListResponse(PriceList p) {
-    return new PriceListResponse(
-        p.getId(),
-        p.getOrg().getId(),
-        p.getBranch() != null ? p.getBranch().getId() : null,
-        p.getChannel(),
-        p.getName(),
-        p.getPriority(),
-        p.getActive(),
-        p.getCreatedAt(),
-        p.getUpdatedAt());
-  }
-
   private TenderTypeResponse toTenderTypeResponse(TenderType t) {
     return new TenderTypeResponse(
         t.getId(), t.getOrg().getId(), t.getCode(), t.getName(), t.getActive(), t.getCreatedAt());
@@ -464,6 +442,7 @@ public class OrgContextServiceImpl implements OrgContextService {
         i.getTaxProfile() != null ? i.getTaxProfile().getId() : null,
         i.getTrackInventory(),
         i.getActive(),
+        i.isVisibleInPos(),
         i.getBuyingPrice(),
         i.getDefaultSellingPrice(),
         primaryImageUrl,

@@ -88,9 +88,7 @@ public class SaleOperatorController {
       @Valid @RequestBody(required = false) SaleCreateRequest request) {
     StaffUser staffUser = requireCurrentStaffUser(orgId);
     UUID customerId = request != null ? request.customerId() : null;
-    UUID priceListId = request != null ? request.priceListId() : null;
-    Sale sale =
-        saleService.create(orgId, branchId, terminalId, staffUser.getId(), customerId, priceListId);
+    Sale sale = saleService.create(orgId, branchId, terminalId, staffUser.getId(), customerId);
     return toSaleResponse(sale);
   }
 

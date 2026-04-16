@@ -101,7 +101,6 @@ class OrgAdminControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.taxProfiles").isArray())
         .andExpect(jsonPath("$.uoms").isArray())
         .andExpect(jsonPath("$.modifierGroups").isArray())
-        .andExpect(jsonPath("$.priceLists").isArray())
         .andExpect(jsonPath("$.tenderTypes").isArray())
         .andExpect(jsonPath("$.taxAgencyConfigs").isArray())
         .andExpect(jsonPath("$.suppliers").isArray())

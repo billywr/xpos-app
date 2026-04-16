@@ -16,6 +16,7 @@ public record ItemResponse(
     UUID taxProfileId,
     boolean trackInventory,
     boolean active,
+    boolean visibleInPos,
     BigDecimal buyingPrice,
     BigDecimal defaultSellingPrice,
     String primaryImageUrl,

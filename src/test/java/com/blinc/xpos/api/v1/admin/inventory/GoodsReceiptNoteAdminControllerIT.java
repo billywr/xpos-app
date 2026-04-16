@@ -323,6 +323,7 @@ class GoodsReceiptNoteAdminControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
+  @org.junit.jupiter.api.Disabled("Unit cost now always from item.buyingPrice — no user override")
   void secondCreateSameDaySameSupplierMergesIntoOneGrnKeepsUnitCost() throws Exception {
     UUID orgId = createOrg("GRN Same-Day Merge Org");
     UUID businessId = createBusiness(orgId);
@@ -384,6 +385,7 @@ class GoodsReceiptNoteAdminControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
+  @org.junit.jupiter.api.Disabled("Unit cost now always from item.buyingPrice — no user override")
   void sameDayMergeWithDifferentUnitCostReturns409() throws Exception {
     UUID orgId = createOrg("GRN Merge Cost Mismatch Org");
     UUID businessId = createBusiness(orgId);
@@ -474,6 +476,7 @@ class GoodsReceiptNoteAdminControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
+  @org.junit.jupiter.api.Disabled("Unit cost now always from item.buyingPrice — no user override")
   void secondGrnDifferentUnitCostForSameItemReturns409() throws Exception {
     UUID orgId = createOrg("GRN Unit Cost Lock Org");
     UUID businessId = createBusiness(orgId);
@@ -766,7 +769,9 @@ class GoodsReceiptNoteAdminControllerIT extends AbstractIntegrationTest {
     String body =
         "{\"name\":\"Item\",\"itemType\":\"STOCK\",\"taxProfileId\":\""
             + taxProfileId
-            + "\",\"trackInventory\":true,\"active\":true}";
+            + "\",\"trackInventory\":true,\"active\":true"
+            + ",\"buyingPrice\":80.00,\"defaultSellingPrice\":99.50"
+            + ",\"visibleInPos\":true}";
     MvcResult result =
         mockMvc
             .perform(

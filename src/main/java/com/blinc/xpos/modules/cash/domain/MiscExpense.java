@@ -1,14 +1,11 @@
 package com.blinc.xpos.modules.cash.domain;
 
-import com.blinc.xpos.common.constants.enums.MiscExpenseCategory;
 import com.blinc.xpos.modules.organization.domain.Branch;
 import com.blinc.xpos.modules.organization.domain.Org;
 import com.blinc.xpos.modules.organization.domain.StaffUser;
 import com.blinc.xpos.modules.organization.domain.Terminal;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -54,9 +51,8 @@ public class MiscExpense {
   @Column(name = "amount", nullable = false)
   private BigDecimal amount;
 
-  @Enumerated(EnumType.STRING)
-  @Column(name = "category", nullable = false)
-  private MiscExpenseCategory category;
+  @Column(name = "category", nullable = false, length = 100)
+  private String category;
 
   @Column(name = "description", nullable = false)
   private String description;

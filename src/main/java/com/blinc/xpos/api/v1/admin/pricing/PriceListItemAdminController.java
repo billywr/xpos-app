@@ -100,6 +100,7 @@ public class PriceListItemAdminController {
         line.getPrice(),
         costFloor,
         line.getCurrency(),
+        line.isVisibleInPos(),
         line.getCreatedAt());
   }
 }

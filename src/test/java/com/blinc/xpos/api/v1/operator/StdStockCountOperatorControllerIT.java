@@ -40,11 +40,10 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
     UUID branchId = createBranch(orgId, businessId);
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
-    UUID priceListId = createPriceList(orgId);
+
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
 
     String date = LocalDate.now().toString();
     String url =
@@ -64,8 +63,7 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.rows[0].itemId").value(itemId.toString()))
         .andExpect(jsonPath("$.rows[0].openingStock").value(0))
         .andExpect(jsonPath("$.rows[0].addedStock").value(5))
-        .andExpect(jsonPath("$.rows[0].addedTodayStock").value(0))
-        .andExpect(jsonPath("$.rows[0].systemCountBeforeToday").value(5));
+        .andExpect(jsonPath("$.rows[0].addedTodayStock").value(0));
   }
 
   @Test
@@ -75,11 +73,10 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
     UUID branchId = createBranch(orgId, businessId);
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
-    UUID priceListId = createPriceList(orgId);
+
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
 
     String sessionBody = "{\"branchId\":\"" + branchId + "\"}";
     MvcResult sessionResult =
@@ -129,8 +126,7 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.rows[0].openingStock").value(0))
         .andExpect(jsonPath("$.rows[0].addedStock").value(5))
-        .andExpect(jsonPath("$.rows[0].addedTodayStock").value(3))
-        .andExpect(jsonPath("$.rows[0].systemCountBeforeToday").value(8));
+        .andExpect(jsonPath("$.rows[0].addedTodayStock").value(3));
   }
 
   @Test
@@ -140,7 +136,7 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
     UUID branchId = createBranch(orgId, businessId);
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
-    UUID priceListId = createPriceList(orgId);
+
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     String grnBody =
@@ -177,8 +173,6 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
                 .content(patchBody))
         .andExpect(status().isOk());
 
-    addItemToPriceList(orgId, priceListId, itemId);
-
     String date = LocalDate.now().toString();
     String url =
         "/api/v1/operator/orgs/"
@@ -192,8 +186,7 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         .perform(get(url).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.rows[0].openingStock").value(0))
-        .andExpect(jsonPath("$.rows[0].addedStock").value(2))
-        .andExpect(jsonPath("$.rows[0].systemCountBeforeToday").value(2));
+        .andExpect(jsonPath("$.rows[0].addedStock").value(2));
   }
 
   @Test
@@ -203,11 +196,10 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
     UUID branchId = createBranch(orgId, businessId);
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
-    UUID priceListId = createPriceList(orgId);
+
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
 
     String date = LocalDate.now().toString();
     String saveBody =
@@ -250,11 +242,10 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
     UUID branchId = createBranch(orgId, businessId);
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
-    UUID priceListId = createPriceList(orgId);
+
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
 
     String saveYesterday =
         """
@@ -289,11 +280,10 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
     UUID branchId = createBranch(orgId, businessId);
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
-    UUID priceListId = createPriceList(orgId);
+
     UUID supplierId = createSupplier(orgId);
     UUID itemId = createItem(orgId);
     createGrnForItem(orgId, branchId, supplierId, itemId);
-    addItemToPriceList(orgId, priceListId, itemId);
 
     String date = LocalDate.now().toString();
     String saveBody =
@@ -424,28 +414,13 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(status().isCreated());
   }
 
-  private UUID createPriceList(UUID orgId) throws Exception {
-    String body = """
-        {"name":"Default","priority":0,"active":true}
-        """;
-    MvcResult result =
-        mockMvc
-            .perform(
-                post("/api/v1/admin/orgs/" + orgId + "/price-lists")
-                    .with(adminJwt())
-                    .contentType(APPLICATION_JSON)
-                    .content(body))
-            .andExpect(status().isCreated())
-            .andReturn();
-    return UUID.fromString(
-        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
-  }
-
   private UUID createItem(UUID orgId) throws Exception {
     UUID taxProfileId = createTaxProfile(orgId);
     String body =
         """
-        {"name":"Test Product","itemType":"STOCK","taxProfileId":"%s","trackInventory":true,"active":true}
+        {"name":"Test Product","itemType":"STOCK","taxProfileId":"%s",\
+        "trackInventory":true,"active":true,\
+        "buyingPrice":80.00,"defaultSellingPrice":99.50,"visibleInPos":true}
         """
             .formatted(taxProfileId);
     MvcResult result =
@@ -503,20 +478,6 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc
         .perform(
             post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
-                .with(operatorJwt())
-                .contentType(APPLICATION_JSON)
-                .content(body))
-        .andExpect(status().isCreated());
-  }
-
-  private void addItemToPriceList(UUID orgId, UUID priceListId, UUID itemId) throws Exception {
-    String body =
-        """
-        {"itemId":"%s","price":99.50,"currency":"KES"}
-        """.formatted(itemId);
-    mockMvc
-        .perform(
-            post("/api/v1/admin/orgs/" + orgId + "/price-lists/" + priceListId + "/items")
                 .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(body))

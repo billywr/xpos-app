@@ -10,7 +10,6 @@ import com.blinc.xpos.api.v1.admin.fraud.dto.ReasonCodeResponse;
 import com.blinc.xpos.api.v1.admin.inventory.dto.SupplierResponse;
 import com.blinc.xpos.api.v1.admin.ledger.dto.LedgerAccountResponse;
 import com.blinc.xpos.api.v1.admin.ledger.dto.PostingRuleResponse;
-import com.blinc.xpos.api.v1.admin.pricing.dto.PriceListResponse;
 import com.blinc.xpos.api.v1.admin.pricing.dto.TaxProfileResponse;
 import com.blinc.xpos.api.v1.admin.sales.dto.TenderTypeResponse;
 import com.blinc.xpos.api.v1.admin.staff.dto.StaffUserResponse;
@@ -33,7 +32,6 @@ public record OrgContextResponse(
     List<TaxProfileResponse> taxProfiles,
     List<UomResponse> uoms,
     List<ModifierGroupResponse> modifierGroups,
-    List<PriceListResponse> priceLists,
     List<TenderTypeResponse> tenderTypes,
     List<TaxAgencyConfigResponse> taxAgencyConfigs,
     List<SupplierResponse> suppliers,

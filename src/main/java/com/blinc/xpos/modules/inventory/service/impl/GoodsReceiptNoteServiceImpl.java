@@ -23,7 +23,6 @@ import com.blinc.xpos.modules.organization.domain.Branch;
 import com.blinc.xpos.modules.organization.domain.StaffUser;
 import com.blinc.xpos.modules.organization.service.BranchService;
 import com.blinc.xpos.modules.organization.service.StaffUserService;
-import com.blinc.xpos.modules.pricing.service.PriceListItemService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -65,7 +64,6 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
   private final StaffUserService staffUserService;
   private final ItemService itemService;
   private final UomService uomService;
-  private final PriceListItemService priceListItemService;
   private final Clock clock;
 
   public GoodsReceiptNoteServiceImpl(
@@ -79,7 +77,6 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
       StaffUserService staffUserService,
       ItemService itemService,
       UomService uomService,
-      PriceListItemService priceListItemService,
       Clock clock) {
     this.grnRepository = Objects.requireNonNull(grnRepository, "grnRepository");
     this.grnLineRepository = Objects.requireNonNull(grnLineRepository, "grnLineRepository");
@@ -94,8 +91,6 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
     this.staffUserService = Objects.requireNonNull(staffUserService, "staffUserService");
     this.itemService = Objects.requireNonNull(itemService, "itemService");
     this.uomService = Objects.requireNonNull(uomService, "uomService");
-    this.priceListItemService =
-        Objects.requireNonNull(priceListItemService, "priceListItemService");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 
@@ -160,8 +155,15 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
     return out;
   }
 
-  private BigDecimal resolveReceivedUnitCost(Item item, BigDecimal requestCost) {
-    return item.getBuyingPrice() != null ? item.getBuyingPrice() : requestCost;
+  private BigDecimal resolveReceivedUnitCost(Item item) {
+    if (item.getBuyingPrice() == null) {
+      throw new ConflictException(
+          "ITEM_NO_BUYING_PRICE",
+          "Item '"
+              + item.getName()
+              + "' has no buying price. Set a buying price in Catalog before receiving stock.");
+    }
+    return item.getBuyingPrice();
   }
 
   /**
@@ -316,7 +318,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
       Item item = itemService.requireActive(orgId, key.itemId());
       Uom uom = key.uomId() != null ? uomService.require(orgId, key.uomId()) : null;
       if (delta.compareTo(BigDecimal.ZERO) > 0) {
-        BigDecimal unitCost = resolveReceivedUnitCost(item, newReq.receivedUnitCost());
+        BigDecimal unitCost = resolveReceivedUnitCost(item);
         assertGrnLineResolvedUnitCostAllowed(
             orgId, grn.getId(), item.getId(), unitCost, item.getName(), null);
         persistStockInForGrn(grn, item, uom, delta, unitCost, staffUser, now);
@@ -349,7 +351,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
       if (req.qty() == null || req.qty().compareTo(BigDecimal.ZERO) <= 0) {
         throw new IllegalArgumentException("Line qty must be positive");
       }
-      BigDecimal unitCost = resolveReceivedUnitCost(item, req.receivedUnitCost());
+      BigDecimal unitCost = resolveReceivedUnitCost(item);
       assertGrnLineResolvedUnitCostAllowed(
           orgId, grn.getId(), item.getId(), unitCost, item.getName(), null);
       GrnLine line = new GrnLine();
@@ -379,7 +381,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
       if (req.qty() == null || req.qty().compareTo(BigDecimal.ZERO) <= 0) {
         throw new IllegalArgumentException("Line qty must be positive");
       }
-      BigDecimal unitCost = resolveReceivedUnitCost(item, req.receivedUnitCost());
+      BigDecimal unitCost = resolveReceivedUnitCost(item);
       GrnLine existing = findGrnLineWithItemAndUom(workingLines, item.getId(), uom);
       if (existing != null) {
         assertGrnLineResolvedUnitCostAllowed(
@@ -439,7 +441,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
         if (req.qty() == null || req.qty().compareTo(BigDecimal.ZERO) <= 0) {
           throw new IllegalArgumentException("Line qty must be positive");
         }
-        BigDecimal unitCost = resolveReceivedUnitCost(item, req.receivedUnitCost());
+        BigDecimal unitCost = resolveReceivedUnitCost(item);
         assertGrnLineResolvedUnitCostAllowed(
             orgId, grn.getId(), item.getId(), unitCost, item.getName(), null);
         GrnLine line = new GrnLine();
@@ -543,9 +545,6 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
     reverseGrnMovementsOnInventory(orgId, branchId, movements);
     if (!movements.isEmpty()) {
       stockMovementRepository.deleteAll(movements);
-    }
-    for (UUID itemId : affectedItemIds) {
-      priceListItemService.purgePriceListLinesForTrackedItemIfOutOfStock(orgId, itemId);
     }
   }
 

@@ -164,17 +164,34 @@ public class PriceListItemServiceImpl implements PriceListItemService {
   @Transactional
   public PriceListItem ensureInPriceList(
       UUID orgId, UUID priceListId, UUID itemId, BigDecimal price, String currency) {
+    return ensureInPriceList(orgId, priceListId, itemId, price, currency, true);
+  }
+
+  @Override
+  @Transactional
+  public PriceListItem ensureInPriceList(
+      UUID orgId,
+      UUID priceListId,
+      UUID itemId,
+      BigDecimal price,
+      String currency,
+      boolean visibleInPos) {
     Optional<PriceListItem> existing =
         priceListItemRepository.findByPriceListIdAndItemIdAndOrgId(priceListId, itemId, orgId);
     if (existing.isPresent()) {
-      return update(
-          orgId,
-          priceListId,
-          existing.get().getId(),
-          price,
-          currency != null && !currency.isBlank() ? currency : DEFAULT_CURRENCY);
+      PriceListItem updated =
+          update(
+              orgId,
+              priceListId,
+              existing.get().getId(),
+              price,
+              currency != null && !currency.isBlank() ? currency : DEFAULT_CURRENCY);
+      updated.setVisibleInPos(visibleInPos);
+      return priceListItemRepository.save(updated);
     }
-    return add(orgId, priceListId, itemId, price, currency);
+    PriceListItem created = add(orgId, priceListId, itemId, price, currency);
+    created.setVisibleInPos(visibleInPos);
+    return priceListItemRepository.save(created);
   }
 
   @Override

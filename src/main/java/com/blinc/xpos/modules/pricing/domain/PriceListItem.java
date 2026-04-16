@@ -48,6 +48,9 @@ public class PriceListItem {
   @Column(name = "currency", nullable = false)
   private String currency;
 
+  @Column(name = "visible_in_pos", nullable = false)
+  private boolean visibleInPos = true;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 }

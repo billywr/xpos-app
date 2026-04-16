@@ -222,7 +222,7 @@ public class OperatorAnalyticsServiceImpl implements OperatorAnalyticsService {
             .map(
                 s ->
                     new AnalyticsSnapshotResponse.ExpenseByCategory(
-                        s.getCategory() != null ? s.getCategory().name() : "OTHER",
+                        s.getCategory() != null ? s.getCategory() : "Other",
                         s.getAmount() != null
                             ? s.getAmount().setScale(SCALE, ROUNDING)
                             : BigDecimal.ZERO))

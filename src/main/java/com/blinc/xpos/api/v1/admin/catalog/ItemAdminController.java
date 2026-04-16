@@ -12,8 +12,6 @@ import com.blinc.xpos.modules.catalog.service.ItemBarcodeService;
 import com.blinc.xpos.modules.catalog.service.ItemImageService;
 import com.blinc.xpos.modules.catalog.service.ItemService;
 import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
-import com.blinc.xpos.modules.pricing.repository.PriceListItemRepository;
-import com.blinc.xpos.modules.pricing.service.PriceListItemService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -38,39 +36,29 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/admin/orgs/{orgId}/items")
 public class ItemAdminController {
 
-  private static final String DEFAULT_CURRENCY = "KES";
-
   private final ItemService itemService;
   private final ItemBarcodeService itemBarcodeService;
   private final ItemImageService itemImageService;
   private final PageRequestFactory pageRequestFactory;
   private final StockMovementRepository stockMovementRepository;
-  private final PriceListItemRepository priceListItemRepository;
-  private final PriceListItemService priceListItemService;
 
   public ItemAdminController(
       ItemService itemService,
       ItemBarcodeService itemBarcodeService,
       ItemImageService itemImageService,
       PageRequestFactory pageRequestFactory,
-      StockMovementRepository stockMovementRepository,
-      PriceListItemRepository priceListItemRepository,
-      PriceListItemService priceListItemService) {
+      StockMovementRepository stockMovementRepository) {
     this.itemService = Objects.requireNonNull(itemService, "itemService");
     this.itemBarcodeService = Objects.requireNonNull(itemBarcodeService, "itemBarcodeService");
     this.itemImageService = Objects.requireNonNull(itemImageService, "itemImageService");
     this.pageRequestFactory = Objects.requireNonNull(pageRequestFactory, "pageRequestFactory");
     this.stockMovementRepository =
         Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
-    this.priceListItemRepository =
-        Objects.requireNonNull(priceListItemRepository, "priceListItemRepository");
-    this.priceListItemService =
-        Objects.requireNonNull(priceListItemService, "priceListItemService");
   }
 
   @GetMapping("/ids-with-prices")
   public ItemIdsWithPricesResponse itemIdsWithPrices(@PathVariable UUID orgId) {
-    List<UUID> ids = priceListItemRepository.findDistinctItemIdsByOrgId(orgId);
+    List<UUID> ids = itemService.findItemIdsWithSellingPrice(orgId);
     return new ItemIdsWithPricesResponse(ids);
   }
 
@@ -105,17 +93,10 @@ public class ItemAdminController {
             request.trackInventory(),
             request.active(),
             request.buyingPrice(),
-            request.defaultSellingPrice());
+            request.defaultSellingPrice(),
+            request.visibleInPos());
     if (request.imageUrl() != null && !request.imageUrl().isBlank()) {
       itemImageService.add(orgId, item.getId(), request.imageUrl().trim(), 0, true);
-    }
-    if (request.defaultPriceListId() != null && request.defaultSellingPrice() != null) {
-      priceListItemService.ensureInPriceList(
-          orgId,
-          request.defaultPriceListId(),
-          item.getId(),
-          request.defaultSellingPrice(),
-          DEFAULT_CURRENCY);
     }
     String primaryImageUrl = resolvePrimaryImageUrl(orgId, item.getId());
     return toResponse(item, primaryImageUrl, false, null);
@@ -169,20 +150,13 @@ public class ItemAdminController {
             request.trackInventory(),
             request.active(),
             request.buyingPrice(),
-            request.defaultSellingPrice());
+            request.defaultSellingPrice(),
+            request.visibleInPos());
     if (request.imageUrl() != null && !request.imageUrl().isBlank()) {
       for (ItemImage existing : itemImageService.listByItem(orgId, itemId)) {
         itemImageService.remove(orgId, itemId, existing.getId());
       }
       itemImageService.add(orgId, itemId, request.imageUrl().trim(), 0, true);
-    }
-    if (request.defaultPriceListId() != null && request.defaultSellingPrice() != null) {
-      priceListItemService.ensureInPriceList(
-          orgId,
-          request.defaultPriceListId(),
-          itemId,
-          request.defaultSellingPrice(),
-          DEFAULT_CURRENCY);
     }
     String primaryImageUrl = resolvePrimaryImageUrl(orgId, itemId);
     boolean hasHistory = stockMovementRepository.findMaxUnitCostByOrgAndItem(orgId, itemId) != null;
@@ -221,6 +195,7 @@ public class ItemAdminController {
         item.getTaxProfile() != null ? item.getTaxProfile().getId() : null,
         item.getTrackInventory(),
         item.getActive(),
+        item.isVisibleInPos(),
         item.getBuyingPrice(),
         item.getDefaultSellingPrice(),
         primaryImageUrl,

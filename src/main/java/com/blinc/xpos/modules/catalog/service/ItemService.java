@@ -3,6 +3,7 @@ package com.blinc.xpos.modules.catalog.service;
 import com.blinc.xpos.common.constants.enums.ItemType;
 import com.blinc.xpos.modules.catalog.domain.Item;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,7 +21,8 @@ public interface ItemService {
       boolean trackInventory,
       boolean active,
       BigDecimal buyingPrice,
-      BigDecimal defaultSellingPrice);
+      BigDecimal defaultSellingPrice,
+      Boolean visibleInPos);
 
   Item require(UUID orgId, UUID itemId);
 
@@ -44,7 +46,11 @@ public interface ItemService {
       boolean trackInventory,
       boolean active,
       BigDecimal buyingPrice,
-      BigDecimal defaultSellingPrice);
+      BigDecimal defaultSellingPrice,
+      Boolean visibleInPos);
 
   void delete(UUID orgId, UUID itemId);
+
+  /** Returns IDs of active items that have a non-null defaultSellingPrice. */
+  List<UUID> findItemIdsWithSellingPrice(UUID orgId);
 }

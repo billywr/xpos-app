@@ -1,6 +1,7 @@
 package com.blinc.xpos.modules.catalog.repository;
 
 import com.blinc.xpos.modules.catalog.domain.Item;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -26,7 +27,7 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
   @Query(
       """
       select i from Item i
-      where i.org.id = :orgId and i.active = true
+      where i.org.id = :orgId
         and (:categoryId is null or i.category.id = :categoryId)
       """)
   Page<Item> findAllByOrgIdAndCategoryId(
@@ -51,4 +52,21 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
       where i.org.id = :orgId and i.baseUom.id = :uomId and i.active = true
       """)
   long countByOrgIdAndBaseUomId(@Param("orgId") UUID orgId, @Param("uomId") UUID uomId);
+
+  @Query(
+      """
+      select i.id from Item i
+      where i.org.id = :orgId and i.active = true
+        and i.defaultSellingPrice is not null and i.defaultSellingPrice > 0
+      """)
+  List<UUID> findItemIdsWithSellingPrice(@Param("orgId") UUID orgId);
+
+  @Query(
+      """
+      select i from Item i
+      where i.org.id = :orgId and i.active = true
+        and i.defaultSellingPrice is not null and i.defaultSellingPrice > 0
+      order by i.name
+      """)
+  List<Item> findActiveWithSellingPriceByOrgId(@Param("orgId") UUID orgId);
 }

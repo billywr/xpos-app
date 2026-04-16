@@ -71,6 +71,9 @@ public class Item {
   @Column(name = "default_selling_price", precision = 18, scale = 2)
   private BigDecimal defaultSellingPrice;
 
+  @Column(name = "visible_in_pos", nullable = false)
+  private boolean visibleInPos = true;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 

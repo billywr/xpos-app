@@ -1,9 +1,9 @@
 package com.blinc.xpos.api.v1.operator.dto;
 
-import com.blinc.xpos.common.constants.enums.MiscExpenseCategory;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -11,7 +11,7 @@ public record MiscExpenseCreateRequest(
     @NotNull(message = "Amount is required")
         @DecimalMin(value = "0.01", message = "Amount must be positive")
         BigDecimal amount,
-    @NotNull(message = "Category is required") MiscExpenseCategory category,
+    @NotBlank(message = "Category is required") @Size(max = 100) String category,
     @NotBlank(message = "Description is required") String description,
     String incurredBy,
     String receiptRef,

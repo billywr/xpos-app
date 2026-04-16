@@ -1,6 +1,5 @@
 package com.blinc.xpos.modules.cash.service.impl;
 
-import com.blinc.xpos.common.constants.enums.MiscExpenseCategory;
 import com.blinc.xpos.common.error.BadRequestException;
 import com.blinc.xpos.common.error.NotFoundException;
 import com.blinc.xpos.modules.cash.domain.MiscExpense;
@@ -15,6 +14,7 @@ import com.blinc.xpos.modules.organization.service.TerminalService;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -54,7 +54,7 @@ public class MiscExpenseServiceImpl implements MiscExpenseService {
       UUID orgId,
       UUID branchId,
       BigDecimal amount,
-      MiscExpenseCategory category,
+      String category,
       String description,
       String incurredBy,
       String receiptRef,
@@ -68,7 +68,7 @@ public class MiscExpenseServiceImpl implements MiscExpenseService {
     expense.setOrg(branch.getOrg());
     expense.setBranch(branch);
     expense.setAmount(amount != null ? amount : BigDecimal.ZERO);
-    expense.setCategory(category != null ? category : MiscExpenseCategory.OTHER);
+    expense.setCategory(category != null && !category.isBlank() ? category.trim() : "Other");
     expense.setDescription(description != null ? description.trim() : "");
     expense.setIncurredBy(incurredBy != null && !incurredBy.isBlank() ? incurredBy.trim() : null);
     expense.setReceiptRef(receiptRef != null && !receiptRef.isBlank() ? receiptRef.trim() : null);
@@ -111,7 +111,7 @@ public class MiscExpenseServiceImpl implements MiscExpenseService {
       UUID orgId,
       UUID expenseId,
       BigDecimal amount,
-      MiscExpenseCategory category,
+      String category,
       String description,
       String incurredBy,
       String receiptRef,
@@ -122,7 +122,8 @@ public class MiscExpenseServiceImpl implements MiscExpenseService {
       throw new BadRequestException("EXPENSE_DELETED", "Cannot edit a deleted expense.");
     }
     expense.setAmount(amount != null ? amount : expense.getAmount());
-    expense.setCategory(category != null ? category : expense.getCategory());
+    expense.setCategory(
+        category != null && !category.isBlank() ? category.trim() : expense.getCategory());
     expense.setDescription(description != null ? description.trim() : expense.getDescription());
     expense.setIncurredBy(incurredBy != null && !incurredBy.isBlank() ? incurredBy.trim() : null);
     expense.setReceiptRef(receiptRef != null && !receiptRef.isBlank() ? receiptRef.trim() : null);
@@ -171,5 +172,11 @@ public class MiscExpenseServiceImpl implements MiscExpenseService {
     branchService.require(orgId, branchId);
     return miscExpenseRepository.findAllByOrgIdAndBranchIdAndCreatedAtBetween(
         orgId, branchId, fromInstant, toInstant, pageable);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<String> listCategoriesByOrg(UUID orgId) {
+    return miscExpenseRepository.findDistinctCategoriesByOrgId(orgId);
   }
 }
