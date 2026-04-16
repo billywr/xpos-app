@@ -82,9 +82,10 @@ export function AdminLayout() {
       {navGroups.map(({ label: groupLabel, items: groupItems }) => {
         const isOpen = openGroups.has(groupLabel);
         const showLabels = isMobile || !collapsed;
+        const singleItem = groupItems.length === 1;
         return (
           <div key={groupLabel} className="space-y-0.5">
-            {showLabels ? (
+            {showLabels && !singleItem ? (
               <button
                 type="button"
                 onClick={() => toggleGroup(groupLabel)}
@@ -99,7 +100,7 @@ export function AdminLayout() {
                 {groupLabel}
               </button>
             ) : null}
-            {((!showLabels) || isOpen) &&
+            {(singleItem || !showLabels || isOpen) &&
               groupItems.map(({ to, label, icon: Icon, end }) => {
                 const displayLabel = getAdminLabel(to, label);
                 return (
@@ -111,7 +112,7 @@ export function AdminLayout() {
                   onClick={isMobile ? closeMobile : undefined}
                   className={({ isActive }) =>
                     `flex items-center gap-3 rounded-lg py-2.5 text-sm font-medium transition ${
-                      !showLabels ? "justify-center px-3" : "pl-6 pr-3"
+                      !showLabels ? "justify-center px-3" : singleItem ? "px-3" : "pl-6 pr-3"
                     } ${
                       isActive
                         ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-500/30 dark:text-indigo-100"

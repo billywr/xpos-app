@@ -92,13 +92,14 @@ export interface CreateItemBody {
   name: string;
   itemType: string;
   categoryId?: string | null;
-  baseUomId?: string | null;
+
   taxProfileId?: string | null;
   trackInventory?: boolean;
   active?: boolean;
   buyingPrice?: number | null;
   defaultSellingPrice?: number | null;
-  defaultPriceListId?: string | null;
+
+  visibleInPos?: boolean;
   imageUrl?: string | null;
 }
 
@@ -115,13 +116,14 @@ export async function createItem(
       name: body.name,
       itemType: body.itemType,
       categoryId: body.categoryId ?? null,
-      baseUomId: body.baseUomId ?? null,
+
       taxProfileId: body.taxProfileId ?? null,
       trackInventory: body.trackInventory ?? false,
       active: body.active ?? true,
       buyingPrice: body.buyingPrice ?? null,
       defaultSellingPrice: body.defaultSellingPrice ?? null,
-      defaultPriceListId: body.defaultPriceListId ?? null,
+
+      visibleInPos: body.visibleInPos ?? true,
       imageUrl: body.imageUrl ?? null,
     },
   });
@@ -132,13 +134,14 @@ export interface UpdateItemBody {
   name: string;
   itemType: string;
   categoryId?: string | null;
-  baseUomId?: string | null;
+
   taxProfileId?: string | null;
   trackInventory?: boolean;
   active?: boolean;
   buyingPrice?: number | null;
   defaultSellingPrice?: number | null;
-  defaultPriceListId?: string | null;
+
+  visibleInPos?: boolean;
   imageUrl?: string | null;
 }
 
@@ -169,13 +172,14 @@ export async function updateItem(
         name: body.name,
         itemType: body.itemType,
         categoryId: body.categoryId ?? null,
-        baseUomId: body.baseUomId ?? null,
+  
         taxProfileId: body.taxProfileId ?? null,
         trackInventory: body.trackInventory ?? false,
         active: body.active ?? true,
         buyingPrice: body.buyingPrice ?? null,
         defaultSellingPrice: body.defaultSellingPrice ?? null,
-        defaultPriceListId: body.defaultPriceListId ?? null,
+  
+        visibleInPos: body.visibleInPos ?? true,
         imageUrl: body.imageUrl ?? null,
       },
     }

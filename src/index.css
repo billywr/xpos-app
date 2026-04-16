@@ -45,6 +45,7 @@
   --card-border: rgba(186, 230, 253, 0.5);
 }
 
+/* Dark theme: Ocean (default) */
 .dark {
   color: #ffffff;
   --app-bg-start: #0d2a4a;
@@ -55,6 +56,86 @@
   --sidebar-edge: rgba(17, 50, 100, 0.6);
   --card-bg: #164278;
   --card-border: rgba(255, 255, 255, 0.12);
+  --table-bg: #1e3a5f;
+  --table-header: #1a3355;
+  --table-row-hover: #244a72;
+  --table-border: #2a5080;
+  --surface-input: #1a3355;
+  --surface-raised: #1e3a5f;
+  --accent-500: #0ea5e9;
+  --accent-600: #0284c7;
+  --accent-700: #0369a1;
+  --accent-bg-active: rgba(14, 165, 233, 0.3);
+  --accent-text: #38bdf8;
+}
+
+/* Dark theme: Forest */
+[data-theme="forest"].dark {
+  --app-bg-start: #071f14;
+  --app-bg-mid: #0c3322;
+  --app-bg-end: #071f14;
+  --sidebar-start: #0c3322;
+  --sidebar-end: #0a2a1c;
+  --sidebar-edge: rgba(12, 51, 34, 0.6);
+  --card-bg: #145236;
+  --card-border: rgba(255, 255, 255, 0.1);
+  --table-bg: #103d28;
+  --table-header: #0e3522;
+  --table-row-hover: #185a3a;
+  --table-border: #1a6640;
+  --surface-input: #0e3522;
+  --surface-raised: #103d28;
+  --accent-500: #10b981;
+  --accent-600: #059669;
+  --accent-700: #047857;
+  --accent-bg-active: rgba(16, 185, 129, 0.3);
+  --accent-text: #34d399;
+}
+
+/* Dark theme: Ember */
+[data-theme="ember"].dark {
+  --app-bg-start: #1a0f08;
+  --app-bg-mid: #2d1a0c;
+  --app-bg-end: #1a0f08;
+  --sidebar-start: #2d1a0c;
+  --sidebar-end: #24150a;
+  --sidebar-edge: rgba(45, 26, 12, 0.6);
+  --card-bg: #3d2612;
+  --card-border: rgba(255, 255, 255, 0.1);
+  --table-bg: #36210e;
+  --table-header: #2d1a0c;
+  --table-row-hover: #4a3018;
+  --table-border: #5a3a1e;
+  --surface-input: #2d1a0c;
+  --surface-raised: #36210e;
+  --accent-500: #f59e0b;
+  --accent-600: #d97706;
+  --accent-700: #b45309;
+  --accent-bg-active: rgba(245, 158, 11, 0.3);
+  --accent-text: #fbbf24;
+}
+
+/* Dark theme: Slate */
+[data-theme="slate"].dark {
+  --app-bg-start: #111318;
+  --app-bg-mid: #1a1d24;
+  --app-bg-end: #111318;
+  --sidebar-start: #1a1d24;
+  --sidebar-end: #16181e;
+  --sidebar-edge: rgba(26, 29, 36, 0.6);
+  --card-bg: #24282f;
+  --card-border: rgba(255, 255, 255, 0.1);
+  --table-bg: #1f2229;
+  --table-header: #1a1d24;
+  --table-row-hover: #2a2e36;
+  --table-border: #33383f;
+  --surface-input: #1a1d24;
+  --surface-raised: #1f2229;
+  --accent-500: #94a3b8;
+  --accent-600: #64748b;
+  --accent-700: #475569;
+  --accent-bg-active: rgba(148, 163, 184, 0.2);
+  --accent-text: #cbd5e1;
 }
 
 body {
@@ -70,6 +151,113 @@ body {
   .bg-sidebar {
     background: linear-gradient(180deg, var(--sidebar-start) 0%, var(--sidebar-end) 100%);
   }
+}
+
+/*
+ * Theme-aware overrides: remap Tailwind's hardcoded dark:bg-slate-* classes
+ * to CSS variables so ALL existing dark UI adapts to the selected theme.
+ * Only active when a non-default theme is set (data-theme != "").
+ */
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-800 {
+  background-color: var(--table-bg) !important;
+}
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-700 {
+  background-color: var(--table-header) !important;
+}
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-slate-700:hover {
+  background-color: var(--table-row-hover) !important;
+}
+[data-theme]:not([data-theme=""]).dark .dark\:group-hover\:\!bg-slate-700 {
+  --tw-bg-opacity: 1;
+}
+.dark [data-theme]:not([data-theme=""]) .group:hover .dark\:group-hover\:\!bg-slate-700 {
+  background-color: var(--table-row-hover) !important;
+}
+[data-theme]:not([data-theme=""]).dark .dark\:border-slate-700,
+[data-theme]:not([data-theme=""]).dark .dark\:border-slate-600,
+[data-theme]:not([data-theme=""]).dark .dark\:divide-slate-600 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--table-border) !important;
+}
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-700\/50,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-700\/40,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-700\/30 {
+  background-color: color-mix(in srgb, var(--table-header) 50%, transparent) !important;
+}
+
+/* Primary accent buttons & interactive elements */
+[data-theme]:not([data-theme=""]).dark .bg-primary-600 {
+  background-color: var(--accent-600) !important;
+}
+[data-theme]:not([data-theme=""]).dark .bg-primary-500,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-primary-500 {
+  background-color: var(--accent-500) !important;
+}
+[data-theme]:not([data-theme=""]).dark .hover\:bg-primary-700:hover,
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-primary-600:hover {
+  background-color: var(--accent-700) !important;
+}
+[data-theme]:not([data-theme=""]).dark .text-primary-600,
+[data-theme]:not([data-theme=""]).dark .dark\:text-primary-400,
+[data-theme]:not([data-theme=""]).dark .dark\:text-primary-300 {
+  color: var(--accent-text) !important;
+}
+[data-theme]:not([data-theme=""]).dark .border-primary-500,
+[data-theme]:not([data-theme=""]).dark .focus\:border-primary-500:focus,
+[data-theme]:not([data-theme=""]).dark .focus\:ring-primary-500:focus,
+[data-theme]:not([data-theme=""]).dark .focus-within\:border-primary-500:focus-within,
+[data-theme]:not([data-theme=""]).dark .focus-within\:ring-primary-500:focus-within {
+  border-color: var(--accent-500) !important;
+  --tw-ring-color: var(--accent-500) !important;
+}
+/* Active nav / selected state */
+[data-theme]:not([data-theme=""]).dark .dark\:bg-indigo-500\/30,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-primary-900\/30 {
+  background-color: var(--accent-bg-active) !important;
+}
+[data-theme]:not([data-theme=""]).dark .dark\:text-indigo-100 {
+  color: var(--accent-text) !important;
+}
+/* Input & dropdown surfaces */
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-600 {
+  background-color: var(--surface-input) !important;
+}
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-slate-600:hover {
+  background-color: var(--table-row-hover) !important;
+}
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-white\/10:hover {
+  background-color: color-mix(in srgb, var(--accent-500) 15%, transparent) !important;
+}
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-white\/5:hover {
+  background-color: color-mix(in srgb, var(--accent-500) 8%, transparent) !important;
+}
+/* Deep surfaces (modals, overlays) */
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-900 {
+  background-color: var(--app-bg-start) !important;
+}
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-900\/50 {
+  background-color: color-mix(in srgb, var(--app-bg-start) 50%, transparent) !important;
+}
+/* Cards with opacity modifiers */
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-800\/95 {
+  background-color: color-mix(in srgb, var(--table-bg) 95%, transparent) !important;
+}
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-800\/90 {
+  background-color: color-mix(in srgb, var(--table-bg) 90%, transparent) !important;
+}
+/* Operator layout: top nav, sidebar, main bg, search input */
+[data-theme]:not([data-theme=""]).dark .dark\:bg-darkNav,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-darkNav\/95 {
+  background-color: var(--sidebar-start) !important;
+}
+[data-theme]:not([data-theme=""]).dark .dark\:bg-darkBg {
+  background-color: var(--app-bg-start) !important;
+}
+[data-theme]:not([data-theme=""]).dark .dark\:bg-darkSurface {
+  background-color: var(--surface-input) !important;
+}
+/* Top header nav (Layout.tsx) */
+[data-theme]:not([data-theme=""]).dark .dark\:bg-darkNav\/95 {
+  background-color: color-mix(in srgb, var(--sidebar-start) 95%, transparent) !important;
 }
 
 /* Responsive table: always-visible horizontal scrollbar on mobile */

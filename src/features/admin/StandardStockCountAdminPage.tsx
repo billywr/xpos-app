@@ -74,7 +74,7 @@ export function StandardStockCountAdminPage() {
       <div className="min-h-0 flex-1 overflow-auto">
         <PageHeader
           title="Standard Stock Count (Admin)"
-          subtitle="Bar-style sheet with System and Variance columns. Select organization and branch."
+          subtitle="View the standard stock count sheet for any branch. Select organization and branch."
           icon={FileSpreadsheet}
           fallbackTo="/admin"
         />
@@ -118,8 +118,7 @@ export function StandardStockCountAdminPage() {
           </div>
         </div>
         <div className="rounded-xl border border-sky-200/70 bg-white/90 p-8 text-center text-slate-500 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400">
-          Select organization and branch to view the standard stock count sheet
-          with System and Variance columns.
+          Select organization and branch to view the standard stock count sheet.
         </div>
       </div>
     );
@@ -127,7 +126,6 @@ export function StandardStockCountAdminPage() {
 
   return (
     <StandardStockCountSheetPage
-      showSystemAndVariance
       orgId={selectedOrgId}
       branchId={selectedBranchId}
       orgName={selectedOrg?.name}

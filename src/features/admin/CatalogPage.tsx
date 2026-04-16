@@ -7,21 +7,15 @@ import { fetchOrgs } from "@/api/orgs";
 import { filterActiveOrgs } from "@/types/org";
 import { AdminTabList, AdminTabPanel } from "@/components/ui/AdminTabs";
 import { CategoriesListPage } from "@/features/admin/CategoriesListPage";
-import { UomsListPage } from "@/features/admin/UomsListPage";
 import { ItemsListPage } from "@/features/admin/ItemsListPage";
-import { PriceListsListPage } from "@/features/admin/PriceListsListPage";
-import { PriceListItemsListPage } from "@/features/admin/PriceListItemsListPage";
-import { FolderTree, Ruler, Package, Receipt, ListChecks } from "lucide-react";
+import { FolderTree, Package } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
 const TAB_LIST_ID = "catalog";
 
 const TABS = [
   { id: "categories", label: "Categories", icon: FolderTree },
-  { id: "uoms", label: "Units (UOM)", icon: Ruler },
   { id: "items", label: "Items", icon: Package },
-  { id: "price-lists", label: "Price lists", icon: Receipt },
-  { id: "price-list-items", label: "Price list items", icon: ListChecks },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -147,26 +141,8 @@ export function CatalogPage() {
             onOrgChange={setContextOrgId}
           />
         )}
-        {activeTab === "uoms" && (
-          <UomsListPage
-            initialOrgId={contextOrgId || undefined}
-            onOrgChange={setContextOrgId}
-          />
-        )}
         {activeTab === "items" && (
           <ItemsListPage
-            initialOrgId={contextOrgId || undefined}
-            onOrgChange={setContextOrgId}
-          />
-        )}
-        {activeTab === "price-lists" && (
-          <PriceListsListPage
-            initialOrgId={contextOrgId || undefined}
-            onOrgChange={setContextOrgId}
-          />
-        )}
-        {activeTab === "price-list-items" && (
-          <PriceListItemsListPage
             initialOrgId={contextOrgId || undefined}
             onOrgChange={setContextOrgId}
           />

@@ -184,7 +184,7 @@ export function SelectContextPage() {
                   className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition ${
                     selectedOrgId === org.id
                       ? "border-primary-500 bg-primary-50 text-primary-800 dark:border-primary-500 dark:bg-primary-900/40 dark:text-primary-200"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:border-slate-500 dark:hover:bg-slate-700"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:border-slate-500 dark:hover:bg-slate-700"
                   }`}
                 >
                   <span className="font-medium">{org.name}</span>
@@ -223,7 +223,7 @@ export function SelectContextPage() {
                   className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition ${
                     selectedBranch?.id === b.id
                       ? "border-primary-500 bg-primary-50 text-primary-800 dark:border-primary-500 dark:bg-primary-900/40 dark:text-primary-200"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:border-slate-500 dark:hover:bg-slate-700"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:border-slate-500 dark:hover:bg-slate-700"
                   }`}
                 >
                   <span className="font-medium">{b.name}</span>
@@ -262,7 +262,7 @@ export function SelectContextPage() {
                   className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition ${
                     selectedTerminal?.id === t.id
                       ? "border-primary-500 bg-primary-50 text-primary-800 dark:border-primary-500 dark:bg-primary-900/40 dark:text-primary-200"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:border-slate-500 dark:hover:bg-slate-700"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:border-slate-500 dark:hover:bg-slate-700"
                   }`}
                 >
                   <span className="font-medium">{t.terminalCode}</span>

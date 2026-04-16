@@ -180,7 +180,7 @@ export function ZReportPage() {
         </div>
       ) : report ? (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-600 dark:bg-slate-800/80">
+          <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-600 dark:bg-slate-800">
             <h2 className="font-semibold text-slate-800 dark:text-white">
               Z-Report · {selectedBranch?.name ?? "Branch"} · {report.businessDate}
             </h2>

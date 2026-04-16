@@ -40,6 +40,17 @@ function applyTheme(theme: Theme) {
   } else {
     root.classList.remove("dark");
   }
+  // Apply dark color theme from localStorage (before API loads)
+  try {
+    const dt = localStorage.getItem("xpos_dark_theme");
+    if (dt && dt !== "ocean") {
+      root.dataset.theme = dt;
+    } else {
+      root.dataset.theme = "";
+    }
+  } catch {
+    // ignore
+  }
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

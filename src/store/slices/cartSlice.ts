@@ -28,7 +28,6 @@ export interface CartState {
   orderType: "DINE_IN" | "TAKEAWAY" | "DELIVERY";
   tableId: string | null;
   customerId: string | null;
-  priceListId: string | null;
   saleId: string | null;
 }
 
@@ -37,7 +36,6 @@ const initialState: CartState = {
   orderType: "DINE_IN",
   tableId: null,
   customerId: null,
-  priceListId: null,
   saleId: null,
 };
 
@@ -111,9 +109,6 @@ const cartSlice = createSlice({
     setCustomerId: (state, action: { payload: string | null }) => {
       state.customerId = action.payload;
     },
-    setPriceListId: (state, action: { payload: string | null }) => {
-      state.priceListId = action.payload;
-    },
     setSaleId: (state, action: { payload: string | null }) => {
       state.saleId = action.payload;
     },
@@ -128,7 +123,6 @@ export const {
   setOrderType,
   setTableId,
   setCustomerId,
-  setPriceListId,
   setSaleId,
   clearCart,
 } = cartSlice.actions;

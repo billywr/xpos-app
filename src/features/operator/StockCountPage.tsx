@@ -209,9 +209,9 @@ export function StockCountPage() {
               <div className="relative min-h-0 flex-1 overflow-auto rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
                 <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "600px" }}>
-                  <thead>
+                  <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr className="bg-slate-50 dark:bg-slate-700/50">
-                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300">
+                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700 dark:text-slate-300">
                         Started
                       </th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
@@ -232,9 +232,9 @@ export function StockCountPage() {
                     {filteredSessions.map((s) => (
                       <tr
                         key={s.id}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
+                        className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                       >
-                        <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white">
+                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs text-slate-900 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">
                           {new Date(s.startedAt).toLocaleString("en-GB")}
                         </td>
                         <td className="px-2 py-1.5 text-xs text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">

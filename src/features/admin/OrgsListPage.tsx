@@ -259,7 +259,7 @@ export function OrgsListPage() {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="min-h-0 flex-1 overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-            <thead className="bg-slate-50 dark:bg-slate-800/80">
+            <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                   Name
@@ -286,7 +286,7 @@ export function OrgsListPage() {
                 filteredOrgs.map((org: Org) => (
                   <tr
                     key={org.id}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
+                    className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                   >
                     <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">
                       {org.name}
@@ -400,7 +400,7 @@ export function OrgsListPage() {
             <button
               type="button"
               onClick={() => setSlideOpen(false)}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
             >
               Cancel
             </button>

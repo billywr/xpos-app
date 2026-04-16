@@ -9,13 +9,13 @@ import {
 } from "@/store/selectors/orgContextSelectors";
 import {
   fetchMiscExpenses,
+  fetchExpenseCategories,
   createMiscExpense,
   updateMiscExpense,
   cancelMiscExpense,
   type MiscExpenseResponse,
   type MiscExpenseCreateRequest,
   type MiscExpenseUpdateRequest,
-  type MiscExpenseCategory,
 } from "@/api/miscExpenses";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
@@ -45,15 +45,15 @@ function MiscExpensesTotalBadge(props: { totalAmount: number }) {
 }
 
 const PAGE_SIZE = 20;
-const EXPENSE_CATEGORIES: { value: MiscExpenseCategory; label: string }[] = [
-  { value: "UTILITIES", label: "Utilities" },
-  { value: "SUPPLIES", label: "Supplies" },
-  { value: "MAINTENANCE", label: "Maintenance" },
-  { value: "TRANSPORT", label: "Transport" },
-  { value: "FUEL", label: "Fuel" },
-  { value: "RENT", label: "Rent" },
-  { value: "SALARIES", label: "Salaries" },
-  { value: "OTHER", label: "Other" },
+const DEFAULT_CATEGORIES = [
+  "Utilities",
+  "Supplies",
+  "Maintenance",
+  "Transport",
+  "Fuel",
+  "Rent",
+  "Salaries",
+  "Other",
 ];
 
 export function MiscExpensesPage() {
@@ -66,7 +66,7 @@ export function MiscExpensesPage() {
   const [page, setPage] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [formAmount, setFormAmount] = useState("");
-  const [formCategory, setFormCategory] = useState<MiscExpenseCategory>("OTHER");
+  const [formCategory, setFormCategory] = useState("Other");
   const [formDescription, setFormDescription] = useState("");
   const [formIncurredBy, setFormIncurredBy] = useState("");
   const [formReceiptRef, setFormReceiptRef] = useState("");
@@ -75,7 +75,7 @@ export function MiscExpensesPage() {
     null
   );
   const [editAmount, setEditAmount] = useState("");
-  const [editCategory, setEditCategory] = useState<MiscExpenseCategory>("OTHER");
+  const [editCategory, setEditCategory] = useState("Other");
   const [editDescription, setEditDescription] = useState("");
   const [editIncurredBy, setEditIncurredBy] = useState("");
   const [editReceiptRef, setEditReceiptRef] = useState("");
@@ -84,10 +84,20 @@ export function MiscExpensesPage() {
     useState<MiscExpenseResponse | null>(null);
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
 
-  const expenseCategoryOptions = useMemo(
-    () => EXPENSE_CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
-    []
-  );
+  const { data: categoriesFromApi } = useQuery({
+    queryKey: ["expense-categories", token, orgId],
+    queryFn: () => fetchExpenseCategories(token, orgId!, branchId!),
+    enabled: Boolean(token && orgId && branchId),
+    staleTime: 60_000,
+  });
+
+  const expenseCategoryOptions = useMemo(() => {
+    const fromApi = categoriesFromApi ?? [];
+    const merged = new Set([...fromApi, ...DEFAULT_CATEGORIES]);
+    return [...merged]
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+      .map((c) => ({ value: c, label: c }));
+  }, [categoriesFromApi]);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["operator-misc-expenses", token, orgId, branchId, page],
@@ -101,9 +111,10 @@ export function MiscExpensesPage() {
       createMiscExpense(token, orgId!, branchId!, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operator-misc-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
       setFormOpen(false);
       setFormAmount("");
-      setFormCategory("OTHER");
+      setFormCategory("Other");
       setFormDescription("");
       setFormIncurredBy("");
       setFormReceiptRef("");
@@ -132,6 +143,7 @@ export function MiscExpensesPage() {
     }) => updateMiscExpense(token, orgId!, branchId!, expenseId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operator-misc-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
       setEditFormOpen(false);
       setEditingExpense(null);
       toast.success("Expense updated.", { title: "Miscellaneous expense" });
@@ -150,6 +162,7 @@ export function MiscExpensesPage() {
       cancelMiscExpense(token, orgId!, branchId!, expenseId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operator-misc-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
       setCancelDialogExpense(null);
       toast.success("Expense deleted.", { title: "Miscellaneous expense" });
     },
@@ -165,7 +178,7 @@ export function MiscExpensesPage() {
   const openEditForm = (e: MiscExpenseResponse) => {
     setEditingExpense(e);
     setEditAmount(String(e.amount));
-    setEditCategory((e.category as MiscExpenseCategory) || "OTHER");
+    setEditCategory(e.category || "Other");
     setEditDescription(e.description ?? "");
     setEditIncurredBy(e.incurredBy ?? "");
     setEditReceiptRef(e.receiptRef ?? "");
@@ -302,9 +315,9 @@ export function MiscExpensesPage() {
               <div className="relative min-h-0 flex-1 overflow-auto">
                 <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "840px" }}>
-                  <thead>
+                  <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
-                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:bg-slate-700/80 dark:text-slate-400">
+                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:bg-slate-700 dark:text-slate-400">
                         Incurred by
                       </th>
                       <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
@@ -331,9 +344,9 @@ export function MiscExpensesPage() {
                     {filteredExpenses.map((e: MiscExpenseResponse) => (
                       <tr
                         key={e.id}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                        className="hover:bg-slate-100 dark:hover:bg-slate-700"
                       >
-                        <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-slate-400">
+                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm  dark:text-slate-400">
                           {e.incurredBy ?? "—"}
                         </td>
                         <td className="px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
@@ -395,7 +408,7 @@ export function MiscExpensesPage() {
           setFormOpen(false);
           if (!createMutation.isPending) {
             setFormAmount("");
-            setFormCategory("OTHER");
+            setFormCategory("Other");
             setFormDescription("");
             setFormIncurredBy("");
             setFormReceiptRef("");
@@ -427,14 +440,15 @@ export function MiscExpensesPage() {
               htmlFor="category"
               className="block text-sm font-medium text-slate-700 dark:text-slate-300"
             >
-              Category *
+              Spent on *
             </label>
             <SearchableSelect
               id="category"
               options={expenseCategoryOptions}
               value={formCategory}
-              onChange={(v) => setFormCategory(v as MiscExpenseCategory)}
-              placeholder="Search category…"
+              onChange={setFormCategory}
+              allowCustomValue
+              placeholder="Type or search…"
               className="mt-1 block w-full"
               controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
             />
@@ -492,7 +506,7 @@ export function MiscExpensesPage() {
             <button
               type="button"
               onClick={() => setFormOpen(false)}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -551,14 +565,15 @@ export function MiscExpensesPage() {
                 htmlFor="editCategory"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Category *
+                Spent on *
               </label>
               <SearchableSelect
                 id="editCategory"
                 options={expenseCategoryOptions}
                 value={editCategory}
-                onChange={(v) => setEditCategory(v as MiscExpenseCategory)}
-                placeholder="Search category…"
+                onChange={setEditCategory}
+                allowCustomValue
+                placeholder="Type or search…"
                 className="mt-1 block w-full"
                 controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
               />
@@ -614,7 +629,7 @@ export function MiscExpensesPage() {
               <button
                 type="button"
                 onClick={() => setEditFormOpen(false)}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               >
                 Cancel
               </button>

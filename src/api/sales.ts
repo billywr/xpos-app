@@ -12,7 +12,7 @@ export async function createSale(
   orgId: string,
   branchId: string,
   terminalId: string,
-  body: { customerId?: string | null; priceListId?: string | null }
+  body: { customerId?: string | null }
 ): Promise<Sale> {
   return apiFetch<Sale>(salesPath(orgId, branchId, terminalId), {
     token,

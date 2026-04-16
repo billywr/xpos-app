@@ -119,7 +119,7 @@ function LogoUploadRow({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isSaving || uploading}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               <Upload className="h-4 w-4" />
               {logoDataUrl ? "Change" : "Upload"}
@@ -287,6 +287,8 @@ export function AdminSettingsPage() {
     resetAdminLabels,
     resetOperatorLabels,
     resetHeaderLabels,
+    darkTheme,
+    setDarkTheme,
     needsOrgSelection,
     isSaving,
   } = useNavVisibilityContext();
@@ -361,14 +363,14 @@ export function AdminSettingsPage() {
             <button
               type="button"
               onClick={resetHeaderToDefaults}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Reset visibility (show all)
             </button>
             <button
               type="button"
               onClick={resetHeaderLabels}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Reset labels to default
             </button>
@@ -413,14 +415,14 @@ export function AdminSettingsPage() {
             <button
               type="button"
               onClick={resetToDefaults}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Reset visibility (show all)
             </button>
             <button
               type="button"
               onClick={resetAdminLabels}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Reset labels to default
             </button>
@@ -465,14 +467,14 @@ export function AdminSettingsPage() {
             <button
               type="button"
               onClick={opResetToDefaults}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Reset visibility (show all)
             </button>
             <button
               type="button"
               onClick={resetOperatorLabels}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Reset labels to default
             </button>
@@ -562,6 +564,49 @@ export function AdminSettingsPage() {
                 />
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Dark Mode Theme */}
+        <section>
+          <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-white">
+            Dark Mode Theme
+          </h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {([
+              { id: "ocean", name: "Ocean", colors: ["#0d2a4a", "#113264", "#164278", "#0ea5e9"] },
+              { id: "forest", name: "Forest", colors: ["#071f14", "#0c3322", "#145236", "#10b981"] },
+              { id: "ember", name: "Ember", colors: ["#1a0f08", "#2d1a0c", "#3d2612", "#f59e0b"] },
+              { id: "slate", name: "Slate", colors: ["#111318", "#1a1d24", "#24282f", "#94a3b8"] },
+            ] as const).map((theme) => {
+              const isActive = darkTheme === theme.id;
+              return (
+                <button
+                  key={theme.id}
+                  type="button"
+                  onClick={() => setDarkTheme(theme.id)}
+                  className={`flex flex-col items-center gap-2 rounded-xl border-2 p-3 transition ${
+                    isActive
+                      ? "border-primary-500 bg-primary-50 shadow-md dark:border-primary-400 dark:bg-primary-900/30"
+                      : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-slate-500"
+                  }`}
+                >
+                  <div className="flex h-8 w-full overflow-hidden rounded-lg">
+                    {theme.colors.map((c, i) => (
+                      <div key={i} className="flex-1" style={{ backgroundColor: c }} />
+                    ))}
+                  </div>
+                  <span className={`text-sm font-medium ${isActive ? "text-primary-700 dark:text-primary-300" : "text-slate-700 dark:text-slate-300"}`}>
+                    {theme.name}
+                  </span>
+                  {isActive && (
+                    <span className="text-xs font-semibold text-primary-600 dark:text-primary-400">
+                      Active
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </section>
       </div>

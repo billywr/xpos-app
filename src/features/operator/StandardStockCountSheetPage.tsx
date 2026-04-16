@@ -70,8 +70,6 @@ interface ComputedRow {
   addedTodayStock: number;
   totalStock: number;
   closingStock: number;
-  systemCountBeforeToday: number;
-  variance: number;
   unitsSold: number;
   sellingPrice: number;
   amount: number;
@@ -80,9 +78,16 @@ interface ComputedRow {
   closingError?: string;
 }
 
-/** Saved closing if present; otherwise ledger on-hand (same as System column). */
+/** Saved closing if present; otherwise Total stock (Open + Added + AddedToday) so unsaved rows start at "nothing sold yet" and never exceed Total. */
 function defaultClosingFromRow(row: StdStockCountRowResponse): number {
-  return row.closingStock ?? row.systemCountBeforeToday ?? 0;
+  if (row.closingStock !== null && row.closingStock !== undefined) {
+    return row.closingStock;
+  }
+  return (
+    (row.openingStock ?? 0) +
+    (row.addedStock ?? 0) +
+    (row.addedTodayStock ?? 0)
+  );
 }
 
 function computeRow(
@@ -93,8 +98,6 @@ function computeRow(
   const closing = localClosing ?? defaultClosingFromRow(row);
   const total =
     row.openingStock + row.addedStock + (row.addedTodayStock ?? 0);
-  const systemCount = row.systemCountBeforeToday ?? 0;
-  const variance = closing - systemCount;
   const unitsSold = Math.max(0, total - closing);
   const amount = unitsSold * (row.sellingPrice ?? 0);
   const comments =
@@ -116,8 +119,6 @@ function computeRow(
     addedTodayStock: row.addedTodayStock,
     totalStock: total,
     closingStock: closing,
-    systemCountBeforeToday: systemCount,
-    variance,
     unitsSold,
     sellingPrice: row.sellingPrice,
     amount,
@@ -128,8 +129,6 @@ function computeRow(
 }
 
 export interface StandardStockCountSheetPageProps {
-  /** When true, show System and Variance columns (admin only) */
-  showSystemAndVariance?: boolean;
   /** Override org context (for admin) */
   orgId?: string;
   /** Override branch context (for admin) */
@@ -139,7 +138,6 @@ export interface StandardStockCountSheetPageProps {
 }
 
 export function StandardStockCountSheetPage({
-  showSystemAndVariance = false,
   orgId: orgIdProp,
   branchId: branchIdProp,
   branchName: branchNameProp,
@@ -234,18 +232,40 @@ export function StandardStockCountSheetPage({
     return row.comments ?? "";
   }
 
+  function isRowChanged(r: StdStockCountRowResponse): boolean {
+    const closingLocal = localClosings[r.itemId];
+    if (closingLocal !== undefined) {
+      const parsed =
+        closingLocal === "" || closingLocal === "."
+          ? 0
+          : parseFloat(closingLocal) || 0;
+      const baseline = defaultClosingFromRow(r);
+      if (parsed !== baseline) return true;
+    }
+    const commentLocal = localComments[r.itemId];
+    if (commentLocal !== undefined) {
+      const baselineComment = r.comments ?? "";
+      if (commentLocal !== baselineComment) return true;
+    }
+    return false;
+  }
+
+  // Always saves ALL rows — ensures every item has a snapshot for tomorrow's
+  // Opening. Backend upserts are idempotent so unchanged rows are harmless.
   const saveMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const rows = sheet?.rows ?? [];
-      const counts = rows.map((r) => ({
-        itemId: r.itemId,
-        closingStock: parseClosing(r.itemId, r),
-        comments: parseCommentForSave(r.itemId, r),
-      }));
-      return saveStdStockCount(token, orgId, branchId, {
+      if (rows.length === 0) {
+        return;
+      }
+      await saveStdStockCount(token, orgId, branchId, {
         date: dateStr,
         outletId: branchId,
-        counts,
+        counts: rows.map((r) => ({
+          itemId: r.itemId,
+          closingStock: parseClosing(r.itemId, r),
+          comments: parseCommentForSave(r.itemId, r),
+        })),
       });
     },
     onSuccess: () => {
@@ -314,28 +334,23 @@ export function StandardStockCountSheetPage({
     [allRowsForPdf]
   );
 
-  const hasErrors = computedRows.some((r) => r.closingError);
-
-  const hasChanges = useMemo(() => {
+  // Only block on errors in rows the user is actively editing; stale errors on
+  // untouched rows (e.g. a saved closing that exceeds today's Total) are visible
+  // but don't block per-row saves.
+  const changedItemIds = useMemo(() => {
     const rows = sheet?.rows ?? [];
-    return rows.some((r) => {
-      const closingLocal = localClosings[r.itemId];
-      if (closingLocal !== undefined) {
-        const parsed =
-          closingLocal === "" || closingLocal === "."
-            ? 0
-            : parseFloat(closingLocal) || 0;
-        const baseline = defaultClosingFromRow(r);
-        if (parsed !== baseline) return true;
-      }
-      const commentLocal = localComments[r.itemId];
-      if (commentLocal !== undefined) {
-        const baselineComment = r.comments ?? "";
-        if (commentLocal !== baselineComment) return true;
-      }
-      return false;
+    const ids = new Set<string>();
+    rows.forEach((r) => {
+      if (isRowChanged(r)) ids.add(r.itemId);
     });
-  }, [sheet?.rows, localClosings, localComments]);
+    return ids;
+  }, [sheet?.rows, localClosings, localComments]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hasErrors = computedRows.some(
+    (r) => changedItemIds.has(r.itemId) && r.closingError
+  );
+
+  const hasChanges = changedItemIds.size > 0;
 
   function handleDownloadPdf() {
     downloadStdStockCountPdf(
@@ -347,8 +362,6 @@ export function StandardStockCountSheetPage({
         addedStock: r.addedStock,
         totalStock: r.totalStock,
         closingStock: r.closingStock,
-        systemCountBeforeToday: r.systemCountBeforeToday,
-        variance: r.variance,
         unitsSold: r.unitsSold,
         sellingPrice: r.sellingPrice,
         amount: r.amount,
@@ -357,7 +370,6 @@ export function StandardStockCountSheetPage({
       pdfTotals,
       branchName,
       orgName,
-      showSystemAndVariance,
       appName,
       {
         dayDebts: dayDebts.map((d) => ({
@@ -382,16 +394,22 @@ export function StandardStockCountSheetPage({
     toast.success("PDF downloaded.", { title: "Stock Count Sheet" });
   }
 
+  function changeDate(newDate: string) {
+    setLocalClosings({});
+    setLocalComments({});
+    setDateStr(newDate);
+  }
+
   function goPrevDay() {
     const d = new Date(dateStr);
     d.setDate(d.getDate() - 1);
-    setDateStr(toDateStr(d));
+    changeDate(toDateStr(d));
   }
 
   function goNextDay() {
     const d = new Date(dateStr);
     d.setDate(d.getDate() + 1);
-    setDateStr(toDateStr(d));
+    changeDate(toDateStr(d));
   }
 
   function handleClosingChange(itemId: string, value: string) {
@@ -447,7 +465,7 @@ export function StandardStockCountSheetPage({
       {!tableExpanded && (
         <PageHeader
           title="Stock Count Sheet"
-          subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = previous day's saved Closing when you saved the sheet; if none, ledger fallback (max(0, System − same-day Added and stock-take adds)). Total Stock = Opening + Added + Added today. Closing = physical count (defaults to ledger on-hand; editable); Units Sold = Total Stock − Closing.${showSystemAndVariance ? " System = ledger at end of this day; Variance = Closing − System (positive = excess)." : ""}`}
+          subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = strictly the previous day's saved Closing (0 if you didn't save yesterday). Total Stock = Opening + Added + Added today. Closing = physical count (defaults to Total Stock for unsaved rows so Units Sold starts at 0; editable); Units Sold = Total Stock − Closing.`}
           subtitleRevealOnTitleHover
           icon={FileSpreadsheet}
           fallbackTo="/operator"
@@ -471,14 +489,14 @@ export function StandardStockCountSheetPage({
           <button
             type="button"
             onClick={goPrevDay}
-            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             aria-label="Previous day"
           >
             <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
           <DatePicker
             selected={dateStr ? parseDateStr(dateStr) : null}
-            onChange={(d: Date | null) => setDateStr(d ? toDateStr(d) : todayStr())}
+            onChange={(d: Date | null) => changeDate(d ? toDateStr(d) : todayStr())}
             maxDate={new Date()}
             dateFormat="dd/MM/yyyy"
             showPopperArrow={false}
@@ -489,7 +507,7 @@ export function StandardStockCountSheetPage({
             type="button"
             onClick={goNextDay}
             disabled={isToday}
-            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             aria-label="Next day"
           >
             <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -499,7 +517,7 @@ export function StandardStockCountSheetPage({
             type="button"
             onClick={handleDownloadPdf}
             disabled={!sheet}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:gap-2 sm:px-4 sm:py-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 sm:gap-2 sm:px-4 sm:py-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             aria-label="Download PDF"
           >
             <Download className="h-4 w-4" />
@@ -508,7 +526,7 @@ export function StandardStockCountSheetPage({
           <button
             type="button"
             onClick={handleSave}
-            disabled={saveMutation.isPending || hasErrors || !canEdit || !hasChanges}
+            disabled={saveMutation.isPending || hasErrors || !canEdit || (!hasChanges && Boolean(sheet?.rows?.[0]?.lastSavedAt))}
             className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 sm:gap-2 sm:px-4 sm:py-2"
           >
             {saveMutation.isPending ? (
@@ -521,7 +539,7 @@ export function StandardStockCountSheetPage({
           <button
             type="button"
             onClick={() => setTableExpanded((v) => !v)}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:gap-2 sm:px-4 sm:py-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 sm:gap-2 sm:px-4 sm:py-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             title={tableExpanded ? "Exit full screen" : "Expand table"}
             aria-label={tableExpanded ? "Exit full screen" : "Expand table"}
           >
@@ -577,10 +595,10 @@ export function StandardStockCountSheetPage({
               {/* Gradient fade on right edge */}
               <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "600px" }}>
-              <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700/80">
+              <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700">
                 <tr>
                   <th
-                    className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300"
+                    className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700 dark:text-slate-300"
                     title="Product name"
                   >
                     Item
@@ -609,22 +627,6 @@ export function StandardStockCountSheetPage({
                   >
                     Close
                   </th>
-                  {showSystemAndVariance && (
-                    <>
-                      <th
-                        className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300"
-                        title="Ledger on-hand at end of this day (from stock movements; excludes later receipts)"
-                      >
-                        Sys
-                      </th>
-                      <th
-                        className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300"
-                        title="Closing count minus ledger on-hand (positive = physical excess, negative = short)"
-                      >
-                        Var
-                      </th>
-                    </>
-                  )}
                   <th
                     className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300"
                     title="Total Stock − Closing (units sold)"
@@ -655,9 +657,9 @@ export function StandardStockCountSheetPage({
                 {paginatedRows.map((r) => (
                   <tr
                     key={r.itemId}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
+                    className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                   >
-                    <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs font-bold text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white">
+                    <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs font-bold text-slate-900 group-hover:!bg-slate-100 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white dark:group-hover:!bg-slate-700">
                       {r.name || "—"}
                     </td>
                     <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
@@ -702,32 +704,6 @@ export function StandardStockCountSheetPage({
                         </span>
                       )}
                     </td>
-                    {showSystemAndVariance && (
-                      <>
-                        <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                          {r.systemCountBeforeToday}
-                        </td>
-                        <td
-                          className={`px-2 py-1.5 text-right text-xs tabular-nums sm:px-3 sm:py-2 sm:text-sm ${
-                            r.variance > 0
-                              ? "font-medium text-emerald-600 dark:text-emerald-400"
-                              : r.variance < 0
-                                ? "font-medium text-red-600 dark:text-red-400"
-                                : "text-slate-700 dark:text-slate-300"
-                          }`}
-                          title={
-                            r.variance > 0
-                              ? "Physical count exceeds ledger on-hand"
-                              : r.variance < 0
-                                ? "Physical count below ledger on-hand"
-                                : undefined
-                          }
-                        >
-                          {r.variance > 0 ? "+" : ""}
-                          {r.variance}
-                        </td>
-                      </>
-                    )}
                     <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
                       {r.unitsSold}
                     </td>

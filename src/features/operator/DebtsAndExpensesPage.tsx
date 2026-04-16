@@ -19,17 +19,16 @@ import {
 } from "@/api/debts";
 import { createCustomer } from "@/api/customers";
 import { fetchAllOrgItems } from "@/api/items";
-import { fetchPriceLists, fetchPriceListItems } from "@/api/priceLists";
 import type { Item } from "@/types/catalog";
 import {
   fetchMiscExpenses,
+  fetchExpenseCategories,
   createMiscExpense,
   updateMiscExpense,
   cancelMiscExpense,
   type MiscExpenseResponse,
   type MiscExpenseCreateRequest,
   type MiscExpenseUpdateRequest,
-  type MiscExpenseCategory,
 } from "@/api/miscExpenses";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
@@ -153,15 +152,15 @@ function DebtPendingTotalDisplay(props: { totalPending: number; loading: boolean
 // ---------------------------------------------------------------------------
 
 const EXPENSES_PAGE_SIZE = 20;
-const EXPENSE_CATEGORIES: { value: MiscExpenseCategory; label: string }[] = [
-  { value: "UTILITIES", label: "Utilities" },
-  { value: "SUPPLIES", label: "Supplies" },
-  { value: "MAINTENANCE", label: "Maintenance" },
-  { value: "TRANSPORT", label: "Transport" },
-  { value: "FUEL", label: "Fuel" },
-  { value: "RENT", label: "Rent" },
-  { value: "SALARIES", label: "Salaries" },
-  { value: "OTHER", label: "Other" },
+const DEFAULT_EXPENSE_CATEGORIES = [
+  "Utilities",
+  "Supplies",
+  "Maintenance",
+  "Transport",
+  "Fuel",
+  "Rent",
+  "Salaries",
+  "Other",
 ];
 
 function MiscExpensesTotalBadge(props: { totalAmount: number }) {
@@ -244,14 +243,14 @@ export function DebtsAndExpensesPage() {
   const [expensesPage, setExpensesPage] = useState(0);
   const [expFormOpen, setExpFormOpen] = useState(false);
   const [expFormAmount, setExpFormAmount] = useState("");
-  const [expFormCategory, setExpFormCategory] = useState<MiscExpenseCategory>("OTHER");
+  const [expFormCategory, setExpFormCategory] = useState("Other");
   const [expFormDescription, setExpFormDescription] = useState("");
   const [expFormIncurredBy, setExpFormIncurredBy] = useState("");
   const [expFormReceiptRef, setExpFormReceiptRef] = useState("");
   const [expEditFormOpen, setExpEditFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<MiscExpenseResponse | null>(null);
   const [editExpAmount, setEditExpAmount] = useState("");
-  const [editExpCategory, setEditExpCategory] = useState<MiscExpenseCategory>("OTHER");
+  const [editExpCategory, setEditExpCategory] = useState("Other");
   const [editExpDescription, setEditExpDescription] = useState("");
   const [editExpIncurredBy, setEditExpIncurredBy] = useState("");
   const [editExpReceiptRef, setEditExpReceiptRef] = useState("");
@@ -259,10 +258,20 @@ export function DebtsAndExpensesPage() {
   const [cancelDialogExpense, setCancelDialogExpense] = useState<MiscExpenseResponse | null>(null);
   const [cancelExpSubmitting, setCancelExpSubmitting] = useState(false);
 
-  const expenseCategoryOptions = useMemo(
-    () => EXPENSE_CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
-    []
-  );
+  const { data: categoriesFromApi } = useQuery({
+    queryKey: ["expense-categories", token, orgId],
+    queryFn: () => fetchExpenseCategories(token, orgId!, branchId!),
+    enabled: Boolean(token && orgId && branchId),
+    staleTime: 60_000,
+  });
+
+  const expenseCategoryOptions = useMemo(() => {
+    const fromApi = categoriesFromApi ?? [];
+    const merged = new Set([...fromApi, ...DEFAULT_EXPENSE_CATEGORIES]);
+    return [...merged]
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+      .map((c) => ({ value: c, label: c }));
+  }, [categoriesFromApi]);
 
 
   // -----------------------------------------------------------------------
@@ -300,38 +309,6 @@ export function DebtsAndExpensesPage() {
 
   const debtFormDataEnabled = Boolean(debtFormOpen && token && orgId);
 
-  const { data: priceListsPage } = useQuery({
-    queryKey: ["priceLists", orgId, "debts-record-form"],
-    queryFn: () => fetchPriceLists(token!, orgId!, { page: 0, size: 100 }),
-    enabled: debtFormDataEnabled,
-  });
-
-  const priceLists = priceListsPage?.content ?? [];
-  const firstPriceListId = priceLists[0]?.id ?? null;
-  const effectivePriceListIdForDebt = branchId
-    ? (priceLists.find((pl) => pl.branchId === branchId)?.id ?? firstPriceListId)
-    : firstPriceListId;
-
-  const { data: priceItemsPage } = useQuery({
-    queryKey: ["priceListItems", orgId, effectivePriceListIdForDebt, "debts-form"],
-    queryFn: () =>
-      fetchPriceListItems(token!, orgId!, effectivePriceListIdForDebt!, {
-        page: 0,
-        size: 2000,
-      }),
-    enabled: Boolean(debtFormDataEnabled && effectivePriceListIdForDebt),
-  });
-
-  const debtPriceMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const p of priceItemsPage?.content ?? []) {
-      const num = typeof p.price === "number" ? p.price : Number(p.price);
-      if (!Number.isNaN(num) && num > 0) {
-        map.set(p.itemId, num);
-      }
-    }
-    return map;
-  }, [priceItemsPage]);
 
   const { data: debtCatalogItems = [], isLoading: debtCatalogLoading } = useQuery({
     queryKey: ["debts-record-catalog", orgId],
@@ -345,18 +322,16 @@ export function DebtsAndExpensesPage() {
       if (!item.active) {
         continue;
       }
-      const fromList = debtPriceMap.get(item.id);
-      const fallback = item.defaultSellingPrice;
-      const raw = fromList ?? (fallback != null ? Number(fallback) : NaN);
-      if (!Number.isNaN(raw) && raw > 0) {
-        out.push({ item, price: raw });
+      const price = item.defaultSellingPrice;
+      if (price != null && price > 0) {
+        out.push({ item, price });
       }
     }
     out.sort((a, b) =>
       a.item.name.localeCompare(b.item.name, undefined, { sensitivity: "base" })
     );
     return out;
-  }, [debtCatalogItems, debtPriceMap]);
+  }, [debtCatalogItems]);
 
   const debtAddItemOptions = useMemo(
     () => [
@@ -523,9 +498,10 @@ export function DebtsAndExpensesPage() {
       createMiscExpense(token, orgId!, branchId!, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operator-misc-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
       setExpFormOpen(false);
       setExpFormAmount("");
-      setExpFormCategory("OTHER");
+      setExpFormCategory("Other");
       setExpFormDescription("");
       setExpFormIncurredBy("");
       setExpFormReceiptRef("");
@@ -544,6 +520,7 @@ export function DebtsAndExpensesPage() {
       updateMiscExpense(token, orgId!, branchId!, expenseId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operator-misc-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
       setExpEditFormOpen(false);
       setEditingExpense(null);
       toast.success("Expense updated.", { title: "Miscellaneous expense" });
@@ -561,6 +538,7 @@ export function DebtsAndExpensesPage() {
     mutationFn: (expenseId: string) => cancelMiscExpense(token, orgId!, branchId!, expenseId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operator-misc-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
       setCancelDialogExpense(null);
       toast.success("Expense deleted.", { title: "Miscellaneous expense" });
     },
@@ -729,7 +707,7 @@ export function DebtsAndExpensesPage() {
   const openExpEditForm = (e: MiscExpenseResponse) => {
     setEditingExpense(e);
     setEditExpAmount(String(e.amount));
-    setEditExpCategory((e.category as MiscExpenseCategory) || "OTHER");
+    setEditExpCategory(e.category || "Other");
     setEditExpDescription(e.description ?? "");
     setEditExpIncurredBy(e.incurredBy ?? "");
     setEditExpReceiptRef(e.receiptRef ?? "");
@@ -923,9 +901,9 @@ export function DebtsAndExpensesPage() {
                     <div className="relative min-h-0 flex-1 overflow-auto">
                       <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
                       <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "1100px" }}>
-                        <thead>
+                        <thead className="bg-slate-50 dark:bg-slate-700">
                           <tr>
-                            <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:bg-slate-700/80 dark:text-slate-400">Customer</th>
+                            <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:bg-slate-700 dark:text-slate-400">Customer</th>
                             <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Phone</th>
                             <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Original</th>
                             <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Repaid</th>
@@ -939,8 +917,8 @@ export function DebtsAndExpensesPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                           {filteredDebts.map((d: CustomerDebtResponse) => (
-                            <tr key={d.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                              <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white">{d.customerName}</td>
+                            <tr key={d.id} className="group hover:bg-slate-100 dark:hover:bg-slate-700">
+                              <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">{d.customerName}</td>
                               <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">{d.customerPhone ?? "—"}</td>
                               <td className="px-2 py-1.5 text-left text-xs text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">{formatCurrency(d.amount)}</td>
                               <td className="px-2 py-1.5 text-left text-xs text-emerald-600 sm:px-3 sm:py-2 sm:text-sm dark:text-emerald-400">{formatCurrency(d.amountSettled ?? 0)}</td>
@@ -1080,9 +1058,9 @@ export function DebtsAndExpensesPage() {
                     <div className="relative min-h-0 flex-1 overflow-auto">
                       <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
                       <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "840px" }}>
-                        <thead>
+                        <thead className="bg-slate-50 dark:bg-slate-700">
                           <tr>
-                            <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:bg-slate-700/80 dark:text-slate-400">Incurred by</th>
+                            <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:bg-slate-700 dark:text-slate-400">Incurred by</th>
                             <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Amount</th>
                             <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Category</th>
                             <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Desc.</th>
@@ -1093,8 +1071,8 @@ export function DebtsAndExpensesPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                           {filteredExpenses.map((e: MiscExpenseResponse) => (
-                            <tr key={e.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                              <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-slate-400">{e.incurredBy ?? "—"}</td>
+                            <tr key={e.id} className="group hover:bg-slate-100 dark:hover:bg-slate-700">
+                              <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm  dark:text-slate-400">{e.incurredBy ?? "—"}</td>
                               <td className="px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:text-white">{formatCurrency(e.amount)}</td>
                               <td className="px-2 py-1.5 sm:px-3 sm:py-2">
                                 <span className="inline-flex justify-start rounded-full bg-slate-100 px-2.5 py-0.5 text-left text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">{e.category}</span>
@@ -1197,11 +1175,11 @@ export function DebtsAndExpensesPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button type="button" onClick={() => adjustBorrowedQty(line.itemId, -1)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" aria-label={`Decrease quantity for ${line.itemName}`}>
+                      <button type="button" onClick={() => adjustBorrowedQty(line.itemId, -1)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" aria-label={`Decrease quantity for ${line.itemName}`}>
                         <Minus className="h-4 w-4" />
                       </button>
                       <span className="min-w-[2rem] text-center text-sm font-semibold tabular-nums text-slate-900 dark:text-white">{line.qty}</span>
-                      <button type="button" onClick={() => adjustBorrowedQty(line.itemId, 1)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" aria-label={`Increase quantity for ${line.itemName}`}>
+                      <button type="button" onClick={() => adjustBorrowedQty(line.itemId, 1)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" aria-label={`Increase quantity for ${line.itemName}`}>
                         <Plus className="h-4 w-4" />
                       </button>
                     </div>
@@ -1234,7 +1212,7 @@ export function DebtsAndExpensesPage() {
             <textarea id="notes" rows={2} value={debtFormNotes} onChange={(e) => setDebtFormNotes(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
           </div>
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setDebtFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
+            <button type="button" onClick={() => setDebtFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
             <button type="submit" disabled={debtSubmitting} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
               {debtSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Record debt
@@ -1285,7 +1263,7 @@ export function DebtsAndExpensesPage() {
               <textarea id="editDebtNotes" rows={2} value={editDebtNotes} onChange={(e) => setEditDebtNotes(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             </div>
             <div className="flex justify-end gap-3 pt-4">
-              <button type="button" onClick={() => setDebtEditFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
+              <button type="button" onClick={() => setDebtEditFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
               <button type="submit" disabled={editDebtSubmitting} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
                 {editDebtSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Pencil className="h-4 w-4" />Save</>}
               </button>
@@ -1313,7 +1291,7 @@ export function DebtsAndExpensesPage() {
               <input id="settleAmount" type="number" step="0.01" min="0.01" max={settlingDebt.outstanding} required value={settleAmount} onChange={(e) => setSettleAmount(e.target.value)} placeholder={`Max ${formatCurrency(settlingDebt.outstanding)}`} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             </div>
             <div className="flex justify-end gap-3 pt-4">
-              <button type="button" onClick={() => setSettleFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
+              <button type="button" onClick={() => setSettleFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
               <button type="submit" disabled={settleSubmitting} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
                 {settleSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Banknote className="h-4 w-4" />Record payment</>}
               </button>
@@ -1352,7 +1330,7 @@ export function DebtsAndExpensesPage() {
           setExpFormOpen(false);
           if (!createExpMutation.isPending) {
             setExpFormAmount("");
-            setExpFormCategory("OTHER");
+            setExpFormCategory("Other");
             setExpFormDescription("");
             setExpFormIncurredBy("");
             setExpFormReceiptRef("");
@@ -1366,13 +1344,14 @@ export function DebtsAndExpensesPage() {
             <input id="expAmount" type="number" step="0.01" min="0.01" required value={expFormAmount} onChange={(e) => setExpFormAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
           </div>
           <div>
-            <label htmlFor="expCategory" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Category *</label>
+            <label htmlFor="expCategory" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Spent on *</label>
             <SearchableSelect
               id="expCategory"
               options={expenseCategoryOptions}
               value={expFormCategory}
-              onChange={(v) => setExpFormCategory(v as MiscExpenseCategory)}
-              placeholder="Search category…"
+              onChange={setExpFormCategory}
+              allowCustomValue
+              placeholder="Type or search…"
               className="mt-1 block w-full"
               controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
             />
@@ -1390,7 +1369,7 @@ export function DebtsAndExpensesPage() {
             <input id="expReceiptRef" type="text" value={expFormReceiptRef} onChange={(e) => setExpFormReceiptRef(e.target.value)} placeholder="Optional" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
           </div>
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setExpFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
+            <button type="button" onClick={() => setExpFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
             <button type="submit" disabled={createExpMutation.isPending} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
               {createExpMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Record expense
@@ -1420,13 +1399,14 @@ export function DebtsAndExpensesPage() {
               <input id="editExpAmount" type="number" step="0.01" min="0.01" required value={editExpAmount} onChange={(e) => setEditExpAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             </div>
             <div>
-              <label htmlFor="editExpCategory" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Category *</label>
+              <label htmlFor="editExpCategory" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Spent on *</label>
               <SearchableSelect
                 id="editExpCategory"
                 options={expenseCategoryOptions}
                 value={editExpCategory}
-                onChange={(v) => setEditExpCategory(v as MiscExpenseCategory)}
-                placeholder="Search category…"
+                onChange={setEditExpCategory}
+                allowCustomValue
+                placeholder="Type or search…"
                 className="mt-1 block w-full"
                 controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
               />
@@ -1444,7 +1424,7 @@ export function DebtsAndExpensesPage() {
               <input id="editExpReceiptRef" type="text" value={editExpReceiptRef} onChange={(e) => setEditExpReceiptRef(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             </div>
             <div className="flex justify-end gap-3 pt-4">
-              <button type="button" onClick={() => setExpEditFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
+              <button type="button" onClick={() => setExpEditFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
               <button type="submit" disabled={editExpSubmitting} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
                 {editExpSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Pencil className="h-4 w-4" />Save</>}
               </button>

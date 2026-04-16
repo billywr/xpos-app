@@ -20,7 +20,7 @@ import {
 } from "@/api/debts";
 import { createCustomer } from "@/api/customers";
 import { fetchAllOrgItems } from "@/api/items";
-import { fetchPriceLists, fetchPriceListItems } from "@/api/priceLists";
+
 import type { Item } from "@/types/catalog";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
@@ -178,39 +178,6 @@ export function DebtsPage() {
 
   const debtFormDataEnabled = Boolean(formOpen && token && orgId);
 
-  const { data: priceListsPage } = useQuery({
-    queryKey: ["priceLists", orgId, "debts-record-form"],
-    queryFn: () => fetchPriceLists(token!, orgId!, { page: 0, size: 100 }),
-    enabled: debtFormDataEnabled,
-  });
-
-  const priceLists = priceListsPage?.content ?? [];
-  const firstPriceListId = priceLists[0]?.id ?? null;
-  const effectivePriceListIdForDebt = branchId
-    ? (priceLists.find((pl) => pl.branchId === branchId)?.id ?? firstPriceListId)
-    : firstPriceListId;
-
-  const { data: priceItemsPage } = useQuery({
-    queryKey: ["priceListItems", orgId, effectivePriceListIdForDebt, "debts-form"],
-    queryFn: () =>
-      fetchPriceListItems(token!, orgId!, effectivePriceListIdForDebt!, {
-        page: 0,
-        size: 2000,
-      }),
-    enabled: Boolean(debtFormDataEnabled && effectivePriceListIdForDebt),
-  });
-
-  const debtPriceMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const p of priceItemsPage?.content ?? []) {
-      const num = typeof p.price === "number" ? p.price : Number(p.price);
-      if (!Number.isNaN(num) && num > 0) {
-        map.set(p.itemId, num);
-      }
-    }
-    return map;
-  }, [priceItemsPage]);
-
   const { data: debtCatalogItems = [], isLoading: debtCatalogLoading } = useQuery({
     queryKey: ["debts-record-catalog", orgId],
     queryFn: () => fetchAllOrgItems(token!, orgId!),
@@ -223,18 +190,16 @@ export function DebtsPage() {
       if (!item.active) {
         continue;
       }
-      const fromList = debtPriceMap.get(item.id);
-      const fallback = item.defaultSellingPrice;
-      const raw = fromList ?? (fallback != null ? Number(fallback) : NaN);
-      if (!Number.isNaN(raw) && raw > 0) {
-        out.push({ item, price: raw });
+      const price = item.defaultSellingPrice;
+      if (price != null && price > 0) {
+        out.push({ item, price });
       }
     }
     out.sort((a, b) =>
       a.item.name.localeCompare(b.item.name, undefined, { sensitivity: "base" })
     );
     return out;
-  }, [debtCatalogItems, debtPriceMap]);
+  }, [debtCatalogItems]);
 
   const debtAddItemOptions = useMemo(
     () => [
@@ -638,9 +603,9 @@ export function DebtsPage() {
               <div className="relative min-h-0 flex-1 overflow-auto">
                 <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "1100px" }}>
-                  <thead>
+                  <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
-                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:bg-slate-700/80 dark:text-slate-400">
+                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:bg-slate-700 dark:text-slate-400">
                         Customer
                       </th>
                       <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
@@ -674,8 +639,8 @@ export function DebtsPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                     {filteredDebts.map((d: CustomerDebtResponse) => (
-                      <tr key={d.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                        <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white">
+                      <tr key={d.id} className="group hover:bg-slate-100 dark:hover:bg-slate-700">
+                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">
                           {d.customerName}
                         </td>
                         <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
@@ -874,7 +839,7 @@ export function DebtsPage() {
                       <button
                         type="button"
                         onClick={() => adjustBorrowedQty(line.itemId, -1)}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                         aria-label={`Decrease quantity for ${line.itemName}`}
                       >
                         <Minus className="h-4 w-4" />
@@ -885,7 +850,7 @@ export function DebtsPage() {
                       <button
                         type="button"
                         onClick={() => adjustBorrowedQty(line.itemId, 1)}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                         aria-label={`Increase quantity for ${line.itemName}`}
                       >
                         <Plus className="h-4 w-4" />
@@ -975,7 +940,7 @@ export function DebtsPage() {
             <button
               type="button"
               onClick={() => setFormOpen(false)}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -1101,7 +1066,7 @@ export function DebtsPage() {
               <button
                 type="button"
                 onClick={() => setEditFormOpen(false)}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               >
                 Cancel
               </button>
@@ -1163,7 +1128,7 @@ export function DebtsPage() {
               <button
                 type="button"
                 onClick={() => setSettleFormOpen(false)}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               >
                 Cancel
               </button>

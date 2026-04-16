@@ -339,6 +339,42 @@ export function NavVisibilityProvider({ children }: { children: React.ReactNode 
     ]
   );
 
+  const THEME_KEY = "__darkTheme";
+
+  const darkTheme = headerLabels[THEME_KEY] || localStorage.getItem("xpos_dark_theme") || "ocean";
+
+  useEffect(() => {
+    const t = darkTheme === "ocean" ? "" : darkTheme;
+    document.documentElement.dataset.theme = t;
+  }, [darkTheme]);
+
+  const setDarkTheme = useCallback(
+    (theme: string) => {
+      localStorage.setItem("xpos_dark_theme", theme);
+      document.documentElement.dataset.theme = theme === "ocean" ? "" : theme;
+      if (!orgId) return;
+      const nextHeaderLabels = { ...headerLabels, [THEME_KEY]: theme };
+      mutation.mutate({
+        admin: adminVisibility,
+        operator: operatorVisibility,
+        header: headerVisibility,
+        adminLabels,
+        operatorLabels,
+        headerLabels: nextHeaderLabels,
+      });
+    },
+    [
+      orgId,
+      adminVisibility,
+      operatorVisibility,
+      headerVisibility,
+      adminLabels,
+      operatorLabels,
+      headerLabels,
+      mutation,
+    ]
+  );
+
   const value = {
     adminVisibility,
     operatorVisibility,
@@ -363,6 +399,8 @@ export function NavVisibilityProvider({ children }: { children: React.ReactNode 
     getHeaderLabel,
     getHeaderLogo,
     setHeaderLogo,
+    darkTheme,
+    setDarkTheme,
     isLoading: enabled && isLoading,
     isSaving: mutation.isPending,
     needsOrgSelection: !orgId,

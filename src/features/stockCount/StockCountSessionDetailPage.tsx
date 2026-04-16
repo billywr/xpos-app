@@ -309,7 +309,7 @@ export function StockCountSessionDetailPage({
           <button
             type="button"
             onClick={handleDownloadPdf}
-            className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+            className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Download PDF</span>
@@ -317,7 +317,7 @@ export function StockCountSessionDetailPage({
           <button
             type="button"
             onClick={handleSharePdf}
-            className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+            className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             <Share2 className="h-4 w-4" />
             <span className="hidden sm:inline">Share report</span>
@@ -358,9 +358,9 @@ export function StockCountSessionDetailPage({
           <div className="relative overflow-auto">
             <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
             <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "900px" }}>
-              <thead>
+              <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr className="bg-slate-50 dark:bg-slate-700/50">
-                  <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300">
+                  <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700 dark:text-slate-300">
                     Item
                   </th>
                   <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
@@ -392,9 +392,9 @@ export function StockCountSessionDetailPage({
                 {filteredLines.map((l: StockCountLineResponse) => (
                   <tr
                     key={l.id}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-700/30"
+                    className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                   >
-                    <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white">
+                    <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">
                       {l.itemName}
                     </td>
                     <td className="px-2 py-1.5 text-left text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">

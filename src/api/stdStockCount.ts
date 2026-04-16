@@ -2,21 +2,19 @@ import { apiFetch } from "@/api/client";
 
 /**
  * One row in the Standard Stock Count Sheet. Backend provides opening, added columns, price, closing.
- * Opening is previous business day's saved closing when present; else max(0, system − same-day adds).
+ * Opening is strictly the previous business day's saved closing; 0 when no snapshot exists.
  * Frontend computes totalStock, unitsSold, amount.
  */
 export interface StdStockCountRowResponse {
   itemId: string;
   sku: string;
   name: string;
-  /** Yesterday's saved closing, or ledger fallback when no snapshot. */
+  /** Yesterday's saved closing; 0 when no snapshot exists for the previous business day. */
   openingStock: number;
   /** Qty on active GRNs with receivedAt on this sheet date (current line totals; includes edits). */
   addedStock: number;
   /** Stock-take adjustments today (not GRN). Included in Total Stock; no separate table column. */
   addedTodayStock: number;
-  /** Ledger on-hand at end of selected day (from movements; not live stock for a past date). */
-  systemCountBeforeToday: number;
   sellingPrice: number;
   closingStock: number | null;
   lastSavedAt: string | null;

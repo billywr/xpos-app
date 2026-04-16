@@ -1,15 +1,5 @@
 import { apiFetch } from "@/api/client";
 
-export type MiscExpenseCategory =
-  | "UTILITIES"
-  | "SUPPLIES"
-  | "MAINTENANCE"
-  | "TRANSPORT"
-  | "FUEL"
-  | "RENT"
-  | "SALARIES"
-  | "OTHER";
-
 export interface MiscExpenseResponse {
   id: string;
   amount: number;
@@ -25,7 +15,7 @@ export interface MiscExpenseResponse {
 
 export interface MiscExpenseCreateRequest {
   amount: number;
-  category: MiscExpenseCategory;
+  category: string;
   description: string;
   incurredBy?: string;
   receiptRef?: string;
@@ -33,7 +23,7 @@ export interface MiscExpenseCreateRequest {
 
 export interface MiscExpenseUpdateRequest {
   amount: number;
-  category: MiscExpenseCategory;
+  category: string;
   description: string;
   incurredBy?: string;
   receiptRef?: string;
@@ -90,6 +80,17 @@ export async function updateMiscExpense(
   return apiFetch<MiscExpenseResponse>(
     `/api/v1/operator/orgs/${orgId}/branches/${branchId}/misc-expenses/${expenseId}`,
     { token, body, method: "PATCH" }
+  );
+}
+
+export async function fetchExpenseCategories(
+  token: string | null,
+  orgId: string,
+  branchId: string
+): Promise<string[]> {
+  return apiFetch<string[]>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/misc-expenses/categories`,
+    { token }
   );
 }
 

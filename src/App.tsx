@@ -27,10 +27,9 @@ import { DevicesListPage } from "@/features/admin/DevicesListPage";
 import { StaffListPage } from "@/features/admin/StaffListPage";
 import { CatalogPage } from "@/features/admin/CatalogPage";
 import { CategoriesListPage } from "@/features/admin/CategoriesListPage";
-import { UomsListPage } from "@/features/admin/UomsListPage";
+
 import { ItemsListPage } from "@/features/admin/ItemsListPage";
-import { PriceListsListPage } from "@/features/admin/PriceListsListPage";
-import { PriceListEditPage } from "@/features/admin/PriceListEditPage";
+
 import { TenderTypesListPage } from "@/features/admin/TenderTypesListPage";
 import { SalesListPage } from "@/features/admin/SalesListPage";
 import { ShiftsListPage } from "@/features/admin/ShiftsListPage";
@@ -103,13 +102,8 @@ function App() {
           <Route path="staff" element={<StaffListPage />} />
           <Route path="catalog" element={<CatalogPage />} />
           <Route path="categories" element={<CategoriesListPage />} />
-          <Route path="uoms" element={<UomsListPage />} />
+
           <Route path="items" element={<ItemsListPage />} />
-          <Route path="price-lists" element={<PriceListsListPage />} />
-          <Route
-            path="price-lists/:priceListId"
-            element={<PriceListEditPage />}
-          />
           <Route path="tender-types" element={<TenderTypesListPage />} />
           <Route path="sales" element={<SalesListPage />} />
           <Route path="tables" element={<AdminTablesPage />} />
@@ -148,7 +142,6 @@ function App() {
           <Route path="menu-order" element={<MenuOrderPage />} />
           <Route path="receipts" element={<ReceiptsPage />} />
           <Route path="tables/*" element={<TablesPage />} />
-          <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="debts" element={<DebtsAndExpensesPage />} />
           <Route path="misc-expenses" element={<Navigate to="/operator/debts" replace />} />
           <Route path="stock-count" element={<StockCountPage />} />
@@ -164,7 +157,7 @@ function App() {
             path="manual-stock-sheet"
             element={<ManualStockCountSheetPage />}
           />
-          <Route path="withdrawal" element={<div className="p-6 text-slate-600 dark:text-slate-400">Withdrawal (TODO)</div>} />
+
           <Route path="dishes" element={<div className="p-4 text-white">Dishes (TODO)</div>} />
           <Route path="payments" element={<PaymentsPage />} />
         </Route>

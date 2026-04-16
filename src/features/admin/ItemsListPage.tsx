@@ -5,7 +5,6 @@ import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import { fetchOrgs } from "@/api/orgs";
 import { fetchCategories } from "@/api/categories";
-import { fetchUoms } from "@/api/uoms";
 import { fetchTaxProfiles } from "@/api/taxProfiles";
 import { fetchModifierGroups } from "@/api/modifierGroups";
 import {
@@ -86,9 +85,11 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
   const [formName, setFormName] = useState("");
   const [formItemType, setFormItemType] = useState<string>("MENU");
   const [formCategoryId, setFormCategoryId] = useState("");
-  const [formBaseUomId, setFormBaseUomId] = useState("");
   const [formTaxProfileId, setFormTaxProfileId] = useState("");
-  const [formTrackInventory, setFormTrackInventory] = useState(false);
+  const [formBuyingPrice, setFormBuyingPrice] = useState("");
+  const [formSellingPrice, setFormSellingPrice] = useState("");
+  const [formVisibleInPos, setFormVisibleInPos] = useState(true);
+  const [formTrackInventory, setFormTrackInventory] = useState(true);
   const [formActive, setFormActive] = useState(true);
   const [formImageUrl, setFormImageUrl] = useState("");
   const [imageUploading, setImageUploading] = useState(false);
@@ -96,6 +97,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
   const [newModifierGroupId, setNewModifierGroupId] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [priceWarning, setPriceWarning] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<Item | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [inlineUploadingItemId, setInlineUploadingItemId] = useState<string | null>(null);
@@ -112,13 +114,12 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
         name: item.name,
         itemType: item.itemType,
         categoryId: item.categoryId,
-        baseUomId: item.baseUomId,
+
         taxProfileId: item.taxProfileId,
         trackInventory: item.trackInventory,
         active: item.active,
         buyingPrice: item.buyingPrice,
         defaultSellingPrice: item.defaultSellingPrice,
-        defaultPriceListId: null,
         imageUrl: url,
       });
       queryClient.invalidateQueries({ queryKey: ["admin-items", token, selectedOrgId] });
@@ -168,12 +169,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     queryFn: () => fetchCategories(token, selectedOrgId, { size: 500 }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
     refetchOnMount: "always",
-  });
-
-  const { data: uomsData } = useQuery({
-    queryKey: ["admin-uoms", token, selectedOrgId],
-    queryFn: () => fetchUoms(token, selectedOrgId, { size: 200 }),
-    enabled: Boolean(token) && Boolean(selectedOrgId) && slideOpen,
   });
 
   const { data: taxProfilesData } = useQuery({
@@ -231,13 +226,13 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
       name: string;
       itemType: string;
       categoryId: string | null;
-      baseUomId: string | null;
+
       taxProfileId: string | null;
       trackInventory: boolean;
       active: boolean;
       buyingPrice: number | null;
       defaultSellingPrice: number | null;
-      defaultPriceListId: string | null;
+      visibleInPos?: boolean;
       imageUrl: string | null;
     }) => createItem(token, selectedOrgId, body),
     onSuccess: () => {
@@ -266,13 +261,13 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
       name: string;
       itemType: string;
       categoryId: string | null;
-      baseUomId: string | null;
+
       taxProfileId: string | null;
       trackInventory: boolean;
       active: boolean;
       buyingPrice: number | null;
       defaultSellingPrice: number | null;
-      defaultPriceListId: string | null;
+      visibleInPos?: boolean;
       imageUrl: string | null;
     }) =>
       updateItem(token, selectedOrgId, body.itemId, {
@@ -280,13 +275,13 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
         name: body.name,
         itemType: body.itemType,
         categoryId: body.categoryId,
-        baseUomId: body.baseUomId,
+
         taxProfileId: body.taxProfileId,
         trackInventory: body.trackInventory,
         active: body.active,
         buyingPrice: body.buyingPrice,
         defaultSellingPrice: body.defaultSellingPrice,
-        defaultPriceListId: body.defaultPriceListId,
+        visibleInPos: body.visibleInPos,
         imageUrl: body.imageUrl,
       }),
     onSuccess: () => {
@@ -380,7 +375,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
   const totalElements = itemsData?.totalElements ?? 0;
   const { searchQuery, setSearchQuery, filteredRows: filteredItems } = useTableSearch(items);
   const categories = categoriesData?.content ?? [];
-  const uoms = uomsData?.content ?? [];
   const taxProfiles = taxProfilesData?.content ?? [];
   const modifierGroups = modifierGroupsData?.content ?? [];
   const barcodes = barcodesData ?? [];
@@ -411,17 +405,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
       ...categories.map((c: Category) => ({ value: c.id, label: c.name })),
     ],
     [categories]
-  );
-
-  const itemUomOptions = useMemo(
-    () => [
-      { value: "", label: "None" },
-      ...uoms.map((u: { id: string; name: string; symbol: string }) => ({
-        value: u.id,
-        label: `${u.name} (${u.symbol})`,
-      })),
-    ],
-    [uoms]
   );
 
   const itemTaxProfileOptions = useMemo(
@@ -460,8 +443,17 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
       setFormName(editingItemData.name);
       setFormItemType(editingItemData.itemType);
       setFormCategoryId(editingItemData.categoryId ?? "");
-      setFormBaseUomId(editingItemData.baseUomId ?? "");
+
       setFormTaxProfileId(editingItemData.taxProfileId ?? "");
+      setFormBuyingPrice(
+        editingItemData.buyingPrice != null ? String(editingItemData.buyingPrice) : ""
+      );
+      setFormSellingPrice(
+        editingItemData.defaultSellingPrice != null
+          ? String(editingItemData.defaultSellingPrice)
+          : ""
+      );
+      setFormVisibleInPos(editingItemData.visibleInPos ?? true);
       setFormTrackInventory(editingItemData.trackInventory);
       setFormActive(editingItemData.active);
       setFormImageUrl(editingItemData.primaryImageUrl ?? "");
@@ -479,13 +471,17 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     setFormName("");
     setFormItemType("MENU");
     setFormCategoryId("");
-    setFormBaseUomId("");
+
     setFormTaxProfileId("");
-    setFormTrackInventory(false);
+    setFormBuyingPrice("");
+    setFormSellingPrice("");
+    setFormVisibleInPos(true);
+    setFormTrackInventory(true);
     setFormActive(true);
     setFormImageUrl("");
     setFormBarcode("");
     setFormError(null);
+    setPriceWarning("");
     setNewModifierGroupId("");
   }
 
@@ -507,7 +503,28 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     setSlideOpen(false);
     setEditingItem(null);
     setFormError(null);
+    setPriceWarning("");
   };
+
+  // Debounced inline price validation (600ms after user stops typing)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const buying = formBuyingPrice ? parseFloat(formBuyingPrice) : null;
+      const selling = formSellingPrice ? parseFloat(formSellingPrice) : null;
+      if (
+        buying != null &&
+        !isNaN(buying) &&
+        selling != null &&
+        !isNaN(selling) &&
+        selling <= buying
+      ) {
+        setPriceWarning("Selling price must be greater than buying price.");
+      } else {
+        setPriceWarning("");
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [formBuyingPrice, formSellingPrice]);
 
   const handleItemSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -517,19 +534,29 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
       setFormError("Name is required.");
       return;
     }
-    const itemBuyingPrice = editingItem?.buyingPrice ?? null;
+    const sellingPriceNum = formSellingPrice ? parseFloat(formSellingPrice) : null;
+    const buyingPriceNum = formBuyingPrice ? parseFloat(formBuyingPrice) : null;
+    if (sellingPriceNum == null || isNaN(sellingPriceNum) || sellingPriceNum <= 0) {
+      setFormError("Selling price is required and must be greater than 0.");
+      return;
+    }
+    if (buyingPriceNum != null && !isNaN(buyingPriceNum) && sellingPriceNum <= buyingPriceNum) {
+      setFormError("Selling price must be greater than buying price.");
+      return;
+    }
     const payload = {
       sku: formSku.trim() || null,
       name: trimmed,
       itemType: formItemType,
       categoryId: formCategoryId || null,
-      baseUomId: formBaseUomId || null,
+
       taxProfileId: formTaxProfileId || null,
       trackInventory: formTrackInventory,
       active: formActive,
-      buyingPrice: editingItem ? (itemBuyingPrice ?? null) : null,
-      defaultSellingPrice: editingItem?.defaultSellingPrice ?? null,
-      defaultPriceListId: null,
+      buyingPrice: buyingPriceNum ?? null,
+      defaultSellingPrice: sellingPriceNum,
+
+      visibleInPos: formVisibleInPos,
       imageUrl: formImageUrl.trim() || null,
     };
     setSubmitLoading(true);
@@ -844,9 +871,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
             <div className="relative min-h-0 flex-1 overflow-auto">
               <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "1000px" }}>
-                <thead className="bg-slate-50 dark:bg-slate-800/80">
+                <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700 dark:text-slate-300">
                       Name
                     </th>
                     <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
@@ -870,9 +897,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                       Selling
                     </th>
                     <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                      Prices
-                    </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
                       Image
                     </th>
                     <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
@@ -884,7 +908,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                   {filteredItems.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={showBarcode ? 10 : 9}
+                        colSpan={showBarcode ? 9 : 8}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
                         {items.length === 0 ? "No items yet. Add one to build your catalog." : "No results match your search."}
@@ -894,18 +918,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                     filteredItems.map((item: Item) => (
                         <tr
                           key={item.id}
-                          className={
-                            item.hasPurchaseHistory === false
-                              ? "bg-amber-50/60 hover:bg-amber-100/80 dark:bg-amber-900/15 dark:hover:bg-amber-900/30"
-                              : "hover:bg-blue-50 dark:hover:bg-blue-900/30"
-                          }
-                          title={
-                            item.hasPurchaseHistory === false
-                              ? "No purchase history—receive stock first before adding to price lists."
-                              : undefined
-                          }
+                          className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                         >
-                          <td className="sticky left-0 z-10 bg-white px-2 py-1.5 text-xs font-medium text-slate-800 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:text-white">
+                          <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs font-medium text-slate-800 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">
                             {item.name}
                           </td>
                           <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
@@ -939,15 +954,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                             {item.defaultSellingPrice != null
                               ? formatCurrency(item.defaultSellingPrice)
                               : "—"}
-                          </td>
-                          <td className="px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm">
-                            {itemIdsWithPrices.has(item.id) ? (
-                              <span className="text-emerald-600 dark:text-emerald-400">
-                                Yes
-                              </span>
-                            ) : (
-                              <span className="text-slate-500">—</span>
-                            )}
                           </td>
                           <td className="px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm">
                             <button
@@ -1120,23 +1126,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               </div>
               <div>
                 <label
-                  htmlFor="item-uom"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
-                  Base UoM
-                </label>
-                <SearchableSelect
-                  id="item-uom"
-                  options={itemUomOptions}
-                  value={formBaseUomId}
-                  onChange={setFormBaseUomId}
-                  placeholder="Search UoM…"
-                  className="w-full"
-                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                />
-              </div>
-              <div>
-                <label
                   htmlFor="item-tax"
                   className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
                 >
@@ -1152,7 +1141,50 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                   controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
                 />
               </div>
-              <div className="flex gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="item-buying-price"
+                    className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    Buying price (KES)
+                  </label>
+                  <input
+                    id="item-buying-price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formBuyingPrice}
+                    onChange={(e) => setFormBuyingPrice(e.target.value)}
+                    placeholder="Optional"
+                    className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="item-selling-price"
+                    className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    Selling price (KES) *
+                  </label>
+                  <input
+                    id="item-selling-price"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    value={formSellingPrice}
+                    onChange={(e) => setFormSellingPrice(e.target.value)}
+                    className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  />
+                </div>
+              </div>
+              {priceWarning && (
+                <p className="text-xs font-medium text-red-600 dark:text-red-400">
+                  {priceWarning}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-4">
                 <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                   <input
                     type="checkbox"
@@ -1161,6 +1193,15 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                     className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
                   />
                   Track inventory
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={formVisibleInPos}
+                    onChange={(e) => setFormVisibleInPos(e.target.checked)}
+                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+                  />
+                  Visible in POS
                 </label>
                 <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                   <input
@@ -1182,7 +1223,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 <div className="flex flex-wrap items-center gap-3">
                   <label
                     htmlFor="item-image-upload"
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                   >
                     <Upload className="h-4 w-4" />
                     {imageUploading ? "Uploading…" : "Upload image"}
@@ -1318,7 +1359,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 <button
                   type="button"
                   onClick={closeSlide}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                 >
                   Cancel
                 </button>

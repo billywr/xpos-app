@@ -91,25 +91,6 @@ export interface TenderType {
   createdAt: string;
 }
 
-export interface PriceList {
-  id: string;
-  orgId: string;
-  branchId: string | null;
-  channel: string | null;
-  name: string;
-  priority: number;
-  active: boolean;
-}
-
-export interface PriceListItem {
-  id: string;
-  priceListId: string;
-  itemId: string;
-  itemName?: string;
-  price: number;
-  buyingPrice: number | null;
-  currency: string;
-}
 
 /** Receipt detail line modifier (from receipt/details API). */
 export interface ReceiptDetailModifier {

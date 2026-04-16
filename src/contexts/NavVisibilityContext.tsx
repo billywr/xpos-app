@@ -28,6 +28,9 @@ interface NavVisibilityContextValue {
   /** Custom logo data URL (or null for default Store icon) */
   getHeaderLogo: () => string | null;
   setHeaderLogo: (dataUrl: string | null) => void;
+  /** Dark mode color theme (ocean, forest, ember, slate) */
+  darkTheme: string;
+  setDarkTheme: (theme: string) => void;
   isLoading: boolean;
   isSaving: boolean;
   /** True when org must be selected before settings can be saved */

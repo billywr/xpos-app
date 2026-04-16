@@ -30,6 +30,8 @@ export interface SearchableSelectProps {
   compact?: boolean;
   /** Use "as_given" to keep option order (e.g. placeholder first); default sorts by label. */
   optionsOrder?: "sort" | "as_given";
+  /** Allow the user to type a custom value not in the options list (default false). */
+  allowCustomValue?: boolean;
 }
 
 const DEFAULT_MAX = 80;
@@ -73,6 +75,7 @@ export function SearchableSelect({
   matchOptionValue = false,
   compact = false,
   optionsOrder = "sort",
+  allowCustomValue = false,
 }: SearchableSelectProps) {
   const reactId = useId();
   const inputId = idProp ?? `searchable-select-${reactId}`;
@@ -169,14 +172,18 @@ export function SearchableSelect({
       ) {
         return;
       }
+      if (allowCustomValue && filterText.trim()) {
+        onChange(filterText.trim());
+      }
       setOpen(false);
-      setFilterText(selected?.label ?? "");
+      setFilterText(selected?.label ?? (allowCustomValue ? value : ""));
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [open, selected?.label]);
+  }, [open, selected?.label, allowCustomValue, filterText, onChange, value]);
 
-  const closedDisplay = selected?.label ?? (value ? unknownValueDisplay : "");
+  const closedDisplay =
+    selected?.label ?? (value ? (allowCustomValue ? value : unknownValueDisplay) : "");
   const displayValue = open ? filterText : closedDisplay;
 
   const openMenu = useCallback(() => {
@@ -216,11 +223,14 @@ export function SearchableSelect({
       e.preventDefault();
       if (open && suggestions[highlighted]) {
         pick(suggestions[highlighted]);
+      } else if (allowCustomValue && filterText.trim()) {
+        onChange(filterText.trim());
+        setOpen(false);
       }
     } else if (e.key === "Escape") {
       e.preventDefault();
       setOpen(false);
-      setFilterText(selected?.label ?? "");
+      setFilterText(selected?.label ?? (allowCustomValue ? value : ""));
     }
   };
 
@@ -255,8 +265,11 @@ export function SearchableSelect({
           }}
           onBlur={() => {
             blurTimeout.current = setTimeout(() => {
+              if (allowCustomValue && filterText.trim()) {
+                onChange(filterText.trim());
+              }
               setOpen(false);
-              setFilterText(selected?.label ?? "");
+              setFilterText(selected?.label ?? (allowCustomValue ? value : ""));
             }, 180);
           }}
           onKeyDown={onKeyDown}
@@ -332,7 +345,9 @@ export function SearchableSelect({
               }}
               className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 shadow-lg dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
             >
-              No matches
+              {allowCustomValue
+                ? `Press Enter to use "${filterText.trim()}"`
+                : "No matches"}
             </div>,
             document.body
           )

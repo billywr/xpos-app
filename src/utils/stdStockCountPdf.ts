@@ -8,8 +8,6 @@ interface StdStockCountPdfRow {
   addedStock: number;
   totalStock: number;
   closingStock: number;
-  systemCountBeforeToday: number;
-  variance: number;
   unitsSold: number;
   sellingPrice: number;
   amount: number;
@@ -45,7 +43,6 @@ export function downloadStdStockCountPdf(
   totals: { unitsSold: number; amount: number },
   branchName?: string | null,
   orgName?: string | null,
-  includeSystemAndVariance = false,
   appName = "XPOS",
   summary?: StdStockCountPdfSummary
 ): void {
@@ -74,31 +71,22 @@ export function downloadStdStockCountPdf(
       "Added",
       "Total Stock",
       "Closing",
-      ...(includeSystemAndVariance ? ["System", "Variance"] : []),
       "Units Sold",
       "Selling Price",
       "Amount",
       "comments",
     ];
-    const tableData: string[][] = rows.map((r) => {
-      const base = [
-        r.sku ? `${r.sku} · ${r.name}` : r.name || "—",
-        String(r.openingStock),
-        String(r.addedStock),
-        String(r.totalStock),
-        String(r.closingStock),
-      ];
-      const middle = includeSystemAndVariance
-        ? [String(r.systemCountBeforeToday), r.variance > 0 ? `+${r.variance}` : String(r.variance)]
-        : [];
-      const tail = [
-        String(r.unitsSold),
-        formatKsh(r.sellingPrice),
-        formatKsh(r.amount),
-        r.comments.trim() ? r.comments : "—",
-      ];
-      return [...base, ...middle, ...tail];
-    });
+    const tableData: string[][] = rows.map((r) => [
+      r.sku ? `${r.sku} · ${r.name}` : r.name || "—",
+      String(r.openingStock),
+      String(r.addedStock),
+      String(r.totalStock),
+      String(r.closingStock),
+      String(r.unitsSold),
+      formatKsh(r.sellingPrice),
+      formatKsh(r.amount),
+      r.comments.trim() ? r.comments : "—",
+    ]);
 
     autoTable(doc, {
       head: [headCols],

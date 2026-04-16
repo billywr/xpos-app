@@ -1,6 +1,5 @@
 import type React from "react";
 import {
-  BarChart3,
   ChefHat,
   ClipboardList,
   CreditCard,
@@ -11,7 +10,6 @@ import {
   Receipt,
   ShoppingCart,
   UtensilsCrossed,
-  Wallet,
 } from "lucide-react";
 
 export interface OperatorNavItemConfig {
@@ -43,7 +41,6 @@ export const OPERATOR_NAV_ITEMS: OperatorNavItemConfig[] = [
   navItem("/operator", "Dashboard", "Main", false, LayoutDashboard, false, true),
   navItem("/operator/menu-order", "POS", "Main", true, ShoppingCart),
   navItem("/operator/receipts", "Receipts", "Main", true, Receipt),
-  navItem("/operator/analytics", "Analytics", "Main", true, BarChart3),
   navItem("/operator/debts", "Debts & Expenses", "Main", true, HandCoins),
   navItem("/operator/stock-count", "Stock count sessions", "Main", true, ClipboardList),
   navItem(
@@ -60,7 +57,7 @@ export const OPERATOR_NAV_ITEMS: OperatorNavItemConfig[] = [
     true,
     FileSpreadsheet
   ),
-  navItem("/operator/withdrawal", "Withdrawal", "Main", true, Wallet),
+
   navItem(
     "/operator/tables",
     "Manage Table",

@@ -38,7 +38,6 @@ export interface GrnUpdateBody {
 export interface GrnLineRequest {
   itemId: string;
   qty: number;
-  uomId?: string | null;
   receivedUnitCost?: number | null;
 }
 
@@ -95,7 +94,7 @@ export async function createGoodsReceiptNote(
         lines: body.lines.map((l) => ({
           itemId: l.itemId,
           qty: l.qty,
-          uomId: l.uomId ?? null,
+
           receivedUnitCost: l.receivedUnitCost ?? null,
         })),
       },

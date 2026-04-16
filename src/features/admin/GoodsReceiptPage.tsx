@@ -75,7 +75,6 @@ function grnLineResponseToRequest(line: GrnLineResponse): GrnLineRequest {
   return {
     itemId: line.itemId,
     qty: line.qty,
-    uomId: line.uomId,
     receivedUnitCost: line.receivedUnitCost,
   };
 }
@@ -84,7 +83,6 @@ interface GrnLineForm {
   itemId: string;
   itemName: string;
   qty: string;
-  uomId: string;
   receivedUnitCost: string;
 }
 
@@ -242,7 +240,7 @@ export function GoodsReceiptPage({
       grnId: string;
       supplierId: string;
       receivedAt: string;
-      lines?: Array<{ itemId: string; qty: number; uomId?: string | null; receivedUnitCost?: number | null }>;
+      lines?: Array<{ itemId: string; qty: number; receivedUnitCost?: number | null }>;
     }) =>
       updateGoodsReceiptNote(token, selectedOrgId, body.grnId, {
         supplierId: body.supplierId,
@@ -418,8 +416,7 @@ export function GoodsReceiptPage({
         itemId: "",
         itemName: "",
         qty: "",
-        uomId: "",
-        receivedUnitCost: "",
+               receivedUnitCost: "",
       },
     ]);
   };
@@ -431,9 +428,8 @@ export function GoodsReceiptPage({
       if (field === "itemId") {
         const item = items.find((i) => i.id === value);
         next[idx].itemName = item?.name ?? "";
-        if (item?.buyingPrice != null) {
-          next[idx].receivedUnitCost = String(item.buyingPrice);
-        }
+        next[idx].receivedUnitCost =
+          item?.buyingPrice != null ? String(item.buyingPrice) : "";
       }
       return next;
     });
@@ -467,8 +463,7 @@ export function GoodsReceiptPage({
             itemId: item.id,
             itemName: item.name,
             qty: idx < prev.length ? prev[idx].qty : "1",
-            uomId: "",
-            receivedUnitCost:
+                       receivedUnitCost:
               item.buyingPrice != null ? String(item.buyingPrice) : "",
           };
           if (idx < prev.length) {
@@ -537,7 +532,7 @@ export function GoodsReceiptPage({
       const mapFormToReq = (l: (typeof validLines)[number]): GrnLineRequest => ({
         itemId: l.itemId,
         qty: parseFloat(l.qty),
-        uomId: l.uomId || null,
+
         receivedUnitCost: l.receivedUnitCost ? parseFloat(l.receivedUnitCost) : null,
       });
 
@@ -595,7 +590,7 @@ export function GoodsReceiptPage({
       .map((l): GrnLineRequest => ({
         itemId: l.itemId,
         qty: parseFloat(l.qty),
-        uomId: l.uomId || null,
+
         receivedUnitCost: l.receivedUnitCost
           ? parseFloat(l.receivedUnitCost)
           : null,
@@ -641,11 +636,10 @@ export function GoodsReceiptPage({
             itemId: l.itemId,
             itemName: l.itemName,
             qty: String(l.qty),
-            uomId: l.uomId ?? "",
             receivedUnitCost:
               l.receivedUnitCost != null ? String(l.receivedUnitCost) : "",
           }))
-        : [{ itemId: "", itemName: "", qty: "", uomId: "", receivedUnitCost: "" }]
+        : [{ itemId: "", itemName: "", qty: "", receivedUnitCost: "" }]
     );
     setFormError(null);
     setBarcodeScanMessage(null);
@@ -666,7 +660,6 @@ export function GoodsReceiptPage({
         itemId: line.itemId,
         itemName: line.itemName,
         qty: String(line.qty),
-        uomId: line.uomId ?? "",
         receivedUnitCost:
           line.receivedUnitCost != null ? String(line.receivedUnitCost) : "",
       },
@@ -749,7 +742,7 @@ export function GoodsReceiptPage({
             setFormError(null);
             setSupplierId(suppliers[0]?.id ?? "");
             setReceivedAt(formatDatetimeLocal(new Date().toISOString()));
-            setLines([{ itemId: "", itemName: "", qty: "", uomId: "", receivedUnitCost: "" }]);
+            setLines([{ itemId: "", itemName: "", qty: "", receivedUnitCost: "" }]);
             setBarcodeScanMessage(null);
             setScannedItems([]);
           }}
@@ -859,9 +852,9 @@ export function GoodsReceiptPage({
             <div className="relative min-h-0 flex-1 overflow-auto">
               <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "900px" }}>
-                <thead className="bg-slate-50 dark:bg-slate-800/80">
+                <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700/80 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700 dark:text-slate-300">
                       Received
                     </th>
                     <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
@@ -908,7 +901,7 @@ export function GoodsReceiptPage({
                         0
                       );
                       const rowClass =
-                        "hover:bg-slate-50 dark:hover:bg-slate-700/30";
+                        "group hover:bg-slate-100 dark:hover:bg-slate-700";
                       return lines.map((line, lineIdx) => (
                         <tr
                           key={
@@ -921,7 +914,7 @@ export function GoodsReceiptPage({
                           {lineIdx === 0 ? (
                             <td
                               rowSpan={rowSpan}
-                              className="sticky left-0 z-10 bg-white align-top border-r border-slate-100 px-2 py-1.5 text-xs text-slate-800 sm:px-3 sm:py-2 sm:text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                              className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 align-top border-r border-slate-100 px-2 py-1.5 text-xs text-slate-800 sm:px-3 sm:py-2 sm:text-sm  dark:border-slate-700 dark:text-white"
                             >
                               {new Date(grn.receivedAt).toLocaleString()}
                             </td>
@@ -1201,6 +1194,9 @@ export function GoodsReceiptPage({
                   .filter((id): id is string => Boolean(id))
               );
               const selectableItems = items.filter((it) => {
+                if (it.buyingPrice == null) {
+                  return false;
+                }
                 if (it.id === line.itemId) {
                   return true;
                 }
@@ -1248,30 +1244,18 @@ export function GoodsReceiptPage({
                 <div className="w-full sm:w-24">
                   <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
                     Unit cost
-                    {items.find((i) => i.id === line.itemId)?.buyingPrice != null && (
-                      <span className="ml-1 text-slate-500 dark:text-slate-400">
-                        (from item)
-                      </span>
-                    )}
                   </label>
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={line.receivedUnitCost}
-                    onChange={(e) =>
-                      handleUpdateLine(idx, "receivedUnitCost", e.target.value)
+                    type="text"
+                    readOnly
+                    value={
+                      line.receivedUnitCost
+                        ? formatCurrency(parseFloat(line.receivedUnitCost))
+                        : "—"
                     }
-                    placeholder="—"
-                    readOnly={
-                      items.find((i) => i.id === line.itemId)?.buyingPrice != null
-                    }
-                    title={
-                      items.find((i) => i.id === line.itemId)?.buyingPrice != null
-                        ? "Unit cost is set from item buying price and cannot be changed here."
-                        : undefined
-                    }
-                    className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm tabular-nums dark:border-slate-600 dark:bg-slate-700 dark:text-white disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:cursor-not-allowed"
+                    title="Set from item buying price in Catalog."
+                    className="w-full rounded border border-slate-200 bg-slate-100 px-2 py-1.5 text-sm tabular-nums text-slate-600 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-400"
+                    tabIndex={-1}
                   />
                 </div>
                 <div className="w-full sm:w-28">
@@ -1313,7 +1297,7 @@ export function GoodsReceiptPage({
             <button
               type="button"
               onClick={() => setSlideOpen(false)}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
             >
               Cancel
             </button>

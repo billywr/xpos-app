@@ -12,14 +12,14 @@ import {
   MapPin,
   Monitor,
   Package,
-  Receipt,
+
   ScanBarcode,
   Settings,
   ShoppingCart,
   Smartphone,
   TrendingUp,
   Users,
-  Ruler,
+
   UtensilsCrossed,
   Wallet,
   CalendarClock,
@@ -57,9 +57,9 @@ export const ADMIN_NAV_ITEMS: AdminNavItemConfig[] = [
   navItem("/admin/staff", "Staff", Users, "Organization"),
   navItem("/admin/catalog", "Catalog", FolderTree, "Catalog", false),
   navItem("/admin/categories", "Categories", FolderTree, "Catalog"),
-  navItem("/admin/uoms", "Units (UOM)", Ruler, "Catalog"),
+
   navItem("/admin/items", "Items", Package, "Catalog"),
-  navItem("/admin/price-lists", "Price lists", Receipt, "Catalog"),
+
   navItem("/admin/tender-types", "Tender types", CreditCard, "Sales"),
   navItem("/admin/tables", "Tables", UtensilsCrossed, "Sales"),
   navItem("/admin/sales", "Sales", ShoppingCart, "Sales"),

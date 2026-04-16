@@ -25,6 +25,7 @@ export interface Item {
   taxProfileId: string | null;
   trackInventory: boolean;
   active: boolean;
+  visibleInPos: boolean;
   buyingPrice: number | null;
   defaultSellingPrice: number | null;
   primaryImageUrl: string | null;
@@ -54,15 +55,6 @@ export interface ItemModifierGroupLink {
   id: string;
   itemId: string;
   modifierGroupId: string;
-}
-
-export interface Uom {
-  id: string;
-  orgId: string;
-  name: string;
-  symbol: string;
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 export interface TaxProfile {

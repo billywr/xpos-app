@@ -28,7 +28,6 @@ import {
 } from "@/store/selectors/orgContextSelectors";
 import { fetchCategories } from "@/api/categories";
 import { fetchItems, fetchItemByBarcode, fetchItemModifierGroups } from "@/api/items";
-import { fetchPriceListItems } from "@/api/priceLists";
 import { fetchOperatorTables } from "@/api/tables";
 import {
   createSale,
@@ -42,7 +41,6 @@ import {
 } from "@/api/sales";
 import { fetchTenderTypes } from "@/api/tenderTypes";
 import { getCurrentShift } from "@/api/shifts";
-import { fetchPriceLists } from "@/api/priceLists";
 import { fetchStockLevels } from "@/api/stockLevels";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getItemImageUrl } from "@/utils/itemImage";
@@ -102,27 +100,6 @@ function filterOutOfStockItems(
   return list.filter((i) => !isItemOutOfStock(i, stockMap));
 }
 
-function usePriceMap(orgId: string | null, priceListId: string | null, token: string | null) {
-  const enabled = Boolean(orgId && priceListId && token);
-  const { data: priceItemsPage, isSuccess } = useQuery({
-    queryKey: ["priceListItems", orgId, priceListId],
-    queryFn: () =>
-      fetchPriceListItems(token!, orgId!, priceListId!, { page: 0, size: 2000 }),
-    enabled,
-  });
-  const priceMap = useMemo(() => {
-    const map = new Map<string, number>();
-    const items = priceItemsPage?.content ?? [];
-    for (const p of items) {
-      const num = typeof p.price === "number" ? p.price : Number(p.price);
-      if (!Number.isNaN(num)) map.set(p.itemId, num);
-    }
-    return map;
-  }, [priceItemsPage]);
-  const priceListLoaded = !enabled || isSuccess;
-  return { priceMap, priceListLoaded };
-}
-
 export function MenuOrderPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const saleIdFromUrl = searchParams.get("saleId");
@@ -151,8 +128,8 @@ export function MenuOrderPage() {
     "bg-slate-50 dark:bg-slate-800/90",
     "bg-blue-50/80 dark:bg-slate-700/85",
     "bg-primary-50/60 dark:bg-primary-900/25",
-    "bg-slate-100/80 dark:bg-slate-800/80",
-    "bg-blue-50/60 dark:bg-slate-700/80",
+    "bg-slate-100/80 dark:bg-slate-800",
+    "bg-blue-50/60 dark:bg-slate-700",
     "bg-primary-50/40 dark:bg-primary-900/20",
   ];
   const navContext = useNavVisibilityContextOrNull();
@@ -172,23 +149,8 @@ export function MenuOrderPage() {
   const showBarcode = isBarcodeVisible(operatorVisibility, BARCODE_MENU_ORDER);
 
   const cartLines = useAppSelector((s) => s.cart.lines);
-  const priceListId = useAppSelector((s) => s.cart.priceListId);
   const tableId = useAppSelector((s) => s.cart.tableId);
   const orderType = useAppSelector((s) => s.cart.orderType);
-  const priceListsData = useQuery({
-    queryKey: ["priceLists", orgId],
-    queryFn: () => fetchPriceLists(token, orgId!),
-    enabled: Boolean(orgId && token),
-  });
-  const priceLists = priceListsData?.data?.content ?? [];
-  const firstPriceListId = priceLists[0]?.id ?? null;
-  const effectivePriceListId =
-    priceListId ??
-    (branchId
-      ? priceLists.find((pl) => pl.branchId === branchId)?.id ?? firstPriceListId
-      : firstPriceListId);
-  const priceListQueryEnabled = Boolean(orgId && effectivePriceListId && token);
-  const { priceMap, priceListLoaded } = usePriceMap(orgId, effectivePriceListId, token);
 
   const { data: tables = [] } = useQuery({
     queryKey: ["operatorTables", orgId, branchId],
@@ -272,7 +234,6 @@ export function MenuOrderPage() {
       if (!token || !orgId || !branchId || !terminalId) throw new Error("Missing context");
       const sale = await createSale(token, orgId, branchId, terminalId, {
         customerId: null,
-        priceListId: effectivePriceListId,
       });
       for (const line of cartLines) {
         await addSaleLine(token, orgId, branchId, terminalId, sale.id, {
@@ -455,11 +416,11 @@ export function MenuOrderPage() {
 
   const catalogItemsForPos = useMemo(() => {
     const raw = itemsData?.content ?? [];
-    if (!priceListQueryEnabled || !priceListLoaded) {
-      return raw;
-    }
-    return raw.filter((i) => priceMap.has(i.id));
-  }, [itemsData?.content, priceListQueryEnabled, priceListLoaded, priceMap]);
+    return raw.filter(
+      (i) =>
+        (i.defaultSellingPrice ?? 0) > 0 && i.visibleInPos !== false
+    );
+  }, [itemsData?.content]);
 
   const trackedItemIds = useMemo(
     () =>
@@ -517,13 +478,9 @@ export function MenuOrderPage() {
   );
 
   const canSellOnPos = useCallback(
-    (item: Item) => {
-      if (!priceListQueryEnabled || !priceListLoaded) {
-        return true;
-      }
-      return priceMap.has(item.id);
-    },
-    [priceListQueryEnabled, priceListLoaded, priceMap]
+    (item: Item) =>
+      item.active && (item.defaultSellingPrice ?? 0) > 0 && item.visibleInPos !== false,
+    []
   );
 
   const [scannedItemsForCart, setScannedItemsForCart] = useState<Item[]>([]);
@@ -574,7 +531,7 @@ export function MenuOrderPage() {
     if (!canSellOnPos(item)) {
       return false;
     }
-    const price = priceMap.get(item.id) ?? 0;
+    const price = item.defaultSellingPrice ?? 0;
     const links =
       orgId && token
         ? await fetchItemModifierGroups(token, orgId, item.id)
@@ -702,7 +659,7 @@ export function MenuOrderPage() {
 
   const handleSearchItemCheck = async (item: Item, checked: boolean) => {
     if (checked) {
-      const price = priceMap.get(item.id) ?? 0;
+      const price = item.defaultSellingPrice ?? 0;
       const onHand = item.trackInventory
         ? (stockMap.get(item.id) ?? 0)
         : Infinity;
@@ -776,7 +733,7 @@ export function MenuOrderPage() {
             className={`ml-1 flex min-h-[44px] snap-start touch-manipulation items-center gap-1.5 rounded-lg border px-4 py-2.5 text-base font-semibold transition active:scale-[0.98] ${
               hideOutOfStock
                 ? "border-primary-500 bg-primary-600/15 text-primary-700 dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-200"
-                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
             }`}
             title={
               hideOutOfStock
@@ -798,7 +755,7 @@ export function MenuOrderPage() {
             <button
               type="button"
               onClick={() => setItemSearchOpen((o) => !o)}
-              className="flex min-h-[36px] min-w-0 touch-manipulation items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              className="flex min-h-[36px] min-w-0 touch-manipulation items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
               aria-expanded={itemSearchOpen}
               aria-haspopup="listbox"
               aria-label="Search and select items"
@@ -860,7 +817,7 @@ export function MenuOrderPage() {
                         const onHand = item.trackInventory
                           ? (stockMap.get(item.id) ?? 0)
                           : Infinity;
-                        const price = priceMap.get(item.id) ?? 0;
+                        const price = item.defaultSellingPrice ?? 0;
                         const available =
                           item.active &&
                           (item.trackInventory ? onHand > 0 : true);
@@ -979,7 +936,7 @@ export function MenuOrderPage() {
                 const onHand = item.trackInventory
                   ? (stockMap.get(item.id) ?? 0)
                   : Infinity;
-                const price = priceMap.get(item.id) ?? 0;
+                const price = item.defaultSellingPrice ?? 0;
                 return (
                   <MenuItemCard
                     key={item.id}
@@ -1035,7 +992,7 @@ export function MenuOrderPage() {
       </div>
 
       {/* Order summary sidebar — desktop only */}
-      <aside className="hidden min-h-0 max-h-full w-[32rem] shrink-0 flex-col overflow-hidden border-l border-slate-200 bg-white lg:flex dark:border-slate-700 dark:bg-slate-800/80">
+      <aside className="hidden min-h-0 max-h-full w-[32rem] shrink-0 flex-col overflow-hidden border-l border-slate-200 bg-white lg:flex dark:border-slate-700 dark:bg-slate-800">
         <CartSidebarContent
           showBarcode={showBarcode}
           handleBarcodeScan={handleBarcodeScan}
@@ -1478,9 +1435,9 @@ function PaymentModal({
               >
                 <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
                 <table className="w-full text-left text-xs sm:text-sm" style={{ minWidth: "420px" }}>
-                  <thead className="border-b border-slate-200 bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500 dark:border-slate-600 dark:bg-slate-700/40 dark:text-slate-400">
+                  <thead className="border-b border-slate-200 bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400">
                     <tr>
-                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 sm:px-3 dark:bg-slate-700/80">Item</th>
+                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 sm:px-3 dark:bg-slate-700">Item</th>
                       <th className="px-2 py-2 text-right sm:px-3">Qty</th>
                       <th className="px-2 py-2 text-right sm:px-3">Unit</th>
                       <th className="px-2 py-2 text-right sm:px-3">Subtotal</th>
@@ -1489,8 +1446,8 @@ function PaymentModal({
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                     {(sale.lines ?? []).map((line) => (
                       <Fragment key={line.id}>
-                        <tr className="text-slate-800 dark:text-white">
-                          <td className="sticky left-0 z-10 max-w-[7rem] bg-white px-2 py-1.5 align-top sm:max-w-[10rem] sm:px-3 sm:py-2 dark:bg-slate-800">
+                        <tr className="group text-slate-800 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-700">
+                          <td className="sticky left-0 z-10 max-w-[7rem] bg-white group-hover:!bg-slate-100 px-2 py-1.5 align-top sm:max-w-[10rem] sm:px-3 sm:py-2 dark:bg-slate-800 dark:group-hover:!bg-slate-700">
                             <span className="font-medium leading-snug">{line.itemName}</span>
                           </td>
                           <td className="px-2 py-1.5 text-right tabular-nums align-top sm:px-3 sm:py-2">{line.qty}</td>
