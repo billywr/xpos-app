@@ -699,7 +699,7 @@ export function StandardStockCountSheetPage({
                           )}
                         </div>
                       ) : (
-                        <span className="text-right text-xs tabular-nums sm:text-sm">
+                        <span className="block text-right text-xs tabular-nums text-slate-700 sm:text-sm dark:text-slate-300">
                           {r.closingStock}
                         </span>
                       )}
