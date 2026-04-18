@@ -889,6 +889,12 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 </ul>
               )}
             </div>
+            <TableSearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search items…"
+              className="w-full sm:w-64"
+            />
             <button
               type="button"
               onClick={openCreate}
@@ -907,8 +913,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
         </div>
       ) : (
         <>
-          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search items…" className="mb-4" />
-
           {totalElements > 0 && (
             <Pagination
               position="top"
