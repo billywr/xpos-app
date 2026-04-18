@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -114,6 +114,23 @@ export function ReceiptsPage() {
   const { searchQuery, setSearchQuery, filteredRows: filteredReceipts } = useTableSearch(receipts);
   const totalElements = data?.totalElements ?? 0;
 
+  const showCompletedCol = useMemo(
+    () => filteredReceipts.some((s: SaleSummary) => !!s.completedAt),
+    [filteredReceipts]
+  );
+  const showStaffCol = useMemo(
+    () =>
+      filteredReceipts.some(
+        (s: SaleSummary) =>
+          !!s.createdByUsername &&
+          s.createdByUsername.trim() !== "" &&
+          s.createdByUsername !== "—"
+      ),
+    [filteredReceipts]
+  );
+  const visibleReceiptsColCount =
+    3 + (showCompletedCol ? 1 : 0) + (showStaffCol ? 1 : 0);
+
   const handleReprint = async (sale: SaleSummary) => {
     if (!orgId || !branchId) return;
     setReprintingSaleId(sale.id);
@@ -222,19 +239,23 @@ export function ReceiptsPage() {
             <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "600px" }}>
               <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr>
-                  <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 dark:bg-slate-700 dark:text-slate-300">
+                  <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
                     Receipt
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 dark:text-slate-300">
-                    Completed
-                  </th>
-                  <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 dark:text-slate-300">
+                  {showCompletedCol && (
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      Completed
+                    </th>
+                  )}
+                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                     Total
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 dark:text-slate-300">
-                    Staff
-                  </th>
-                  <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 dark:text-slate-300">
+                  {showStaffCol && (
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      Staff
+                    </th>
+                  )}
+                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                     Actions
                   </th>
                 </tr>
@@ -243,7 +264,7 @@ export function ReceiptsPage() {
                 {filteredReceipts.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={visibleReceiptsColCount}
                       className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                     >
                       {receipts.length === 0 ? "No receipts for this date range." : "No results match your search."}
@@ -255,21 +276,25 @@ export function ReceiptsPage() {
                       key={sale.id}
                       className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                     >
-                      <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs font-medium text-slate-800 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">
+                      <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                         #{sale.receiptNumber ?? "—"}
                       </td>
-                      <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                        {sale.completedAt
-                          ? new Date(sale.completedAt).toLocaleString()
-                          : "—"}
-                      </td>
-                      <td className="px-2 py-1.5 text-xs text-slate-800 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
+                      {showCompletedCol && (
+                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                          {sale.completedAt
+                            ? new Date(sale.completedAt).toLocaleString()
+                            : "—"}
+                        </td>
+                      )}
+                      <td className="px-4 py-2 text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                         {formatCurrency(sale.total)}
                       </td>
-                      <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                        {sale.createdByUsername ?? "—"}
-                      </td>
-                      <td className="px-2 py-1.5 text-left sm:px-3 sm:py-2">
+                      {showStaffCol && (
+                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                          {sale.createdByUsername ?? "—"}
+                        </td>
+                      )}
+                      <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
                         <button
                           type="button"
                           onClick={() => handleReprint(sale)}

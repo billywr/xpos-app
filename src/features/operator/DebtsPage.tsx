@@ -360,6 +360,30 @@ export function DebtsPage() {
   const debts = data?.content ?? [];
   const { searchQuery, setSearchQuery, filteredRows: filteredDebts } = useTableSearch(debts);
 
+  const showPhoneCol = useMemo(
+    () =>
+      filteredDebts.some(
+        (d: CustomerDebtResponse) =>
+          !!d.customerPhone && d.customerPhone.trim() !== "" && d.customerPhone !== "—"
+      ),
+    [filteredDebts]
+  );
+  const showDueCol = useMemo(
+    () =>
+      filteredDebts.some(
+        (d: CustomerDebtResponse) =>
+          !!d.dueDate && d.dueDate !== "" && d.dueDate !== "—"
+      ),
+    [filteredDebts]
+  );
+  const showNotesCol = useMemo(
+    () =>
+      filteredDebts.some(
+        (d: CustomerDebtResponse) => !!d.notes && d.notes.trim() !== ""
+      ),
+    [filteredDebts]
+  );
+
   const openEditForm = (d: CustomerDebtResponse) => {
     setEditingDebt(d);
     setEditCustomerName(d.customerName);
@@ -605,34 +629,40 @@ export function DebtsPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "1100px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
-                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:bg-slate-700 dark:text-slate-400">
+                      <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
                         Customer
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
-                        Phone
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
+                      {showPhoneCol && (
+                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                          Phone
+                        </th>
+                      )}
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Original
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Repaid
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Balance
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Status
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
-                        Due
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
+                      {showDueCol && (
+                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                          Due
+                        </th>
+                      )}
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Created
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
-                        Notes
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
+                      {showNotesCol && (
+                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                          Notes
+                        </th>
+                      )}
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Actions
                       </th>
                     </tr>
@@ -640,22 +670,24 @@ export function DebtsPage() {
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                     {filteredDebts.map((d: CustomerDebtResponse) => (
                       <tr key={d.id} className="group hover:bg-slate-100 dark:hover:bg-slate-700">
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">
+                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                           {d.customerName}
                         </td>
-                        <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
-                          {d.customerPhone ?? "—"}
-                        </td>
-                        <td className="px-2 py-1.5 text-left text-xs text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
+                        {showPhoneCol && (
+                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            {d.customerPhone ?? "—"}
+                          </td>
+                        )}
+                        <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                           {formatCurrency(d.amount)}
                         </td>
-                        <td className="px-2 py-1.5 text-left text-xs text-emerald-600 sm:px-3 sm:py-2 sm:text-sm dark:text-emerald-400">
+                        <td className="px-4 py-2 text-left text-base tabular-nums text-emerald-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-emerald-400">
                           {formatCurrency(d.amountSettled ?? 0)}
                         </td>
-                        <td className="px-2 py-1.5 text-left text-xs font-medium text-amber-600 sm:px-3 sm:py-2 sm:text-sm dark:text-amber-400">
+                        <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-amber-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-amber-400">
                           {formatCurrency(d.outstanding)}
                         </td>
-                        <td className="px-2 py-1.5 sm:px-3 sm:py-2">
+                        <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                           <span
                             className={`inline-flex justify-start rounded-full px-2.5 py-0.5 text-left text-xs font-medium ${
                               d.status === "OPEN" || d.status === "PARTIAL"
@@ -668,22 +700,26 @@ export function DebtsPage() {
                             {d.status === "CLOSED" ? "Closed" : d.status}
                           </span>
                         </td>
-                        <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
-                          {d.dueDate ?? "—"}
-                        </td>
-                        <td className="px-2 py-1.5 text-xs text-slate-500 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
+                        {showDueCol && (
+                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            {d.dueDate ?? "—"}
+                          </td>
+                        )}
+                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                           {new Date(d.createdAt).toLocaleString()}
                         </td>
-                        <td className="max-w-[14rem] px-2 py-1.5 align-top text-xs text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                          {d.notes?.trim() ? (
-                            <div className="max-h-24 overflow-y-auto whitespace-pre-wrap break-words">
-                              {d.notes}
-                            </div>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5 text-left sm:px-3 sm:py-2">
+                        {showNotesCol && (
+                          <td className="max-w-[14rem] px-4 py-2 align-top text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            {d.notes?.trim() ? (
+                              <div className="max-h-24 overflow-y-auto whitespace-pre-wrap break-words">
+                                {d.notes}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                        )}
+                        <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
                           {canRecordPayment(d) ? (
                             <div className="flex flex-wrap justify-start gap-2">
                               <button

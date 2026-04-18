@@ -141,6 +141,23 @@ export function SuppliersListPage({
   const totalElements = suppliersData?.totalElements ?? 0;
   const { searchQuery, setSearchQuery, filteredRows: filteredSuppliers } = useTableSearch(suppliers);
 
+  const showPhoneCol = useMemo(
+    () =>
+      filteredSuppliers.some(
+        (s: Supplier) => !!s.phone && s.phone.trim() !== "" && s.phone !== "—"
+      ),
+    [filteredSuppliers]
+  );
+  const showEmailCol = useMemo(
+    () =>
+      filteredSuppliers.some(
+        (s: Supplier) => !!s.email && s.email.trim() !== "" && s.email !== "—"
+      ),
+    [filteredSuppliers]
+  );
+  const visibleSuppliersColCount =
+    3 + (showPhoneCol ? 1 : 0) + (showEmailCol ? 1 : 0);
+
   useEffect(() => {
     if (initialOrgId) {
       setSelectedOrgId(initialOrgId);
@@ -349,19 +366,23 @@ export function SuppliersListPage({
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "600px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
                       Name
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                      Phone
-                    </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                      Email
-                    </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    {showPhoneCol && (
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                        Phone
+                      </th>
+                    )}
+                    {showEmailCol && (
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                        Email
+                      </th>
+                    )}
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Status
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -370,8 +391,8 @@ export function SuppliersListPage({
                   {filteredSuppliers.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5}
-                        className="px-2 py-8 text-center text-xs text-slate-500 sm:px-3 sm:text-sm dark:text-slate-400"
+                        colSpan={visibleSuppliersColCount}
+                        className="px-4 py-8 text-center text-base text-slate-500 sm:px-6 sm:text-lg dark:text-slate-400"
                       >
                         {suppliers.length === 0
                           ? (includeInactive
@@ -388,16 +409,20 @@ export function SuppliersListPage({
                           !s.active ? "opacity-60" : ""
                         }`}
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs font-medium text-slate-800 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">
+                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                           {s.name}
                         </td>
-                        <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                          {s.phone ?? "—"}
-                        </td>
-                        <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                          {s.email ?? "—"}
-                        </td>
-                        <td className="px-2 py-1.5 sm:px-3 sm:py-2">
+                        {showPhoneCol && (
+                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            {s.phone ?? "—"}
+                          </td>
+                        )}
+                        {showEmailCol && (
+                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            {s.email ?? "—"}
+                          </td>
+                        )}
+                        <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                           <span
                             className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
                               s.active
@@ -408,7 +433,7 @@ export function SuppliersListPage({
                             {s.active ? "Active" : "Inactive"}
                           </span>
                         </td>
-                        <td className="px-2 py-1.5 text-left sm:px-3 sm:py-2">
+                        <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
                           <div className="flex justify-start gap-1">
                             {s.active ? (
                               <>

@@ -72,6 +72,31 @@ export function SalesListPage() {
   const { searchQuery, setSearchQuery, filteredRows: filteredSales } = useTableSearch(sales);
   const totalElements = salesData?.totalElements ?? 0;
 
+  const showReceiptCol = useMemo(
+    () =>
+      filteredSales.some((s: SaleSummary) => s.receiptNumber != null),
+    [filteredSales]
+  );
+  const showCompletedCol = useMemo(
+    () => filteredSales.some((s: SaleSummary) => !!s.completedAt),
+    [filteredSales]
+  );
+  const showCashierCol = useMemo(
+    () =>
+      filteredSales.some(
+        (s: SaleSummary) =>
+          !!s.createdByUsername &&
+          s.createdByUsername.trim() !== "" &&
+          s.createdByUsername !== "—"
+      ),
+    [filteredSales]
+  );
+  const visibleSalesColCount =
+    2 +
+    (showReceiptCol ? 1 : 0) +
+    (showCompletedCol ? 1 : 0) +
+    (showCashierCol ? 1 : 0);
+
   const { data: totalSalesSum = 0 } = useQuery({
     queryKey: [
       "admin-sales-sum",
@@ -335,17 +360,23 @@ export function SalesListPage() {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "600px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 w-10 bg-slate-50 px-2 py-2 sm:py-3 dark:bg-slate-700" aria-label="Expand" />
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                      Receipt #
-                    </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                      Completed
-                    </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                      Cashier
-                    </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="sticky left-0 z-20 w-10 bg-slate-50 px-4 py-3 sm:py-3 dark:bg-slate-700" aria-label="Expand" />
+                    {showReceiptCol && (
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                        Receipt #
+                      </th>
+                    )}
+                    {showCompletedCol && (
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                        Completed
+                      </th>
+                    )}
+                    {showCashierCol && (
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                        Cashier
+                      </th>
+                    )}
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Total
                     </th>
                   </tr>
@@ -354,7 +385,7 @@ export function SalesListPage() {
                   {filteredSales.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={visibleSalesColCount}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
                         {sales.length === 0 ? `No completed sales for ${selectedBranch?.name ?? "this branch"} in the selected date range.` : "No results match your search."}
@@ -367,7 +398,7 @@ export function SalesListPage() {
                           key={sale.id}
                           className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                         >
-                          <td className="sticky left-0 z-10 w-10 bg-white group-hover:!bg-slate-100 px-2 py-1.5 sm:py-2 dark:bg-slate-800 dark:group-hover:!bg-slate-700">
+                          <td className="sticky left-0 z-10 w-10 bg-white group-hover:!bg-slate-100 px-4 py-2 sm:py-2.5 dark:bg-slate-800 dark:group-hover:!bg-slate-700">
                             <button
                               type="button"
                               onClick={() =>
@@ -389,25 +420,31 @@ export function SalesListPage() {
                               )}
                             </button>
                           </td>
-                          <td className="px-2 py-1.5 font-mono text-xs text-slate-800 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
-                            {sale.receiptNumber ?? "—"}
-                          </td>
-                          <td className="px-2 py-1.5 text-xs text-slate-800 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
-                            {sale.completedAt
-                              ? new Date(sale.completedAt).toLocaleString()
-                              : "—"}
-                          </td>
-                          <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                            {sale.createdByUsername ?? "—"}
-                          </td>
-                          <td className="px-2 py-1.5 text-left text-xs tabular-nums font-medium text-slate-800 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
+                          {showReceiptCol && (
+                            <td className="px-4 py-2 font-mono text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                              {sale.receiptNumber ?? "—"}
+                            </td>
+                          )}
+                          {showCompletedCol && (
+                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                              {sale.completedAt
+                                ? new Date(sale.completedAt).toLocaleString()
+                                : "—"}
+                            </td>
+                          )}
+                          {showCashierCol && (
+                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                              {sale.createdByUsername ?? "—"}
+                            </td>
+                          )}
+                          <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                             {formatCurrency(sale.total)}
                           </td>
                         </tr>
                         {expandedSaleId === sale.id && (
                           <tr key={`${sale.id}-expanded`}>
                             <td
-                              colSpan={5}
+                              colSpan={visibleSalesColCount}
                               className="bg-slate-50 px-4 py-3 dark:bg-slate-800/50"
                             >
                               {receiptLoading ? (

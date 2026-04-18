@@ -575,8 +575,8 @@ export function AdminSettingsPage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {([
               { id: "ocean", name: "Ocean", colors: ["#0d2a4a", "#113264", "#164278", "#0ea5e9"] },
-              { id: "forest", name: "Forest", colors: ["#071f14", "#0c3322", "#145236", "#10b981"] },
-              { id: "ember", name: "Ember", colors: ["#1a0f08", "#2d1a0c", "#3d2612", "#f59e0b"] },
+              { id: "forest", name: "Magenta", colors: ["#3a1243", "#52124d", "#601558", "#ec4899"] },
+              { id: "ember", name: "Midnight", colors: ["#0d0d24", "#141432", "#1c1c3d", "#8b5cf6"] },
               { id: "slate", name: "Slate", colors: ["#111318", "#1a1d24", "#24282f", "#94a3b8"] },
             ] as const).map((theme) => {
               const isActive = darkTheme === theme.id;

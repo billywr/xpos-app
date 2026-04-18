@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -10,7 +9,6 @@ import { fetchModifierGroups } from "@/api/modifierGroups";
 import {
   fetchItems,
   fetchItem,
-  fetchItemIdsWithPrices,
   createItem,
   updateItem,
   deleteItem,
@@ -35,12 +33,12 @@ import { useToast } from "@/contexts/ToastContext";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getItemImageUrl, getItemImageName } from "@/utils/itemImage";
 import { resizeImageTo400x400 } from "@/utils/imageResize";
-import { Plus, Pencil, Trash2, Upload, Banknote, ChevronDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Upload, ChevronDown } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { BARCODE_ITEMS, isBarcodeVisible } from "@/config/barcodeVisibility";
 
-const DEFAULT_PAGE_SIZE = 25;
+const DEFAULT_PAGE_SIZE = 15;
 const MAX_PAGE_SIZE = 100;
 const ITEM_TYPES = ["STOCK", "SERVICE", "MENU", "BUNDLE"] as const;
 
@@ -103,6 +101,68 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
   const [inlineUploadingItemId, setInlineUploadingItemId] = useState<string | null>(null);
   const inlineFileInputRef = useRef<HTMLInputElement>(null);
   const inlineUploadItemRef = useRef<Item | null>(null);
+  const [editingPriceCell, setEditingPriceCell] = useState<{
+    itemId: string;
+    field: "buyingPrice" | "defaultSellingPrice";
+    value: string;
+  } | null>(null);
+  const [savingPriceItemId, setSavingPriceItemId] = useState<string | null>(null);
+
+  async function handleSavePriceCell(item: Item) {
+    if (!editingPriceCell) return;
+    const raw = editingPriceCell.value.trim();
+    const parsed = raw === "" ? null : Number(raw);
+    if (raw !== "" && (!Number.isFinite(parsed) || (parsed as number) < 0)) {
+      toast.error("Enter a valid non-negative price.");
+      return;
+    }
+    const currentValue =
+      editingPriceCell.field === "buyingPrice"
+        ? item.buyingPrice
+        : item.defaultSellingPrice;
+    if (parsed === currentValue) {
+      setEditingPriceCell(null);
+      return;
+    }
+    const nextBuying =
+      editingPriceCell.field === "buyingPrice" ? parsed : item.buyingPrice;
+    const nextSelling =
+      editingPriceCell.field === "defaultSellingPrice"
+        ? parsed
+        : item.defaultSellingPrice;
+    if (
+      nextBuying != null &&
+      nextSelling != null &&
+      nextSelling <= nextBuying
+    ) {
+      toast.error("Selling price must be greater than buying price.");
+      return;
+    }
+    setSavingPriceItemId(item.id);
+    try {
+      await updateItem(token, selectedOrgId, item.id, {
+        sku: item.sku,
+        name: item.name,
+        itemType: item.itemType,
+        categoryId: item.categoryId,
+        taxProfileId: item.taxProfileId,
+        trackInventory: item.trackInventory,
+        active: item.active,
+        buyingPrice: nextBuying,
+        defaultSellingPrice: nextSelling,
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-items", token, selectedOrgId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["items", selectedOrgId] });
+      toast.success("Price updated.", { title: "Saved" });
+      setEditingPriceCell(null);
+    } catch (err) {
+      toast.error(getApiErrorMessage(err));
+    } finally {
+      setSavingPriceItemId(null);
+    }
+  }
 
   async function handleInlineImageUpload(file: File, item: Item) {
     if (!token || !selectedOrgId) return;
@@ -155,14 +215,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
       }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
-
-  const { data: itemIdsWithPricesData } = useQuery({
-    queryKey: ["admin-item-ids-with-prices", token, selectedOrgId],
-    queryFn: () => fetchItemIdsWithPrices(token, selectedOrgId),
-    enabled: Boolean(token) && Boolean(selectedOrgId),
-  });
-
-  const itemIdsWithPrices = new Set(itemIdsWithPricesData?.itemIds ?? []);
 
   const { data: categoriesData } = useQuery({
     queryKey: ["admin-categories", token, selectedOrgId],
@@ -371,9 +423,21 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
   });
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
-  const items = itemsData?.content ?? [];
+  const items = (itemsData?.content ?? []).filter((i: Item) => i.active);
   const totalElements = itemsData?.totalElements ?? 0;
   const { searchQuery, setSearchQuery, filteredRows: filteredItems } = useTableSearch(items);
+
+  const showSkuCol = useMemo(
+    () =>
+      filteredItems.some(
+        (i: Item) => !!i.sku && i.sku.trim() !== "" && i.sku !== "—"
+      ),
+    [filteredItems]
+  );
+  const showBuyingCol = useMemo(
+    () => filteredItems.some((i: Item) => i.buyingPrice != null),
+    [filteredItems]
+  );
   const categories = categoriesData?.content ?? [];
   const taxProfiles = taxProfilesData?.content ?? [];
   const modifierGroups = modifierGroupsData?.content ?? [];
@@ -863,7 +927,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               totalElements={totalElements}
               onPageChange={setPage}
               onSizeChange={handleSizeChange}
-              sizeOptions={[10, 25, 50, 100]}
+              sizeOptions={[10, 15, 25, 50, 100]}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -873,33 +937,37 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "1000px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
                       Name
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                      SKU
-                    </th>
+                    {showSkuCol && (
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                        SKU
+                      </th>
+                    )}
                     {showBarcode && (
-                      <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Barcode
                       </th>
                     )}
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Type
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Active
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                      Buying
-                    </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    {showBuyingCol && (
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                        Buying
+                      </th>
+                    )}
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Selling
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Image
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -908,7 +976,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                   {filteredItems.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={showBarcode ? 9 : 8}
+                        colSpan={6 + (showSkuCol ? 1 : 0) + (showBarcode ? 1 : 0) + (showBuyingCol ? 1 : 0)}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
                         {items.length === 0 ? "No items yet. Add one to build your catalog." : "No results match your search."}
@@ -920,23 +988,25 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                           key={item.id}
                           className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                         >
-                          <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs font-medium text-slate-800 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">
+                          <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                             {item.name}
                           </td>
-                          <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                            {item.sku ?? "—"}
-                          </td>
+                          {showSkuCol && (
+                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                              {item.sku ?? "—"}
+                            </td>
+                          )}
                           {showBarcode && (
-                            <td className="px-2 py-1.5 font-mono text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
+                            <td className="px-4 py-2 font-mono text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                               {item.barcode ?? "—"}
                             </td>
                           )}
-                          <td className="px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm">
+                          <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-lg">
                             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                               {item.itemType}
                             </span>
                           </td>
-                          <td className="px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm">
+                          <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-lg">
                             {item.active ? (
                               <span className="text-emerald-600 dark:text-emerald-400">
                                 Yes
@@ -945,17 +1015,53 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                               <span className="text-slate-500">No</span>
                             )}
                           </td>
-                          <td className="px-2 py-1.5 text-xs tabular-nums text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                            {item.buyingPrice != null
-                              ? formatCurrency(item.buyingPrice)
-                              : "—"}
+                          {showBuyingCol && (
+                            <td className="px-4 py-2 text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                              <PriceCell
+                                item={item}
+                                field="buyingPrice"
+                                editing={editingPriceCell}
+                                saving={savingPriceItemId === item.id}
+                                onStartEdit={(value) =>
+                                  setEditingPriceCell({
+                                    itemId: item.id,
+                                    field: "buyingPrice",
+                                    value,
+                                  })
+                                }
+                                onChange={(value) =>
+                                  setEditingPriceCell((prev) =>
+                                    prev ? { ...prev, value } : prev
+                                  )
+                                }
+                                onCommit={() => handleSavePriceCell(item)}
+                                onCancel={() => setEditingPriceCell(null)}
+                              />
+                            </td>
+                          )}
+                          <td className="px-4 py-2 text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            <PriceCell
+                              item={item}
+                              field="defaultSellingPrice"
+                              editing={editingPriceCell}
+                              saving={savingPriceItemId === item.id}
+                              onStartEdit={(value) =>
+                                setEditingPriceCell({
+                                  itemId: item.id,
+                                  field: "defaultSellingPrice",
+                                  value,
+                                })
+                              }
+                              onChange={(value) =>
+                                setEditingPriceCell((prev) =>
+                                  prev ? { ...prev, value } : prev
+                                )
+                              }
+                              onCommit={() => handleSavePriceCell(item)}
+                              onCancel={() => setEditingPriceCell(null)}
+                            />
                           </td>
-                          <td className="px-2 py-1.5 text-xs tabular-nums text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                            {item.defaultSellingPrice != null
-                              ? formatCurrency(item.defaultSellingPrice)
-                              : "—"}
-                          </td>
-                          <td className="px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm">
+                          <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-lg">
                             <button
                               type="button"
                               disabled={inlineUploadingItemId === item.id}
@@ -974,28 +1080,8 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                               {item.primaryImageUrl ? getItemImageName(item.primaryImageUrl) : "Upload"}
                             </button>
                           </td>
-                          <td className="px-2 py-1.5 text-left text-xs sm:px-3 sm:py-2 sm:text-sm">
+                          <td className="px-4 py-2 text-left text-base sm:px-6 sm:py-2.5 sm:text-lg">
                             <div className="flex justify-start gap-2">
-                              <Link
-                                to={
-                                  selectedOrgId
-                                    ? `/admin/price-lists?orgId=${selectedOrgId}&itemId=${item.id}`
-                                    : "/admin/price-lists"
-                                }
-                                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
-                                title={
-                                  itemIdsWithPrices.has(item.id)
-                                    ? `Edit price for ${item.name}`
-                                    : `Add price for ${item.name}`
-                                }
-                                aria-label={
-                                  itemIdsWithPrices.has(item.id)
-                                    ? `Edit price for ${item.name}`
-                                    : `Add price for ${item.name}`
-                                }
-                              >
-                                <Banknote className="h-4 w-4" />
-                              </Link>
                               <button
                                 type="button"
                                 onClick={() => openEdit(item)}
@@ -1401,8 +1487,8 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
             message={
               confirmDelete ? (
                 <>
-                  <strong>{confirmDelete.name}</strong> will be deactivated. It
-                  will no longer appear in the menu.
+                  <strong>{confirmDelete.name}</strong> will be hidden from the
+                  catalog and removed from the POS menu.
                 </>
               ) : (
                 ""
@@ -1415,5 +1501,73 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
         </>
       )}
     </div>
+  );
+}
+
+interface PriceCellProps {
+  item: Item;
+  field: "buyingPrice" | "defaultSellingPrice";
+  editing: {
+    itemId: string;
+    field: "buyingPrice" | "defaultSellingPrice";
+    value: string;
+  } | null;
+  saving: boolean;
+  onStartEdit: (value: string) => void;
+  onChange: (value: string) => void;
+  onCommit: () => void;
+  onCancel: () => void;
+}
+
+function PriceCell({
+  item,
+  field,
+  editing,
+  saving,
+  onStartEdit,
+  onChange,
+  onCommit,
+  onCancel,
+}: PriceCellProps) {
+  const isEditing =
+    editing?.itemId === item.id && editing.field === field;
+  const currentValue = item[field];
+
+  if (isEditing) {
+    return (
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        autoFocus
+        disabled={saving}
+        value={editing.value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onCommit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onCommit();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            onCancel();
+          }
+        }}
+        className="w-24 rounded border border-primary-500 bg-white px-1.5 py-1 text-xs tabular-nums text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary-500 sm:text-sm dark:bg-slate-700 dark:text-white"
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        onStartEdit(currentValue != null ? String(currentValue) : "")
+      }
+      className="rounded px-1.5 py-0.5 text-left font-semibold tabular-nums text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-900/30"
+      title="Click to edit"
+    >
+      {currentValue != null ? formatCurrency(currentValue) : "—"}
+    </button>
   );
 }

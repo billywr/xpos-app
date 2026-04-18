@@ -34,7 +34,7 @@ export function InventoryReceivingPage() {
     if (normalized && VALID_TABS.includes(normalized as TabId)) {
       return normalized as TabId;
     }
-    return "suppliers";
+    return "stock";
   }, [tabParam]);
 
   const token = useAppSelector(selectToken);

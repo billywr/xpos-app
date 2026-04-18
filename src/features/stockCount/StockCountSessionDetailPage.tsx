@@ -258,6 +258,15 @@ export function StockCountSessionDetailPage({
   const lines = session.lines ?? [];
   const { searchQuery, setSearchQuery, filteredRows: filteredLines } = useTableSearch(lines);
 
+  const showUnitCostCol = useMemo(
+    () => filteredLines.some((l: StockCountLineResponse) => l.unitCost != null),
+    [filteredLines]
+  );
+  const showSellPriceCol = useMemo(
+    () => filteredLines.some((l: StockCountLineResponse) => l.sellingPrice != null),
+    [filteredLines]
+  );
+
   const totalCountedValue = lines.reduce(
     (sum, l) =>
       sum +
@@ -360,29 +369,33 @@ export function StockCountSessionDetailPage({
             <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "900px" }}>
               <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr className="bg-slate-50 dark:bg-slate-700/50">
-                  <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700 dark:text-slate-300">
+                  <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
                     Item
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                     Sys qty
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                     Counted
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                     Var.
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                    Unit cost
-                  </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                  {showUnitCostCol && (
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      Unit cost
+                    </th>
+                  )}
+                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                     Sold
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                    Sell price
-                  </th>
+                  {showSellPriceCol && (
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      Sell price
+                    </th>
+                  )}
                   {session.status === "OPEN" && (
-                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Actions
                     </th>
                   )}
@@ -394,17 +407,17 @@ export function StockCountSessionDetailPage({
                     key={l.id}
                     className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                   >
-                    <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">
+                    <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                       {l.itemName}
                     </td>
-                    <td className="px-2 py-1.5 text-left text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
+                    <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                       {l.systemQty}
                     </td>
-                    <td className="px-2 py-1.5 text-left text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
+                    <td className="px-4 py-2 text-left text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                       {l.countedQty}
                     </td>
                     <td
-                      className={`px-2 py-1.5 text-left text-xs font-medium sm:px-3 sm:py-2 sm:text-sm ${
+                      className={`px-4 py-2 text-left text-base font-semibold tabular-nums sm:px-6 sm:py-2.5 sm:text-lg ${
                         l.varianceQty > 0
                           ? "text-emerald-600 dark:text-emerald-400"
                           : l.varianceQty < 0
@@ -414,17 +427,21 @@ export function StockCountSessionDetailPage({
                     >
                       {formatVariance(l.varianceQty)}
                     </td>
-                    <td className="px-2 py-1.5 text-left text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
-                      {l.unitCost != null ? formatCurrency(l.unitCost) : "—"}
-                    </td>
-                    <td className="px-2 py-1.5 text-left text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
+                    {showUnitCostCol && (
+                      <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                        {l.unitCost != null ? formatCurrency(l.unitCost) : "—"}
+                      </td>
+                    )}
+                    <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                       {l.qtySold ?? 0}
                     </td>
-                    <td className="px-2 py-1.5 text-left text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
-                      {l.sellingPrice != null ? formatCurrency(l.sellingPrice) : "—"}
-                    </td>
+                    {showSellPriceCol && (
+                      <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                        {l.sellingPrice != null ? formatCurrency(l.sellingPrice) : "—"}
+                      </td>
+                    )}
                     {session.status === "OPEN" && (
-                      <td className="px-2 py-1.5 text-left sm:px-3 sm:py-2">
+                      <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
                         {editingLineId === l.id ? (
                           <div className="flex items-center justify-start gap-1">
                             <input

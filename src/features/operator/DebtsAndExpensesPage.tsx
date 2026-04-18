@@ -556,6 +556,30 @@ export function DebtsAndExpensesPage() {
   // -----------------------------------------------------------------------
   const debts = debtsData?.content ?? [];
   const { searchQuery: debtSearchQuery, setSearchQuery: setDebtSearchQuery, filteredRows: filteredDebts } = useTableSearch(debts);
+
+  const showDebtPhoneCol = useMemo(
+    () =>
+      filteredDebts.some(
+        (d: CustomerDebtResponse) =>
+          !!d.customerPhone && d.customerPhone.trim() !== "" && d.customerPhone !== "—"
+      ),
+    [filteredDebts]
+  );
+  const showDebtDueCol = useMemo(
+    () =>
+      filteredDebts.some(
+        (d: CustomerDebtResponse) =>
+          !!d.dueDate && d.dueDate !== "" && d.dueDate !== "—"
+      ),
+    [filteredDebts]
+  );
+  const showDebtNotesCol = useMemo(
+    () =>
+      filteredDebts.some(
+        (d: CustomerDebtResponse) => !!d.notes && d.notes.trim() !== ""
+      ),
+    [filteredDebts]
+  );
   const debtTotalElements = debtsData?.totalElements ?? 0;
 
   const openDebtEditForm = (d: CustomerDebtResponse) => {
@@ -701,6 +725,23 @@ export function DebtsAndExpensesPage() {
   // -----------------------------------------------------------------------
   const expenses = expensesData?.content ?? [];
   const { searchQuery: expSearchQuery, setSearchQuery: setExpSearchQuery, filteredRows: filteredExpenses } = useTableSearch(expenses);
+
+  const showExpIncurredByCol = useMemo(
+    () =>
+      filteredExpenses.some(
+        (e: MiscExpenseResponse) =>
+          !!e.incurredBy && e.incurredBy.trim() !== "" && e.incurredBy !== "—"
+      ),
+    [filteredExpenses]
+  );
+  const showExpReceiptRefCol = useMemo(
+    () =>
+      filteredExpenses.some(
+        (e: MiscExpenseResponse) =>
+          !!e.receiptRef && e.receiptRef.trim() !== "" && e.receiptRef !== "—"
+      ),
+    [filteredExpenses]
+  );
   const expTotalElements = expensesData?.totalElements ?? 0;
   const expTotalAmount = expensesData?.totalAmount ?? 0;
 
@@ -903,27 +944,35 @@ export function DebtsAndExpensesPage() {
                       <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "1100px" }}>
                         <thead className="bg-slate-50 dark:bg-slate-700">
                           <tr>
-                            <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:bg-slate-700 dark:text-slate-400">Customer</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Phone</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Original</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Repaid</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Balance</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Status</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Due</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Created</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Notes</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Actions</th>
+                            <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">Customer</th>
+                            {showDebtPhoneCol && (
+                              <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Phone</th>
+                            )}
+                            <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Original</th>
+                            <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Repaid</th>
+                            <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Balance</th>
+                            <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Status</th>
+                            {showDebtDueCol && (
+                              <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Due</th>
+                            )}
+                            <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Created</th>
+                            {showDebtNotesCol && (
+                              <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Notes</th>
+                            )}
+                            <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                           {filteredDebts.map((d: CustomerDebtResponse) => (
                             <tr key={d.id} className="group hover:bg-slate-100 dark:hover:bg-slate-700">
-                              <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">{d.customerName}</td>
-                              <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">{d.customerPhone ?? "—"}</td>
-                              <td className="px-2 py-1.5 text-left text-xs text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">{formatCurrency(d.amount)}</td>
-                              <td className="px-2 py-1.5 text-left text-xs text-emerald-600 sm:px-3 sm:py-2 sm:text-sm dark:text-emerald-400">{formatCurrency(d.amountSettled ?? 0)}</td>
-                              <td className="px-2 py-1.5 text-left text-xs font-medium text-amber-600 sm:px-3 sm:py-2 sm:text-sm dark:text-amber-400">{formatCurrency(d.outstanding)}</td>
-                              <td className="px-2 py-1.5 sm:px-3 sm:py-2">
+                              <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">{d.customerName}</td>
+                              {showDebtPhoneCol && (
+                                <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">{d.customerPhone ?? "—"}</td>
+                              )}
+                              <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">{formatCurrency(d.amount)}</td>
+                              <td className="px-4 py-2 text-left text-base tabular-nums text-emerald-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-emerald-400">{formatCurrency(d.amountSettled ?? 0)}</td>
+                              <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-amber-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-amber-400">{formatCurrency(d.outstanding)}</td>
+                              <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                                 <span
                                   className={`inline-flex justify-start rounded-full px-2.5 py-0.5 text-left text-xs font-medium ${
                                     d.status === "OPEN" || d.status === "PARTIAL"
@@ -936,16 +985,20 @@ export function DebtsAndExpensesPage() {
                                   {d.status === "CLOSED" ? "Closed" : d.status}
                                 </span>
                               </td>
-                              <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">{d.dueDate ?? "—"}</td>
-                              <td className="px-2 py-1.5 text-xs text-slate-500 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">{new Date(d.createdAt).toLocaleString()}</td>
-                              <td className="max-w-[14rem] px-2 py-1.5 align-top text-xs text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                                {d.notes?.trim() ? (
-                                  <div className="max-h-24 overflow-y-auto whitespace-pre-wrap break-words">{d.notes}</div>
-                                ) : (
-                                  "—"
-                                )}
-                              </td>
-                              <td className="px-2 py-1.5 text-left sm:px-3 sm:py-2">
+                              {showDebtDueCol && (
+                                <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">{d.dueDate ?? "—"}</td>
+                              )}
+                              <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">{new Date(d.createdAt).toLocaleString()}</td>
+                              {showDebtNotesCol && (
+                                <td className="max-w-[14rem] px-4 py-2 align-top text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                                  {d.notes?.trim() ? (
+                                    <div className="max-h-24 overflow-y-auto whitespace-pre-wrap break-words">{d.notes}</div>
+                                  ) : (
+                                    "—"
+                                  )}
+                                </td>
+                              )}
+                              <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
                                 {canRecordPayment(d) ? (
                                   <div className="flex flex-wrap justify-start gap-2">
                                     <button type="button" onClick={() => openSettleForm(d)} className="rounded p-1.5 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30" title="Record payment">
@@ -1060,27 +1113,35 @@ export function DebtsAndExpensesPage() {
                       <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "840px" }}>
                         <thead className="bg-slate-50 dark:bg-slate-700">
                           <tr>
-                            <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:bg-slate-700 dark:text-slate-400">Incurred by</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Amount</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Category</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Desc.</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Receipt ref</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Created</th>
-                            <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">Actions</th>
+                            {showExpIncurredByCol && (
+                              <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">Incurred by</th>
+                            )}
+                            <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Amount</th>
+                            <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Category</th>
+                            <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Desc.</th>
+                            {showExpReceiptRefCol && (
+                              <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Receipt ref</th>
+                            )}
+                            <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Created</th>
+                            <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                           {filteredExpenses.map((e: MiscExpenseResponse) => (
                             <tr key={e.id} className="group hover:bg-slate-100 dark:hover:bg-slate-700">
-                              <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm  dark:text-slate-400">{e.incurredBy ?? "—"}</td>
-                              <td className="px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:text-white">{formatCurrency(e.amount)}</td>
-                              <td className="px-2 py-1.5 sm:px-3 sm:py-2">
+                              {showExpIncurredByCol && (
+                                <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">{e.incurredBy ?? "—"}</td>
+                              )}
+                              <td className="px-4 py-2 text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">{formatCurrency(e.amount)}</td>
+                              <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                                 <span className="inline-flex justify-start rounded-full bg-slate-100 px-2.5 py-0.5 text-left text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">{e.category}</span>
                               </td>
-                              <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">{e.description}</td>
-                              <td className="px-2 py-1.5 text-xs text-slate-500 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">{e.receiptRef ?? "—"}</td>
-                              <td className="px-2 py-1.5 text-xs text-slate-500 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">{new Date(e.createdAt).toLocaleString()}</td>
-                              <td className="px-2 py-1.5 text-left sm:px-3 sm:py-2">
+                              <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">{e.description}</td>
+                              {showExpReceiptRefCol && (
+                                <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">{e.receiptRef ?? "—"}</td>
+                              )}
+                              <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">{new Date(e.createdAt).toLocaleString()}</td>
+                              <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
                                 <div className="flex justify-start gap-1">
                                   <button type="button" onClick={() => openExpEditForm(e)} className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200" title="Edit">
                                     <Pencil className="h-4 w-4" />

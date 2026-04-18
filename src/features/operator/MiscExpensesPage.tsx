@@ -130,6 +130,23 @@ export function MiscExpensesPage() {
 
   const expenses = data?.content ?? [];
   const { searchQuery, setSearchQuery, filteredRows: filteredExpenses } = useTableSearch(expenses);
+
+  const showIncurredByCol = useMemo(
+    () =>
+      filteredExpenses.some(
+        (e: MiscExpenseResponse) =>
+          !!e.incurredBy && e.incurredBy.trim() !== "" && e.incurredBy !== "—"
+      ),
+    [filteredExpenses]
+  );
+  const showReceiptRefCol = useMemo(
+    () =>
+      filteredExpenses.some(
+        (e: MiscExpenseResponse) =>
+          !!e.receiptRef && e.receiptRef.trim() !== "" && e.receiptRef !== "—"
+      ),
+    [filteredExpenses]
+  );
   const totalElements = data?.totalElements ?? 0;
   const totalAmount = data?.totalAmount ?? 0;
 
@@ -317,25 +334,29 @@ export function MiscExpensesPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "840px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
-                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:bg-slate-700 dark:text-slate-400">
-                        Incurred by
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
+                      {showIncurredByCol && (
+                        <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
+                          Incurred by
+                        </th>
+                      )}
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Amount
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Category
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Desc.
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
-                        Receipt ref
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
+                      {showReceiptRefCol && (
+                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                          Receipt ref
+                        </th>
+                      )}
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Created
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 sm:px-3 sm:py-3 dark:text-slate-400">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Actions
                       </th>
                     </tr>
@@ -346,27 +367,31 @@ export function MiscExpensesPage() {
                         key={e.id}
                         className="hover:bg-slate-100 dark:hover:bg-slate-700"
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm  dark:text-slate-400">
-                          {e.incurredBy ?? "—"}
-                        </td>
-                        <td className="px-2 py-1.5 text-xs font-medium text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
+                        {showIncurredByCol && (
+                          <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                            {e.incurredBy ?? "—"}
+                          </td>
+                        )}
+                        <td className="px-4 py-2 text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                           {formatCurrency(e.amount)}
                         </td>
-                        <td className="px-2 py-1.5 sm:px-3 sm:py-2">
+                        <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                           <span className="inline-flex justify-start rounded-full bg-slate-100 px-2.5 py-0.5 text-left text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">
                             {e.category}
                           </span>
                         </td>
-                        <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
+                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                           {e.description}
                         </td>
-                        <td className="px-2 py-1.5 text-xs text-slate-500 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
-                          {e.receiptRef ?? "—"}
-                        </td>
-                        <td className="px-2 py-1.5 text-xs text-slate-500 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
+                        {showReceiptRefCol && (
+                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            {e.receiptRef ?? "—"}
+                          </td>
+                        )}
+                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                           {new Date(e.createdAt).toLocaleString()}
                         </td>
-                        <td className="px-2 py-1.5 text-left sm:px-3 sm:py-2">
+                        <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
                           <div className="flex justify-start gap-1">
                             <button
                               type="button"

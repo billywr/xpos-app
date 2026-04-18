@@ -232,6 +232,12 @@ export function ManualStockCountSheetPage() {
     return filteredRows.slice(start, start + pageSize);
   }, [filteredRows, page, pageSize]);
 
+  const showVarCol = useMemo(
+    () => paginatedRows.some((r) => computePreview(r).variance != null),
+    [paginatedRows]
+  );
+  const manualVisibleColCount = 11 + (showVarCol ? 1 : 0);
+
   useEffect(() => {
     setPage(0);
   }, [searchQuery]);
@@ -471,41 +477,43 @@ export function ManualStockCountSheetPage() {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "750px" }}>
                 <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
                       Item
                     </th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Open
                     </th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Added
                     </th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Total
                     </th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Close
                     </th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Sys
                     </th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                      Var
-                    </th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    {showVarCol && (
+                      <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                        Var
+                      </th>
+                    )}
+                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Sold
                     </th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Price
                     </th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Amt
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Notes
                     </th>
                     <th
-                      className="w-10 px-1 py-2 text-center text-xs font-medium text-slate-700 sm:w-12 sm:px-2 sm:py-3 sm:text-sm dark:text-slate-300"
+                      className="w-10 px-1 py-3 text-center text-base font-semibold uppercase tracking-wide text-slate-700 sm:w-12 sm:px-2 sm:py-3 sm:text-lg dark:text-slate-300"
                       aria-label="Row actions"
                     >
                       {" "}
@@ -516,7 +524,7 @@ export function ManualStockCountSheetPage() {
                   {paginatedRows.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={12}
+                        colSpan={manualVisibleColCount}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
                         No lines yet. Add from catalog or a custom line, then save.
@@ -532,7 +540,7 @@ export function ManualStockCountSheetPage() {
                           key={r.clientId}
                           className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                         >
-                          <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs font-bold text-slate-900 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">
+                          <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                             <div>{r.itemName || "—"}</div>
                             {r.sku ? (
                               <div className="text-[10px] font-normal text-slate-500 sm:text-xs dark:text-slate-400">
@@ -540,7 +548,7 @@ export function ManualStockCountSheetPage() {
                               </div>
                             ) : null}
                           </td>
-                          <td className="px-2 py-1.5 sm:px-3 sm:py-2">
+                          <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
@@ -555,7 +563,7 @@ export function ManualStockCountSheetPage() {
                               />
                             </div>
                           </td>
-                          <td className="px-2 py-1.5 sm:px-3 sm:py-2">
+                          <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
@@ -569,10 +577,10 @@ export function ManualStockCountSheetPage() {
                               />
                             </div>
                           </td>
-                          <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
+                          <td className="px-4 py-2 text-right text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                             {p.total}
                           </td>
-                          <td className="px-2 py-1.5 sm:px-3 sm:py-2">
+                          <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
@@ -595,7 +603,7 @@ export function ManualStockCountSheetPage() {
                               ) : null}
                             </div>
                           </td>
-                          <td className="px-2 py-1.5 sm:px-3 sm:py-2">
+                          <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
@@ -609,28 +617,30 @@ export function ManualStockCountSheetPage() {
                               />
                             </div>
                           </td>
-                          <td
-                            className={`px-2 py-1.5 text-right text-xs tabular-nums sm:px-3 sm:py-2 sm:text-sm ${
-                              p.variance != null && p.variance > 0
-                                ? "font-medium text-emerald-600 dark:text-emerald-400"
-                                : p.variance != null && p.variance < 0
-                                  ? "font-medium text-red-600 dark:text-red-400"
-                                  : "text-slate-700 dark:text-slate-300"
-                            }`}
-                          >
-                            {p.variance == null ? (
-                              "—"
-                            ) : (
-                              <>
-                                {p.variance > 0 ? "+" : ""}
-                                {p.variance}
-                              </>
-                            )}
-                          </td>
-                          <td className="px-2 py-1.5 text-right text-xs tabular-nums text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
+                          {showVarCol && (
+                            <td
+                              className={`px-4 py-2 text-right text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-lg ${
+                                p.variance != null && p.variance > 0
+                                  ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                                  : p.variance != null && p.variance < 0
+                                    ? "font-semibold text-red-600 dark:text-red-400"
+                                    : "text-slate-600 dark:text-slate-400"
+                              }`}
+                            >
+                              {p.variance == null ? (
+                                "—"
+                              ) : (
+                                <>
+                                  {p.variance > 0 ? "+" : ""}
+                                  {p.variance}
+                                </>
+                              )}
+                            </td>
+                          )}
+                          <td className="px-4 py-2 text-right text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                             {p.unitsSold}
                           </td>
-                          <td className="px-2 py-1.5 sm:px-3 sm:py-2">
+                          <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
@@ -641,10 +651,10 @@ export function ManualStockCountSheetPage() {
                               />
                             </div>
                           </td>
-                          <td className="px-2 py-1.5 text-right text-xs font-medium tabular-nums text-slate-900 sm:px-3 sm:py-2 sm:text-sm dark:text-white">
+                          <td className="px-4 py-2 text-right text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                             {formatCurrency(p.amount)}
                           </td>
-                          <td className="px-2 py-1.5 align-top sm:px-3 sm:py-2">
+                          <td className="px-4 py-2 align-top sm:px-6 sm:py-2.5">
                             <textarea
                               value={r.comments}
                               onChange={(e) => {
@@ -659,7 +669,7 @@ export function ManualStockCountSheetPage() {
                               className="w-full min-w-[5rem] max-w-[18rem] resize-y rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 sm:min-w-[8rem] sm:px-2 sm:py-1 sm:text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500"
                             />
                           </td>
-                          <td className="px-1 py-1.5 align-top text-center sm:px-2 sm:py-2">
+                          <td className="px-1 py-2 align-top text-center sm:px-2 sm:py-2.5">
                             <button
                               type="button"
                               onClick={() => setDeleteTarget(r)}

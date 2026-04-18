@@ -152,6 +152,11 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
   const totalElements = categoriesData?.totalElements ?? 0;
   const { searchQuery, setSearchQuery, filteredRows: filteredCategories } = useTableSearch(categories);
   const allCategories = allCategoriesData?.content ?? [];
+
+  const showParentCol = useMemo(
+    () => filteredCategories.some((c: Category) => !!c.parentId),
+    [filteredCategories]
+  );
   const parentOptions = allCategories.filter(
     (c: Category) => !editingCategory || c.id !== editingCategory.id
   );
@@ -362,16 +367,18 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "480px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
                       Name
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                      Parent
-                    </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    {showParentCol && (
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                        Parent
+                      </th>
+                    )}
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Type
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -380,8 +387,8 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                   {filteredCategories.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={4}
-                        className="px-2 py-8 text-center text-xs text-slate-500 sm:px-3 sm:text-sm dark:text-slate-400"
+                        colSpan={3 + (showParentCol ? 1 : 0)}
+                        className="px-4 py-8 text-center text-base text-slate-500 sm:px-6 sm:text-lg dark:text-slate-400"
                       >
                         {categories.length === 0 ? "No categories yet. Add one to organize your catalog." : "No results match your search."}
                       </td>
@@ -392,18 +399,20 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                         key={cat.id}
                         className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs font-medium text-slate-800 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">
+                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                           {cat.name}
                         </td>
-                        <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                          {parentName(cat)}
-                        </td>
-                        <td className="px-2 py-1.5 sm:px-3 sm:py-2">
+                        {showParentCol && (
+                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            {parentName(cat)}
+                          </td>
+                        )}
+                        <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                             {cat.type}
                           </span>
                         </td>
-                        <td className="px-2 py-1.5 text-left sm:px-3 sm:py-2">
+                        <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
                           <div className="flex justify-start gap-2">
                             <button
                               type="button"

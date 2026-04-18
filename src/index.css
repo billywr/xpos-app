@@ -69,50 +69,50 @@
   --accent-text: #38bdf8;
 }
 
-/* Dark theme: Forest */
+/* Dark theme: Magenta (WordPress-style deep purple/pink) */
 [data-theme="forest"].dark {
-  --app-bg-start: #071f14;
-  --app-bg-mid: #0c3322;
-  --app-bg-end: #071f14;
-  --sidebar-start: #0c3322;
-  --sidebar-end: #0a2a1c;
-  --sidebar-edge: rgba(12, 51, 34, 0.6);
-  --card-bg: #145236;
+  --app-bg-start: #3a1243;
+  --app-bg-mid: #4d1858;
+  --app-bg-end: #3a1243;
+  --sidebar-start: #52124d;
+  --sidebar-end: #430f40;
+  --sidebar-edge: rgba(82, 18, 77, 0.6);
+  --card-bg: #601558;
   --card-border: rgba(255, 255, 255, 0.1);
-  --table-bg: #103d28;
-  --table-header: #0e3522;
-  --table-row-hover: #185a3a;
-  --table-border: #1a6640;
-  --surface-input: #0e3522;
-  --surface-raised: #103d28;
-  --accent-500: #10b981;
-  --accent-600: #059669;
-  --accent-700: #047857;
-  --accent-bg-active: rgba(16, 185, 129, 0.3);
-  --accent-text: #34d399;
+  --table-bg: #4d1247;
+  --table-header: #3e0d3a;
+  --table-row-hover: #6b1961;
+  --table-border: #84237a;
+  --surface-input: #3e0d3a;
+  --surface-raised: #4d1247;
+  --accent-500: #ec4899;
+  --accent-600: #db2777;
+  --accent-700: #be185d;
+  --accent-bg-active: rgba(236, 72, 153, 0.3);
+  --accent-text: #f9a8d4;
 }
 
-/* Dark theme: Ember */
+/* Dark theme: Midnight (indigo/violet) */
 [data-theme="ember"].dark {
-  --app-bg-start: #1a0f08;
-  --app-bg-mid: #2d1a0c;
-  --app-bg-end: #1a0f08;
-  --sidebar-start: #2d1a0c;
-  --sidebar-end: #24150a;
-  --sidebar-edge: rgba(45, 26, 12, 0.6);
-  --card-bg: #3d2612;
-  --card-border: rgba(255, 255, 255, 0.1);
-  --table-bg: #36210e;
-  --table-header: #2d1a0c;
-  --table-row-hover: #4a3018;
-  --table-border: #5a3a1e;
-  --surface-input: #2d1a0c;
-  --surface-raised: #36210e;
-  --accent-500: #f59e0b;
-  --accent-600: #d97706;
-  --accent-700: #b45309;
-  --accent-bg-active: rgba(245, 158, 11, 0.3);
-  --accent-text: #fbbf24;
+  --app-bg-start: #0d0d24;
+  --app-bg-mid: #141432;
+  --app-bg-end: #0d0d24;
+  --sidebar-start: #141432;
+  --sidebar-end: #10102a;
+  --sidebar-edge: rgba(20, 20, 50, 0.6);
+  --card-bg: #1c1c3d;
+  --card-border: rgba(255, 255, 255, 0.08);
+  --table-bg: #191938;
+  --table-header: #141432;
+  --table-row-hover: #252555;
+  --table-border: #2d2d5f;
+  --surface-input: #141432;
+  --surface-raised: #191938;
+  --accent-500: #8b5cf6;
+  --accent-600: #7c3aed;
+  --accent-700: #6d28d9;
+  --accent-bg-active: rgba(139, 92, 246, 0.3);
+  --accent-text: #a78bfa;
 }
 
 /* Dark theme: Slate */

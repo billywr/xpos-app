@@ -21,12 +21,11 @@ import type { Item } from "@/types/catalog";
 import type { Supplier } from "@/api/suppliers";
 import { PageHeader } from "@/components/PageHeader";
 import { SlideOver, Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { useToast } from "@/contexts/ToastContext";
 import { Link } from "react-router-dom";
-import { Plus, PackagePlus, Trash2, Pencil } from "lucide-react";
+import { Plus, PackagePlus, Trash2, Pencil, FileEdit, FileX } from "lucide-react";
 import { BarcodeCaptureInput } from "@/components/BarcodeCaptureInput";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import {
@@ -37,7 +36,8 @@ import { ItemSearchCombobox } from "@/components/ItemSearchCombobox";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { isSameLocalCalendarDay } from "@/utils/calendarDay";
 
-const DEFAULT_PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 15;
+const GRN_FETCH_PAGE_SIZE = 500;
 /** Recent active receipts while slide-over is open (to hide items already received today elsewhere). */
 const GRN_RECEIVE_CONTEXT_PAGE_SIZE = 400;
 
@@ -132,6 +132,7 @@ export function GoodsReceiptPage({
     text: string;
   } | null>(null);
   const [scannedItems, setScannedItems] = useState<Item[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
@@ -183,13 +184,11 @@ export function GoodsReceiptPage({
       token,
       selectedOrgId,
       selectedBranchId,
-      page,
-      size,
     ],
     queryFn: () =>
       fetchGoodsReceiptNotes(token, selectedOrgId, selectedBranchId, {
-        page,
-        size,
+        page: 0,
+        size: GRN_FETCH_PAGE_SIZE,
         includeInactive: false,
       }),
     enabled:
@@ -197,6 +196,8 @@ export function GoodsReceiptPage({
       Boolean(selectedOrgId) &&
       Boolean(selectedBranchId),
   });
+
+  const isSearching = searchQuery.trim().length > 0;
 
   const createMutation = useMutation({
     mutationFn: (body: {
@@ -380,8 +381,63 @@ export function GoodsReceiptPage({
   }, [editingGrn?.id, editingGrn?.lines]);
 
   const grns = grnsData?.content ?? [];
-  const { searchQuery, setSearchQuery, filteredRows: filteredGrns } = useTableSearch(grns);
-  const totalElements = grnsData?.totalElements ?? 0;
+
+  /** Flattened rows: one entry per receipt line (or one placeholder per empty receipt). */
+  const allRows = useMemo(() => {
+    const rows: Array<{
+      grn: GoodsReceiptNoteResponse;
+      line: GrnLineResponse | null;
+      isFirstLineOfReceipt: boolean;
+    }> = [];
+    for (const grn of grns) {
+      if (grn.lines.length === 0) {
+        rows.push({ grn, line: null, isFirstLineOfReceipt: true });
+      } else {
+        grn.lines.forEach((line, idx) => {
+          rows.push({ grn, line, isFirstLineOfReceipt: idx === 0 });
+        });
+      }
+    }
+    return rows;
+  }, [grns]);
+
+  const filteredRows = useMemo(() => {
+    if (!isSearching) return allRows;
+    const q = searchQuery.trim().toLowerCase();
+    return allRows.filter((row) => {
+      if (!row.line) return false;
+      const haystack = [
+        row.line.itemName ?? "",
+        row.line.barcode ?? "",
+        row.grn.supplierName ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [isSearching, searchQuery, allRows]);
+
+  const totalElements = filteredRows.length;
+  const pagedRows = useMemo(
+    () => filteredRows.slice(page * size, page * size + size),
+    [filteredRows, page, size]
+  );
+
+  /** Hide columns whose every row on this page has no meaningful value. */
+  const showBarcodeCol = useMemo(
+    () => pagedRows.some((r) => !!r.line?.barcode?.trim()),
+    [pagedRows]
+  );
+  const showBuyPriceCol = useMemo(
+    () => pagedRows.some((r) => r.line?.receivedUnitCost != null),
+    [pagedRows]
+  );
+  const visibleColCount = 6 + (showBarcodeCol ? 1 : 0) + (showBuyPriceCol ? 1 : 0);
+
+  // Reset to first page when the filter or page size changes the result set.
+  useEffect(() => {
+    setPage(0);
+  }, [searchQuery, size]);
 
   const grnsTotalAmount = grns.reduce(
     (sum, grn) =>
@@ -832,7 +888,7 @@ export function GoodsReceiptPage({
           <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
             Recent stock receipts
           </h2>
-          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search receipts…" className="mb-4" />
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search by item, supplier, or barcode…" className="mb-4" />
           {totalElements > 0 && (
             <Pagination
               position="top"
@@ -844,7 +900,7 @@ export function GoodsReceiptPage({
                 setSize(s);
                 setPage(0);
               }}
-              sizeOptions={[5, 10, 20, 25, 50]}
+              sizeOptions={[10, 15, 25, 50, 100]}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -854,150 +910,148 @@ export function GoodsReceiptPage({
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "900px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
                       Received
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Supplier
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Name
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                      Barcode
-                    </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    {showBarcodeCol && (
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                        Barcode
+                      </th>
+                    )}
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Qty
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                      Buy price
-                    </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    {showBuyPriceCol && (
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                        Buy price
+                      </th>
+                    )}
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Total
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {filteredGrns.length === 0 ? (
+                  {pagedRows.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={9}
+                        colSpan={visibleColCount}
                         className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
                       >
                         {grns.length === 0 ? <>No stock receipts yet. Click &quot;Receive stock&quot; to add inventory.</> : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    filteredGrns.flatMap((grn: GoodsReceiptNoteResponse) => {
-                      const lines =
-                        grn.lines.length > 0 ? grn.lines : [null];
-                      const rowSpan = lines.length;
-                      const receiptTotal = grn.lines.reduce(
-                        (sum, l) =>
-                          sum + l.qty * (l.receivedUnitCost ?? 0),
-                        0
-                      );
-                      const rowClass =
-                        "group hover:bg-slate-100 dark:hover:bg-slate-700";
-                      return lines.map((line, lineIdx) => (
-                        <tr
-                          key={
-                            line
-                              ? `${grn.id}-${line.id}`
-                              : `${grn.id}-no-lines`
-                          }
-                          className={rowClass}
-                        >
-                          {lineIdx === 0 ? (
-                            <td
-                              rowSpan={rowSpan}
-                              className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 align-top border-r border-slate-100 px-2 py-1.5 text-xs text-slate-800 sm:px-3 sm:py-2 sm:text-sm  dark:border-slate-700 dark:text-white"
-                            >
+                    pagedRows.map(({ grn, line, isFirstLineOfReceipt }) => {
+                        const lineTotal =
+                          line != null
+                            ? line.qty * (line.receivedUnitCost ?? 0)
+                            : 0;
+                        const isFirstOfReceipt = isFirstLineOfReceipt;
+                        return (
+                          <tr
+                            key={
+                              line
+                                ? `${grn.id}-${line.id}`
+                                : `${grn.id}-no-lines`
+                            }
+                            className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                          >
+                            <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                               {new Date(grn.receivedAt).toLocaleString()}
                             </td>
-                          ) : null}
-                          {lineIdx === 0 ? (
-                            <td
-                              rowSpan={rowSpan}
-                              className="align-top border-r border-slate-100 px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:border-slate-700 dark:text-slate-300"
-                            >
+                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                               {grn.supplierName}
                             </td>
-                          ) : null}
-                          <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                            {line?.itemName ?? "—"}
-                          </td>
-                          <td className="px-2 py-1.5 font-mono text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                            {line?.barcode?.trim()
-                              ? line.barcode
-                              : "—"}
-                          </td>
-                          <td className="px-2 py-1.5 text-xs text-slate-600 tabular-nums sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                            {line != null ? line.qty : "—"}
-                          </td>
-                          <td className="px-2 py-1.5 text-xs text-slate-600 tabular-nums sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
-                            {line != null && line.receivedUnitCost != null
-                              ? formatCurrency(line.receivedUnitCost)
-                              : "—"}
-                          </td>
-                          {lineIdx === 0 ? (
-                            <td
-                              rowSpan={rowSpan}
-                              className="align-top px-2 py-1.5 text-xs text-slate-600 tabular-nums sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300"
-                            >
-                              <div className="font-medium tabular-nums">
-                                {formatCurrency(receiptTotal)}
-                              </div>
-                              <div className="mt-3 flex min-w-[9.5rem] flex-col gap-2 border-t border-slate-200 pt-3 dark:border-slate-600">
-                                <button
-                                  type="button"
-                                  onClick={() => handleEdit(grn)}
-                                  className="inline-flex w-full items-center justify-center rounded-lg bg-primary-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-600 dark:hover:bg-primary-500 dark:focus:ring-offset-slate-900"
-                                >
-                                  Edit all lines
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmDeleteReceipt(grn)}
-                                  className="inline-flex w-full items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 shadow-sm transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:border-red-800/60 dark:bg-red-950/50 dark:text-red-100 dark:hover:bg-red-950/70 dark:focus:ring-offset-slate-900"
-                                >
-                                  Delete receipt
-                                </button>
+                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                              {line?.itemName ?? "—"}
+                            </td>
+                            {showBarcodeCol && (
+                              <td className="px-4 py-2 font-mono text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                                {line?.barcode?.trim()
+                                  ? line.barcode
+                                  : "—"}
+                              </td>
+                            )}
+                            <td className="px-4 py-2 text-base text-slate-600 tabular-nums sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                              {line != null ? line.qty : "—"}
+                            </td>
+                            {showBuyPriceCol && (
+                              <td className="px-4 py-2 text-base text-slate-600 tabular-nums sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                                {line != null && line.receivedUnitCost != null
+                                  ? formatCurrency(line.receivedUnitCost)
+                                  : "—"}
+                              </td>
+                            )}
+                            <td className="px-4 py-2 text-base font-semibold text-slate-700 tabular-nums sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                              {line != null
+                                ? formatCurrency(lineTotal)
+                                : "—"}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-2 text-left text-base align-middle sm:px-6 sm:py-2.5 sm:text-lg">
+                              <div className="flex items-center gap-1">
+                                {line != null && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEditLine(grn, line)}
+                                      className="rounded p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-200"
+                                      title="Edit this line"
+                                      aria-label={`Edit line ${line.itemName}`}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteLine({ grn, line })}
+                                      className="rounded p-2 text-slate-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-slate-600 dark:hover:text-red-300"
+                                      title="Remove this line from receipt"
+                                      aria-label={`Remove line ${line.itemName}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </>
+                                )}
+                                {isFirstOfReceipt && (
+                                  <>
+                                    <span
+                                      aria-hidden
+                                      className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-600"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEdit(grn)}
+                                      className="rounded p-2 text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/30"
+                                      title="Edit all lines on this receipt"
+                                      aria-label="Edit all lines on this receipt"
+                                    >
+                                      <FileEdit className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteReceipt(grn)}
+                                      className="rounded p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                                      title="Delete entire receipt"
+                                      aria-label="Delete entire receipt"
+                                    >
+                                      <FileX className="h-4 w-4" />
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </td>
-                          ) : null}
-                          <td className="whitespace-nowrap px-2 py-1.5 text-left text-xs align-middle sm:px-3 sm:py-2 sm:text-sm">
-                            {line != null ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditLine(grn, line)}
-                                  className="rounded p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-200"
-                                  title="Edit this line"
-                                  aria-label={`Edit line ${line.itemName}`}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmDeleteLine({ grn, line })}
-                                  className="rounded p-2 text-slate-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-slate-600 dark:hover:text-red-300"
-                                  title="Remove this line from receipt"
-                                  aria-label={`Remove line ${line.itemName}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </>
-                            ) : (
-                              <span className="text-slate-400 dark:text-slate-500">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      ));
-                    })
+                          </tr>
+                        );
+                      })
                   )}
                 </tbody>
               </table>

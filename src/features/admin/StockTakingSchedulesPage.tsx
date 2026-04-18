@@ -107,6 +107,11 @@ export function StockTakingSchedulesPage() {
   const filteredBranches = filterNonDeletedBranches(branches);
   const schedules = schedulesData?.content ?? [];
   const { searchQuery, setSearchQuery, filteredRows: filteredSchedules } = useTableSearch(schedules);
+
+  const showLastRunCol = useMemo(
+    () => filteredSchedules.some((s: StockTakingScheduleResponse) => !!s.lastRunAt),
+    [filteredSchedules]
+  );
   const totalElements = schedulesData?.totalElements ?? 0;
   const branchMap = new Map(branches.map((b: Branch) => [b.id, b.name]));
 
@@ -382,19 +387,21 @@ export function StockTakingSchedulesPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "600px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr className="bg-slate-50 dark:bg-slate-700/50">
-                      <th className="sticky left-0 z-20 bg-slate-50 px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:bg-slate-700 dark:text-slate-300">
+                      <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
                         Branch
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Schedule
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
-                        Last run
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                      {showLastRunCol && (
+                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                          Last run
+                        </th>
+                      )}
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Status
                       </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-slate-700 sm:px-3 sm:py-3 sm:text-sm dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Actions
                       </th>
                     </tr>
@@ -405,16 +412,18 @@ export function StockTakingSchedulesPage() {
                         key={s.id}
                         className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-2 py-1.5 text-xs text-slate-900 sm:px-3 sm:py-2 sm:text-sm  dark:text-white">
+                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                           {branchMap.get(s.branchId) ?? s.branchId}
                         </td>
-                        <td className="px-2 py-1.5 text-xs text-slate-700 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-300">
+                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                           {formatSchedule(s)}
                         </td>
-                        <td className="px-2 py-1.5 text-xs text-slate-600 sm:px-3 sm:py-2 sm:text-sm dark:text-slate-400">
-                          {formatLastRun(s.lastRunAt)}
-                        </td>
-                        <td className="px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm">
+                        {showLastRunCol && (
+                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            {formatLastRun(s.lastRunAt)}
+                          </td>
+                        )}
+                        <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-lg">
                           <span
                             className={`inline-flex justify-start rounded-full px-2 py-1 text-left text-xs font-medium ${
                               s.isActive
@@ -425,7 +434,7 @@ export function StockTakingSchedulesPage() {
                             {s.isActive ? "Active" : "Inactive"}
                           </span>
                         </td>
-                        <td className="px-2 py-1.5 text-left text-xs sm:px-3 sm:py-2 sm:text-sm">
+                        <td className="px-4 py-2 text-left text-base sm:px-6 sm:py-2.5 sm:text-lg">
                           <div className="flex items-center justify-start gap-2">
                             <button
                               type="button"

@@ -26,7 +26,7 @@ function catalogTabFromQuery(tabParam: string | null): TabId {
   if (tabParam && VALID_TAB_IDS.includes(tabParam as TabId)) {
     return tabParam as TabId;
   }
-  return "categories";
+  return "items";
 }
 
 export function CatalogPage() {
