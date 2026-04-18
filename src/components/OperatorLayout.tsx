@@ -7,8 +7,6 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  RefreshCw,
-  Search,
   Settings,
   ShoppingCart,
   Store,
@@ -16,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
 import {
@@ -60,7 +58,6 @@ export function OperatorLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
-  const queryClient = useQueryClient();
   const [collapsed, toggleSidebar] = useSidebarCollapsed();
   const [mobileOpen, setMobileOpen] = useState(false);
   useCartPersistence();
@@ -82,7 +79,6 @@ export function OperatorLayout() {
   const displayInitial = displayName.charAt(0).toUpperCase() || "U";
   const [globalError, setGlobalError] = useState<{ message: string; requestId: string } | null>(null);
   const [manageOpen, setManageOpen] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const visibilityState = navVisibility?.operatorVisibility ?? null;
   const getOperatorLabel = navVisibility?.getOperatorLabel ?? ((_, defaultLabel) => defaultLabel);
@@ -346,24 +342,6 @@ export function OperatorLayout() {
               <span className="hidden sm:inline">Debts & Expenses</span>
               <span className="sm:hidden">Debts</span>
             </NavLink>
-          </div>
-          <button
-            type="button"
-            onClick={() => queryClient.invalidateQueries()}
-            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
-            aria-label="Refresh"
-          >
-            <RefreshCw className="h-5 w-5" />
-          </button>
-          <div className="relative hidden lg:block">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-white/60" />
-            <input
-              type="search"
-              placeholder="Search menu..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-48 rounded-lg border border-slate-300 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-white/20 dark:bg-darkSurface dark:text-white dark:placeholder-white/50"
-            />
           </div>
           <span className="hidden text-sm text-slate-500 md:inline dark:text-white/70">
             {new Date().toLocaleDateString("en-GB", {

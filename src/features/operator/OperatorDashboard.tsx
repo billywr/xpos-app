@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ShoppingCart, Wallet, Lock, Unlock } from "lucide-react";
-import { FLOATING_MENU_CARD } from "@/utils/floatingCardClasses";
+import { Wallet, Lock, Unlock } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -214,22 +212,6 @@ export function OperatorDashboard() {
         </div>
       )}
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <Link
-          to="/operator/menu-order"
-          className={`${FLOATING_MENU_CARD} p-6 text-slate-900 dark:text-white`}
-        >
-          <div className="rounded-lg bg-primary-600 p-3">
-            <ShoppingCart className="h-8 w-8 text-white" />
-          </div>
-          <div>
-            <h2 className="font-semibold">POS</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Take orders and process payments
-            </p>
-          </div>
-        </Link>
-      </div>
     </div>
   );
 }

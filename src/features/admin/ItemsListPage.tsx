@@ -111,11 +111,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
   async function handleSavePriceCell(item: Item) {
     if (!editingPriceCell) return;
     const raw = editingPriceCell.value.trim();
+    const error = validatePriceCellValue(item, editingPriceCell.field, raw);
+    if (error) return;
     const parsed = raw === "" ? null : Number(raw);
-    if (raw !== "" && (!Number.isFinite(parsed) || (parsed as number) < 0)) {
-      toast.error("Enter a valid non-negative price.");
-      return;
-    }
     const currentValue =
       editingPriceCell.field === "buyingPrice"
         ? item.buyingPrice
@@ -130,14 +128,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
       editingPriceCell.field === "defaultSellingPrice"
         ? parsed
         : item.defaultSellingPrice;
-    if (
-      nextBuying != null &&
-      nextSelling != null &&
-      nextSelling <= nextBuying
-    ) {
-      toast.error("Selling price must be greater than buying price.");
-      return;
-    }
     setSavingPriceItemId(item.id);
     try {
       await updateItem(token, selectedOrgId, item.id, {
@@ -1504,6 +1494,30 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
   );
 }
 
+function validatePriceCellValue(
+  item: Item,
+  field: "buyingPrice" | "defaultSellingPrice",
+  rawValue: string
+): string | null {
+  const raw = rawValue.trim();
+  if (raw === "") return null;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return "Enter a non-negative number.";
+  }
+  const nextBuying = field === "buyingPrice" ? parsed : item.buyingPrice;
+  const nextSelling =
+    field === "defaultSellingPrice" ? parsed : item.defaultSellingPrice;
+  if (
+    nextBuying != null &&
+    nextSelling != null &&
+    nextSelling <= nextBuying
+  ) {
+    return "Selling must be greater than buying.";
+  }
+  return null;
+}
+
 interface PriceCellProps {
   item: Item;
   field: "buyingPrice" | "defaultSellingPrice";
@@ -1534,27 +1548,44 @@ function PriceCell({
   const currentValue = item[field];
 
   if (isEditing) {
+    const error = validatePriceCellValue(item, field, editing.value);
     return (
-      <input
-        type="number"
-        step="0.01"
-        min="0"
-        autoFocus
-        disabled={saving}
-        value={editing.value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onCommit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
+      <div className="flex flex-col gap-0.5">
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          autoFocus
+          disabled={saving}
+          value={editing.value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={() => {
+            if (error) return;
             onCommit();
-          } else if (e.key === "Escape") {
-            e.preventDefault();
-            onCancel();
-          }
-        }}
-        className="w-24 rounded border border-primary-500 bg-white px-1.5 py-1 text-xs tabular-nums text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary-500 sm:text-sm dark:bg-slate-700 dark:text-white"
-      />
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (error) return;
+              onCommit();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              onCancel();
+            }
+          }}
+          aria-invalid={error ? true : undefined}
+          className={`w-24 rounded border bg-white px-1.5 py-1 text-xs tabular-nums text-slate-900 focus:outline-none focus:ring-1 sm:text-sm dark:bg-slate-700 dark:text-white ${
+            error
+              ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+              : "border-primary-500 focus:border-primary-500 focus:ring-primary-500"
+          }`}
+        />
+        {error && (
+          <span className="text-[11px] text-red-600 dark:text-red-400">
+            {error}
+          </span>
+        )}
+      </div>
     );
   }
 
