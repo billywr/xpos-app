@@ -199,8 +199,6 @@ export function InventoryReceivingPage() {
           <GoodsReceiptPage
             initialOrgId={contextOrgId || undefined}
             initialBranchId={contextBranchId || undefined}
-            onOrgChange={setContextOrgId}
-            onBranchChange={setContextBranchId}
           />
         )}
         {activeTab === "inventory" && (

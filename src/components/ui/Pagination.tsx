@@ -40,10 +40,10 @@ export function Pagination({
   return (
     <div className={`flex items-center justify-between gap-2 bg-slate-50 px-3 py-2 sm:gap-4 sm:px-4 sm:py-3 dark:bg-slate-800/50 ${borderClass}`}>
       <div className="flex items-center gap-2 sm:gap-4">
-        <p className="text-xs text-slate-600 sm:text-sm dark:text-slate-400">
-          <span className="font-medium">{first}</span>–
-          <span className="font-medium">{last}</span> of{" "}
-          <span className="font-medium">{totalElements}</span>
+        <p className="whitespace-nowrap text-sm font-semibold text-slate-700 sm:text-base dark:text-slate-300">
+          <span className="font-bold">{first}</span>–
+          <span className="font-bold">{last}</span> of{" "}
+          <span className="font-bold">{totalElements}</span>
         </p>
         {onSizeChange && (
           <SearchableSelect
@@ -55,13 +55,14 @@ export function Pagination({
             value={String(size)}
             onChange={(v) => onSizeChange(Number(v))}
             compact
-            className="w-auto min-w-[5.5rem] text-xs sm:min-w-[7rem] sm:text-sm"
+            className="w-auto min-w-[5.5rem] text-sm font-semibold sm:min-w-[7rem] sm:text-base"
           />
         )}
       </div>
       <div className="flex items-center gap-1 sm:gap-2">
-        <span className="text-xs text-slate-600 sm:text-sm dark:text-slate-400">
-          {page + 1}/{totalPages}
+        <span className="whitespace-nowrap text-sm font-semibold text-slate-700 sm:text-base dark:text-slate-300">
+          <span className="font-bold">{page + 1}</span>/
+          <span className="font-bold">{totalPages}</span>
         </span>
         <button
           type="button"

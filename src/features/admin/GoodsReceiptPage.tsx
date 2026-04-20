@@ -15,7 +15,7 @@ import {
   type GrnLineResponse,
   type GoodsReceiptNoteResponse,
 } from "@/api/goodsReceiptNotes";
-import type { Org, Branch } from "@/types/org";
+import type { Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { Item } from "@/types/catalog";
 import type { Supplier } from "@/api/suppliers";
@@ -89,15 +89,11 @@ interface GrnLineForm {
 export interface GoodsReceiptPageProps {
   initialOrgId?: string;
   initialBranchId?: string;
-  onOrgChange?: (orgId: string) => void;
-  onBranchChange?: (branchId: string) => void;
 }
 
 export function GoodsReceiptPage({
   initialOrgId,
   initialBranchId,
-  onOrgChange,
-  onBranchChange,
 }: GoodsReceiptPageProps = {}) {
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
@@ -816,54 +812,14 @@ export function GoodsReceiptPage({
       </div>
 
       <div className="mb-4 flex flex-wrap items-end gap-4">
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="grn-org-select"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Organization
-          </label>
-          <SearchableSelect
-            id="grn-org-select"
-            options={[
-              { value: "", label: "Select organization…" },
-              ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
-            ]}
-            value={selectedOrgId}
-            onChange={(next) => {
-              setSelectedOrgId(next);
-              setSelectedBranchId("");
-              onOrgChange?.(next);
-            }}
-            placeholder="Select organization…"
-            className="w-full sm:w-56"
+        {selectedOrgId && selectedBranchId && (
+          <TableSearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search by item, supplier, or barcode…"
+            className="w-full sm:w-72"
           />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="grn-branch-select"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Branch
-          </label>
-          <SearchableSelect
-            id="grn-branch-select"
-            options={[
-              { value: "", label: "Select branch…" },
-              ...branches.map((branch: Branch) => ({
-                value: branch.id,
-                label: branch.name,
-              })),
-            ]}
-            value={selectedBranchId}
-            onChange={(next) => {
-              setSelectedBranchId(next);
-              onBranchChange?.(next);
-            }}
-            placeholder="Select branch…"
-            className="w-full sm:w-56"
-          />
-        </div>
+        )}
       </div>
 
       {suppliers.length === 0 && selectedOrgId && (
@@ -885,10 +841,6 @@ export function GoodsReceiptPage({
         </div>
       ) : (
         <>
-          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
-            Recent stock receipts
-          </h2>
-          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search by item, supplier, or barcode…" className="mb-4" />
           {totalElements > 0 && (
             <Pagination
               position="top"
