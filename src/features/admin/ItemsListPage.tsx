@@ -40,6 +40,7 @@ import { BARCODE_ITEMS, isBarcodeVisible } from "@/config/barcodeVisibility";
 
 const DEFAULT_PAGE_SIZE = 15;
 const MAX_PAGE_SIZE = 100;
+const ITEMS_FETCH_PAGE_SIZE = 500;
 const ITEM_TYPES = ["STOCK", "SERVICE", "MENU", "BUNDLE"] as const;
 
 export interface ItemsListPageProps {
@@ -194,13 +195,11 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
       token,
       selectedOrgId,
       selectedCategoryId || null,
-      page,
-      size,
     ],
     queryFn: () =>
       fetchItems(token, selectedOrgId, {
-        page,
-        size,
+        page: 0,
+        size: ITEMS_FETCH_PAGE_SIZE,
         categoryId: selectedCategoryId || undefined,
       }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
@@ -414,19 +413,27 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const items = (itemsData?.content ?? []).filter((i: Item) => i.active);
-  const totalElements = itemsData?.totalElements ?? 0;
   const { searchQuery, setSearchQuery, filteredRows: filteredItems } = useTableSearch(items);
+  const totalElements = filteredItems.length;
+  const pagedItems = useMemo(
+    () => filteredItems.slice(page * size, page * size + size),
+    [filteredItems, page, size]
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [searchQuery, selectedCategoryId, selectedOrgId, size]);
 
   const showSkuCol = useMemo(
     () =>
-      filteredItems.some(
+      pagedItems.some(
         (i: Item) => !!i.sku && i.sku.trim() !== "" && i.sku !== "—"
       ),
-    [filteredItems]
+    [pagedItems]
   );
   const showBuyingCol = useMemo(
-    () => filteredItems.some((i: Item) => i.buyingPrice != null),
-    [filteredItems]
+    () => pagedItems.some((i: Item) => i.buyingPrice != null),
+    [pagedItems]
   );
   const categories = categoriesData?.content ?? [];
   const taxProfiles = taxProfilesData?.content ?? [];
@@ -967,7 +974,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {filteredItems.length === 0 ? (
+                  {pagedItems.length === 0 ? (
                     <tr>
                       <td
                         colSpan={6 + (showSkuCol ? 1 : 0) + (showBarcode ? 1 : 0) + (showBuyingCol ? 1 : 0)}
@@ -977,7 +984,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                       </td>
                     </tr>
                   ) : (
-                    filteredItems.map((item: Item) => (
+                    pagedItems.map((item: Item) => (
                         <tr
                           key={item.id}
                           className="group hover:bg-slate-100 dark:hover:bg-slate-700"
