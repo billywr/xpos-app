@@ -205,8 +205,6 @@ export function InventoryReceivingPage() {
           <InventoryPage
             initialOrgId={contextOrgId || undefined}
             initialBranchId={contextBranchId || undefined}
-            onOrgChange={setContextOrgId}
-            onBranchChange={setContextBranchId}
           />
         )}
       </AdminTabPanel>

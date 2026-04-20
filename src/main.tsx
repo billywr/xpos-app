@@ -1,4 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Provider } from "react-redux";
@@ -14,7 +18,11 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 60 * 1000,
       retry: 1,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: "always",
+      placeholderData: keepPreviousData,
     },
+    mutations: { retry: 0 },
   },
 });
 

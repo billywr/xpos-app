@@ -26,7 +26,7 @@ import type { Item } from "@/types/catalog";
 import type { Category } from "@/types/catalog";
 import type { ItemModifierGroupLink } from "@/types/catalog";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { SlideOver, Pagination, ConfirmDialog, TableSearchInput, TableSkeleton } from "@/components/ui";
 import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -209,7 +209,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     queryKey: ["admin-categories", token, selectedOrgId],
     queryFn: () => fetchCategories(token, selectedOrgId, { size: 500 }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
-    refetchOnMount: "always",
   });
 
   const { data: taxProfilesData } = useQuery({
@@ -737,21 +736,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     modifierGroups.find((mg: { id: string; name: string }) => mg.id === modifierGroupId)
       ?.name ?? modifierGroupId;
 
-  if (isLoading && selectedOrgId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Items"
-          subtitle="Loading…"
-          fallbackTo="/admin"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
   if (isError && selectedOrgId) {
     const message = getApiErrorMessage(error);
     const requestId = getApiErrorRequestId(error);
@@ -974,7 +958,12 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {pagedItems.length === 0 ? (
+                  {isLoading && items.length === 0 ? (
+                    <TableSkeleton
+                      rows={size}
+                      columns={6 + (showSkuCol ? 1 : 0) + (showBarcode ? 1 : 0) + (showBuyingCol ? 1 : 0)}
+                    />
+                  ) : pagedItems.length === 0 ? (
                     <tr>
                       <td
                         colSpan={6 + (showSkuCol ? 1 : 0) + (showBarcode ? 1 : 0) + (showBuyingCol ? 1 : 0)}

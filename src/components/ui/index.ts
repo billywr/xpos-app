@@ -10,6 +10,8 @@ export { AdminTabList, AdminTabPanel } from "./AdminTabs";
 export type { AdminTabItem, AdminTabListProps, AdminTabPanelProps } from "./AdminTabs";
 export { TableSearchInput } from "./TableSearchInput";
 export type { TableSearchInputProps } from "./TableSearchInput";
+export { TableSkeleton } from "./TableSkeleton";
+export type { TableSkeletonProps } from "./TableSkeleton";
 export { SearchableSelect } from "../SearchableSelect";
 export type {
   SearchableSelectOption,

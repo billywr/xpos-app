@@ -5,15 +5,13 @@ import { selectToken } from "@/store/selectors/authSelectors";
 import { fetchOrgs } from "@/api/orgs";
 import { fetchBranches } from "@/api/branches";
 import { fetchInventoryReport, type InventoryReportLineResponse } from "@/api/inventoryReport";
-import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { Pagination, TableSearchInput } from "@/components/ui";
+import { Pagination, TableSearchInput, TableSkeleton } from "@/components/ui";
 import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { Package, TrendingDown, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
-import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -24,15 +22,11 @@ function formatQty(n: number): string {
 export interface InventoryPageProps {
   initialOrgId?: string;
   initialBranchId?: string;
-  onOrgChange?: (orgId: string) => void;
-  onBranchChange?: (branchId: string) => void;
 }
 
 export function InventoryPage({
   initialOrgId,
   initialBranchId,
-  onOrgChange,
-  onBranchChange,
 }: InventoryPageProps = {}) {
   const token = useAppSelector(selectToken);
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
@@ -98,41 +92,6 @@ export function InventoryPage({
   }, [initialBranchId, selectedOrgId, filteredBranches, selectedBranchId]);
   const totalElements = reportData?.totalElements ?? 0;
 
-  const orgSelectOptions = useMemo(
-    () => [
-      { value: "", label: "Select organization…" },
-      ...filteredOrgs.map((org: Org) => ({ value: org.id, label: org.name })),
-    ],
-    [filteredOrgs]
-  );
-
-  const branchSelectOptions = useMemo(
-    () => [
-      { value: "", label: "Select branch…" },
-      ...filteredBranches.map((branch: Branch) => ({
-        value: branch.id,
-        label: branch.name,
-      })),
-    ],
-    [filteredBranches]
-  );
-
-  if (isLoading && selectedOrgId && selectedBranchId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Inventory"
-          subtitle="Loading…"
-          icon={Package}
-          fallbackTo="/admin"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
   if (isError && selectedOrgId && selectedBranchId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
@@ -160,60 +119,12 @@ export function InventoryPage({
         fallbackTo="/admin"
       />
 
-      <div className="mb-4 flex flex-row flex-wrap items-end gap-x-6 gap-y-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <label
-            htmlFor="inv-org-select"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Organization
-          </label>
-          <SearchableSelect
-            id="inv-org-select"
-            options={orgSelectOptions}
-            value={selectedOrgId}
-            onChange={(next) => {
-              setSelectedOrgId(next);
-              setSelectedBranchId("");
-              onOrgChange?.(next);
-            }}
-            placeholder="Search organization…"
-            className="w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <label
-            htmlFor="inv-branch-select"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Branch
-          </label>
-          <SearchableSelect
-            id="inv-branch-select"
-            options={branchSelectOptions}
-            value={selectedBranchId}
-            onChange={(next) => {
-              setSelectedBranchId(next);
-              setPage(0);
-              onBranchChange?.(next);
-            }}
-            placeholder="Search branch…"
-            className="w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
-        </div>
-      </div>
-
       {!selectedOrgId || !selectedBranchId ? (
         <div className="rounded-xl border border-sky-200/70 bg-white/90 p-8 text-center text-slate-500 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400">
           Select organization and branch to view inventory (sold vs remaining).
         </div>
       ) : (
         <>
-          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
-            Sold vs remaining
-          </h2>
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search inventory…" className="mb-4" />
           {totalElements > 0 && (
             <Pagination
@@ -259,7 +170,9 @@ export function InventoryPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {filteredLines.length === 0 ? (
+                  {isLoading && lines.length === 0 ? (
+                    <TableSkeleton rows={10} columns={5 + (showSkuCol ? 1 : 0)} />
+                  ) : filteredLines.length === 0 ? (
                     <tr>
                       <td
                         colSpan={5 + (showSkuCol ? 1 : 0)}

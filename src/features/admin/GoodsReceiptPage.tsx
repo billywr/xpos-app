@@ -20,7 +20,7 @@ import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { Item } from "@/types/catalog";
 import type { Supplier } from "@/api/suppliers";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import { SlideOver, Pagination, ConfirmDialog, TableSearchInput, TableSkeleton } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { useToast } from "@/contexts/ToastContext";
@@ -742,22 +742,6 @@ export function GoodsReceiptPage({
 
   const selectedBranch = branches.find((b: Branch) => b.id === selectedBranchId);
 
-  if (isLoading && selectedOrgId && selectedBranchId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Stock"
-          subtitle="Loading…"
-          icon={PackagePlus}
-          fallbackTo="/admin"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
   if (isError && selectedOrgId && selectedBranchId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
@@ -893,7 +877,9 @@ export function GoodsReceiptPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {pagedRows.length === 0 ? (
+                  {isLoading && grns.length === 0 ? (
+                    <TableSkeleton rows={size} columns={visibleColCount} />
+                  ) : pagedRows.length === 0 ? (
                     <tr>
                       <td
                         colSpan={visibleColCount}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -21,6 +21,7 @@ export function NavVisibilityProvider({ children }: { children: React.ReactNode 
     queryKey: [QUERY_KEY, token, orgId],
     queryFn: () => fetchNavVisibility(token, orgId!),
     enabled,
+    staleTime: 5 * 60 * 1000,
   });
 
   const mutation = useMutation({
@@ -375,36 +376,69 @@ export function NavVisibilityProvider({ children }: { children: React.ReactNode 
     ]
   );
 
-  const value = {
-    adminVisibility,
-    operatorVisibility,
-    headerVisibility,
-    adminLabels,
-    operatorLabels,
-    headerLabels,
-    setAdminVisible,
-    setOperatorVisible,
-    setHeaderVisible,
-    setAdminLabel,
-    setOperatorLabel,
-    setHeaderLabel,
-    resetAdminToDefaults,
-    resetOperatorToDefaults,
-    resetHeaderToDefaults,
-    resetAdminLabels,
-    resetOperatorLabels,
-    resetHeaderLabels,
-    getAdminLabel,
-    getOperatorLabel,
-    getHeaderLabel,
-    getHeaderLogo,
-    setHeaderLogo,
-    darkTheme,
-    setDarkTheme,
-    isLoading: enabled && isLoading,
-    isSaving: mutation.isPending,
-    needsOrgSelection: !orgId,
-  };
+  const value = useMemo(
+    () => ({
+      adminVisibility,
+      operatorVisibility,
+      headerVisibility,
+      adminLabels,
+      operatorLabels,
+      headerLabels,
+      setAdminVisible,
+      setOperatorVisible,
+      setHeaderVisible,
+      setAdminLabel,
+      setOperatorLabel,
+      setHeaderLabel,
+      resetAdminToDefaults,
+      resetOperatorToDefaults,
+      resetHeaderToDefaults,
+      resetAdminLabels,
+      resetOperatorLabels,
+      resetHeaderLabels,
+      getAdminLabel,
+      getOperatorLabel,
+      getHeaderLabel,
+      getHeaderLogo,
+      setHeaderLogo,
+      darkTheme,
+      setDarkTheme,
+      isLoading: enabled && isLoading,
+      isSaving: mutation.isPending,
+      needsOrgSelection: !orgId,
+    }),
+    [
+      adminVisibility,
+      operatorVisibility,
+      headerVisibility,
+      adminLabels,
+      operatorLabels,
+      headerLabels,
+      setAdminVisible,
+      setOperatorVisible,
+      setHeaderVisible,
+      setAdminLabel,
+      setOperatorLabel,
+      setHeaderLabel,
+      resetAdminToDefaults,
+      resetOperatorToDefaults,
+      resetHeaderToDefaults,
+      resetAdminLabels,
+      resetOperatorLabels,
+      resetHeaderLabels,
+      getAdminLabel,
+      getOperatorLabel,
+      getHeaderLabel,
+      getHeaderLogo,
+      setHeaderLogo,
+      darkTheme,
+      setDarkTheme,
+      enabled,
+      isLoading,
+      mutation.isPending,
+      orgId,
+    ]
+  );
 
   return (
     <NavVisibilityContext.Provider value={value}>{children}</NavVisibilityContext.Provider>

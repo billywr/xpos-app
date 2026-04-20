@@ -15,7 +15,7 @@ import {
   type SaleSummary,
 } from "@/api/sales";
 import { ReceiptModal } from "@/components/ReceiptModal";
-import { Pagination, TableSearchInput } from "@/components/ui";
+import { Pagination, TableSearchInput, TableSkeleton } from "@/components/ui";
 import { useTableSearch } from "@/hooks/useTableSearch";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
@@ -204,11 +204,7 @@ export function ReceiptsPage() {
         </label>
       </div>
 
-      {isLoading ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      ) : isError ? (
+      {isError ? (
         <div
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
           role="alert"
@@ -261,7 +257,9 @@ export function ReceiptsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                {filteredReceipts.length === 0 ? (
+                {isLoading && receipts.length === 0 ? (
+                  <TableSkeleton rows={10} columns={visibleReceiptsColCount} />
+                ) : filteredReceipts.length === 0 ? (
                   <tr>
                     <td
                       colSpan={visibleReceiptsColCount}

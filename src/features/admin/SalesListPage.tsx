@@ -12,7 +12,7 @@ import {
 import { fetchReceiptDetails } from "@/api/sales";
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
-import { Pagination, TableSearchInput } from "@/components/ui";
+import { Pagination, TableSearchInput, TableSkeleton } from "@/components/ui";
 import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
@@ -200,19 +200,6 @@ export function SalesListPage() {
     [branches]
   );
 
-  if (isLoading && selectedOrgId && selectedBranchId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Sales
-        </h1>
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
   if (isError && selectedOrgId && selectedBranchId) {
     const message = getApiErrorMessage(error);
     const requestId = getApiErrorRequestId(error);
@@ -382,7 +369,9 @@ export function SalesListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {filteredSales.length === 0 ? (
+                  {isLoading && sales.length === 0 ? (
+                    <TableSkeleton rows={10} columns={visibleSalesColCount} />
+                  ) : filteredSales.length === 0 ? (
                     <tr>
                       <td
                         colSpan={visibleSalesColCount}

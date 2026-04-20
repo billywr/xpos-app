@@ -176,8 +176,7 @@ export function StandardStockCountSheetPage({
     queryKey: ["std-stock-count", token, orgId, branchId, dateStr],
     queryFn: () => fetchStdStockCountSheet(token, orgId, branchId, dateStr),
     enabled: Boolean(token && orgId && branchId),
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 30_000,
   });
 
   const { data: analytics } = useQuery({

@@ -47,7 +47,7 @@ import { AnalyticsOrgBranchFilter } from "@/components/AnalyticsOrgBranchFilter"
 import { FLOATING_CARD } from "@/utils/floatingCardClasses";
 import { PageHeader } from "@/components/PageHeader";
 
-const AUTO_REFRESH_MS = 5 * 60 * 1000;
+const AUTO_REFRESH_MS = 15 * 60 * 1000;
 
 function todayIso(): string {
   const d = new Date();
@@ -74,7 +74,7 @@ function useAnalyticsSnapshot(fromDate: string, toDate: string) {
       fetchOperatorAnalyticsSnapshot(token, orgId!, branchId!, fromDate, toDate),
     enabled: Boolean(token && orgId && branchId),
     refetchInterval: AUTO_REFRESH_MS,
-    refetchIntervalInBackground: true,
+    refetchIntervalInBackground: false,
   });
 }
 
