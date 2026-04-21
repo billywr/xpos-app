@@ -35,6 +35,9 @@ import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
 import { useTableSearch } from "@/hooks/useTableSearch";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import { downloadDebtsPdf } from "@/utils/debtsPdf";
+import { downloadExpensesPdf } from "@/utils/expensesPdf";
+import { recordedAtToCreatedAt, todayInputValue } from "@/utils/recordedAt";
 import { useToast } from "@/contexts/ToastContext";
 import {
   HandCoins,
@@ -45,6 +48,7 @@ import {
   XCircle,
   Banknote,
   Receipt,
+  FileDown,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { AdminTabList, AdminTabPanel } from "@/components/ui/AdminTabs";
@@ -211,6 +215,7 @@ export function DebtsAndExpensesPage() {
   const [debtFormCustomerName, setDebtFormCustomerName] = useState("");
   const [debtFormCustomerPhone, setDebtFormCustomerPhone] = useState("");
   const [debtFormAmount, setDebtFormAmount] = useState("");
+  const [debtFormRecordedOn, setDebtFormRecordedOn] = useState(todayInputValue());
   const [debtFormDueDate, setDebtFormDueDate] = useState("");
   const [debtFormNotes, setDebtFormNotes] = useState("");
   const [debtFormBorrowedLines, setDebtFormBorrowedLines] = useState<BorrowedLineDraft[]>([]);
@@ -247,6 +252,7 @@ export function DebtsAndExpensesPage() {
   const [expFormDescription, setExpFormDescription] = useState("");
   const [expFormIncurredBy, setExpFormIncurredBy] = useState("");
   const [expFormReceiptRef, setExpFormReceiptRef] = useState("");
+  const [expFormRecordedOn, setExpFormRecordedOn] = useState(todayInputValue());
   const [expEditFormOpen, setExpEditFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<MiscExpenseResponse | null>(null);
   const [editExpAmount, setEditExpAmount] = useState("");
@@ -420,6 +426,7 @@ export function DebtsAndExpensesPage() {
       setDebtFormCustomerName("");
       setDebtFormCustomerPhone("");
       setDebtFormAmount("");
+      setDebtFormRecordedOn(todayInputValue());
       setDebtFormDueDate("");
       setDebtFormNotes("");
       setDebtFormBorrowedLines([]);
@@ -505,6 +512,7 @@ export function DebtsAndExpensesPage() {
       setExpFormDescription("");
       setExpFormIncurredBy("");
       setExpFormReceiptRef("");
+      setExpFormRecordedOn(todayInputValue());
       toast.success("Expense recorded.", { title: "Miscellaneous expense" });
     },
     onError: (err) => {
@@ -708,6 +716,7 @@ export function DebtsAndExpensesPage() {
         amount,
         dueDate: debtFormDueDate || undefined,
         notes: combinedNotes,
+        createdAt: recordedAtToCreatedAt(debtFormRecordedOn),
       });
     } catch (err) {
       toast.error(getApiErrorMessage(err), {
@@ -803,7 +812,80 @@ export function DebtsAndExpensesPage() {
       description: expFormDescription.trim(),
       incurredBy: expFormIncurredBy.trim() || undefined,
       receiptRef: expFormReceiptRef.trim() || undefined,
+      createdAt: recordedAtToCreatedAt(expFormRecordedOn),
     });
+  };
+
+  // -----------------------------------------------------------------------
+  // PDF report downloads — all statuses, all rows in the selected date range
+  // -----------------------------------------------------------------------
+  const [debtsPdfLoading, setDebtsPdfLoading] = useState(false);
+  const [expensesPdfLoading, setExpensesPdfLoading] = useState(false);
+  const dateRangeLabel = `${fromDate} to ${toDate}`;
+
+  const handleDownloadDebtsPdf = async () => {
+    if (!orgId || !branchId) return;
+    setDebtsPdfLoading(true);
+    try {
+      const resp = await fetchDebts(token, orgId, branchId, {
+        page: 0,
+        size: 2000,
+        status: statusQueryForFilter(statusFilter),
+        fromDate,
+        toDate,
+      });
+      const rows = resp.content ?? [];
+      if (rows.length === 0) {
+        toast.error("No debts matching the selected filters to export.");
+        return;
+      }
+      const statusLabel =
+        STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "All";
+      downloadDebtsPdf(rows, {
+        branchName,
+        statusFilterLabel: statusLabel,
+        dateRangeLabel,
+      });
+    } catch (err) {
+      toast.error(getApiErrorMessage(err), {
+        detail: getApiErrorRequestId(err)
+          ? `Reference: ${getApiErrorRequestId(err)}`
+          : undefined,
+      });
+    } finally {
+      setDebtsPdfLoading(false);
+    }
+  };
+
+  const handleDownloadExpensesPdf = async () => {
+    if (!orgId || !branchId) return;
+    setExpensesPdfLoading(true);
+    try {
+      const resp = await fetchMiscExpenses(token, orgId, branchId, {
+        page: 0,
+        size: 2000,
+        fromDate,
+        toDate,
+      });
+      const rows = resp.content ?? [];
+      if (rows.length === 0) {
+        toast.error("No expenses in the selected date range to export.");
+        return;
+      }
+      downloadExpensesPdf(rows, {
+        branchName,
+        dateRangeLabel,
+        totalAmount: resp.totalAmount,
+      });
+    } catch (err) {
+      toast.error(getApiErrorMessage(err), {
+        detail: getApiErrorRequestId(err)
+          ? `Reference: ${getApiErrorRequestId(err)}`
+          : undefined,
+      });
+    } finally {
+      setExpensesPdfLoading(false);
+    }
   };
 
   // -----------------------------------------------------------------------
@@ -875,14 +957,34 @@ export function DebtsAndExpensesPage() {
                 controlClassName="border-slate-200 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus:border-primary-400 dark:focus:ring-primary-400"
               />
             </div>
-            <button
-              type="button"
-              onClick={() => setDebtFormOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
-            >
-              <Plus className="h-5 w-5" />
-              Record debt
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {debtTotalElements > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDownloadDebtsPdf}
+                  disabled={debtsPdfLoading}
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  title={`Download debts from ${fromDate} to ${toDate} (status: ${
+                    STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "All"
+                  })`}
+                >
+                  {debtsPdfLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <FileDown className="h-5 w-5" />
+                  )}
+                  Download PDF
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setDebtFormOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
+              >
+                <Plus className="h-5 w-5" />
+                Record debt
+              </button>
+            </div>
           </div>
 
           {debtsLoading && (
@@ -1044,14 +1146,32 @@ export function DebtsAndExpensesPage() {
       {tab === "expenses" && (
         <AdminTabPanel panelId="debts-expenses-panel-expenses" tabId="debts-expenses-tab-expenses">
           <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => setExpFormOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
-            >
-              <Plus className="h-5 w-5" />
-              Record expense
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {expTotalElements > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDownloadExpensesPdf}
+                  disabled={expensesPdfLoading}
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  title={`Download all expenses from ${fromDate} to ${toDate}`}
+                >
+                  {expensesPdfLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <FileDown className="h-5 w-5" />
+                  )}
+                  Download PDF
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setExpFormOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
+              >
+                <Plus className="h-5 w-5" />
+                Record expense
+              </button>
+            </div>
           </div>
 
           {expensesLoading && (
@@ -1180,6 +1300,7 @@ export function DebtsAndExpensesPage() {
             setDebtFormCustomerName("");
             setDebtFormCustomerPhone("");
             setDebtFormAmount("");
+            setDebtFormRecordedOn(todayInputValue());
             setDebtFormDueDate("");
             setDebtFormNotes("");
             setDebtFormBorrowedLines([]);
@@ -1263,6 +1384,11 @@ export function DebtsAndExpensesPage() {
             ) : (
               <input id="debtAmount" type="number" step="0.01" min="0.01" required value={debtFormAmount} onChange={(e) => setDebtFormAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             )}
+          </div>
+          <div>
+            <label htmlFor="debtRecordedOn" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Date recorded *</label>
+            <input id="debtRecordedOn" type="date" required max={todayInputValue()} value={debtFormRecordedOn} onChange={(e) => setDebtFormRecordedOn(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Defaults to today. Pick a past date when entering an old debt.</p>
           </div>
           <div>
             <label htmlFor="dueDate" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Due date</label>
@@ -1395,11 +1521,17 @@ export function DebtsAndExpensesPage() {
             setExpFormDescription("");
             setExpFormIncurredBy("");
             setExpFormReceiptRef("");
+            setExpFormRecordedOn(todayInputValue());
           }
         }}
         title="Record miscellaneous expense"
       >
         <form onSubmit={handleExpSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="expRecordedOn" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Date recorded *</label>
+            <input id="expRecordedOn" type="date" required max={todayInputValue()} value={expFormRecordedOn} onChange={(e) => setExpFormRecordedOn(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Defaults to today. Pick a past date when entering an old expense.</p>
+          </div>
           <div>
             <label htmlFor="expAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Amount (KES) *</label>
             <input id="expAmount" type="number" step="0.01" min="0.01" required value={expFormAmount} onChange={(e) => setExpFormAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />

@@ -38,6 +38,8 @@ export interface CustomerDebtCreateRequest {
   amount: number;
   dueDate?: string;
   notes?: string;
+  /** ISO 8601 instant. Set to backdate when recording an old debt. */
+  createdAt?: string;
 }
 
 export interface CustomerDebtUpdateRequest {

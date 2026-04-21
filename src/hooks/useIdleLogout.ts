@@ -89,19 +89,20 @@ export function useIdleLogout(
     scheduleCheck();
 
     // Capture-phase listeners catch events inside overflow containers / iframes.
+    // Only discrete, user-initiated events — NOT mousemove/pointermove/touchmove/scroll.
+    // Movement events fire whenever an animated element passes under a stationary
+    // cursor (framer-motion badges, toast slide-ins, etc.), which kept resetting
+    // the idle timer and stopped logout from ever firing. Programmatic scrolls do
+    // the same. Keyboard, mouse-button, touch-start and wheel reliably mean the
+    // human is actually here.
     const captureOpts: AddEventListenerOptions = { capture: true, passive: true };
     const activityEvents = [
       "mousedown",
-      "mousemove",
       "pointerdown",
-      "pointermove",
       "keydown",
       "touchstart",
-      "touchmove",
       "wheel",
-      "scroll",
       "click",
-      "focusin",
       "input",
     ] as const;
 

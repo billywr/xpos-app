@@ -27,6 +27,8 @@ import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
 import { useTableSearch } from "@/hooks/useTableSearch";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import { downloadDebtsPdf } from "@/utils/debtsPdf";
+import { recordedAtToCreatedAt, todayInputValue } from "@/utils/recordedAt";
 import { useToast } from "@/contexts/ToastContext";
 import {
   HandCoins,
@@ -36,6 +38,7 @@ import {
   Pencil,
   XCircle,
   Banknote,
+  FileDown,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -129,6 +132,7 @@ export function DebtsPage() {
   const [formCustomerName, setFormCustomerName] = useState("");
   const [formCustomerPhone, setFormCustomerPhone] = useState("");
   const [formAmount, setFormAmount] = useState("");
+  const [formRecordedOn, setFormRecordedOn] = useState(todayInputValue());
   const [formDueDate, setFormDueDate] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formBorrowedLines, setFormBorrowedLines] = useState<BorrowedLineDraft[]>([]);
@@ -278,6 +282,7 @@ export function DebtsPage() {
       setFormCustomerName("");
       setFormCustomerPhone("");
       setFormAmount("");
+      setFormRecordedOn(todayInputValue());
       setFormDueDate("");
       setFormNotes("");
       setFormBorrowedLines([]);
@@ -513,6 +518,7 @@ export function DebtsPage() {
         amount,
         dueDate: formDueDate || undefined,
         notes: combinedNotes,
+        createdAt: recordedAtToCreatedAt(formRecordedOn),
       });
     } catch (err) {
       toast.error(getApiErrorMessage(err), {
@@ -567,14 +573,37 @@ export function DebtsPage() {
             />
           </div>
         </PageHeader>
-        <button
-          type="button"
-          onClick={() => setFormOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
-        >
-          <Plus className="h-5 w-5" />
-          Record debt
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const filterLabel =
+                STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label ?? null;
+              downloadDebtsPdf(debts, {
+                branchName,
+                statusFilterLabel: filterLabel,
+              });
+            }}
+            disabled={debts.length === 0}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            title={
+              debts.length === 0
+                ? "No debts on this page to export"
+                : "Download debts shown on this page as PDF"
+            }
+          >
+            <FileDown className="h-5 w-5" />
+            Download PDF
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
+          >
+            <Plus className="h-5 w-5" />
+            Record debt
+          </button>
+        </div>
       </div>
 
       {isLoading && (
@@ -780,6 +809,7 @@ export function DebtsPage() {
             setFormCustomerName("");
             setFormCustomerPhone("");
             setFormAmount("");
+            setFormRecordedOn(todayInputValue());
             setFormDueDate("");
             setFormNotes("");
             setFormBorrowedLines([]);
@@ -941,6 +971,26 @@ export function DebtsPage() {
                 className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               />
             )}
+          </div>
+          <div>
+            <label
+              htmlFor="recordedOn"
+              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Date recorded *
+            </label>
+            <input
+              id="recordedOn"
+              type="date"
+              required
+              max={todayInputValue()}
+              value={formRecordedOn}
+              onChange={(e) => setFormRecordedOn(e.target.value)}
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Defaults to today. Pick a past date when entering an old debt.
+            </p>
           </div>
           <div>
             <label

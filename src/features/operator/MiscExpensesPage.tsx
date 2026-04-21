@@ -22,8 +22,10 @@ import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
 import { useTableSearch } from "@/hooks/useTableSearch";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import { downloadExpensesPdf } from "@/utils/expensesPdf";
+import { recordedAtToCreatedAt, todayInputValue } from "@/utils/recordedAt";
 import { useToast } from "@/contexts/ToastContext";
-import { Receipt, Plus, Loader2, Pencil, XCircle } from "lucide-react";
+import { Receipt, Plus, Loader2, Pencil, XCircle, FileDown } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -70,6 +72,7 @@ export function MiscExpensesPage() {
   const [formDescription, setFormDescription] = useState("");
   const [formIncurredBy, setFormIncurredBy] = useState("");
   const [formReceiptRef, setFormReceiptRef] = useState("");
+  const [formRecordedOn, setFormRecordedOn] = useState(todayInputValue());
   const [editFormOpen, setEditFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<MiscExpenseResponse | null>(
     null
@@ -118,6 +121,7 @@ export function MiscExpensesPage() {
       setFormDescription("");
       setFormIncurredBy("");
       setFormReceiptRef("");
+      setFormRecordedOn(todayInputValue());
       toast.success("Expense recorded.", { title: "Miscellaneous expense" });
     },
     onError: (err) => {
@@ -250,6 +254,7 @@ export function MiscExpensesPage() {
       description: formDescription.trim(),
       incurredBy: formIncurredBy.trim() || undefined,
       receiptRef: formReceiptRef.trim() || undefined,
+      createdAt: recordedAtToCreatedAt(formRecordedOn),
     });
   };
 
@@ -272,14 +277,35 @@ export function MiscExpensesPage() {
           fallbackTo="/operator"
           noMargin
         />
-        <button
-          type="button"
-          onClick={() => setFormOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
-        >
-          <Plus className="h-5 w-5" />
-          Record expense
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              downloadExpensesPdf(expenses, {
+                branchName,
+                totalAmount,
+              })
+            }
+            disabled={expenses.length === 0}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            title={
+              expenses.length === 0
+                ? "No expenses on this page to export"
+                : "Download expenses shown on this page as PDF"
+            }
+          >
+            <FileDown className="h-5 w-5" />
+            Download PDF
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
+          >
+            <Plus className="h-5 w-5" />
+            Record expense
+          </button>
+        </div>
       </div>
 
       {isLoading && (
@@ -437,11 +463,32 @@ export function MiscExpensesPage() {
             setFormDescription("");
             setFormIncurredBy("");
             setFormReceiptRef("");
+            setFormRecordedOn(todayInputValue());
           }
         }}
         title="Record miscellaneous expense"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label
+              htmlFor="recordedOn"
+              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Date recorded *
+            </label>
+            <input
+              id="recordedOn"
+              type="date"
+              required
+              max={todayInputValue()}
+              value={formRecordedOn}
+              onChange={(e) => setFormRecordedOn(e.target.value)}
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Defaults to today. Pick a past date when entering an old expense.
+            </p>
+          </div>
           <div>
             <label
               htmlFor="amount"
