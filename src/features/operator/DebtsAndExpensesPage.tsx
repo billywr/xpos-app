@@ -610,19 +610,33 @@ export function DebtsAndExpensesPage() {
   // -----------------------------------------------------------------------
   // Debts derived data + handlers
   // -----------------------------------------------------------------------
+  // We render from the bulk dataset (already fetched for search/totals), not
+  // the paginated API response — that lets us sort alphabetically A–Z across
+  // every page instead of just the visible 20 rows.
   const debts = useMemo(() => debtsData?.content ?? [], [debtsData]);
   const debtsAll = useMemo(() => debtsTotalPage?.content ?? [], [debtsTotalPage]);
+  const sortedDebts = useMemo(() => {
+    const source = debtsAll.length > 0 ? debtsAll : debts;
+    return [...source].sort((a, b) =>
+      a.customerName.localeCompare(b.customerName, undefined, { sensitivity: "base" }),
+    );
+  }, [debtsAll, debts]);
   const [debtSearchQuery, setDebtSearchQuery] = useState("");
   const debtSearchActive = debtSearchQuery.trim().length > 0;
   const filteredDebts = useMemo(() => {
-    if (!debtSearchActive) return debts;
+    if (!debtSearchActive) return sortedDebts;
     const q = debtSearchQuery.trim().toLowerCase();
-    return debtsAll.filter((row) =>
+    return sortedDebts.filter((row) =>
       Object.values(row as unknown as Record<string, unknown>).some((v) =>
         v == null ? false : String(v).toLowerCase().includes(q),
       ),
     );
-  }, [debtSearchActive, debtSearchQuery, debts, debtsAll]);
+  }, [debtSearchActive, debtSearchQuery, sortedDebts]);
+  const visibleDebts = useMemo(() => {
+    if (debtSearchActive) return filteredDebts;
+    const start = debtsPage * DEBTS_PAGE_SIZE;
+    return filteredDebts.slice(start, start + DEBTS_PAGE_SIZE);
+  }, [debtSearchActive, filteredDebts, debtsPage]);
 
   const showDebtPhoneCol = useMemo(
     () =>
@@ -647,7 +661,7 @@ export function DebtsAndExpensesPage() {
       ),
     [filteredDebts]
   );
-  const debtTotalElements = debtsData?.totalElements ?? 0;
+  const debtTotalElements = filteredDebts.length;
 
   const openDebtEditForm = (d: CustomerDebtResponse) => {
     setEditingDebt(d);
@@ -854,17 +868,33 @@ export function DebtsAndExpensesPage() {
     () => expensesTotalPage?.content ?? [],
     [expensesTotalPage],
   );
+  // Same approach as debts: render from the bulk dataset so the A–Z ordering
+  // holds across every page. Sort key is "incurredBy" when present (person's
+  // name), otherwise "description" — keeps rows with a real name grouped.
+  const sortedExpenses = useMemo(() => {
+    const source = expensesAll.length > 0 ? expensesAll : expenses;
+    const keyOf = (e: MiscExpenseResponse): string =>
+      (e.incurredBy && e.incurredBy.trim()) || e.description || "";
+    return [...source].sort((a, b) =>
+      keyOf(a).localeCompare(keyOf(b), undefined, { sensitivity: "base" }),
+    );
+  }, [expensesAll, expenses]);
   const [expSearchQuery, setExpSearchQuery] = useState("");
   const expSearchActive = expSearchQuery.trim().length > 0;
   const filteredExpenses = useMemo(() => {
-    if (!expSearchActive) return expenses;
+    if (!expSearchActive) return sortedExpenses;
     const q = expSearchQuery.trim().toLowerCase();
-    return expensesAll.filter((row) =>
+    return sortedExpenses.filter((row) =>
       Object.values(row as unknown as Record<string, unknown>).some((v) =>
         v == null ? false : String(v).toLowerCase().includes(q),
       ),
     );
-  }, [expSearchActive, expSearchQuery, expenses, expensesAll]);
+  }, [expSearchActive, expSearchQuery, sortedExpenses]);
+  const visibleExpenses = useMemo(() => {
+    if (expSearchActive) return filteredExpenses;
+    const start = expensesPage * EXPENSES_PAGE_SIZE;
+    return filteredExpenses.slice(start, start + EXPENSES_PAGE_SIZE);
+  }, [expSearchActive, filteredExpenses, expensesPage]);
 
   const showExpIncurredByCol = useMemo(
     () =>
@@ -882,7 +912,7 @@ export function DebtsAndExpensesPage() {
       ),
     [filteredExpenses]
   );
-  const expTotalElements = expensesData?.totalElements ?? 0;
+  const expTotalElements = filteredExpenses.length;
   const expTotalAmount = expensesData?.totalAmount ?? 0;
 
   const openExpEditForm = (e: MiscExpenseResponse) => {
@@ -1147,9 +1177,9 @@ export function DebtsAndExpensesPage() {
                   <div className="flex flex-col items-center justify-center py-16">
                     <HandCoins className="h-12 w-12 text-slate-400 dark:text-slate-500" />
                     <p className="mt-4 text-slate-500 dark:text-slate-400">
-                      {debts.length === 0 ? "No debts recorded yet. Record a debt when a customer buys on credit." : "No results match your search."}
+                      {!debtSearchActive ? "No debts recorded yet. Record a debt when a customer buys on credit." : "No results match your search."}
                     </p>
-                    {debts.length === 0 && (
+                    {!debtSearchActive && (
                       <button
                         type="button"
                         onClick={() => setDebtFormOpen(true)}
@@ -1165,7 +1195,7 @@ export function DebtsAndExpensesPage() {
                     {debtTotalElements > 0 && !debtSearchActive && (
                       <Pagination
                         position="top"
-                        page={debtsData?.number ?? 0}
+                        page={debtsPage}
                         size={DEBTS_PAGE_SIZE}
                         totalElements={debtTotalElements}
                         onPageChange={setDebtsPage}
@@ -1201,7 +1231,7 @@ export function DebtsAndExpensesPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                          {filteredDebts.map((d: CustomerDebtResponse) => (
+                          {visibleDebts.map((d: CustomerDebtResponse) => (
                             <tr key={d.id} className="group hover:bg-slate-100 dark:hover:bg-slate-700">
                               <td
                                 className={`sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300 ${
@@ -1521,9 +1551,9 @@ export function DebtsAndExpensesPage() {
                   <div className="flex flex-col items-center justify-center py-16">
                     <Receipt className="h-12 w-12 text-slate-400 dark:text-slate-500" />
                     <p className="mt-4 text-slate-500 dark:text-slate-400">
-                      {expenses.length === 0 ? "No expenses recorded yet. Record expenses such as utilities, supplies, or maintenance." : "No results match your search."}
+                      {!expSearchActive ? "No expenses recorded yet. Record expenses such as utilities, supplies, or maintenance." : "No results match your search."}
                     </p>
-                    {expenses.length === 0 && (
+                    {!expSearchActive && (
                       <button
                         type="button"
                         onClick={() => setExpFormOpen(true)}
@@ -1539,7 +1569,7 @@ export function DebtsAndExpensesPage() {
                     {expTotalElements > 0 && !expSearchActive && (
                       <Pagination
                         position="top"
-                        page={expensesData?.number ?? 0}
+                        page={expensesPage}
                         size={EXPENSES_PAGE_SIZE}
                         totalElements={expTotalElements}
                         onPageChange={setExpensesPage}
@@ -1570,7 +1600,7 @@ export function DebtsAndExpensesPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                          {filteredExpenses.map((e: MiscExpenseResponse) => (
+                          {visibleExpenses.map((e: MiscExpenseResponse) => (
                             <tr key={e.id} className="group hover:bg-slate-100 dark:hover:bg-slate-700">
                               {showExpIncurredByCol && (
                                 <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">{e.incurredBy ?? "—"}</td>
@@ -1602,7 +1632,7 @@ export function DebtsAndExpensesPage() {
                   </>
                 )}
               </div>
-              {expenses.length > 0 ? (
+              {expTotalElements > 0 ? (
                 <div className="mt-3 flex justify-end">
                   <MiscExpensesTotalBadge totalAmount={expTotalAmount} />
                 </div>
