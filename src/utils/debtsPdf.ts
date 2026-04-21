@@ -161,6 +161,117 @@ export function generateDebtsPdf(
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
     y += 10;
+
+    // Per-customer outstanding subtotals on their own page. Cancelled debts
+    // are excluded — they're audit-only, not owed. Same multi-column layout as
+    // the expenses "Total by category" page so long customer lists fit on a
+    // single page.
+    const byCustomer = new Map<string, number>();
+    for (const d of debts) {
+      if (d.status === "CANCELLED") continue;
+      const out = Number(d.outstanding ?? 0);
+      if (out <= 0) continue;
+      byCustomer.set(d.customerName, (byCustomer.get(d.customerName) ?? 0) + out);
+    }
+    if (byCustomer.size > 0) {
+      const customerRows = [...byCustomer.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, amt]) => [name, formatAmount(amt)]);
+
+      doc.addPage();
+      y = margin;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text("Outstanding by customer", margin, y);
+      y += 8;
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const MAX_ROWS_PER_COL = 32;
+      let nCols = 1;
+      if (customerRows.length > 10) nCols = 2;
+      if (customerRows.length > 24) nCols = 3;
+      if (Math.ceil(customerRows.length / nCols) > MAX_ROWS_PER_COL && nCols < 4) {
+        nCols = Math.min(4, Math.ceil(customerRows.length / MAX_ROWS_PER_COL));
+      }
+
+      let nameColWidth: number;
+      let amtColWidth: number;
+      let gap: number;
+      if (nCols === 1) {
+        nameColWidth = 50;
+        amtColWidth = 40;
+        gap = 0;
+      } else if (nCols === 2) {
+        nameColWidth = 55;
+        amtColWidth = 35;
+        gap = 14;
+      } else if (nCols === 3) {
+        nameColWidth = 52;
+        amtColWidth = 28;
+        gap = 12;
+      } else {
+        nameColWidth = 40;
+        amtColWidth = 20;
+        gap = 9;
+      }
+      const custTableWidth = nameColWidth + amtColWidth;
+      const custHead = [
+        [
+          { content: "Customer", styles: { halign: "left" as const } },
+          { content: "Outstanding (KSH)", styles: { halign: "left" as const } },
+        ],
+      ];
+      const custTableStyles = {
+        theme: "plain" as const,
+        styles: { fontSize: 9, cellPadding: 0.8 },
+        headStyles: { fontStyle: "bold" as const },
+        columnStyles: {
+          0: { halign: "left" as const, cellWidth: nameColWidth },
+          1: {
+            halign: "left" as const,
+            cellWidth: amtColWidth,
+            fontStyle: "bold" as const,
+            textColor: [220, 38, 38] as [number, number, number],
+          },
+        },
+      };
+
+      const perCol = Math.ceil(customerRows.length / nCols);
+      const tableStartY = y;
+      const custFinalYs: number[] = [];
+      for (let i = 0; i < nCols; i++) {
+        const slice = customerRows.slice(i * perCol, (i + 1) * perCol);
+        if (slice.length === 0) break;
+        const start = margin + i * (custTableWidth + gap);
+        autoTable(doc, {
+          head: custHead,
+          body: slice,
+          startY: tableStartY,
+          margin: {
+            left: start,
+            right: Math.max(0, pageWidth - (start + custTableWidth)),
+          },
+          tableWidth: custTableWidth,
+          pageBreak: "avoid",
+          ...custTableStyles,
+        });
+        const meta2 = (doc as unknown as { lastAutoTable?: { finalY: number } })
+          .lastAutoTable;
+        custFinalYs.push(meta2?.finalY ?? tableStartY);
+      }
+
+      if (nCols > 1 && custFinalYs.length > 0) {
+        const maxY = Math.max(tableStartY, ...custFinalYs);
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.3);
+        for (let i = 1; i < nCols; i++) {
+          const separatorX = margin + i * (custTableWidth + gap) - gap / 2;
+          doc.line(separatorX, tableStartY, separatorX, maxY);
+        }
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.2);
+      }
+    }
   }
 
   const pageHeight = doc.internal.pageSize.getHeight();

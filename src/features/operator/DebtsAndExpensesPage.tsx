@@ -169,15 +169,32 @@ function validateInlinePay(raw: string, outstanding: number): string | null {
 
 const PENDING_TOTAL_QUERY_KEY = "operator-debts-pending-total";
 
-function DebtPendingTotalDisplay(props: { totalPending: number; loading: boolean }) {
-  const { totalPending, loading } = props;
+function DebtPendingTotalDisplay(props: {
+  totalPending: number;
+  loading: boolean;
+  onClick?: () => void;
+}) {
+  const { totalPending, loading, onClick } = props;
+  const clickable = !!onClick;
   return (
-    <motion.div
-      className="flex min-w-[min(100%,17rem)] max-w-full shrink-0 items-center justify-between gap-4 rounded-2xl border-2 border-emerald-500 bg-slate-900 px-5 py-3.5 shadow-md shadow-emerald-950/40 dark:border-emerald-400 dark:shadow-emerald-950/60"
-      whileHover={{
-        y: [0, -6, 0, -4, 0],
-        transition: { duration: 0.55, ease: "easeInOut" },
-      }}
+    <motion.button
+      type="button"
+      onClick={onClick}
+      disabled={!clickable}
+      title={clickable ? "Click to see per-customer breakdown" : undefined}
+      className={`flex min-w-[min(100%,17rem)] max-w-full shrink-0 items-center justify-between gap-4 rounded-2xl border-2 border-emerald-500 bg-slate-900 px-5 py-3.5 shadow-md shadow-emerald-950/40 transition dark:border-emerald-400 dark:shadow-emerald-950/60 ${
+        clickable
+          ? "cursor-pointer hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          : "cursor-default"
+      }`}
+      whileHover={
+        clickable
+          ? {
+              y: [0, -6, 0, -4, 0],
+              transition: { duration: 0.55, ease: "easeInOut" },
+            }
+          : undefined
+      }
     >
       <span className="text-xs font-bold uppercase tracking-widest text-emerald-500 dark:text-emerald-400">
         Total pending
@@ -194,7 +211,7 @@ function DebtPendingTotalDisplay(props: { totalPending: number; loading: boolean
           {loading ? "…" : formatCurrency(totalPending)}
         </motion.span>
       </AnimatePresence>
-    </motion.div>
+    </motion.button>
   );
 }
 
@@ -214,12 +231,23 @@ const DEFAULT_EXPENSE_CATEGORIES = [
   "Other",
 ];
 
-function MiscExpensesTotalBadge(props: { totalAmount: number }) {
-  const { totalAmount } = props;
+function MiscExpensesTotalBadge(props: {
+  totalAmount: number;
+  onClick?: () => void;
+}) {
+  const { totalAmount, onClick } = props;
+  const clickable = !!onClick;
   return (
-    <div
-      className="inline-flex max-w-full items-center justify-between gap-4 rounded-full border-2 border-emerald-500 bg-slate-900 px-6 py-3 shadow-md shadow-emerald-950/40 dark:border-emerald-400 dark:shadow-emerald-950/60"
-      role="status"
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!clickable}
+      title={clickable ? "Click to see per-category breakdown" : undefined}
+      className={`inline-flex max-w-full items-center justify-between gap-4 rounded-full border-2 border-emerald-500 bg-slate-900 px-6 py-3 shadow-md shadow-emerald-950/40 transition dark:border-emerald-400 dark:shadow-emerald-950/60 ${
+        clickable
+          ? "cursor-pointer hover:bg-slate-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          : "cursor-default"
+      }`}
     >
       <span className="text-xs font-bold uppercase tracking-widest text-emerald-500 dark:text-emerald-400">
         Total
@@ -227,7 +255,7 @@ function MiscExpensesTotalBadge(props: { totalAmount: number }) {
       <span className="text-right text-lg font-bold tabular-nums text-white dark:text-white">
         {formatCurrency(totalAmount)}
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -368,6 +396,30 @@ export function DebtsAndExpensesPage() {
         .reduce((sum, d) => sum + (d.outstanding ?? 0), 0),
     [debtsTotalPage],
   );
+
+  // Per-customer outstanding totals, sorted max → min, for the "Total pending"
+  // breakdown modal. Cancelled debts are excluded to match the pending total.
+  const [debtBreakdownOpen, setDebtBreakdownOpen] = useState(false);
+  const debtsByCustomer = useMemo(() => {
+    const acc = new Map<string, number>();
+    for (const d of debtsTotalPage?.content ?? []) {
+      if (d.status === "CANCELLED") continue;
+      const amt = Number(d.outstanding ?? 0);
+      if (amt <= 0) continue;
+      acc.set(d.customerName, (acc.get(d.customerName) ?? 0) + amt);
+    }
+    const total = [...acc.values()].reduce((s, a) => s + a, 0);
+    return {
+      rows: [...acc.entries()]
+        .map(([customerName, amount]) => ({
+          customerName,
+          amount,
+          pct: total > 0 ? (amount / total) * 100 : 0,
+        }))
+        .sort((a, b) => b.amount - a.amount),
+      total,
+    };
+  }, [debtsTotalPage]);
 
   const debtFormDataEnabled = Boolean(debtFormOpen && token && orgId);
 
@@ -929,6 +981,28 @@ export function DebtsAndExpensesPage() {
   );
   const expTotalElements = filteredExpenses.length;
   const expTotalAmount = expensesData?.totalAmount ?? 0;
+
+  // Per-category subtotals, sorted max → min, for the "TOTAL" breakdown modal.
+  // Built from the bulk dataset so it reflects every expense in the date range,
+  // not just the current page.
+  const [expBreakdownOpen, setExpBreakdownOpen] = useState(false);
+  const expensesByCategory = useMemo(() => {
+    const acc = new Map<string, number>();
+    for (const e of expensesAll) {
+      acc.set(e.category, (acc.get(e.category) ?? 0) + Number(e.amount ?? 0));
+    }
+    const total = [...acc.values()].reduce((s, a) => s + a, 0);
+    return {
+      rows: [...acc.entries()]
+        .map(([category, amount]) => ({
+          category,
+          amount,
+          pct: total > 0 ? (amount / total) * 100 : 0,
+        }))
+        .sort((a, b) => b.amount - a.amount),
+      total,
+    };
+  }, [expensesAll]);
 
   const openExpEditForm = (e: MiscExpenseResponse) => {
     setEditingExpense(e);
@@ -1496,6 +1570,11 @@ export function DebtsAndExpensesPage() {
                 <DebtPendingTotalDisplay
                   loading={pendingTotalLoading}
                   totalPending={pendingTotalForDateRange}
+                  onClick={
+                    debtsByCustomer.rows.length > 0
+                      ? () => setDebtBreakdownOpen(true)
+                      : undefined
+                  }
                 />
               </div>
             </>
@@ -1649,7 +1728,14 @@ export function DebtsAndExpensesPage() {
               </div>
               {expTotalElements > 0 ? (
                 <div className="mt-3 flex justify-end">
-                  <MiscExpensesTotalBadge totalAmount={expTotalAmount} />
+                  <MiscExpensesTotalBadge
+                    totalAmount={expTotalAmount}
+                    onClick={
+                      expensesByCategory.rows.length > 0
+                        ? () => setExpBreakdownOpen(true)
+                        : undefined
+                    }
+                  />
                 </div>
               ) : null}
             </>
@@ -2013,6 +2099,168 @@ export function DebtsAndExpensesPage() {
         variant="danger"
         loading={cancelExpSubmitting}
       />
+
+      {debtBreakdownOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="debt-breakdown-title"
+        >
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm dark:bg-slate-950/60"
+            aria-hidden
+            onClick={() => setDebtBreakdownOpen(false)}
+          />
+          <div className="relative flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl dark:border-slate-700 dark:bg-darkSurface">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5 dark:border-slate-700">
+              <div>
+                <h3
+                  id="debt-breakdown-title"
+                  className="text-xl font-bold text-slate-900 dark:text-white"
+                >
+                  Pending debts by customer
+                </h3>
+                <p className="mt-1 text-base font-medium text-slate-500 dark:text-slate-400">
+                  {fromDate} to {toDate} · {debtsByCustomer.rows.length} customer
+                  {debtsByCustomer.rows.length === 1 ? "" : "s"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDebtBreakdownOpen(false)}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-400 dark:text-slate-400 dark:hover:bg-slate-700"
+                aria-label="Close"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto">
+              <table className="w-full text-lg">
+                <thead className="sticky top-0 bg-slate-100 text-left text-lg font-bold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                  <tr>
+                    <th className="px-6 py-3 text-left">Customer</th>
+                    <th className="px-6 py-3 text-left">Outstanding (KSH)</th>
+                    <th className="px-6 py-3 text-left">Share</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {debtsByCustomer.rows.map((r) => (
+                    <tr
+                      key={r.customerName}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-700/40"
+                    >
+                      <td className="px-6 py-2.5 text-left text-lg font-semibold text-slate-900 dark:text-white">
+                        {r.customerName}
+                      </td>
+                      <td className="px-6 py-2.5 text-left text-lg font-semibold tabular-nums text-red-600 dark:text-red-400">
+                        {formatAmount(r.amount)}
+                      </td>
+                      <td className="px-6 py-2.5 text-left text-lg font-semibold tabular-nums text-slate-500 dark:text-slate-400">
+                        {r.pct.toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="sticky bottom-0 border-t-2 border-slate-200 bg-white dark:border-slate-600 dark:bg-darkSurface">
+                  <tr>
+                    <td className="px-6 py-4 text-left text-xl font-bold text-slate-900 dark:text-white">
+                      Total pending
+                    </td>
+                    <td className="px-6 py-4 text-left text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                      {formatAmount(debtsByCustomer.total)}
+                    </td>
+                    <td className="px-6 py-4 text-left text-lg font-bold tabular-nums text-slate-600 dark:text-slate-300">
+                      100%
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {expBreakdownOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exp-breakdown-title"
+        >
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm dark:bg-slate-950/60"
+            aria-hidden
+            onClick={() => setExpBreakdownOpen(false)}
+          />
+          <div className="relative flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl dark:border-slate-700 dark:bg-darkSurface">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5 dark:border-slate-700">
+              <div>
+                <h3
+                  id="exp-breakdown-title"
+                  className="text-xl font-bold text-slate-900 dark:text-white"
+                >
+                  Expenses by category
+                </h3>
+                <p className="mt-1 text-base font-medium text-slate-500 dark:text-slate-400">
+                  {fromDate} to {toDate} · {expensesByCategory.rows.length} categor
+                  {expensesByCategory.rows.length === 1 ? "y" : "ies"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExpBreakdownOpen(false)}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-400 dark:text-slate-400 dark:hover:bg-slate-700"
+                aria-label="Close"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto">
+              <table className="w-full text-lg">
+                <thead className="sticky top-0 bg-slate-100 text-left text-lg font-bold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                  <tr>
+                    <th className="px-6 py-3 text-left">Category</th>
+                    <th className="px-6 py-3 text-left">Total (KSH)</th>
+                    <th className="px-6 py-3 text-left">Share</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {expensesByCategory.rows.map((r) => (
+                    <tr
+                      key={r.category}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-700/40"
+                    >
+                      <td className="px-6 py-2.5 text-left text-lg font-semibold text-slate-900 dark:text-white">
+                        {r.category}
+                      </td>
+                      <td className="px-6 py-2.5 text-left text-lg font-semibold tabular-nums text-slate-800 dark:text-slate-100">
+                        {formatAmount(r.amount)}
+                      </td>
+                      <td className="px-6 py-2.5 text-left text-lg font-semibold tabular-nums text-slate-500 dark:text-slate-400">
+                        {r.pct.toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="sticky bottom-0 border-t-2 border-slate-200 bg-white dark:border-slate-600 dark:bg-darkSurface">
+                  <tr>
+                    <td className="px-6 py-4 text-left text-xl font-bold text-slate-900 dark:text-white">
+                      Total
+                    </td>
+                    <td className="px-6 py-4 text-left text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                      {formatAmount(expensesByCategory.total)}
+                    </td>
+                    <td className="px-6 py-4 text-left text-lg font-bold tabular-nums text-slate-600 dark:text-slate-300">
+                      100%
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

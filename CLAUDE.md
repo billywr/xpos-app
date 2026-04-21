@@ -81,7 +81,7 @@ Six modules: `auth`, `context`, `home`, `admin` (30+ pages), `operator` (15+ pag
 ## Key Conventions
 
 - **Icons**: lucide-react only
-- **Currency**: KES formatting via `formatCurrency.ts` (Intl.NumberFormat, en-KE)
+- **Currency**: KES formatting via `formatCurrency.ts` (Intl.NumberFormat, en-KE). In **tables and breakdowns** (anywhere a column holds many money values), put `(KSH)` in the column header and use `formatAmount()` (no symbol) in the cells — don't repeat "Ksh" on every row. Use `formatCurrency()` (with symbol) only for one-off amounts shown outside a column context (badges, toasts, inline sentences). Row values in these tables stay **left-aligned** so the header label and amounts share the same x edge.
 - **Forms**: react-hook-form + Zod validation. SlideOver for create/edit. Field-level errors from backend `details` shown inline.
 - **Dropdowns**: `SearchableSelect` instead of native `<select>`. `ItemSearchCombobox` for catalog items.
 - **Error handling**: 400 → inline field errors; 401 → redirect to login; 403 → permission screen; 409 → show backend message verbatim; 5xx → message + requestId + "contact support". Use `getApiErrorMessage()` and `getApiErrorRequestId()` from `src/utils/apiError.ts`.
