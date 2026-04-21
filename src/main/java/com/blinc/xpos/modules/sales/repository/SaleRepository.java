@@ -3,6 +3,7 @@ package com.blinc.xpos.modules.sales.repository;
 import com.blinc.xpos.common.constants.enums.SaleStatus;
 import com.blinc.xpos.modules.sales.domain.Sale;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -125,4 +126,18 @@ public interface SaleRepository extends JpaRepository<Sale, UUID> {
       @Param("status") SaleStatus status,
       @Param("start") Instant start,
       @Param("end") Instant end);
+
+  @Query(
+      """
+      select distinct s from Sale s
+      left join fetch s.receipt
+      where s.org.id = :orgId and s.branch.id = :branchId
+      and s.status = :status and s.businessDate = :businessDate
+      order by s.completedAt
+      """)
+  List<Sale> findByOrgBranchStatusAndBusinessDate(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("status") SaleStatus status,
+      @Param("businessDate") LocalDate businessDate);
 }

@@ -65,7 +65,15 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
       return;
     }
     Instant when = sale.getCompletedAt() != null ? sale.getCompletedAt() : Instant.now();
-    post(orgId, sale.getBranch(), EVENT_SALE_COMPLETE, SourceType.SALE, sale.getId(), amount, when);
+    post(
+        orgId,
+        sale.getBranch(),
+        EVENT_SALE_COMPLETE,
+        SourceType.SALE,
+        sale.getId(),
+        amount,
+        when,
+        sale.getBusinessDate());
   }
 
   @Override
@@ -88,12 +96,15 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         SourceType.CASH_MOVEMENT,
         movement.getId(),
         amount,
-        movement.getCreatedAt());
+        movement.getCreatedAt(),
+        null);
   }
 
   /**
    * Looks up active posting rule for event type; if present, creates one debit and one credit
-   * ledger entry. Uses branch timezone for business date and branch currency (or KES).
+   * ledger entry. Uses branch timezone for business date and branch currency (or KES). Caller may
+   * pass a non-null {@code businessDateOverride} (e.g. for backdated historical sales) to bypass
+   * the timezone derivation.
    */
   private void post(
       UUID orgId,
@@ -102,14 +113,18 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
       SourceType sourceType,
       UUID sourceId,
       BigDecimal amount,
-      Instant when) {
+      Instant when,
+      LocalDate businessDateOverride) {
     Optional<PostingRule> ruleOpt =
         postingRuleRepository.findActiveByOrgIdAndEventType(orgId, eventType);
     if (ruleOpt.isEmpty()) {
       return;
     }
     PostingRule rule = ruleOpt.get();
-    LocalDate businessDate = when.atZone(ZoneId.of(branch.getTimezone())).toLocalDate();
+    LocalDate businessDate =
+        businessDateOverride != null
+            ? businessDateOverride
+            : when.atZone(ZoneId.of(branch.getTimezone())).toLocalDate();
     String currency =
         branch.getCurrency() != null && !branch.getCurrency().isBlank()
             ? branch.getCurrency()

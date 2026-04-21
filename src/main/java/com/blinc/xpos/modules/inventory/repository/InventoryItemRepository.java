@@ -1,6 +1,7 @@
 package com.blinc.xpos.modules.inventory.repository;
 
 import com.blinc.xpos.modules.inventory.domain.InventoryItem;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -35,4 +36,17 @@ public interface InventoryItemRepository extends JpaRepository<InventoryItem, UU
       """)
   long countWithPositiveOnHandByOrgAndItem(
       @Param("orgId") UUID orgId, @Param("itemId") UUID itemId);
+
+  @Query(
+      """
+      select i from InventoryItem i
+      join fetch i.item it
+      where i.org.id = :orgId and i.branch.id = :branchId
+        and it.active = true
+        and i.reorderPoint is not null
+        and i.onHandQty <= i.reorderPoint
+      order by i.onHandQty asc, it.name asc
+      """)
+  List<InventoryItem> findLowStockByOrgAndBranch(
+      @Param("orgId") UUID orgId, @Param("branchId") UUID branchId, Pageable pageable);
 }

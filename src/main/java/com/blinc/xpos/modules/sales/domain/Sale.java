@@ -21,6 +21,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -96,4 +97,12 @@ public class Sale {
 
   @Column(name = "completed_at")
   private Instant completedAt;
+
+  /**
+   * Business day this sale is attributed to. Usually derived from completedAt in the branch
+   * timezone, but may be explicitly set (earlier) for backdated historical sales recorded via the
+   * Sales Recording screen.
+   */
+  @Column(name = "business_date")
+  private LocalDate businessDate;
 }

@@ -81,7 +81,9 @@ public class ReceiptServiceImpl implements ReceiptService {
     UUID branchId = branch.getId();
     UUID terminalId = sale.getTerminal().getId();
     LocalDate businessDate =
-        Instant.now(clock).atZone(ZoneId.of(branch.getTimezone())).toLocalDate();
+        sale.getBusinessDate() != null
+            ? sale.getBusinessDate()
+            : Instant.now(clock).atZone(ZoneId.of(branch.getTimezone())).toLocalDate();
     long nextNumber =
         receiptSequenceService.getNextNumber(orgId, branchId, terminalId, businessDate);
     Receipt receipt = new Receipt();
