@@ -231,7 +231,7 @@ export function SalesRecordingPage() {
       if (!i.trackInventory) return false;
       const onHand = stockByItem[i.id];
       if (onHand == null) return true;
-      return onHand > 1;
+      return onHand > 0;
     });
   }, [priceableItems, stockByItem]);
 
