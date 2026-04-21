@@ -48,6 +48,8 @@ import {
   Banknote,
   Receipt,
   FileDown,
+  Check,
+  X,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { AdminTabList, AdminTabPanel } from "@/components/ui/AdminTabs";
@@ -100,18 +102,24 @@ function borrowedItemsNoteBlock(lines: BorrowedLineDraft[]): string {
 /** Default list: still owed (OPEN or PARTIAL). OPEN-only hid rows after any repayment. */
 const STATUS_OUTSTANDING = "OUTSTANDING";
 
+/**
+ * Cancelled debts are treated as permanently-removed audit records: they never
+ * factor into pending totals and are excluded from the default "All" view.
+ * They only appear when the user explicitly filters by "Cancelled".
+ */
 const STATUS_OPTIONS = [
   { value: STATUS_OUTSTANDING, label: "Outstanding (open + partial)" },
   { value: "OPEN", label: "Open only" },
   { value: "PARTIAL", label: "Partial only" },
   { value: "CLOSED", label: "Closed" },
   { value: "CANCELLED", label: "Cancelled" },
-  { value: "", label: "All" },
+  { value: "", label: "All (excluding cancelled)" },
 ] as const;
 
 function statusQueryForFilter(filter: string): string | readonly string[] | undefined {
   if (filter === "") {
-    return undefined;
+    // "All" excludes CANCELLED — cancelled debts are audit-only.
+    return ["OPEN", "PARTIAL", "CLOSED"];
   }
   if (filter === STATUS_OUTSTANDING) {
     return ["OPEN", "PARTIAL"];
@@ -234,6 +242,9 @@ export function DebtsAndExpensesPage() {
   const [settlingDebt, setSettlingDebt] = useState<CustomerDebtResponse | null>(null);
   const [settleAmount, setSettleAmount] = useState("");
   const [settleSubmitting, setSettleSubmitting] = useState(false);
+  const [inlinePayDebtId, setInlinePayDebtId] = useState<string | null>(null);
+  const [inlinePayValue, setInlinePayValue] = useState("");
+  const [inlinePaySubmitting, setInlinePaySubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_OUTSTANDING);
 
   const debtStatusFilterOptions = useMemo(
@@ -308,7 +319,10 @@ export function DebtsAndExpensesPage() {
     enabled: Boolean(token && orgId && branchId),
   });
   const pendingTotalForDateRange = useMemo(
-    () => (debtsTotalPage?.content ?? []).reduce((sum, d) => sum + (d.outstanding ?? 0), 0),
+    () =>
+      (debtsTotalPage?.content ?? [])
+        .filter((d) => d.status !== "CANCELLED")
+        .reduce((sum, d) => sum + (d.outstanding ?? 0), 0),
     [debtsTotalPage],
   );
 
@@ -703,6 +717,44 @@ export function DebtsAndExpensesPage() {
 
   const canClearDebt = (d: CustomerDebtResponse) =>
     (d.status === "OPEN" || d.status === "PARTIAL") && Number(d.amountSettled ?? 0) === 0;
+
+  // Validate the inline-pay input as the user types. Returns null when empty or valid.
+  const validateInlinePay = (raw: string, outstanding: number): string | null => {
+    const trimmed = raw.trim();
+    if (trimmed === "") return null;
+    const n = Number.parseFloat(trimmed);
+    if (!Number.isFinite(n)) return "Enter a number.";
+    if (n <= 0) return "Must be greater than 0.";
+    if (n > outstanding) return `Max ${formatCurrency(outstanding)}.`;
+    return null;
+  };
+
+  const startInlinePay = (d: CustomerDebtResponse) => {
+    setInlinePayDebtId(d.id);
+    setInlinePayValue("");
+  };
+
+  const cancelInlinePay = () => {
+    setInlinePayDebtId(null);
+    setInlinePayValue("");
+  };
+
+  const submitInlinePay = async (d: CustomerDebtResponse) => {
+    const n = Number.parseFloat(inlinePayValue);
+    if (!Number.isFinite(n) || n <= 0 || n > d.outstanding) {
+      toast.error(
+        validateInlinePay(inlinePayValue, d.outstanding) ?? "Enter a valid payment amount.",
+      );
+      return;
+    }
+    setInlinePaySubmitting(true);
+    try {
+      await settleMutation.mutateAsync({ debtId: d.id, paymentAmount: n });
+      cancelInlinePay();
+    } finally {
+      setInlinePaySubmitting(false);
+    }
+  };
 
   const handleDebtSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1114,7 +1166,101 @@ export function DebtsAndExpensesPage() {
                                 <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">{d.customerPhone ?? "—"}</td>
                               )}
                               <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">{formatCurrency(d.amount)}</td>
-                              <td className="px-4 py-2 text-left text-base tabular-nums text-emerald-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-emerald-400">{formatCurrency(d.amountSettled ?? 0)}</td>
+                              <td
+                                className={`px-4 py-2 text-left text-base tabular-nums text-emerald-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-emerald-400 ${
+                                  canRecordPayment(d) && inlinePayDebtId !== d.id
+                                    ? "cursor-pointer hover:underline"
+                                    : ""
+                                }`}
+                                onClick={() => {
+                                  if (canRecordPayment(d) && inlinePayDebtId !== d.id) {
+                                    startInlinePay(d);
+                                  }
+                                }}
+                                title={
+                                  canRecordPayment(d) && inlinePayDebtId !== d.id
+                                    ? "Click to record a payment"
+                                    : undefined
+                                }
+                              >
+                                {inlinePayDebtId === d.id ? (
+                                  (() => {
+                                    const err = validateInlinePay(inlinePayValue, d.outstanding);
+                                    const empty = inlinePayValue.trim() === "";
+                                    return (
+                                      <div
+                                        className="flex flex-wrap items-center gap-1"
+                                        onClick={(ev) => ev.stopPropagation()}
+                                      >
+                                        <div className="flex items-center gap-1">
+                                          <input
+                                            autoFocus
+                                            type="number"
+                                            step="0.01"
+                                            min="0.01"
+                                            max={d.outstanding}
+                                            value={inlinePayValue}
+                                            disabled={inlinePaySubmitting}
+                                            onChange={(ev) => setInlinePayValue(ev.target.value)}
+                                            onKeyDown={(ev) => {
+                                              if (ev.key === "Enter") {
+                                                ev.preventDefault();
+                                                void submitInlinePay(d);
+                                              } else if (ev.key === "Escape") {
+                                                ev.preventDefault();
+                                                cancelInlinePay();
+                                              }
+                                            }}
+                                            placeholder={`Max ${d.outstanding.toFixed(2)}`}
+                                            aria-invalid={!!err}
+                                            aria-label={`Record payment for ${d.customerName}`}
+                                            className={`w-28 rounded border px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-1 ${
+                                              err
+                                                ? "border-red-400 bg-red-50 text-red-900 focus:border-red-500 focus:ring-red-500 dark:border-red-600 dark:bg-red-950/40 dark:text-red-200"
+                                                : "border-emerald-300 bg-white text-slate-900 focus:border-emerald-500 focus:ring-emerald-500 dark:border-emerald-700 dark:bg-slate-900 dark:text-white"
+                                            }`}
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => void submitInlinePay(d)}
+                                            disabled={inlinePaySubmitting || !!err || empty}
+                                            className="rounded p-1 text-emerald-600 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:text-emerald-400 dark:hover:bg-emerald-900/40"
+                                            aria-label="Save payment"
+                                            title="Save (Enter)"
+                                          >
+                                            {inlinePaySubmitting ? (
+                                              <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                              <Check className="h-4 w-4" />
+                                            )}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={cancelInlinePay}
+                                            disabled={inlinePaySubmitting}
+                                            className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-700"
+                                            aria-label="Cancel"
+                                            title="Cancel (Esc)"
+                                          >
+                                            <X className="h-4 w-4" />
+                                          </button>
+                                        </div>
+                                        {err ? (
+                                          <span className="w-full text-xs text-red-600 dark:text-red-400">
+                                            {err}
+                                          </span>
+                                        ) : !empty ? (
+                                          <span className="w-full text-xs text-slate-500 dark:text-slate-400">
+                                            New balance {formatCurrency(d.outstanding - Number.parseFloat(inlinePayValue))}
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  formatCurrency(d.amountSettled ?? 0)
+                                )}
+                              </td>
                               <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-amber-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-amber-400">{formatCurrency(d.outstanding)}</td>
                               <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                                 <span
