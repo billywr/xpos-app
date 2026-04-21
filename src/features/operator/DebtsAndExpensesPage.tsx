@@ -32,7 +32,6 @@ import {
 } from "@/api/miscExpenses";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { downloadDebtsPdf } from "@/utils/debtsPdf";
@@ -371,6 +370,19 @@ export function DebtsAndExpensesPage() {
     enabled: Boolean(token && orgId && branchId),
   });
 
+  // Full dataset for the current date range — powers cross-page search.
+  const { data: expensesTotalPage } = useQuery({
+    queryKey: ["operator-misc-expenses-all", token, orgId, branchId, fromDate, toDate],
+    queryFn: () =>
+      fetchMiscExpenses(token, orgId!, branchId!, {
+        page: 0,
+        size: 2000,
+        fromDate,
+        toDate,
+      }),
+    enabled: Boolean(token && orgId && branchId),
+  });
+
   // -----------------------------------------------------------------------
   // Debts mutations
   // -----------------------------------------------------------------------
@@ -562,8 +574,19 @@ export function DebtsAndExpensesPage() {
   // -----------------------------------------------------------------------
   // Debts derived data + handlers
   // -----------------------------------------------------------------------
-  const debts = debtsData?.content ?? [];
-  const { searchQuery: debtSearchQuery, setSearchQuery: setDebtSearchQuery, filteredRows: filteredDebts } = useTableSearch(debts);
+  const debts = useMemo(() => debtsData?.content ?? [], [debtsData]);
+  const debtsAll = useMemo(() => debtsTotalPage?.content ?? [], [debtsTotalPage]);
+  const [debtSearchQuery, setDebtSearchQuery] = useState("");
+  const debtSearchActive = debtSearchQuery.trim().length > 0;
+  const filteredDebts = useMemo(() => {
+    if (!debtSearchActive) return debts;
+    const q = debtSearchQuery.trim().toLowerCase();
+    return debtsAll.filter((row) =>
+      Object.values(row as unknown as Record<string, unknown>).some((v) =>
+        v == null ? false : String(v).toLowerCase().includes(q),
+      ),
+    );
+  }, [debtSearchActive, debtSearchQuery, debts, debtsAll]);
 
   const showDebtPhoneCol = useMemo(
     () =>
@@ -732,8 +755,22 @@ export function DebtsAndExpensesPage() {
   // -----------------------------------------------------------------------
   // Expenses derived data + handlers
   // -----------------------------------------------------------------------
-  const expenses = expensesData?.content ?? [];
-  const { searchQuery: expSearchQuery, setSearchQuery: setExpSearchQuery, filteredRows: filteredExpenses } = useTableSearch(expenses);
+  const expenses = useMemo(() => expensesData?.content ?? [], [expensesData]);
+  const expensesAll = useMemo(
+    () => expensesTotalPage?.content ?? [],
+    [expensesTotalPage],
+  );
+  const [expSearchQuery, setExpSearchQuery] = useState("");
+  const expSearchActive = expSearchQuery.trim().length > 0;
+  const filteredExpenses = useMemo(() => {
+    if (!expSearchActive) return expenses;
+    const q = expSearchQuery.trim().toLowerCase();
+    return expensesAll.filter((row) =>
+      Object.values(row as unknown as Record<string, unknown>).some((v) =>
+        v == null ? false : String(v).toLowerCase().includes(q),
+      ),
+    );
+  }, [expSearchActive, expSearchQuery, expenses, expensesAll]);
 
   const showExpIncurredByCol = useMemo(
     () =>
@@ -1031,7 +1068,7 @@ export function DebtsAndExpensesPage() {
                   </div>
                 ) : (
                   <>
-                    {debtTotalElements > 0 && (
+                    {debtTotalElements > 0 && !debtSearchActive && (
                       <Pagination
                         position="top"
                         page={debtsData?.number ?? 0}
@@ -1039,6 +1076,11 @@ export function DebtsAndExpensesPage() {
                         totalElements={debtTotalElements}
                         onPageChange={setDebtsPage}
                       />
+                    )}
+                    {debtSearchActive && (
+                      <p className="px-4 py-2 text-xs text-slate-500 dark:text-slate-400">
+                        Showing {filteredDebts.length} match{filteredDebts.length === 1 ? "" : "es"} across all pages in the selected range.
+                      </p>
                     )}
                     <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
                     <div className="relative min-h-0 flex-1 overflow-auto">
@@ -1218,7 +1260,7 @@ export function DebtsAndExpensesPage() {
                   </div>
                 ) : (
                   <>
-                    {expTotalElements > 0 && (
+                    {expTotalElements > 0 && !expSearchActive && (
                       <Pagination
                         position="top"
                         page={expensesData?.number ?? 0}
@@ -1226,6 +1268,11 @@ export function DebtsAndExpensesPage() {
                         totalElements={expTotalElements}
                         onPageChange={setExpensesPage}
                       />
+                    )}
+                    {expSearchActive && (
+                      <p className="px-4 py-2 text-xs text-slate-500 dark:text-slate-400">
+                        Showing {filteredExpenses.length} match{filteredExpenses.length === 1 ? "" : "es"} across all pages in the selected range.
+                      </p>
                     )}
                     <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
                     <div className="relative min-h-0 flex-1 overflow-auto">
