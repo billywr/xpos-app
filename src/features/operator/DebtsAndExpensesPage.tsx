@@ -134,6 +134,27 @@ function statusQueryForFilter(filter: string): string | readonly string[] | unde
   return filter;
 }
 
+/** Locale-aware A→Z comparator by customer name (case-insensitive). */
+function debtByNameAsc(a: CustomerDebtResponse, b: CustomerDebtResponse): number {
+  return a.customerName.localeCompare(b.customerName, undefined, { sensitivity: "base" });
+}
+
+/**
+ * Sort key for expenses: prefer the "incurred by" person's name, fall back to
+ * the description so every row has something to sort against.
+ */
+function expenseSortKey(e: MiscExpenseResponse): string {
+  return (e.incurredBy && e.incurredBy.trim()) || e.description || "";
+}
+
+function expenseByNameAsc(a: MiscExpenseResponse, b: MiscExpenseResponse): number {
+  return expenseSortKey(a).localeCompare(
+    expenseSortKey(b),
+    undefined,
+    { sensitivity: "base" },
+  );
+}
+
 /** Validate an inline-pay input. Returns null when empty or valid. */
 function validateInlinePay(raw: string, outstanding: number): string | null {
   const trimmed = raw.trim();
@@ -617,9 +638,7 @@ export function DebtsAndExpensesPage() {
   const debtsAll = useMemo(() => debtsTotalPage?.content ?? [], [debtsTotalPage]);
   const sortedDebts = useMemo(() => {
     const source = debtsAll.length > 0 ? debtsAll : debts;
-    return [...source].sort((a, b) =>
-      a.customerName.localeCompare(b.customerName, undefined, { sensitivity: "base" }),
-    );
+    return [...source].sort(debtByNameAsc);
   }, [debtsAll, debts]);
   const [debtSearchQuery, setDebtSearchQuery] = useState("");
   const debtSearchActive = debtSearchQuery.trim().length > 0;
@@ -873,11 +892,7 @@ export function DebtsAndExpensesPage() {
   // name), otherwise "description" — keeps rows with a real name grouped.
   const sortedExpenses = useMemo(() => {
     const source = expensesAll.length > 0 ? expensesAll : expenses;
-    const keyOf = (e: MiscExpenseResponse): string =>
-      (e.incurredBy && e.incurredBy.trim()) || e.description || "";
-    return [...source].sort((a, b) =>
-      keyOf(a).localeCompare(keyOf(b), undefined, { sensitivity: "base" }),
-    );
+    return [...source].sort(expenseByNameAsc);
   }, [expensesAll, expenses]);
   const [expSearchQuery, setExpSearchQuery] = useState("");
   const expSearchActive = expSearchQuery.trim().length > 0;
@@ -995,7 +1010,7 @@ export function DebtsAndExpensesPage() {
         fromDate,
         toDate,
       });
-      const rows = resp.content ?? [];
+      const rows = [...(resp.content ?? [])].sort(debtByNameAsc);
       if (rows.length === 0) {
         toast.error("No debts matching the selected filters to export.");
         return;
@@ -1028,7 +1043,7 @@ export function DebtsAndExpensesPage() {
         fromDate,
         toDate,
       });
-      const rows = resp.content ?? [];
+      const rows = [...(resp.content ?? [])].sort(expenseByNameAsc);
       if (rows.length === 0) {
         toast.error("No expenses in the selected date range to export.");
         return;
