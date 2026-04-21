@@ -150,6 +150,33 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
       UUID orgId, UUID debtId, DebtUpdateInput input, UUID updatedByStaffUserId) {
     staffUserService.require(orgId, updatedByStaffUserId);
     CustomerDebt debt = require(orgId, debtId);
+
+    // Customer name/phone edits are typo-fixes and are always allowed — they
+    // don't change any financial state on the debt itself, only update the
+    // linked customer record. Do this first, before any status gates, so they
+    // work on SETTLED, CANCELLED, or debts with recorded repayments.
+    if (input.customerName() != null || input.customerPhone() != null) {
+      String name = input.customerName();
+      if (name != null && name.trim().isEmpty()) {
+        throw new BadRequestException("CUSTOMER_NAME_REQUIRED", "Customer name cannot be empty.");
+      }
+      String phone = input.customerPhone();
+      if (phone != null) {
+        phone = phone.trim();
+      }
+      customerService.update(orgId, debt.getCustomer().getId(), name, phone, null, null);
+    }
+
+    boolean touchesFinancials =
+        input.reassignedCustomerId() != null
+            || input.amount() != null
+            || input.outstanding() != null
+            || input.dueDate() != null
+            || input.notes() != null;
+    if (!touchesFinancials) {
+      return customerDebtRepository.save(debt);
+    }
+
     if (debt.getStatus() == CustomerDebtStatus.CANCELLED) {
       throw new BadRequestException("DEBT_CANCELLED", "Cannot update a cancelled debt.");
     }
@@ -165,17 +192,6 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
     }
     if (input.reassignedCustomerId() != null) {
       debt.setCustomer(customerService.require(orgId, input.reassignedCustomerId()));
-    }
-    if (input.customerName() != null || input.customerPhone() != null) {
-      String name = input.customerName();
-      if (name != null && name.trim().isEmpty()) {
-        throw new BadRequestException("CUSTOMER_NAME_REQUIRED", "Customer name cannot be empty.");
-      }
-      String phone = input.customerPhone();
-      if (phone != null) {
-        phone = phone.trim();
-      }
-      customerService.update(orgId, debt.getCustomer().getId(), name, phone, null, null);
     }
     if (input.amount() != null) {
       if (input.amount().compareTo(BigDecimal.ZERO) <= 0) {
