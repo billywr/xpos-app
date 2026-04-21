@@ -50,29 +50,29 @@ export function generateDebtsPdf(
   const margin = 12;
   let y = margin;
 
-  doc.setFontSize(18);
+  doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
   doc.text("Customer Debts Report", margin, y);
-  y += 8;
+  y += 9;
 
-  doc.setFontSize(10);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
   doc.text(orgName ?? "Organization", margin, y);
-  y += 5;
+  y += 6;
   doc.text(`Branch: ${branchName ?? "—"}`, margin, y);
-  y += 5;
+  y += 6;
   if (dateRangeLabel) {
     doc.text(`Date range: ${dateRangeLabel}`, margin, y);
-    y += 5;
+    y += 6;
   }
   if (statusFilterLabel) {
     doc.text(`Filter: ${statusFilterLabel}`, margin, y);
-    y += 5;
+    y += 6;
   }
   doc.text(`Generated: ${new Date().toLocaleString("en-GB")}`, margin, y);
-  y += 5;
+  y += 6;
   doc.text(`Total rows: ${debts.length}`, margin, y);
-  y += 7;
+  y += 8;
 
   if (debts.length === 0) {
     doc.text("No debts to report.", margin, y);
@@ -107,12 +107,21 @@ export function generateDebtsPdf(
       startY: y,
       margin: { left: margin, right: margin },
       theme: "grid",
-      styles: { fontSize: 8, cellPadding: 2, overflow: "linebreak" },
-      headStyles: { fillColor: [17, 50, 100], halign: "left" },
+      styles: { fontSize: 10, cellPadding: 2.5, overflow: "linebreak" },
+      headStyles: { fillColor: [17, 50, 100], halign: "left", fontSize: 11 },
       columnStyles: {
+        0: { fontStyle: "bold", textColor: [17, 24, 39] },
         2: { halign: "right" },
-        3: { halign: "right" },
-        4: { halign: "right" },
+        3: {
+          halign: "right",
+          fontStyle: "bold",
+          textColor: [5, 150, 105],
+        },
+        4: {
+          halign: "right",
+          fontStyle: "bold",
+          textColor: [220, 38, 38],
+        },
       },
     });
     const meta = (doc as unknown as { lastAutoTable?: { finalY: number } })
@@ -123,23 +132,33 @@ export function generateDebtsPdf(
     const totalRepaid = debts.reduce((s, d) => s + Number(d.amountSettled ?? 0), 0);
     const totalOutstanding = debts.reduce((s, d) => s + Number(d.outstanding ?? 0), 0);
 
-    y += 8;
+    y += 10;
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
+    doc.setFontSize(13);
     doc.text("Summary", margin, y);
-    y += 6;
+    y += 7;
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
+    doc.setFontSize(11);
     const col1 = margin;
     const col2 = margin + 70;
     const col3 = margin + 140;
     doc.text("Total original", col1, y);
-    doc.text(formatKsh(totalOriginal), col1, y + 5);
+    doc.setFont("helvetica", "bold");
+    doc.text(formatKsh(totalOriginal), col1, y + 6);
+    doc.setFont("helvetica", "normal");
+
     doc.text("Total repaid", col2, y);
-    doc.text(formatKsh(totalRepaid), col2, y + 5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(5, 150, 105);
+    doc.text(formatKsh(totalRepaid), col2, y + 6);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+
     doc.text("Total outstanding", col3, y);
     doc.setFont("helvetica", "bold");
-    doc.text(formatKsh(totalOutstanding), col3, y + 5);
+    doc.setTextColor(220, 38, 38);
+    doc.text(formatKsh(totalOutstanding), col3, y + 6);
+    doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
     y += 10;
   }
