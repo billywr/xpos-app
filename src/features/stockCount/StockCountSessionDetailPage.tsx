@@ -12,7 +12,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { PageHeader } from "@/components/PageHeader";
 import { ConfirmDialog, TableSearchInput } from "@/components/ui";
 import { useTableSearch } from "@/hooks/useTableSearch";
@@ -383,7 +383,7 @@ export function StockCountSessionDetailPage({
                   </th>
                   {showUnitCostCol && (
                     <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                      Unit cost
+                      Unit cost (KSH)
                     </th>
                   )}
                   <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
@@ -391,7 +391,7 @@ export function StockCountSessionDetailPage({
                   </th>
                   {showSellPriceCol && (
                     <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                      Sell price
+                      Sell price (KSH)
                     </th>
                   )}
                   {session.status === "OPEN" && (
@@ -429,7 +429,7 @@ export function StockCountSessionDetailPage({
                     </td>
                     {showUnitCostCol && (
                       <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
-                        {l.unitCost != null ? formatCurrency(l.unitCost) : "—"}
+                        {l.unitCost != null ? formatAmount(l.unitCost) : "—"}
                       </td>
                     )}
                     <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
@@ -437,7 +437,7 @@ export function StockCountSessionDetailPage({
                     </td>
                     {showSellPriceCol && (
                       <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
-                        {l.sellingPrice != null ? formatCurrency(l.sellingPrice) : "—"}
+                        {l.sellingPrice != null ? formatAmount(l.sellingPrice) : "—"}
                       </td>
                     )}
                     {session.status === "OPEN" && (

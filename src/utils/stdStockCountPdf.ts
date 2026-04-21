@@ -21,6 +21,13 @@ function formatKsh(amount: number): string {
   })}`;
 }
 
+function formatPlainAmount(amount: number): string {
+  return amount.toLocaleString("en-KE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export interface StdStockCountPdfDebt {
   customerName: string;
   customerPhone: string | null;
@@ -72,8 +79,8 @@ export function downloadStdStockCountPdf(
       "Total Stock",
       "Closing",
       "Units Sold",
-      "Selling Price",
-      "Amount",
+      "Selling Price (KSH)",
+      "Amount (KSH)",
       "comments",
     ];
     const tableData: string[][] = rows.map((r) => [
@@ -83,8 +90,8 @@ export function downloadStdStockCountPdf(
       String(r.totalStock),
       String(r.closingStock),
       String(r.unitsSold),
-      formatKsh(r.sellingPrice),
-      formatKsh(r.amount),
+      formatPlainAmount(r.sellingPrice),
+      formatPlainAmount(r.amount),
       r.comments.trim() ? r.comments : "—",
     ]);
 
@@ -96,6 +103,10 @@ export function downloadStdStockCountPdf(
       theme: "grid",
       styles: { fontSize: 8 },
       headStyles: { fillColor: [17, 50, 100] },
+      columnStyles: {
+        6: { halign: "left" },
+        7: { halign: "left" },
+      },
     });
     const meta = (doc as unknown as { lastAutoTable?: { finalY: number } })
       .lastAutoTable;
@@ -135,11 +146,11 @@ export function downloadStdStockCountPdf(
       y += 2;
 
       autoTable(doc, {
-        head: [["Customer", "Phone", "Outstanding", "Due Date", "Recorded"]],
+        head: [["Customer", "Phone", "Outstanding (KSH)", "Due Date", "Recorded"]],
         body: summary.dayDebts.map((d) => [
           d.customerName,
           d.customerPhone ?? "—",
-          formatKsh(d.outstanding),
+          formatPlainAmount(d.outstanding),
           d.dueDate ?? "—",
           d.createdAt?.slice(0, 10) ?? "—",
         ]),
@@ -148,6 +159,9 @@ export function downloadStdStockCountPdf(
         theme: "grid",
         styles: { fontSize: 8 },
         headStyles: { fillColor: [180, 120, 20] },
+        columnStyles: {
+          2: { halign: "left" },
+        },
       });
       const dayMeta = (doc as unknown as { lastAutoTable?: { finalY: number } })
         .lastAutoTable;
@@ -163,11 +177,11 @@ export function downloadStdStockCountPdf(
       y += 2;
 
       autoTable(doc, {
-        head: [["Customer", "Phone", "Outstanding", "Due Date", "Recorded"]],
+        head: [["Customer", "Phone", "Outstanding (KSH)", "Due Date", "Recorded"]],
         body: summary.allDebts.map((d) => [
           d.customerName,
           d.customerPhone ?? "—",
-          formatKsh(d.outstanding),
+          formatPlainAmount(d.outstanding),
           d.dueDate ?? "—",
           d.createdAt?.slice(0, 10) ?? "—",
         ]),
@@ -176,6 +190,9 @@ export function downloadStdStockCountPdf(
         theme: "grid",
         styles: { fontSize: 8 },
         headStyles: { fillColor: [180, 80, 20] },
+        columnStyles: {
+          2: { halign: "left" },
+        },
       });
       const allMeta = (doc as unknown as { lastAutoTable?: { finalY: number } })
         .lastAutoTable;

@@ -2,11 +2,11 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { MiscExpenseResponse } from "@/api/miscExpenses";
 
-function formatKsh(amount: number): string {
-  return `Ksh ${amount.toLocaleString("en-KE", {
+function formatAmount(amount: number): string {
+  return amount.toLocaleString("en-KE", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`;
+  });
 }
 
 function formatDateTime(iso: string): string {
@@ -60,11 +60,11 @@ export function generateExpensesPdf(
       e.description,
       e.incurredBy ?? "—",
       e.receiptRef ?? "—",
-      formatKsh(e.amount),
+      formatAmount(e.amount),
     ]);
 
     autoTable(doc, {
-      head: [["Recorded", "Category", "Description", "Incurred by", "Receipt ref", "Amount"]],
+      head: [["Recorded", "Category", "Description", "Incurred by", "Receipt ref", "Amount (KSH)"]],
       body: tableData,
       startY: y,
       margin: { left: margin, right: margin },
@@ -72,7 +72,7 @@ export function generateExpensesPdf(
       styles: { fontSize: 9, cellPadding: 2.5, overflow: "linebreak" },
       headStyles: { fillColor: [17, 50, 100], halign: "left" },
       columnStyles: {
-        5: { halign: "right" },
+        5: { halign: "left" },
       },
     });
     const meta = (doc as unknown as { lastAutoTable?: { finalY: number } })
@@ -96,24 +96,120 @@ export function generateExpensesPdf(
     y += 5;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Total: ${formatKsh(computedTotal)}`, margin, y);
+    doc.text(`Total (KSH): ${formatAmount(computedTotal)}`, margin, y);
     y += 6;
 
     if (byCategory.size > 0) {
       const catRows = [...byCategory.entries()]
         .sort((a, b) => b[1] - a[1])
-        .map(([cat, amt]) => [cat, formatKsh(amt)]);
-      autoTable(doc, {
-        head: [["Category", "Total"]],
-        body: catRows,
-        startY: y,
-        margin: { left: margin, right: margin },
-        theme: "plain",
-        styles: { fontSize: 9, cellPadding: 1.5 },
-        headStyles: { fontStyle: "bold", halign: "left" },
-        columnStyles: { 1: { halign: "right" } },
-        tableWidth: 90,
-      });
+        .map(([cat, amt]) => [cat, formatAmount(amt)]);
+
+      // Category breakdown lives on its own page so it reads as a standalone
+      // section instead of being chopped by whatever space is left after the
+      // main expenses table.
+      doc.addPage();
+      y = margin;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text("Total by category", margin, y);
+      y += 8;
+
+      // Category/Total columns are both left-aligned (per-cell styles.halign
+      // is the highest-precedence style — columnStyles.halign alone gets
+      // ignored on the header row) so "Total (KSH)" sits directly above the
+      // amounts instead of drifting apart.
+      //
+      // How many side-by-side sub-tables we render is picked based on how many
+      // categories we have — and ALSO the per-column row count. Each sub-table
+      // must fit on one landscape A4 page, otherwise column 1 overflows to
+      // page 2 and subsequent columns render on page 2 at the wrong X — the
+      // whole layout ends up jumbled. At fontSize 9 / cellPadding 0.8 mm a
+      // page holds ~32 rows, so 32 is the cap per column.
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const MAX_ROWS_PER_COL = 32;
+      let nCols = 1;
+      if (catRows.length > 10) nCols = 2;
+      if (catRows.length > 24) nCols = 3;
+      if (Math.ceil(catRows.length / nCols) > MAX_ROWS_PER_COL && nCols < 4) {
+        nCols = Math.min(4, Math.ceil(catRows.length / MAX_ROWS_PER_COL));
+      }
+
+      // Widths chosen so nCols sub-tables + (nCols-1) gaps fit the usable
+      // landscape width (≈ 273 mm after 12 mm margins each side).
+      let catColWidth: number;
+      let totalColWidth: number;
+      let gap: number;
+      if (nCols === 1) {
+        catColWidth = 45;
+        totalColWidth = 45;
+        gap = 0;
+      } else if (nCols === 2) {
+        catColWidth = 50;
+        totalColWidth = 40;
+        gap = 14;
+      } else if (nCols === 3) {
+        catColWidth = 50;
+        totalColWidth = 30;
+        gap = 12;
+      } else {
+        // 4 columns — only reached when there are > 128 categories; very rare.
+        catColWidth = 38;
+        totalColWidth = 22;
+        gap = 9;
+      }
+      const tableWidth = catColWidth + totalColWidth;
+      const catHead = [
+        [
+          { content: "Category", styles: { halign: "left" as const } },
+          { content: "Total (KSH)", styles: { halign: "left" as const } },
+        ],
+      ];
+      const catTableStyles = {
+        theme: "plain" as const,
+        styles: { fontSize: 9, cellPadding: 0.8 },
+        headStyles: { fontStyle: "bold" as const },
+        columnStyles: {
+          0: { halign: "left" as const, cellWidth: catColWidth },
+          1: { halign: "left" as const, cellWidth: totalColWidth },
+        },
+      };
+
+      const perCol = Math.ceil(catRows.length / nCols);
+      const tableStartY = y;
+      const finalYs: number[] = [];
+      for (let i = 0; i < nCols; i++) {
+        const slice = catRows.slice(i * perCol, (i + 1) * perCol);
+        if (slice.length === 0) break;
+        const start = margin + i * (tableWidth + gap);
+        autoTable(doc, {
+          head: catHead,
+          body: slice,
+          startY: tableStartY,
+          margin: {
+            left: start,
+            right: Math.max(0, pageWidth - (start + tableWidth)),
+          },
+          tableWidth,
+          pageBreak: "avoid",
+          ...catTableStyles,
+        });
+        const meta2 = (doc as unknown as { lastAutoTable?: { finalY: number } })
+          .lastAutoTable;
+        finalYs.push(meta2?.finalY ?? tableStartY);
+      }
+
+      if (nCols > 1 && finalYs.length > 0) {
+        // Thin grey separator in the middle of each gap between columns.
+        const maxFinalY = Math.max(tableStartY, ...finalYs);
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.3);
+        for (let i = 1; i < nCols; i++) {
+          const separatorX = margin + i * (tableWidth + gap) - gap / 2;
+          doc.line(separatorX, tableStartY, separatorX, maxFinalY);
+        }
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.2);
+      }
     }
   }
 

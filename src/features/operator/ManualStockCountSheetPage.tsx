@@ -16,7 +16,7 @@ import {
   type ManualStockCountLineSaveRequest,
 } from "@/api/manualStockCount";
 import { fetchAllOrgItems } from "@/api/items";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { generateUuid } from "@/utils/uuid";
@@ -503,11 +503,11 @@ export function ManualStockCountSheetPage() {
                     <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Sold
                     </th>
-                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                      Price
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      Price (KSH)
                     </th>
-                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                      Amt
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      Amt (KSH)
                     </th>
                     <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Notes
@@ -651,8 +651,8 @@ export function ManualStockCountSheetPage() {
                               />
                             </div>
                           </td>
-                          <td className="px-4 py-2 text-right text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
-                            {formatCurrency(p.amount)}
+                          <td className="px-4 py-2 text-left text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                            {formatAmount(p.amount)}
                           </td>
                           <td className="px-4 py-2 align-top sm:px-6 sm:py-2.5">
                             <textarea

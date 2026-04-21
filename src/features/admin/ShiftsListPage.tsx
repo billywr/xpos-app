@@ -12,7 +12,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Pagination, TableSearchInput } from "@/components/ui";
 import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatAmount } from "@/utils/formatCurrency";
 import { Wallet } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -239,16 +239,16 @@ export function ShiftsListPage() {
                       Status
                     </th>
                     <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                      Float
+                      Float (KSH)
                     </th>
                     {showCountedCol && (
                       <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                        Counted
+                        Counted (KSH)
                       </th>
                     )}
                     {showVarianceCol && (
                       <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                        Variance
+                        Variance (KSH)
                       </th>
                     )}
                   </tr>
@@ -291,19 +291,19 @@ export function ShiftsListPage() {
                           </span>
                         </td>
                         <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
-                          {formatCurrency(shift.openingFloatAmount)}
+                          {formatAmount(shift.openingFloatAmount)}
                         </td>
                         {showCountedCol && (
                           <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                             {shift.closingCountedAmount != null
-                              ? formatCurrency(shift.closingCountedAmount)
+                              ? formatAmount(shift.closingCountedAmount)
                               : "—"}
                           </td>
                         )}
                         {showVarianceCol && (
                           <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                             {shift.varianceAmount != null
-                              ? formatCurrency(shift.varianceAmount)
+                              ? formatAmount(shift.varianceAmount)
                               : "—"}
                           </td>
                         )}

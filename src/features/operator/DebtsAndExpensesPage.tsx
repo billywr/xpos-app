@@ -32,7 +32,7 @@ import {
 } from "@/api/miscExpenses";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { downloadDebtsPdf } from "@/utils/debtsPdf";
 import { downloadExpensesPdf } from "@/utils/expensesPdf";
@@ -1231,9 +1231,9 @@ export function DebtsAndExpensesPage() {
                             {showDebtPhoneCol && (
                               <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Phone</th>
                             )}
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Original</th>
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Repaid</th>
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Balance</th>
+                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Original (KSH)</th>
+                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Repaid (KSH)</th>
+                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Balance (KSH)</th>
                             <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Status</th>
                             {showDebtDueCol && (
                               <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Due</th>
@@ -1340,7 +1340,7 @@ export function DebtsAndExpensesPage() {
                               {showDebtPhoneCol && (
                                 <td className="px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{d.customerPhone ?? "—"}</td>
                               )}
-                              <td className="px-4 py-2 text-left text-lg tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{formatCurrency(d.amount)}</td>
+                              <td className="px-4 py-2 text-left text-lg tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{formatAmount(d.amount)}</td>
                               <td
                                 className={`px-4 py-2 text-left text-lg tabular-nums font-bold text-emerald-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-emerald-400 ${
                                   canRecordPayment(d) && inlinePayDebtId !== d.id
@@ -1433,10 +1433,10 @@ export function DebtsAndExpensesPage() {
                                     );
                                   })()
                                 ) : (
-                                  formatCurrency(d.amountSettled ?? 0)
+                                  formatAmount(d.amountSettled ?? 0)
                                 )}
                               </td>
-                              <td className="px-4 py-2 text-left text-lg tabular-nums font-bold text-red-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-red-400">{formatCurrency(d.outstanding)}</td>
+                              <td className="px-4 py-2 text-left text-lg tabular-nums font-bold text-red-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-red-400">{formatAmount(d.outstanding)}</td>
                               <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                                 <span
                                   className={`inline-flex justify-start rounded-full px-2.5 py-0.5 text-left text-xs font-medium ${
@@ -1604,7 +1604,7 @@ export function DebtsAndExpensesPage() {
                             {showExpIncurredByCol && (
                               <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:bg-slate-700 dark:text-slate-300">Incurred by</th>
                             )}
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Amount</th>
+                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Amount (KSH)</th>
                             <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Category</th>
                             <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Desc.</th>
                             {showExpReceiptRefCol && (
@@ -1620,7 +1620,7 @@ export function DebtsAndExpensesPage() {
                               {showExpIncurredByCol && (
                                 <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-lg font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-300">{e.incurredBy ?? "—"}</td>
                               )}
-                              <td className="px-4 py-2 text-lg font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-300">{formatCurrency(e.amount)}</td>
+                              <td className="px-4 py-2 text-left text-lg font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-300">{formatAmount(e.amount)}</td>
                               <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                                 <span className="inline-flex justify-start rounded-full bg-slate-100 px-2.5 py-0.5 text-left text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">{e.category}</span>
                               </td>

@@ -20,7 +20,7 @@ import {
 import { SlideOver } from "@/components/ui/SlideOver";
 import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
 import { useTableSearch } from "@/hooks/useTableSearch";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { downloadExpensesPdf } from "@/utils/expensesPdf";
 import { recordedAtToCreatedAt, todayInputValue } from "@/utils/recordedAt";
@@ -366,7 +366,7 @@ export function MiscExpensesPage() {
                         </th>
                       )}
                       <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                        Amount
+                        Amount (KSH)
                       </th>
                       <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Category
@@ -398,8 +398,8 @@ export function MiscExpensesPage() {
                             {e.incurredBy ?? "—"}
                           </td>
                         )}
-                        <td className="px-4 py-2 text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
-                          {formatCurrency(e.amount)}
+                        <td className="px-4 py-2 text-left text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                          {formatAmount(e.amount)}
                         </td>
                         <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                           <span className="inline-flex justify-start rounded-full bg-slate-100 px-2.5 py-0.5 text-left text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">

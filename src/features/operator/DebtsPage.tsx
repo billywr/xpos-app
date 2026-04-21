@@ -25,7 +25,7 @@ import type { Item } from "@/types/catalog";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
 import { useTableSearch } from "@/hooks/useTableSearch";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { downloadDebtsPdf } from "@/utils/debtsPdf";
 import { recordedAtToCreatedAt, todayInputValue } from "@/utils/recordedAt";
@@ -667,13 +667,13 @@ export function DebtsPage() {
                         </th>
                       )}
                       <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                        Original
+                        Original (KSH)
                       </th>
                       <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                        Repaid
+                        Repaid (KSH)
                       </th>
                       <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                        Balance
+                        Balance (KSH)
                       </th>
                       <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                         Status
@@ -708,13 +708,13 @@ export function DebtsPage() {
                           </td>
                         )}
                         <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
-                          {formatCurrency(d.amount)}
+                          {formatAmount(d.amount)}
                         </td>
                         <td className="px-4 py-2 text-left text-base tabular-nums text-emerald-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-emerald-400">
-                          {formatCurrency(d.amountSettled ?? 0)}
+                          {formatAmount(d.amountSettled ?? 0)}
                         </td>
                         <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-amber-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-amber-400">
-                          {formatCurrency(d.outstanding)}
+                          {formatAmount(d.outstanding)}
                         </td>
                         <td className="px-4 py-2 sm:px-6 sm:py-2.5">
                           <span

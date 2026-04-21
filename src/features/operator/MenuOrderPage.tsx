@@ -42,7 +42,7 @@ import {
 import { fetchTenderTypes } from "@/api/tenderTypes";
 import { getCurrentShift } from "@/api/shifts";
 import { fetchStockLevels } from "@/api/stockLevels";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { getItemImageUrl } from "@/utils/itemImage";
 import { MenuItemCard } from "@/components/MenuItemCard";
 import { PageHeader } from "@/components/PageHeader";
@@ -1439,8 +1439,8 @@ function PaymentModal({
                     <tr>
                       <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700">Item</th>
                       <th className="px-4 py-3 text-right sm:px-6 sm:py-3 sm:text-lg">Qty</th>
-                      <th className="px-4 py-3 text-right sm:px-6 sm:py-3 sm:text-lg">Unit</th>
-                      <th className="px-4 py-3 text-right sm:px-6 sm:py-3 sm:text-lg">Subtotal</th>
+                      <th className="px-4 py-3 text-left sm:px-6 sm:py-3 sm:text-lg">Unit (KSH)</th>
+                      <th className="px-4 py-3 text-left sm:px-6 sm:py-3 sm:text-lg">Subtotal (KSH)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
@@ -1451,11 +1451,11 @@ function PaymentModal({
                             <span className="font-semibold text-slate-700 leading-snug dark:text-slate-300">{line.itemName}</span>
                           </td>
                           <td className="px-4 py-2 text-right text-base tabular-nums text-slate-600 align-top sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">{line.qty}</td>
-                          <td className="px-4 py-2 text-right text-base tabular-nums text-slate-600 align-top sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
-                            {formatCurrency(line.unitPrice)}
+                          <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 align-top sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            {formatAmount(line.unitPrice)}
                           </td>
-                          <td className="px-4 py-2 text-right text-base tabular-nums font-semibold text-slate-700 align-top sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
-                            {formatCurrency(line.lineTotal)}
+                          <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-slate-700 align-top sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                            {formatAmount(line.lineTotal)}
                           </td>
                         </tr>
                         {(line.modifiers ?? []).map((m) => {
@@ -1469,11 +1469,11 @@ function PaymentModal({
                                 + {m.modifierOptionName}
                                 {m.qty > 1 ? ` × ${m.qty}` : ""}
                               </td>
-                              <td className="px-4 py-2 text-right text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-lg">
-                                {modAmt !== 0 ? formatCurrency(m.unitPriceDelta) : "—"}
+                              <td className="px-4 py-2 text-left text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-lg">
+                                {modAmt !== 0 ? formatAmount(m.unitPriceDelta) : "—"}
                               </td>
-                              <td className="px-4 py-2 text-right text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-lg">
-                                {modAmt !== 0 ? formatCurrency(modAmt) : "—"}
+                              <td className="px-4 py-2 text-left text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-lg">
+                                {modAmt !== 0 ? formatAmount(modAmt) : "—"}
                               </td>
                             </tr>
                           );

@@ -17,7 +17,7 @@ import {
 import { ReceiptModal } from "@/components/ReceiptModal";
 import { Pagination, TableSearchInput, TableSkeleton } from "@/components/ui";
 import { useTableSearch } from "@/hooks/useTableSearch";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatAmount } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Receipt, Printer } from "lucide-react";
@@ -244,7 +244,7 @@ export function ReceiptsPage() {
                     </th>
                   )}
                   <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                    Total
+                    Total (KSH)
                   </th>
                   {showStaffCol && (
                     <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
@@ -284,8 +284,8 @@ export function ReceiptsPage() {
                             : "—"}
                         </td>
                       )}
-                      <td className="px-4 py-2 text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
-                        {formatCurrency(sale.total)}
+                      <td className="px-4 py-2 text-left text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                        {formatAmount(sale.total)}
                       </td>
                       {showStaffCol && (
                         <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">

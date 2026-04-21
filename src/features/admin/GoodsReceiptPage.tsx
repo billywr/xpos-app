@@ -22,7 +22,7 @@ import type { Supplier } from "@/api/suppliers";
 import { PageHeader } from "@/components/PageHeader";
 import { SlideOver, Pagination, ConfirmDialog, TableSearchInput, TableSkeleton } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { useToast } from "@/contexts/ToastContext";
 import { Link } from "react-router-dom";
 import { Plus, PackagePlus, Trash2, Pencil, FileEdit, FileX } from "lucide-react";
@@ -865,11 +865,11 @@ export function GoodsReceiptPage({
                     </th>
                     {showBuyPriceCol && (
                       <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                        Buy price
+                        Buy price (KSH)
                       </th>
                     )}
                     <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                      Total
+                      Total (KSH)
                     </th>
                     <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Actions
@@ -924,15 +924,15 @@ export function GoodsReceiptPage({
                               {line != null ? line.qty : "—"}
                             </td>
                             {showBuyPriceCol && (
-                              <td className="px-4 py-2 text-base text-slate-600 tabular-nums sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                              <td className="px-4 py-2 text-left text-base text-slate-600 tabular-nums sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                                 {line != null && line.receivedUnitCost != null
-                                  ? formatCurrency(line.receivedUnitCost)
+                                  ? formatAmount(line.receivedUnitCost)
                                   : "—"}
                               </td>
                             )}
-                            <td className="px-4 py-2 text-base font-semibold text-slate-700 tabular-nums sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                            <td className="px-4 py-2 text-left text-base font-semibold text-slate-700 tabular-nums sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
                               {line != null
-                                ? formatCurrency(lineTotal)
+                                ? formatAmount(lineTotal)
                                 : "—"}
                             </td>
                             <td className="whitespace-nowrap px-4 py-2 text-left text-base align-middle sm:px-6 sm:py-2.5 sm:text-lg">

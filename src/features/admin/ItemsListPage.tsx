@@ -30,7 +30,7 @@ import { SlideOver, Pagination, ConfirmDialog, TableSearchInput, TableSkeleton }
 import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatAmount } from "@/utils/formatCurrency";
 import { getItemImageUrl, getItemImageName } from "@/utils/itemImage";
 import { resizeImageTo400x400 } from "@/utils/imageResize";
 import { Plus, Pencil, Trash2, Upload, ChevronDown } from "lucide-react";
@@ -943,11 +943,11 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                     </th>
                     {showBuyingCol && (
                       <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                        Buying
+                        Buying (KSH)
                       </th>
                     )}
                     <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                      Selling
+                      Selling (KSH)
                     </th>
                     <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
                       Image
@@ -1598,7 +1598,7 @@ function PriceCell({
       className="rounded px-1.5 py-0.5 text-left font-semibold tabular-nums text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-900/30"
       title="Click to edit"
     >
-      {currentValue != null ? formatCurrency(currentValue) : "—"}
+      {currentValue != null ? formatAmount(currentValue) : "—"}
     </button>
   );
 }

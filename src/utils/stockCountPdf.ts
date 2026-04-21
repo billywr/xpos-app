@@ -65,9 +65,9 @@ export function generateStockCountPdf(
           "System Qty",
           "Counted Qty",
           "Variance",
-          "Unit Cost",
+          "Unit Cost (KSH)",
           "Qty Sold",
-          "Selling Price",
+          "Selling Price (KSH)",
         ],
       ],
       body: tableData,
@@ -76,6 +76,10 @@ export function generateStockCountPdf(
       theme: "grid",
       styles: { fontSize: 9 },
       headStyles: { fillColor: [17, 50, 100] },
+      columnStyles: {
+        4: { halign: "left" },
+        6: { halign: "left" },
+      },
     });
     const meta = (doc as unknown as { lastAutoTable?: { finalY: number } })
       .lastAutoTable;

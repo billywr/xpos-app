@@ -18,7 +18,7 @@ import {
 } from "@/api/stdStockCount";
 import { fetchOperatorAnalyticsSnapshot } from "@/api/operatorAnalytics";
 import { fetchDebts } from "@/api/debts";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
@@ -627,16 +627,16 @@ export function StandardStockCountSheetPage({
                     Sold
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300"
+                    className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300"
                     title="Selling price per unit from price list"
                   >
-                    Price
+                    Price (KSH)
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300"
+                    className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300"
                     title="Units Sold × Selling Price (revenue value)"
                   >
-                    Amt
+                    Amt (KSH)
                   </th>
                 </tr>
               </thead>
@@ -694,11 +694,11 @@ export function StandardStockCountSheetPage({
                     <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
                       {r.unitsSold}
                     </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
-                      {formatCurrency(r.sellingPrice)}
+                    <td className="px-4 py-2 text-left text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                      {formatAmount(r.sellingPrice)}
                     </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
-                      {formatCurrency(r.amount)}
+                    <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                      {formatAmount(r.amount)}
                     </td>
                   </tr>
                 ))}

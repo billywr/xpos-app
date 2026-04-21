@@ -15,7 +15,7 @@ import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { Pagination, TableSearchInput, TableSkeleton } from "@/components/ui";
 import { useTableSearch } from "@/hooks/useTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { Receipt, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -364,7 +364,7 @@ export function SalesListPage() {
                       </th>
                     )}
                     <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                      Total
+                      Total (KSH)
                     </th>
                   </tr>
                 </thead>
@@ -427,7 +427,7 @@ export function SalesListPage() {
                             </td>
                           )}
                           <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
-                            {formatCurrency(sale.total)}
+                            {formatAmount(sale.total)}
                           </td>
                         </tr>
                         {expandedSaleId === sale.id && (

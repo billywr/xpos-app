@@ -2,11 +2,11 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { CustomerDebtResponse } from "@/api/debts";
 
-function formatKsh(amount: number): string {
-  return `Ksh ${amount.toLocaleString("en-KE", {
+function formatAmount(amount: number): string {
+  return amount.toLocaleString("en-KE", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`;
+  });
 }
 
 function formatDateTime(iso: string): string {
@@ -80,9 +80,9 @@ export function generateDebtsPdf(
     const tableData = debts.map((d) => [
       d.customerName,
       d.customerPhone ?? "—",
-      formatKsh(d.amount),
-      formatKsh(d.amountSettled ?? 0),
-      formatKsh(d.outstanding),
+      formatAmount(d.amount),
+      formatAmount(d.amountSettled ?? 0),
+      formatAmount(d.outstanding),
       statusLabel(d.status),
       formatDate(d.dueDate),
       formatDateTime(d.createdAt),
@@ -94,9 +94,9 @@ export function generateDebtsPdf(
         [
           "Customer",
           "Phone",
-          "Original",
-          "Repaid",
-          "Balance",
+          "Original (KSH)",
+          "Repaid (KSH)",
+          "Balance (KSH)",
           "Status",
           "Due",
           "Recorded",
@@ -111,14 +111,14 @@ export function generateDebtsPdf(
       headStyles: { fillColor: [17, 50, 100], halign: "left", fontSize: 11 },
       columnStyles: {
         0: { fontStyle: "bold", textColor: [17, 24, 39] },
-        2: { halign: "right" },
+        2: { halign: "left" },
         3: {
-          halign: "right",
+          halign: "left",
           fontStyle: "bold",
           textColor: [5, 150, 105],
         },
         4: {
-          halign: "right",
+          halign: "left",
           fontStyle: "bold",
           textColor: [220, 38, 38],
         },
@@ -142,22 +142,22 @@ export function generateDebtsPdf(
     const col1 = margin;
     const col2 = margin + 70;
     const col3 = margin + 140;
-    doc.text("Total original", col1, y);
+    doc.text("Total original (KSH)", col1, y);
     doc.setFont("helvetica", "bold");
-    doc.text(formatKsh(totalOriginal), col1, y + 6);
+    doc.text(formatAmount(totalOriginal), col1, y + 6);
     doc.setFont("helvetica", "normal");
 
-    doc.text("Total repaid", col2, y);
+    doc.text("Total repaid (KSH)", col2, y);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(5, 150, 105);
-    doc.text(formatKsh(totalRepaid), col2, y + 6);
+    doc.text(formatAmount(totalRepaid), col2, y + 6);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
 
-    doc.text("Total outstanding", col3, y);
+    doc.text("Total outstanding (KSH)", col3, y);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(220, 38, 38);
-    doc.text(formatKsh(totalOutstanding), col3, y + 6);
+    doc.text(formatAmount(totalOutstanding), col3, y + 6);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
     y += 10;
