@@ -231,7 +231,8 @@ public class SaleOperatorController {
         saleId,
         terminalId,
         shift.getId(),
-        staffUser.getId());
+        staffUser.getId(),
+        null);
 
     Sale completed = saleService.completeAllowingPartialWithDebt(orgId, saleId);
     return toSaleResponse(completed);

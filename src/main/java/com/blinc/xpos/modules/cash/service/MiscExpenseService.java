@@ -20,7 +20,8 @@ public interface MiscExpenseService {
       String receiptRef,
       UUID terminalId,
       UUID shiftId,
-      UUID createdByStaffUserId);
+      UUID createdByStaffUserId,
+      Instant recordedAt);
 
   MiscExpense require(UUID orgId, UUID expenseId);
 

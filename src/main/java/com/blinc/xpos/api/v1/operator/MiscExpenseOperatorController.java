@@ -70,7 +70,8 @@ public class MiscExpenseOperatorController {
             request.receiptRef(),
             request.terminalId(),
             request.shiftId(),
-            staffUser.getId());
+            staffUser.getId(),
+            request.createdAt());
     return toResponse(expense);
   }
 

@@ -75,10 +75,21 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
       UUID saleId,
       UUID terminalId,
       UUID shiftId,
-      UUID createdByStaffUserId) {
+      UUID createdByStaffUserId,
+      Instant recordedAt) {
     branchService.require(orgId, branchId);
     Customer customer = customerService.require(orgId, customerId);
     var createdBy = staffUserService.require(orgId, createdByStaffUserId);
+
+    Instant now = Instant.now(clock);
+    Instant effectiveCreatedAt = now;
+    if (recordedAt != null) {
+      if (recordedAt.isAfter(now)) {
+        throw new BadRequestException(
+            "RECORDED_AT_IN_FUTURE", "Date recorded cannot be in the future.");
+      }
+      effectiveCreatedAt = recordedAt;
+    }
 
     CustomerDebt debt = new CustomerDebt();
     debt.setOrg(customer.getOrg());
@@ -91,7 +102,7 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
     debt.setStatus(CustomerDebtStatus.OPEN);
     debt.setNotes(notes != null ? notes.trim() : null);
     debt.setCreatedBy(createdBy);
-    debt.setCreatedAt(Instant.now(clock));
+    debt.setCreatedAt(effectiveCreatedAt);
 
     if (saleId != null) {
       Sale sale =

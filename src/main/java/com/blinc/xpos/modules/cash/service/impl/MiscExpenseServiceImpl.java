@@ -60,9 +60,20 @@ public class MiscExpenseServiceImpl implements MiscExpenseService {
       String receiptRef,
       UUID terminalId,
       UUID shiftId,
-      UUID createdByStaffUserId) {
+      UUID createdByStaffUserId,
+      Instant recordedAt) {
     var branch = branchService.require(orgId, branchId);
     var createdBy = staffUserService.require(orgId, createdByStaffUserId);
+
+    Instant now = Instant.now(clock);
+    Instant effectiveCreatedAt = now;
+    if (recordedAt != null) {
+      if (recordedAt.isAfter(now)) {
+        throw new BadRequestException(
+            "RECORDED_AT_IN_FUTURE", "Date recorded cannot be in the future.");
+      }
+      effectiveCreatedAt = recordedAt;
+    }
 
     MiscExpense expense = new MiscExpense();
     expense.setOrg(branch.getOrg());
@@ -73,7 +84,7 @@ public class MiscExpenseServiceImpl implements MiscExpenseService {
     expense.setIncurredBy(incurredBy != null && !incurredBy.isBlank() ? incurredBy.trim() : null);
     expense.setReceiptRef(receiptRef != null && !receiptRef.isBlank() ? receiptRef.trim() : null);
     expense.setCreatedBy(createdBy);
-    expense.setCreatedAt(Instant.now(clock));
+    expense.setCreatedAt(effectiveCreatedAt);
 
     if (terminalId != null) {
       Terminal terminal = terminalService.require(orgId, terminalId);

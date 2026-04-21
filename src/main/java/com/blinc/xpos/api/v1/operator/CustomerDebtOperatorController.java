@@ -75,7 +75,8 @@ public class CustomerDebtOperatorController {
             request.saleId(),
             request.terminalId(),
             request.shiftId(),
-            staffUser.getId());
+            staffUser.getId(),
+            request.createdAt());
     return toResponse(debt);
   }
 
