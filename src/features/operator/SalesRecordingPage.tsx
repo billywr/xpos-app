@@ -29,6 +29,10 @@ import {
   recordHistoricalSales,
   type SalesRecordingEntry,
 } from "@/api/salesRecording";
+import {
+  fetchSalesRecordingDraft,
+  saveSalesRecordingDraft,
+} from "@/api/salesRecordingDraft";
 import { Pagination } from "@/components/ui/Pagination";
 import { formatAmount } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
@@ -36,25 +40,9 @@ import { useToast } from "@/contexts/ToastContext";
 import type { Item } from "@/types/catalog";
 
 const BACKDATE_MAX_DAYS = 7;
-const DRAFT_STORAGE_PREFIX = "xpos:sales-recording-draft";
-const DRAFT_SAVE_DEBOUNCE_MS = 500;
+const DRAFT_SAVE_DEBOUNCE_MS = 300;
 const PAGE_SIZE_OPTIONS = [10, 15, 25];
 const DEFAULT_PAGE_SIZE = 15;
-
-interface DraftPayload {
-  qtyByItem?: Record<string, string>;
-  savedAt?: string;
-}
-
-function draftKey(
-  orgId: string | null,
-  branchId: string | null,
-  terminalId: string | null,
-  saleDate: string
-): string | null {
-  if (!orgId || !branchId || !terminalId || !saleDate) return null;
-  return `${DRAFT_STORAGE_PREFIX}:${orgId}:${branchId}:${terminalId}:${saleDate}`;
-}
 
 function formatRelativeTime(date: Date, nowMs: number): string {
   const diffSec = Math.max(0, Math.floor((nowMs - date.getTime()) / 1000));
@@ -118,33 +106,56 @@ export function SalesRecordingPage() {
   const [qtyByItem, setQtyByItem] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [draftSaveError, setDraftSaveError] = useState<boolean>(false);
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
   const [page, setPage] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const saveTimerRef = useRef<number | null>(null);
+  const hydratedKeyRef = useRef<string | null>(null);
+
+  const draftScopeKey =
+    orgId && branchId && terminalId && saleDate
+      ? `${orgId}:${branchId}:${terminalId}:${saleDate}`
+      : null;
+
+  const draftQuery = useQuery({
+    queryKey: ["sales-recording-draft", orgId, branchId, terminalId, saleDate],
+    queryFn: () =>
+      fetchSalesRecordingDraft(token, orgId!, branchId!, terminalId!, saleDate),
+    enabled: Boolean(token && orgId && branchId && terminalId && saleDate),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
 
   useEffect(() => {
-    const key = draftKey(orgId, branchId, terminalId, saleDate);
-    if (!key) {
-      setQtyByItem({});
-      setLastSavedAt(null);
+    if (draftScopeKey == null) {
       return;
     }
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw) as DraftPayload;
-        setQtyByItem(parsed.qtyByItem ?? {});
-        setLastSavedAt(parsed.savedAt ? new Date(parsed.savedAt) : null);
-      } else {
-        setQtyByItem({});
-        setLastSavedAt(null);
-      }
-    } catch {
+    if (hydratedKeyRef.current === draftScopeKey) {
+      return;
+    }
+    if (draftQuery.isLoading) {
+      return;
+    }
+    const data = draftQuery.data;
+    if (data) {
+      setQtyByItem(data.qtyByItem ?? {});
+      setLastSavedAt(data.updatedAt ? new Date(data.updatedAt) : null);
+    } else {
       setQtyByItem({});
       setLastSavedAt(null);
     }
+    setDraftSaveError(false);
+    hydratedKeyRef.current = draftScopeKey;
+  }, [draftScopeKey, draftQuery.isLoading, draftQuery.data]);
+
+  // Reset hydration when scope changes so the new scope's draft re-seeds local state.
+  useEffect(() => {
+    return () => {
+      hydratedKeyRef.current = null;
+    };
   }, [orgId, branchId, terminalId, saleDate]);
 
   useEffect(() => {
@@ -160,6 +171,23 @@ export function SalesRecordingPage() {
       }
     };
   }, []);
+
+  const saveDraftMutation = useMutation({
+    mutationFn: (qtyMap: Record<string, string>) =>
+      saveSalesRecordingDraft(token, orgId!, branchId!, terminalId!, saleDate, qtyMap),
+    onSuccess: (resp) => {
+      setLastSavedAt(resp.updatedAt ? new Date(resp.updatedAt) : new Date());
+      setDraftSaveError(false);
+      setNowMs(Date.now());
+      queryClient.setQueryData(
+        ["sales-recording-draft", orgId, branchId, terminalId, saleDate],
+        resp
+      );
+    },
+    onError: () => {
+      setDraftSaveError(true);
+    },
+  });
 
   const itemsQuery = useQuery({
     queryKey: ["sales-recording-items", orgId],
@@ -287,16 +315,19 @@ export function SalesRecordingPage() {
         window.clearTimeout(saveTimerRef.current);
         saveTimerRef.current = null;
       }
-      const key = draftKey(orgId, branchId, terminalId, saleDate);
-      if (key) {
-        try {
-          localStorage.removeItem(key);
-        } catch {
-          // Ignore storage errors.
-        }
-      }
+      // Backend auto-clears the draft on a successful batch; mirror that locally.
       setQtyByItem({});
       setLastSavedAt(null);
+      setDraftSaveError(false);
+      queryClient.setQueryData(
+        ["sales-recording-draft", orgId, branchId, terminalId, saleDate],
+        {
+          exists: false,
+          saleDate,
+          qtyByItem: {},
+          updatedAt: null,
+        }
+      );
       queryClient.invalidateQueries({
         queryKey: ["sales-recording-stock", orgId, branchId],
       });
@@ -319,40 +350,20 @@ export function SalesRecordingPage() {
     batchSummary.entries.length > 0;
 
   const scheduleDraftSave = (next: Record<string, string>) => {
-    const key = draftKey(orgId, branchId, terminalId, saleDate);
-    if (!key) return;
+    if (!orgId || !branchId || !terminalId || !saleDate) return;
     if (saveTimerRef.current != null) {
       window.clearTimeout(saveTimerRef.current);
     }
     saveTimerRef.current = window.setTimeout(() => {
       saveTimerRef.current = null;
-      try {
-        const hasEntries = Object.values(next).some(
-          (v) => v && v.trim() !== ""
-        );
-        if (!hasEntries) {
-          localStorage.removeItem(key);
-          setLastSavedAt(null);
-          return;
+      // Strip blanks: the server also normalises, but this keeps the request small.
+      const clean: Record<string, string> = {};
+      for (const [itemId, raw] of Object.entries(next)) {
+        if (raw && raw.trim() !== "") {
+          clean[itemId] = raw.trim();
         }
-        const savedAt = new Date();
-        const payload: DraftPayload = {
-          qtyByItem: next,
-          savedAt: savedAt.toISOString(),
-        };
-        localStorage.setItem(key, JSON.stringify(payload));
-        setLastSavedAt(savedAt);
-        setNowMs(Date.now());
-        toast.success("Draft saved", {
-          title: "Sales Recording",
-          duration: 1500,
-        });
-      } catch (err) {
-        toast.error("Couldn't save draft locally.", {
-          title: "Sales Recording",
-          detail: err instanceof Error ? err.message : undefined,
-        });
       }
+      saveDraftMutation.mutate(clean);
     }, DRAFT_SAVE_DEBOUNCE_MS);
   };
 
@@ -473,7 +484,20 @@ export function SalesRecordingPage() {
             Total (KSH):{" "}
             <span className="font-semibold">{formatAmount(batchSummary.total)}</span>
           </span>
-          {lastSavedAt && (
+          {saveDraftMutation.isPending ? (
+            <span className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving draft…
+            </span>
+          ) : draftSaveError ? (
+            <span
+              className="inline-flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400"
+              title="Draft save failed — we'll retry on the next change."
+            >
+              <AlertTriangle className="h-4 w-4" />
+              Draft not saved
+            </span>
+          ) : lastSavedAt ? (
             <span
               className="inline-flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400"
               title={lastSavedAt.toLocaleString()}
@@ -481,7 +505,7 @@ export function SalesRecordingPage() {
               <CheckCircle2 className="h-4 w-4" />
               Draft saved · {formatRelativeTime(lastSavedAt, nowMs)}
             </span>
-          )}
+          ) : null}
           {batchSummary.entries.length > 0 && (
             <button
               type="button"
