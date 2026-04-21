@@ -349,21 +349,21 @@ export function SalesListPage() {
                   <tr>
                     <th className="sticky left-0 z-20 w-10 bg-slate-50 px-4 py-3 sm:py-3 dark:bg-slate-700" aria-label="Expand" />
                     {showReceiptCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         Receipt #
                       </th>
                     )}
                     {showCompletedCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         Completed
                       </th>
                     )}
                     {showCashierCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         Cashier
                       </th>
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Total (KSH)
                     </th>
                   </tr>
@@ -410,23 +410,23 @@ export function SalesListPage() {
                             </button>
                           </td>
                           {showReceiptCol && (
-                            <td className="px-4 py-2 font-mono text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                            <td className="px-4 py-2 font-mono text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                               {sale.receiptNumber ?? "—"}
                             </td>
                           )}
                           {showCompletedCol && (
-                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                               {sale.completedAt
                                 ? new Date(sale.completedAt).toLocaleString()
                                 : "—"}
                             </td>
                           )}
                           {showCashierCol && (
-                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                               {sale.createdByUsername ?? "—"}
                             </td>
                           )}
-                          <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                          <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                             {formatAmount(sale.total)}
                           </td>
                         </tr>

@@ -227,27 +227,27 @@ export function ShiftsListPage() {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "720px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
                       Opened
                     </th>
                     {showClosedCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         Closed
                       </th>
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Float (KSH)
                     </th>
                     {showCountedCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         Counted (KSH)
                       </th>
                     )}
                     {showVarianceCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         Variance (KSH)
                       </th>
                     )}
@@ -269,17 +269,17 @@ export function ShiftsListPage() {
                         key={shift.id}
                         className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                           {new Date(shift.openedAt).toLocaleString()}
                         </td>
                         {showClosedCol && (
-                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                             {shift.closedAt
                               ? new Date(shift.closedAt).toLocaleString()
                               : "—"}
                           </td>
                         )}
-                        <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-lg">
+                        <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
                           <span
                             className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
                               shift.status === "OPEN"
@@ -290,18 +290,18 @@ export function ShiftsListPage() {
                             {shift.status}
                           </span>
                         </td>
-                        <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                        <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                           {formatAmount(shift.openingFloatAmount)}
                         </td>
                         {showCountedCol && (
-                          <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                          <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                             {shift.closingCountedAmount != null
                               ? formatAmount(shift.closingCountedAmount)
                               : "—"}
                           </td>
                         )}
                         {showVarianceCol && (
-                          <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                          <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                             {shift.varianceAmount != null
                               ? formatAmount(shift.varianceAmount)
                               : "—"}

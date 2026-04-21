@@ -428,7 +428,7 @@ export function GoodsReceiptPage({
     () => pagedRows.some((r) => r.line?.receivedUnitCost != null),
     [pagedRows]
   );
-  const visibleColCount = 6 + (showBarcodeCol ? 1 : 0) + (showBuyPriceCol ? 1 : 0);
+  const visibleColCount = 5 + (showBarcodeCol ? 1 : 0) + (showBuyPriceCol ? 1 : 0);
 
   // Reset to first page when the filter or page size changes the result set.
   useEffect(() => {
@@ -846,32 +846,29 @@ export function GoodsReceiptPage({
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "900px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
                       Received
                     </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
-                      Supplier
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Name
                     </th>
                     {showBarcodeCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         Barcode
                       </th>
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Qty
                     </th>
                     {showBuyPriceCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         Buy price (KSH)
                       </th>
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Total (KSH)
                     </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -904,38 +901,35 @@ export function GoodsReceiptPage({
                             }
                             className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                           >
-                            <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                            <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                               {new Date(grn.receivedAt).toLocaleString()}
                             </td>
-                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
-                              {grn.supplierName}
-                            </td>
-                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                               {line?.itemName ?? "—"}
                             </td>
                             {showBarcodeCol && (
-                              <td className="px-4 py-2 font-mono text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                              <td className="px-4 py-2 font-mono text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                                 {line?.barcode?.trim()
                                   ? line.barcode
                                   : "—"}
                               </td>
                             )}
-                            <td className="px-4 py-2 text-base text-slate-600 tabular-nums sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            <td className="px-4 py-2 text-base text-slate-600 tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                               {line != null ? line.qty : "—"}
                             </td>
                             {showBuyPriceCol && (
-                              <td className="px-4 py-2 text-left text-base text-slate-600 tabular-nums sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                              <td className="px-4 py-2 text-left text-base text-slate-600 tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                                 {line != null && line.receivedUnitCost != null
                                   ? formatAmount(line.receivedUnitCost)
                                   : "—"}
                               </td>
                             )}
-                            <td className="px-4 py-2 text-left text-base font-semibold text-slate-700 tabular-nums sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                            <td className="px-4 py-2 text-left text-base font-semibold text-slate-700 tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                               {line != null
                                 ? formatAmount(lineTotal)
                                 : "—"}
                             </td>
-                            <td className="whitespace-nowrap px-4 py-2 text-left text-base align-middle sm:px-6 sm:py-2.5 sm:text-lg">
+                            <td className="whitespace-nowrap px-4 py-2 text-left text-base align-middle sm:px-6 sm:py-2.5 sm:text-2xl">
                               <div className="flex items-center gap-1">
                                 {line != null && (
                                   <>

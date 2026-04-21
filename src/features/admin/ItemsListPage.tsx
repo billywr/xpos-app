@@ -922,37 +922,37 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "1000px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
                       Name
                     </th>
                     {showSkuCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         SKU
                       </th>
                     )}
                     {showBarcode && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         Barcode
                       </th>
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Type
                     </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Active
                     </th>
                     {showBuyingCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         Buying (KSH)
                       </th>
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Selling (KSH)
                     </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Image
                     </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -978,25 +978,25 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                           key={item.id}
                           className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                         >
-                          <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                          <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                             {item.name}
                           </td>
                           {showSkuCol && (
-                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                               {item.sku ?? "—"}
                             </td>
                           )}
                           {showBarcode && (
-                            <td className="px-4 py-2 font-mono text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            <td className="px-4 py-2 font-mono text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                               {item.barcode ?? "—"}
                             </td>
                           )}
-                          <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-lg">
+                          <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
                             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                               {item.itemType}
                             </span>
                           </td>
-                          <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-lg">
+                          <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
                             {item.active ? (
                               <span className="text-emerald-600 dark:text-emerald-400">
                                 Yes
@@ -1006,7 +1006,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                             )}
                           </td>
                           {showBuyingCol && (
-                            <td className="px-4 py-2 text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                            <td className="px-4 py-2 text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                               <PriceCell
                                 item={item}
                                 field="buyingPrice"
@@ -1029,7 +1029,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                               />
                             </td>
                           )}
-                          <td className="px-4 py-2 text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                          <td className="px-4 py-2 text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                             <PriceCell
                               item={item}
                               field="defaultSellingPrice"
@@ -1051,7 +1051,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                               onCancel={() => setEditingPriceCell(null)}
                             />
                           </td>
-                          <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-lg">
+                          <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
                             <button
                               type="button"
                               disabled={inlineUploadingItemId === item.id}
@@ -1070,7 +1070,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                               {item.primaryImageUrl ? getItemImageName(item.primaryImageUrl) : "Upload"}
                             </button>
                           </td>
-                          <td className="px-4 py-2 text-left text-base sm:px-6 sm:py-2.5 sm:text-lg">
+                          <td className="px-4 py-2 text-left text-base sm:px-6 sm:py-2.5 sm:text-2xl">
                             <div className="flex justify-start gap-2">
                               <button
                                 type="button"

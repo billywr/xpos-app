@@ -1434,27 +1434,27 @@ function PaymentModal({
                 aria-label="Sale line items and subtotals"
               >
                 <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-                <table className="w-full text-left text-base sm:text-lg" style={{ minWidth: "420px" }}>
+                <table className="w-full text-left text-base sm:text-2xl" style={{ minWidth: "420px" }}>
                   <thead className="border-b border-slate-200 bg-slate-50 text-base font-semibold uppercase tracking-wide text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
                     <tr>
-                      <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700">Item</th>
-                      <th className="px-4 py-3 text-right sm:px-6 sm:py-3 sm:text-lg">Qty</th>
-                      <th className="px-4 py-3 text-left sm:px-6 sm:py-3 sm:text-lg">Unit (KSH)</th>
-                      <th className="px-4 py-3 text-left sm:px-6 sm:py-3 sm:text-lg">Subtotal (KSH)</th>
+                      <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700">Item</th>
+                      <th className="px-4 py-3 text-right sm:px-6 sm:py-3 sm:text-2xl">Qty</th>
+                      <th className="px-4 py-3 text-left sm:px-6 sm:py-3 sm:text-2xl">Unit (KSH)</th>
+                      <th className="px-4 py-3 text-left sm:px-6 sm:py-3 sm:text-2xl">Subtotal (KSH)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                     {(sale.lines ?? []).map((line) => (
                       <Fragment key={line.id}>
                         <tr className="group text-slate-800 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-700">
-                          <td className="sticky left-0 z-10 max-w-[7rem] bg-white group-hover:!bg-slate-100 px-4 py-2 align-top sm:max-w-[10rem] sm:px-6 sm:py-2.5 sm:text-lg dark:bg-slate-800 dark:group-hover:!bg-slate-700">
+                          <td className="sticky left-0 z-10 max-w-[7rem] bg-white group-hover:!bg-slate-100 px-4 py-2 align-top sm:max-w-[10rem] sm:px-6 sm:py-2.5 sm:text-2xl dark:bg-slate-800 dark:group-hover:!bg-slate-700">
                             <span className="font-semibold text-slate-700 leading-snug dark:text-slate-300">{line.itemName}</span>
                           </td>
-                          <td className="px-4 py-2 text-right text-base tabular-nums text-slate-600 align-top sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">{line.qty}</td>
-                          <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 align-top sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                          <td className="px-4 py-2 text-right text-base tabular-nums text-slate-600 align-top sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">{line.qty}</td>
+                          <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 align-top sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                             {formatAmount(line.unitPrice)}
                           </td>
-                          <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-slate-700 align-top sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                          <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-slate-700 align-top sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                             {formatAmount(line.lineTotal)}
                           </td>
                         </tr>
@@ -1465,14 +1465,14 @@ function PaymentModal({
                               key={`${line.id}-mod-${m.id}`}
                               className="bg-slate-50/80 text-xs text-slate-600 dark:bg-slate-800/40 dark:text-slate-400"
                             >
-                              <td className="px-4 py-2 pl-6 text-base sm:px-6 sm:py-2.5 sm:text-lg" colSpan={2}>
+                              <td className="px-4 py-2 pl-6 text-base sm:px-6 sm:py-2.5 sm:text-2xl" colSpan={2}>
                                 + {m.modifierOptionName}
                                 {m.qty > 1 ? ` × ${m.qty}` : ""}
                               </td>
-                              <td className="px-4 py-2 text-left text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-lg">
+                              <td className="px-4 py-2 text-left text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl">
                                 {modAmt !== 0 ? formatAmount(m.unitPriceDelta) : "—"}
                               </td>
-                              <td className="px-4 py-2 text-left text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-lg">
+                              <td className="px-4 py-2 text-left text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl">
                                 {modAmt !== 0 ? formatAmount(modAmt) : "—"}
                               </td>
                             </tr>

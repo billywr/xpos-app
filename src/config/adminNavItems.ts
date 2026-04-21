@@ -13,6 +13,7 @@ import {
   Monitor,
   Package,
 
+  PencilLine,
   ScanBarcode,
   Settings,
   ShoppingCart,
@@ -63,6 +64,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItemConfig[] = [
   navItem("/admin/tender-types", "Tender types", CreditCard, "Sales"),
   navItem("/admin/tables", "Tables", UtensilsCrossed, "Sales"),
   navItem("/admin/sales", "Sales", ShoppingCart, "Sales"),
+  navItem("/operator/sales-recording", "Sales Recording", PencilLine, "Sales"),
   navItem("/admin/shifts", "Shifts", Wallet, "Sales"),
   navItem("/admin/z-report", "Z-Report", FileText, "Sales"),
   navItem("/admin/inventory", "Stock and Inventory", Package, "Inventory"),

@@ -335,15 +335,15 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "360px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
                       Legal name
                     </th>
                     {showKraPinCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         KRA PIN
                       </th>
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -353,7 +353,7 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                     <tr>
                       <td
                         colSpan={2 + (showKraPinCol ? 1 : 0)}
-                        className="px-4 py-8 text-center text-base text-slate-500 sm:px-6 sm:text-lg dark:text-slate-400"
+                        className="px-4 py-8 text-center text-base text-slate-500 sm:px-6 sm:text-2xl dark:text-slate-400"
                       >
                         {businesses.length === 0 ? "No businesses yet. Add one to use when creating branches." : "No results match your search."}
                       </td>
@@ -364,11 +364,11 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                         key={business.id}
                         className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                           {business.legalName}
                         </td>
                         {showKraPinCol && (
-                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                             {business.kraPin ?? "—"}
                           </td>
                         )}

@@ -367,18 +367,18 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "480px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
                       Name
                     </th>
                     {showParentCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         Parent
                       </th>
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Type
                     </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -388,7 +388,7 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                     <tr>
                       <td
                         colSpan={3 + (showParentCol ? 1 : 0)}
-                        className="px-4 py-8 text-center text-base text-slate-500 sm:px-6 sm:text-lg dark:text-slate-400"
+                        className="px-4 py-8 text-center text-base text-slate-500 sm:px-6 sm:text-2xl dark:text-slate-400"
                       >
                         {categories.length === 0 ? "No categories yet. Add one to organize your catalog." : "No results match your search."}
                       </td>
@@ -399,11 +399,11 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                         key={cat.id}
                         className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                           {cat.name}
                         </td>
                         {showParentCol && (
-                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                             {parentName(cat)}
                           </td>
                         )}

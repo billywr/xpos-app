@@ -493,7 +493,7 @@ export function AdminTablesPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "280px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
-                      <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
+                      <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
                         Name
                       </th>
                       <th className="w-24 px-4 py-3 sm:px-6 sm:py-3" aria-label="Actions" />
@@ -505,7 +505,7 @@ export function AdminTablesPage() {
                         key={area.id}
                         className="border-t border-slate-200 dark:border-slate-700"
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                           {area.name}
                         </td>
                         <td className="px-4 py-2 sm:px-6 sm:py-2.5">
@@ -555,20 +555,20 @@ export function AdminTablesPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "500px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
-                      <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
+                      <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
                         Name
                       </th>
                       {showTableAreaCol && (
-                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                           Area
                         </th>
                       )}
                       {showTableCapacityCol && (
-                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                           Capacity
                         </th>
                       )}
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                         Status
                       </th>
                       <th className="w-24 px-4 py-3 sm:px-6 sm:py-3" aria-label="Actions" />
@@ -580,11 +580,11 @@ export function AdminTablesPage() {
                         key={table.id}
                         className="border-t border-slate-200 dark:border-slate-700"
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                           {table.name}
                         </td>
                         {showTableAreaCol && (
-                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                             {table.tableAreaId
                               ? areas.find((a) => a.id === table.tableAreaId)
                                   ?.name ?? "—"
@@ -592,11 +592,11 @@ export function AdminTablesPage() {
                           </td>
                         )}
                         {showTableCapacityCol && (
-                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                             {table.capacity ?? "—"}
                           </td>
                         )}
-                        <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-lg">
+                        <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
                           <span
                             className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
                               table.status === "ACTIVE" ||

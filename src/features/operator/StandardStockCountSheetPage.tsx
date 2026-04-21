@@ -591,49 +591,49 @@ export function StandardStockCountSheetPage({
               <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700">
                 <tr>
                   <th
-                    className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300"
+                    className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
                     title="Product name"
                   >
                     Item
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300"
+                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="Previous business day's saved closing, or ledger fallback if that day was not saved"
                   >
                     Open
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300"
+                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="Received today per receipt date (sum of current GRN lines; edits apply immediately)"
                   >
                     Added
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300"
+                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="Opening + Added + stock-take adds; equals System when counts align with the ledger"
                   >
                     Total
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300"
+                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="Physical count at end of day"
                   >
                     Close
                   </th>
                   <th
-                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300"
+                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="Total Stock − Closing (units sold)"
                   >
                     Sold
                   </th>
                   <th
-                    className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300"
+                    className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="Selling price per unit from price list"
                   >
                     Price (KSH)
                   </th>
                   <th
-                    className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300"
+                    className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="Units Sold × Selling Price (revenue value)"
                   >
                     Amt (KSH)
@@ -646,16 +646,16 @@ export function StandardStockCountSheetPage({
                     key={r.itemId}
                     className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                   >
-                    <td className="sticky left-0 z-10 bg-white px-4 py-2 text-base font-semibold text-slate-700 group-hover:!bg-slate-100 sm:px-6 sm:py-2.5 sm:text-lg dark:bg-slate-800 dark:text-slate-300 dark:group-hover:!bg-slate-700">
+                    <td className="sticky left-0 z-10 bg-white px-4 py-2 text-base font-semibold text-slate-700 group-hover:!bg-slate-100 sm:px-6 sm:py-2.5 sm:text-2xl dark:bg-slate-800 dark:text-slate-300 dark:group-hover:!bg-slate-700">
                       {r.name || "—"}
                     </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                       {r.openingStock}
                     </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                       {r.addedStock}
                     </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                       {r.totalStock}
                     </td>
                     <td className="px-4 py-2 sm:px-6 sm:py-2.5">
@@ -673,7 +673,7 @@ export function StandardStockCountSheetPage({
                             onChange={(e) =>
                               handleClosingChange(r.itemId, e.target.value)
                             }
-                            className={`w-20 rounded border px-1.5 py-1 text-right text-base tabular-nums font-medium sm:w-24 sm:px-2 sm:py-1 sm:text-lg ${
+                            className={`w-20 rounded border px-1.5 py-1 text-right text-base tabular-nums font-medium sm:w-24 sm:px-2 sm:py-1 sm:text-2xl ${
                               r.closingError
                                 ? "border-red-500 bg-red-50 dark:border-red-600 dark:bg-red-950/20"
                                 : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800"
@@ -686,18 +686,18 @@ export function StandardStockCountSheetPage({
                           )}
                         </div>
                       ) : (
-                        <span className="block text-right text-base tabular-nums font-medium text-slate-600 sm:text-lg dark:text-slate-400">
+                        <span className="block text-right text-base tabular-nums font-medium text-slate-600 sm:text-2xl dark:text-slate-400">
                           {r.closingStock}
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                       {r.unitsSold}
                     </td>
-                    <td className="px-4 py-2 text-left text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                    <td className="px-4 py-2 text-left text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                       {formatAmount(r.sellingPrice)}
                     </td>
-                    <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                    <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                       {formatAmount(r.amount)}
                     </td>
                   </tr>

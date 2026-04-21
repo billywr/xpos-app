@@ -1,0 +1,845 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  AlertTriangle,
+  BarChart3,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  NotebookPen,
+  Package,
+  RefreshCcw,
+  ShoppingBag,
+  TrendingUp,
+  X,
+} from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
+import { useAppSelector } from "@/hooks/useAppSelector";
+import { selectToken } from "@/store/selectors/authSelectors";
+import {
+  selectOrgId,
+  selectBranchId,
+  selectTerminalId,
+} from "@/store/selectors/orgContextSelectors";
+import { fetchAllOrgItems } from "@/api/items";
+import { fetchStockLevels } from "@/api/stockLevels";
+import {
+  fetchSalesRecordingStats,
+  recordHistoricalSales,
+  type SalesRecordingEntry,
+} from "@/api/salesRecording";
+import { Pagination } from "@/components/ui/Pagination";
+import { formatAmount } from "@/utils/formatCurrency";
+import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import { useToast } from "@/contexts/ToastContext";
+import type { Item } from "@/types/catalog";
+
+const BACKDATE_MAX_DAYS = 7;
+const DRAFT_STORAGE_PREFIX = "xpos:sales-recording-draft";
+const DRAFT_SAVE_DEBOUNCE_MS = 500;
+const PAGE_SIZE_OPTIONS = [10, 15, 25];
+const DEFAULT_PAGE_SIZE = 15;
+
+interface DraftPayload {
+  qtyByItem?: Record<string, string>;
+  savedAt?: string;
+}
+
+function draftKey(
+  orgId: string | null,
+  branchId: string | null,
+  terminalId: string | null,
+  saleDate: string
+): string | null {
+  if (!orgId || !branchId || !terminalId || !saleDate) return null;
+  return `${DRAFT_STORAGE_PREFIX}:${orgId}:${branchId}:${terminalId}:${saleDate}`;
+}
+
+function formatRelativeTime(date: Date, nowMs: number): string {
+  const diffSec = Math.max(0, Math.floor((nowMs - date.getTime()) / 1000));
+  if (diffSec < 5) return "just now";
+  if (diffSec < 60) return `${diffSec}s ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  return `${diffHr}h ago`;
+}
+
+function toIsoDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function todayIso(): string {
+  return toIsoDate(new Date());
+}
+
+function minDateIso(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - BACKDATE_MAX_DAYS);
+  return toIsoDate(d);
+}
+
+function shiftIsoDate(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return toIsoDate(d);
+}
+
+function roundTo2dp(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function parseQty(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return 0;
+  if (!/^\d+(?:\.\d{1,2})?$/.test(trimmed)) return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+interface Row {
+  item: Item;
+  qtyRaw: string;
+}
+
+export function SalesRecordingPage() {
+  const token = useAppSelector(selectToken);
+  const orgId = useAppSelector(selectOrgId);
+  const branchId = useAppSelector(selectBranchId);
+  const terminalId = useAppSelector(selectTerminalId);
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  const [saleDate, setSaleDate] = useState<string>(todayIso());
+  const [qtyByItem, setQtyByItem] = useState<Record<string, string>>({});
+  const [search, setSearch] = useState("");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(0);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const saveTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const key = draftKey(orgId, branchId, terminalId, saleDate);
+    if (!key) {
+      setQtyByItem({});
+      setLastSavedAt(null);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw) as DraftPayload;
+        setQtyByItem(parsed.qtyByItem ?? {});
+        setLastSavedAt(parsed.savedAt ? new Date(parsed.savedAt) : null);
+      } else {
+        setQtyByItem({});
+        setLastSavedAt(null);
+      }
+    } catch {
+      setQtyByItem({});
+      setLastSavedAt(null);
+    }
+  }, [orgId, branchId, terminalId, saleDate]);
+
+  useEffect(() => {
+    if (!lastSavedAt) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 15_000);
+    return () => window.clearInterval(id);
+  }, [lastSavedAt]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current != null) {
+        window.clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, []);
+
+  const itemsQuery = useQuery({
+    queryKey: ["sales-recording-items", orgId],
+    queryFn: () => fetchAllOrgItems(token, orgId!),
+    enabled: Boolean(token && orgId),
+    staleTime: 60_000,
+  });
+
+  const priceableItems = useMemo(() => {
+    const items = itemsQuery.data ?? [];
+    return items.filter(
+      (i) =>
+        i.active &&
+        i.defaultSellingPrice != null &&
+        Number(i.defaultSellingPrice) > 0
+    );
+  }, [itemsQuery.data]);
+
+  const itemIds = useMemo(
+    () => priceableItems.map((i) => i.id),
+    [priceableItems]
+  );
+
+  const stockLevelsQuery = useQuery({
+    queryKey: ["sales-recording-stock", orgId, branchId, itemIds],
+    queryFn: () => fetchStockLevels(token, orgId!, branchId!, itemIds),
+    enabled: Boolean(token && orgId && branchId && itemIds.length > 0),
+    staleTime: 30_000,
+  });
+
+  const stockByItem = useMemo(() => {
+    const map: Record<string, number> = {};
+    (stockLevelsQuery.data ?? []).forEach((s) => {
+      map[s.itemId] = s.onHandQty;
+    });
+    return map;
+  }, [stockLevelsQuery.data]);
+
+  const sellableItems = useMemo(() => {
+    return priceableItems.filter((i) => {
+      if (!i.trackInventory) return false;
+      const onHand = stockByItem[i.id];
+      if (onHand == null) return true;
+      return onHand > 1;
+    });
+  }, [priceableItems, stockByItem]);
+
+  const statsQuery = useQuery({
+    queryKey: ["sales-recording-stats", orgId, branchId, terminalId, saleDate],
+    queryFn: () =>
+      fetchSalesRecordingStats(token, orgId!, branchId!, terminalId!, saleDate),
+    enabled: Boolean(token && orgId && branchId && terminalId && saleDate),
+    staleTime: 15_000,
+  });
+
+  const soldQtyByItem = useMemo(() => {
+    const map: Record<string, number> = {};
+    (statsQuery.data?.soldByItem ?? []).forEach((s) => {
+      map[s.itemId] = Number(s.qtySold);
+    });
+    return map;
+  }, [statsQuery.data]);
+
+  const soldValueByItem = useMemo(() => {
+    const map: Record<string, number> = {};
+    (statsQuery.data?.soldByItem ?? []).forEach((s) => {
+      map[s.itemId] = Number(s.totalValue);
+    });
+    return map;
+  }, [statsQuery.data]);
+
+  const rows = useMemo<Row[]>(() => {
+    const q = search.trim().toLowerCase();
+    return sellableItems
+      .filter((i) =>
+        q ? i.name.toLowerCase().includes(q) || (i.sku ?? "").toLowerCase().includes(q) : true
+      )
+      .map((item) => ({ item, qtyRaw: qtyByItem[item.id] ?? "" }));
+  }, [sellableItems, qtyByItem, search]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [search, pageSize]);
+
+  const pageRows = useMemo<Row[]>(() => {
+    const start = page * pageSize;
+    return rows.slice(start, start + pageSize);
+  }, [rows, page, pageSize]);
+
+  const batchSummary = useMemo(() => {
+    let total = 0;
+    let units = 0;
+    const entries: SalesRecordingEntry[] = [];
+    let invalid = false;
+    Object.entries(qtyByItem).forEach(([itemId, raw]) => {
+      if (!raw || raw.trim() === "") return;
+      const qty = parseQty(raw);
+      if (qty == null) {
+        invalid = true;
+        return;
+      }
+      if (qty <= 0) return;
+      const item = sellableItems.find((it) => it.id === itemId);
+      if (!item || item.defaultSellingPrice == null) return;
+      const price = Number(item.defaultSellingPrice);
+      total += qty * price;
+      units += qty;
+      entries.push({ itemId, qty });
+    });
+    return { total: roundTo2dp(total), units, entries, invalid };
+  }, [qtyByItem, sellableItems]);
+
+  const recordMutation = useMutation({
+    mutationFn: () =>
+      recordHistoricalSales(token, orgId!, branchId!, terminalId!, {
+        saleDate,
+        entries: batchSummary.entries,
+      }),
+    onSuccess: (resp) => {
+      toast.success(
+        `Recorded ${resp.createdSaleIds.length} sale(s) for ${resp.saleDate}.`,
+        { title: "Sales Recording" }
+      );
+      if (saveTimerRef.current != null) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      const key = draftKey(orgId, branchId, terminalId, saleDate);
+      if (key) {
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          // Ignore storage errors.
+        }
+      }
+      setQtyByItem({});
+      setLastSavedAt(null);
+      queryClient.invalidateQueries({
+        queryKey: ["sales-recording-stock", orgId, branchId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["sales-recording-stats", orgId, branchId, terminalId, saleDate],
+      });
+    },
+    onError: (err) => {
+      const requestId = getApiErrorRequestId(err);
+      toast.error(getApiErrorMessage(err), {
+        title: "Sales Recording failed",
+        detail: requestId ? `Reference: ${requestId}` : undefined,
+      });
+    },
+  });
+
+  const canSubmit =
+    !recordMutation.isPending &&
+    !batchSummary.invalid &&
+    batchSummary.entries.length > 0;
+
+  const scheduleDraftSave = (next: Record<string, string>) => {
+    const key = draftKey(orgId, branchId, terminalId, saleDate);
+    if (!key) return;
+    if (saveTimerRef.current != null) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
+      try {
+        const hasEntries = Object.values(next).some(
+          (v) => v && v.trim() !== ""
+        );
+        if (!hasEntries) {
+          localStorage.removeItem(key);
+          setLastSavedAt(null);
+          return;
+        }
+        const savedAt = new Date();
+        const payload: DraftPayload = {
+          qtyByItem: next,
+          savedAt: savedAt.toISOString(),
+        };
+        localStorage.setItem(key, JSON.stringify(payload));
+        setLastSavedAt(savedAt);
+        setNowMs(Date.now());
+        toast.success("Draft saved", {
+          title: "Sales Recording",
+          duration: 1500,
+        });
+      } catch (err) {
+        toast.error("Couldn't save draft locally.", {
+          title: "Sales Recording",
+          detail: err instanceof Error ? err.message : undefined,
+        });
+      }
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+  };
+
+  const handleQtyChange = (itemId: string, value: string) => {
+    setQtyByItem((prev) => {
+      const next = { ...prev, [itemId]: value };
+      scheduleDraftSave(next);
+      return next;
+    });
+  };
+
+  const rowError = (item: Item, raw: string): string | null => {
+    if (!raw || raw.trim() === "") return null;
+    if (!/^\d+(?:\.\d{1,2})?$/.test(raw.trim())) return "Max 2 decimals.";
+    const qty = Number(raw);
+    if (qty <= 0) return null;
+    if (item.trackInventory) {
+      const onHand = stockByItem[item.id] ?? 0;
+      if (qty > onHand) return `Only ${formatAmount(onHand)} in stock.`;
+    }
+    return null;
+  };
+
+  const refreshStock = () => {
+    queryClient.invalidateQueries({
+      queryKey: ["sales-recording-stock", orgId, branchId, itemIds],
+    });
+  };
+
+  return (
+    <div className="w-full p-4 sm:p-6">
+      <div className="mb-4 flex flex-wrap items-center gap-3 sm:mb-6">
+        <PageHeader
+          title="Sales Recording"
+          icon={NotebookPen}
+          fallbackTo="/operator"
+          noMargin
+          className="min-w-0 flex-1"
+        />
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="relative inline-flex shrink-0 cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showAnalytics}
+              onChange={(e) => setShowAnalytics(e.target.checked)}
+              className="peer sr-only"
+            />
+            <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:bg-slate-600 dark:after:border-slate-500 dark:peer-focus:ring-primary-800" />
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+              Show analytics
+            </span>
+          </label>
+          <button
+            type="button"
+            onClick={refreshStock}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            <RefreshCcw className="h-4 w-4" /> Refresh stock
+          </button>
+        </div>
+      </div>
+
+      {showAnalytics && (
+        <StatsCards stats={statsQuery.data} loading={statsQuery.isLoading} />
+      )}
+
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <input
+            type="search"
+            placeholder="Search items by name or SKU..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none sm:w-64 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+          />
+          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const next = shiftIsoDate(saleDate, -1);
+                  if (next >= minDateIso()) setSaleDate(next);
+                }}
+                disabled={saleDate <= minDateIso()}
+                aria-label="Previous day"
+                className="rounded-lg border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <input
+                type="date"
+                value={saleDate}
+                min={minDateIso()}
+                max={todayIso()}
+                onChange={(e) => setSaleDate(e.target.value)}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const next = shiftIsoDate(saleDate, 1);
+                  if (next <= todayIso()) setSaleDate(next);
+                }}
+                disabled={saleDate >= todayIso()}
+                aria-label="Next day"
+                className="rounded-lg border border-slate-300 bg-white p-2 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-base text-slate-600 dark:text-slate-400">
+          <span>
+            Qty: <span className="font-semibold">{formatAmount(batchSummary.units)}</span>
+          </span>
+          <span>
+            Total (KSH):{" "}
+            <span className="font-semibold">{formatAmount(batchSummary.total)}</span>
+          </span>
+          {lastSavedAt && (
+            <span
+              className="inline-flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400"
+              title={lastSavedAt.toLocaleString()}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Draft saved · {formatRelativeTime(lastSavedAt, nowMs)}
+            </span>
+          )}
+          {batchSummary.entries.length > 0 && (
+            <button
+              type="button"
+              onClick={() => recordMutation.mutate()}
+              disabled={!canSubmit}
+              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary-500 to-primary-600 px-5 py-2.5 text-base font-semibold text-white shadow-lg shadow-primary-500/30 ring-1 ring-primary-400/40 transition hover:from-primary-400 hover:to-primary-500 hover:shadow-primary-500/40 focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-primary-900/60 dark:ring-primary-400/30"
+            >
+              {recordMutation.isPending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <NotebookPen className="h-5 w-5" />
+              )}
+              Record {batchSummary.entries.length} sale{batchSummary.entries.length === 1 ? "" : "s"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
+            <thead className="bg-slate-50 text-left text-sm font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+              <tr>
+                <th className="px-4 py-3">Item</th>
+                <th className="px-4 py-3">SKU</th>
+                <th className="px-4 py-3">On hand</th>
+                <th className="px-4 py-3">Price (KSH)</th>
+                <th className="px-4 py-3">Sold qty</th>
+                <th className="px-4 py-3">Line total (KSH)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-xl dark:divide-slate-600">
+              {itemsQuery.isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                    <Loader2 className="mx-auto h-5 w-5 animate-spin" />
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                    No sellable items found.
+                  </td>
+                </tr>
+              ) : (
+                pageRows.map(({ item, qtyRaw }) => {
+                  const price = Number(item.defaultSellingPrice ?? 0);
+                  const qty = Number(qtyRaw) || 0;
+                  const lineTotal = qty * price;
+                  const err = rowError(item, qtyRaw);
+                  const onHand = stockByItem[item.id];
+                  const savedQty = soldQtyByItem[item.id] ?? 0;
+                  const savedValue = soldValueByItem[item.id] ?? 0;
+                  const hasDraft = qty > 0 && !err;
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-700/40">
+                      <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
+                        {item.name}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
+                        {item.sku ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                        {item.trackInventory
+                          ? onHand != null
+                            ? formatAmount(onHand)
+                            : "—"
+                          : "N/A"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
+                        {formatAmount(price)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={qtyRaw}
+                              onChange={(e) =>
+                                handleQtyChange(item.id, e.target.value)
+                              }
+                              placeholder="0"
+                              aria-label={`Draft quantity for ${item.name}`}
+                              className={`w-32 shrink-0 rounded-md border bg-white px-3 py-2 text-xl focus:outline-none dark:bg-slate-700 ${
+                                err
+                                  ? "border-red-400 text-red-700 focus:border-red-500 dark:border-red-500 dark:text-red-300"
+                                  : hasDraft
+                                    ? "border-amber-400 text-amber-700 focus:border-amber-500 dark:border-amber-500 dark:text-amber-300"
+                                    : "border-slate-300 focus:border-primary dark:border-slate-600 dark:text-white"
+                              }`}
+                            />
+                            {savedQty > 0 && (
+                              <span className="inline-flex items-center gap-1 whitespace-nowrap text-xl font-medium text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 className="h-5 w-5" />
+                                {formatAmount(savedQty)}
+                              </span>
+                            )}
+                          </div>
+                          {err && (
+                            <p className="mt-1 text-sm text-red-500">{err}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
+                        <div className="flex items-center gap-3">
+                          {qty > 0 ? (
+                            <span>{formatAmount(lineTotal)}</span>
+                          ) : savedValue > 0 ? null : (
+                            <span>—</span>
+                          )}
+                          {savedValue > 0 && (
+                            <span className="inline-flex items-center gap-1 whitespace-nowrap text-xl font-medium text-emerald-600 dark:text-emerald-400">
+                              <CheckCircle2 className="h-5 w-5" />
+                              {formatAmount(savedValue)}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        {rows.length > 0 && (
+          <Pagination
+            page={page}
+            size={pageSize}
+            totalElements={rows.length}
+            onPageChange={setPage}
+            onSizeChange={setPageSize}
+            sizeOptions={PAGE_SIZE_OPTIONS}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface StatsProps {
+  stats:
+    | {
+        totalSalesValue: number;
+        totalItemsSold: number;
+        saleCount: number;
+        topSellingItems: { itemId: string; itemName: string; qtySold: number; totalValue: number }[];
+        lowStockItems: { itemId: string; itemName: string; onHandQty: number }[];
+      }
+    | undefined;
+  loading: boolean;
+}
+
+function StatsCards({ stats, loading }: StatsProps) {
+  const [insightsOpen, setInsightsOpen] = useState(false);
+  const total = stats?.totalSalesValue ?? 0;
+  const items = stats?.totalItemsSold ?? 0;
+  const count = stats?.saleCount ?? 0;
+  const top = stats?.topSellingItems ?? [];
+  const low = stats?.lowStockItems ?? [];
+
+  return (
+    <div className="mb-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={TrendingUp}
+          label="Total sales"
+          valueLabel="KSH"
+          value={formatAmount(total)}
+          loading={loading}
+          tone="emerald"
+        />
+        <StatCard
+          icon={ShoppingBag}
+          label="Items sold"
+          value={formatAmount(items)}
+          loading={loading}
+          tone="sky"
+        />
+        <StatCard
+          icon={Package}
+          label="Sales recorded"
+          value={String(count)}
+          loading={loading}
+          tone="violet"
+        />
+        <StatCard
+          icon={AlertTriangle}
+          label="Low stock"
+          value={String(low.length)}
+          loading={loading}
+          tone="amber"
+        />
+      </div>
+      <div className="mt-3 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setInsightsOpen(true)}
+          className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-500 to-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 ring-1 ring-violet-400/40 transition hover:from-violet-400 hover:to-sky-400 hover:shadow-violet-500/40 focus:outline-none focus:ring-2 focus:ring-violet-300 dark:shadow-violet-900/60 dark:ring-violet-400/30"
+        >
+          <BarChart3 className="h-4 w-4" />
+          View insights
+          {low.length > 0 && (
+            <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/95 px-1.5 text-xs font-bold text-amber-700">
+              {low.length}
+            </span>
+          )}
+        </button>
+      </div>
+      {insightsOpen && (
+        <InsightsModal
+          top={top}
+          low={low}
+          onClose={() => setInsightsOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+interface InsightsModalProps {
+  top: { itemId: string; itemName: string; qtySold: number; totalValue: number }[];
+  low: { itemId: string; itemName: string; onHandQty: number }[];
+  onClose: () => void;
+}
+
+function InsightsModal({ top, low, onClose }: InsightsModalProps) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="insights-modal-title"
+    >
+      <div
+        className="fixed inset-0 bg-slate-900/50 dark:bg-slate-950/60"
+        aria-hidden
+        onClick={onClose}
+      />
+      <div className="relative z-10 flex max-h-[85vh] w-full max-w-4xl flex-col rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+          <h3
+            id="insights-modal-title"
+            className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white"
+          >
+            <BarChart3 className="h-5 w-5" /> Insights
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-6 overflow-y-auto p-5 md:grid-cols-2">
+          <section>
+            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+              <TrendingUp className="h-4 w-4" /> Top selling items
+            </h4>
+            {top.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No sales recorded for this date.
+              </p>
+            ) : (
+              <ul className="divide-y divide-slate-100 text-sm dark:divide-slate-600">
+                {top.map((t) => (
+                  <li
+                    key={t.itemId}
+                    className="flex items-center justify-between gap-3 py-2"
+                  >
+                    <span className="truncate text-slate-700 dark:text-slate-200">
+                      {t.itemName}
+                    </span>
+                    <span className="whitespace-nowrap text-slate-500 dark:text-slate-400">
+                      {formatAmount(t.qtySold)} &middot;{" "}
+                      {formatAmount(t.totalValue)} KSH
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <section>
+            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+              <AlertTriangle className="h-4 w-4" /> Low stock alerts
+            </h4>
+            {low.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                All items above reorder level.
+              </p>
+            ) : (
+              <ul className="divide-y divide-slate-100 text-sm dark:divide-slate-600">
+                {low.map((l) => (
+                  <li
+                    key={l.itemId}
+                    className="flex items-center justify-between gap-3 py-2"
+                  >
+                    <span className="truncate text-slate-700 dark:text-slate-200">
+                      {l.itemName}
+                    </span>
+                    <span className="whitespace-nowrap text-amber-600 dark:text-amber-400">
+                      {formatAmount(l.onHandQty)} left
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface StatCardProps {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  valueLabel?: string;
+  loading: boolean;
+  tone: "emerald" | "sky" | "violet" | "amber";
+}
+
+const TONE_CLASSES: Record<StatCardProps["tone"], string> = {
+  emerald: "from-emerald-50 to-white text-emerald-600 dark:from-emerald-950/40 dark:text-emerald-400",
+  sky: "from-sky-50 to-white text-sky-600 dark:from-sky-950/40 dark:text-sky-400",
+  violet: "from-violet-50 to-white text-violet-600 dark:from-violet-950/40 dark:text-violet-400",
+  amber: "from-amber-50 to-white text-amber-600 dark:from-amber-950/40 dark:text-amber-400",
+};
+
+function StatCard({ icon: Icon, label, value, valueLabel, loading, tone }: StatCardProps) {
+  const tones = TONE_CLASSES[tone];
+  return (
+    <div
+      className={`rounded-xl border border-slate-200 bg-gradient-to-br p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 ${tones}`}
+    >
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Icon className="h-5 w-5" /> {label}
+      </div>
+      <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+        {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : value}
+        {valueLabel && !loading && (
+          <span className="ml-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+            {valueLabel}
+          </span>
+        )}
+      </p>
+    </div>
+  );
+}

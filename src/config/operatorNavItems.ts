@@ -7,6 +7,7 @@ import {
   HandCoins,
   LayoutDashboard,
   NotebookPen,
+  PencilLine,
   Receipt,
   ShoppingCart,
   UtensilsCrossed,
@@ -40,6 +41,7 @@ function navItem(
 export const OPERATOR_NAV_ITEMS: OperatorNavItemConfig[] = [
   navItem("/operator", "Dashboard", "Main", false, LayoutDashboard, false, true),
   navItem("/operator/menu-order", "POS", "Main", true, ShoppingCart),
+  navItem("/operator/sales-recording", "Sales Recording", "Main", true, PencilLine),
   navItem("/operator/receipts", "Receipts", "Main", true, Receipt),
   navItem("/operator/debts", "Debts & Expenses", "Main", true, HandCoins),
   navItem("/operator/stock-count", "Stock count sessions", "Main", true, ClipboardList),

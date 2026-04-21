@@ -53,6 +53,7 @@ import { MenuOrderPage } from "@/features/operator/MenuOrderPage";
 import { OperatorDashboard } from "@/features/operator/OperatorDashboard";
 import { PaymentsPage } from "@/features/operator/PaymentsPage";
 import { ReceiptsPage } from "@/features/operator/ReceiptsPage";
+import { SalesRecordingPage } from "@/features/operator/SalesRecordingPage";
 import { TablesPage } from "@/features/operator/TablesPage";
 
 function App() {
@@ -140,6 +141,7 @@ function App() {
         >
           <Route index element={<OperatorDashboard />} />
           <Route path="menu-order" element={<MenuOrderPage />} />
+          <Route path="sales-recording" element={<SalesRecordingPage />} />
           <Route path="receipts" element={<ReceiptsPage />} />
           <Route path="tables/*" element={<TablesPage />} />
           <Route path="debts" element={<DebtsAndExpensesPage />} />

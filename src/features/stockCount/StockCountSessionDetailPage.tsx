@@ -369,33 +369,33 @@ export function StockCountSessionDetailPage({
             <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "900px" }}>
               <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr className="bg-slate-50 dark:bg-slate-700/50">
-                  <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
+                  <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
                     Item
                   </th>
-                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                     Sys qty
                   </th>
-                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                     Counted
                   </th>
-                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                     Var.
                   </th>
                   {showUnitCostCol && (
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Unit cost (KSH)
                     </th>
                   )}
-                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                     Sold
                   </th>
                   {showSellPriceCol && (
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Sell price (KSH)
                     </th>
                   )}
                   {session.status === "OPEN" && (
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Actions
                     </th>
                   )}
@@ -407,17 +407,17 @@ export function StockCountSessionDetailPage({
                     key={l.id}
                     className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                   >
-                    <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                    <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                       {l.itemName}
                     </td>
-                    <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                    <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                       {l.systemQty}
                     </td>
-                    <td className="px-4 py-2 text-left text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                    <td className="px-4 py-2 text-left text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                       {l.countedQty}
                     </td>
                     <td
-                      className={`px-4 py-2 text-left text-base font-semibold tabular-nums sm:px-6 sm:py-2.5 sm:text-lg ${
+                      className={`px-4 py-2 text-left text-base font-semibold tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl ${
                         l.varianceQty > 0
                           ? "text-emerald-600 dark:text-emerald-400"
                           : l.varianceQty < 0
@@ -428,15 +428,15 @@ export function StockCountSessionDetailPage({
                       {formatVariance(l.varianceQty)}
                     </td>
                     {showUnitCostCol && (
-                      <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                      <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                         {l.unitCost != null ? formatAmount(l.unitCost) : "—"}
                       </td>
                     )}
-                    <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                    <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                       {l.qtySold ?? 0}
                     </td>
                     {showSellPriceCol && (
-                      <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                      <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                         {l.sellingPrice != null ? formatAmount(l.sellingPrice) : "—"}
                       </td>
                     )}

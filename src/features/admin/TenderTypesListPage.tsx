@@ -312,16 +312,16 @@ export function TenderTypesListPage() {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "480px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:bg-slate-700 dark:text-slate-300">
+                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
                       Code
                     </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Name
                     </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Active
                     </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-lg dark:text-slate-300">
+                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Actions
                     </th>
                   </tr>
@@ -331,7 +331,7 @@ export function TenderTypesListPage() {
                     <tr>
                       <td
                         colSpan={4}
-                        className="px-4 py-8 text-center text-base text-slate-500 sm:px-6 sm:text-lg dark:text-slate-400"
+                        className="px-4 py-8 text-center text-base text-slate-500 sm:px-6 sm:text-2xl dark:text-slate-400"
                       >
                         {tenderTypes.length === 0 ? "No tender types yet. Add one (e.g. Cash, M-Pesa) for payment options." : "No results match your search."}
                       </td>
@@ -342,13 +342,13 @@ export function TenderTypesListPage() {
                         key={tt.id}
                         className="group hover:bg-slate-100 dark:hover:bg-slate-700"
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 font-mono text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">
+                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 font-mono text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
                           {tt.code}
                         </td>
-                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                           {tt.name}
                         </td>
-                        <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-lg">
+                        <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
                           {tt.active ? (
                             <span className="text-emerald-600 dark:text-emerald-400">
                               Yes
