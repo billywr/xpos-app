@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -72,6 +72,13 @@ function todayStr(): string {
   return toDateStr(new Date());
 }
 
+/** Default "from" date: 30 days before today (inclusive, local calendar). */
+function defaultFromDateStr(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return toDateStr(d);
+}
+
 // ---------------------------------------------------------------------------
 // Debts helpers
 // ---------------------------------------------------------------------------
@@ -126,6 +133,18 @@ function statusQueryForFilter(filter: string): string | readonly string[] | unde
   }
   return filter;
 }
+
+/** Validate an inline-pay input. Returns null when empty or valid. */
+function validateInlinePay(raw: string, outstanding: number): string | null {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  const n = Number.parseFloat(trimmed);
+  if (!Number.isFinite(n)) return "Enter a number.";
+  if (n <= 0) return "Must be greater than 0.";
+  if (n > outstanding) return `Max ${formatCurrency(outstanding)}.`;
+  return null;
+}
+
 
 const PENDING_TOTAL_QUERY_KEY = "operator-debts-pending-total";
 
@@ -211,7 +230,7 @@ export function DebtsAndExpensesPage() {
 
   // Shared state
   const [tab, setTab] = useState<TabId>("debts");
-  const [fromDate, setFromDate] = useState(todayStr);
+  const [fromDate, setFromDate] = useState(defaultFromDateStr);
   const [toDate, setToDate] = useState(todayStr);
 
   // -----------------------------------------------------------------------
@@ -245,6 +264,9 @@ export function DebtsAndExpensesPage() {
   const [inlinePayDebtId, setInlinePayDebtId] = useState<string | null>(null);
   const [inlinePayValue, setInlinePayValue] = useState("");
   const [inlinePaySubmitting, setInlinePaySubmitting] = useState(false);
+  const [inlineNameDebtId, setInlineNameDebtId] = useState<string | null>(null);
+  const [inlineNameValue, setInlineNameValue] = useState("");
+  const [inlineNameSubmitting, setInlineNameSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_OUTSTANDING);
 
   const debtStatusFilterOptions = useMemo(
@@ -718,17 +740,6 @@ export function DebtsAndExpensesPage() {
   const canClearDebt = (d: CustomerDebtResponse) =>
     (d.status === "OPEN" || d.status === "PARTIAL") && Number(d.amountSettled ?? 0) === 0;
 
-  // Validate the inline-pay input as the user types. Returns null when empty or valid.
-  const validateInlinePay = (raw: string, outstanding: number): string | null => {
-    const trimmed = raw.trim();
-    if (trimmed === "") return null;
-    const n = Number.parseFloat(trimmed);
-    if (!Number.isFinite(n)) return "Enter a number.";
-    if (n <= 0) return "Must be greater than 0.";
-    if (n > outstanding) return `Max ${formatCurrency(outstanding)}.`;
-    return null;
-  };
-
   const startInlinePay = (d: CustomerDebtResponse) => {
     setInlinePayDebtId(d.id);
     setInlinePayValue("");
@@ -740,19 +751,50 @@ export function DebtsAndExpensesPage() {
   };
 
   const submitInlinePay = async (d: CustomerDebtResponse) => {
-    const n = Number.parseFloat(inlinePayValue);
-    if (!Number.isFinite(n) || n <= 0 || n > d.outstanding) {
-      toast.error(
-        validateInlinePay(inlinePayValue, d.outstanding) ?? "Enter a valid payment amount.",
-      );
+    const err = validateInlinePay(inlinePayValue, d.outstanding);
+    if (err !== null || inlinePayValue.trim() === "") {
+      toast.error(err ?? "Enter a payment amount.");
       return;
     }
+    const n = Number.parseFloat(inlinePayValue);
     setInlinePaySubmitting(true);
     try {
       await settleMutation.mutateAsync({ debtId: d.id, paymentAmount: n });
       cancelInlinePay();
     } finally {
       setInlinePaySubmitting(false);
+    }
+  };
+
+  const startInlineName = (d: CustomerDebtResponse) => {
+    setInlineNameDebtId(d.id);
+    setInlineNameValue(d.customerName);
+  };
+
+  const cancelInlineName = () => {
+    setInlineNameDebtId(null);
+    setInlineNameValue("");
+  };
+
+  const submitInlineName = async (d: CustomerDebtResponse) => {
+    const name = inlineNameValue.trim();
+    if (name === "") {
+      toast.error("Customer name cannot be empty.");
+      return;
+    }
+    if (name === d.customerName) {
+      cancelInlineName();
+      return;
+    }
+    setInlineNameSubmitting(true);
+    try {
+      await updateDebtMutation.mutateAsync({
+        debtId: d.id,
+        body: { customerName: name },
+      });
+      cancelInlineName();
+    } finally {
+      setInlineNameSubmitting(false);
     }
   };
 
@@ -1161,7 +1203,95 @@ export function DebtsAndExpensesPage() {
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                           {filteredDebts.map((d: CustomerDebtResponse) => (
                             <tr key={d.id} className="group hover:bg-slate-100 dark:hover:bg-slate-700">
-                              <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300">{d.customerName}</td>
+                              <td
+                                className={`sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-300 ${
+                                  inlineNameDebtId !== d.id
+                                    ? "cursor-pointer hover:underline"
+                                    : ""
+                                }`}
+                                onClick={() => {
+                                  if (inlineNameDebtId !== d.id) {
+                                    startInlineName(d);
+                                  }
+                                }}
+                                title={
+                                  inlineNameDebtId !== d.id
+                                    ? "Click to fix customer name"
+                                    : undefined
+                                }
+                              >
+                                {inlineNameDebtId === d.id ? (
+                                  (() => {
+                                    const trimmed = inlineNameValue.trim();
+                                    const empty = trimmed === "";
+                                    const unchanged = trimmed === d.customerName;
+                                    return (
+                                      <div
+                                        className="flex flex-wrap items-center gap-2"
+                                        onClick={(ev) => ev.stopPropagation()}
+                                      >
+                                        <div className="flex items-center gap-1.5">
+                                          <input
+                                            autoFocus
+                                            type="text"
+                                            value={inlineNameValue}
+                                            disabled={inlineNameSubmitting}
+                                            onChange={(ev) => setInlineNameValue(ev.target.value)}
+                                            onFocus={(ev) => ev.currentTarget.select()}
+                                            onKeyDown={(ev) => {
+                                              if (ev.key === "Enter") {
+                                                ev.preventDefault();
+                                                void submitInlineName(d);
+                                              } else if (ev.key === "Escape") {
+                                                ev.preventDefault();
+                                                cancelInlineName();
+                                              }
+                                            }}
+                                            aria-invalid={empty}
+                                            aria-label={`Edit customer name for ${d.customerName}`}
+                                            className={`w-44 rounded border px-2 py-1.5 text-sm focus:outline-none focus:ring-1 ${
+                                              empty
+                                                ? "border-red-400 bg-red-50 text-red-900 focus:border-red-500 focus:ring-red-500 dark:border-red-600 dark:bg-red-950/40 dark:text-red-200"
+                                                : "border-primary-300 bg-white text-slate-900 focus:border-primary-500 focus:ring-primary-500 dark:border-primary-700 dark:bg-slate-900 dark:text-white"
+                                            }`}
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => void submitInlineName(d)}
+                                            disabled={inlineNameSubmitting || empty || unchanged}
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 dark:hover:bg-emerald-900/50"
+                                            aria-label="Save name"
+                                            title="Save (Enter)"
+                                          >
+                                            {inlineNameSubmitting ? (
+                                              <Loader2 className="h-5 w-5 animate-spin" />
+                                            ) : (
+                                              <Check className="h-5 w-5" />
+                                            )}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={cancelInlineName}
+                                            disabled={inlineNameSubmitting}
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 shadow-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                                            aria-label="Cancel"
+                                            title="Cancel (Esc)"
+                                          >
+                                            <X className="h-5 w-5" />
+                                          </button>
+                                        </div>
+                                        {empty && (
+                                          <span className="w-full text-xs text-red-600 dark:text-red-400">
+                                            Name cannot be empty.
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  d.customerName
+                                )}
+                              </td>
                               {showDebtPhoneCol && (
                                 <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-lg dark:text-slate-400">{d.customerPhone ?? "—"}</td>
                               )}
@@ -1189,10 +1319,10 @@ export function DebtsAndExpensesPage() {
                                     const empty = inlinePayValue.trim() === "";
                                     return (
                                       <div
-                                        className="flex flex-wrap items-center gap-1"
+                                        className="flex flex-wrap items-center gap-2"
                                         onClick={(ev) => ev.stopPropagation()}
                                       >
-                                        <div className="flex items-center gap-1">
+                                        <div className="flex items-center gap-1.5">
                                           <input
                                             autoFocus
                                             type="number"
@@ -1214,7 +1344,7 @@ export function DebtsAndExpensesPage() {
                                             placeholder={`Max ${d.outstanding.toFixed(2)}`}
                                             aria-invalid={!!err}
                                             aria-label={`Record payment for ${d.customerName}`}
-                                            className={`w-28 rounded border px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-1 ${
+                                            className={`w-32 rounded border px-2 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-1 ${
                                               err
                                                 ? "border-red-400 bg-red-50 text-red-900 focus:border-red-500 focus:ring-red-500 dark:border-red-600 dark:bg-red-950/40 dark:text-red-200"
                                                 : "border-emerald-300 bg-white text-slate-900 focus:border-emerald-500 focus:ring-emerald-500 dark:border-emerald-700 dark:bg-slate-900 dark:text-white"
@@ -1224,25 +1354,25 @@ export function DebtsAndExpensesPage() {
                                             type="button"
                                             onClick={() => void submitInlinePay(d)}
                                             disabled={inlinePaySubmitting || !!err || empty}
-                                            className="rounded p-1 text-emerald-600 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:text-emerald-400 dark:hover:bg-emerald-900/40"
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 dark:hover:bg-emerald-900/50"
                                             aria-label="Save payment"
-                                            title="Save (Enter)"
+                                            title="Save payment (Enter)"
                                           >
                                             {inlinePaySubmitting ? (
-                                              <Loader2 className="h-4 w-4 animate-spin" />
+                                              <Loader2 className="h-5 w-5 animate-spin" />
                                             ) : (
-                                              <Check className="h-4 w-4" />
+                                              <Check className="h-5 w-5" />
                                             )}
                                           </button>
                                           <button
                                             type="button"
                                             onClick={cancelInlinePay}
                                             disabled={inlinePaySubmitting}
-                                            className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-700"
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 shadow-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                                             aria-label="Cancel"
                                             title="Cancel (Esc)"
                                           >
-                                            <X className="h-4 w-4" />
+                                            <X className="h-5 w-5" />
                                           </button>
                                         </div>
                                         {err ? (
