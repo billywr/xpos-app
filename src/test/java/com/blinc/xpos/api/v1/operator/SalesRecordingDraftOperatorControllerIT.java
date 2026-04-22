@@ -90,6 +90,37 @@ class SalesRecordingDraftOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
+  void putThenGetRoundTripsABackdatedDraft() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID terminalId = createTerminal(orgId, branchId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID itemId = createUntrackedItem(orgId);
+
+    String base = draftBase(orgId, branchId, terminalId);
+    LocalDate backdated = LocalDate.now().minusDays(6);
+    String body =
+        """
+        {"saleDate":"%s","qtyByItem":{"%s":"4"}}
+        """
+            .formatted(backdated, itemId);
+
+    mockMvc
+        .perform(put(base).with(operatorJwt()).contentType(APPLICATION_JSON).content(body))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.exists").value(true))
+        .andExpect(jsonPath("$.qtyByItem." + itemId).value("4"));
+
+    mockMvc
+        .perform(get(base + "?date=" + backdated).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.exists").value(true))
+        .andExpect(jsonPath("$.qtyByItem." + itemId).value("4"));
+  }
+
+  @Test
   void emptyPutClearsExistingDraft() throws Exception {
     UUID orgId = createOrg();
     UUID businessId = createBusiness(orgId);
