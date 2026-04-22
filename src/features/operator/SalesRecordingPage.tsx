@@ -34,7 +34,6 @@ import {
   saveSalesRecordingDraft,
 } from "@/api/salesRecordingDraft";
 import { Pagination } from "@/components/ui/Pagination";
-import { formatAmount } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import type { Item } from "@/types/catalog";
@@ -79,6 +78,17 @@ function shiftIsoDate(iso: string, days: number): string {
 
 function roundTo2dp(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+// Sales Recording shows a lot of whole-number quantities and round prices. Rendering them as
+// "9.00" / "1,500.00" is noisy — this formatter drops the fractional part when it's all zeros
+// and strips trailing zeros otherwise (9.00 → "9", 2.50 → "2.5", 8.25 → "8.25").
+function formatQty(n: number): string {
+  if (!Number.isFinite(n)) return "0";
+  return new Intl.NumberFormat("en-KE", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(n);
 }
 
 function parseQty(raw: string): number | null {
@@ -421,7 +431,7 @@ export function SalesRecordingPage() {
     if (qty <= 0) return null;
     if (item.trackInventory) {
       const onHand = stockByItem[item.id] ?? 0;
-      if (qty > onHand) return `Only ${formatAmount(onHand)} in stock.`;
+      if (qty > onHand) return `Only ${formatQty(onHand)} in stock.`;
     }
     return null;
   };
@@ -517,11 +527,11 @@ export function SalesRecordingPage() {
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-base text-slate-600 dark:text-slate-400">
           <span>
-            Qty: <span className="font-semibold">{formatAmount(batchSummary.units)}</span>
+            Qty: <span className="font-semibold">{formatQty(batchSummary.units)}</span>
           </span>
           <span>
             Total (KSH):{" "}
-            <span className="font-semibold">{formatAmount(batchSummary.total)}</span>
+            <span className="font-semibold">{formatQty(batchSummary.total)}</span>
           </span>
           {saveDraftMutation.isPending ? (
             <span className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
@@ -610,12 +620,12 @@ export function SalesRecordingPage() {
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                         {item.trackInventory
                           ? onHand != null
-                            ? formatAmount(onHand)
+                            ? formatQty(onHand)
                             : "—"
                           : "N/A"}
                       </td>
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                        {formatAmount(price)}
+                        {formatQty(price)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">
@@ -640,7 +650,7 @@ export function SalesRecordingPage() {
                             {savedQty > 0 && (
                               <span className="inline-flex items-center gap-1 whitespace-nowrap text-xl font-medium text-emerald-600 dark:text-emerald-400">
                                 <CheckCircle2 className="h-5 w-5" />
-                                {formatAmount(savedQty)}
+                                {formatQty(savedQty)}
                               </span>
                             )}
                           </div>
@@ -652,14 +662,14 @@ export function SalesRecordingPage() {
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
                         <div className="flex items-center gap-3">
                           {qty > 0 ? (
-                            <span>{formatAmount(lineTotal)}</span>
+                            <span>{formatQty(lineTotal)}</span>
                           ) : savedValue > 0 ? null : (
                             <span>—</span>
                           )}
                           {savedValue > 0 && (
                             <span className="inline-flex items-center gap-1 whitespace-nowrap text-xl font-medium text-emerald-600 dark:text-emerald-400">
                               <CheckCircle2 className="h-5 w-5" />
-                              {formatAmount(savedValue)}
+                              {formatQty(savedValue)}
                             </span>
                           )}
                         </div>
@@ -714,14 +724,14 @@ function StatsCards({ stats, loading }: StatsProps) {
           icon={TrendingUp}
           label="Total sales"
           valueLabel="KSH"
-          value={formatAmount(total)}
+          value={formatQty(total)}
           loading={loading}
           tone="emerald"
         />
         <StatCard
           icon={ShoppingBag}
           label="Items sold"
-          value={formatAmount(items)}
+          value={formatQty(items)}
           loading={loading}
           tone="sky"
         />
@@ -830,8 +840,8 @@ function InsightsModal({ top, low, onClose }: InsightsModalProps) {
                       {t.itemName}
                     </span>
                     <span className="whitespace-nowrap text-slate-500 dark:text-slate-400">
-                      {formatAmount(t.qtySold)} &middot;{" "}
-                      {formatAmount(t.totalValue)} KSH
+                      {formatQty(t.qtySold)} &middot;{" "}
+                      {formatQty(t.totalValue)} KSH
                     </span>
                   </li>
                 ))}
@@ -857,7 +867,7 @@ function InsightsModal({ top, low, onClose }: InsightsModalProps) {
                       {l.itemName}
                     </span>
                     <span className="whitespace-nowrap text-amber-600 dark:text-amber-400">
-                      {formatAmount(l.onHandQty)} left
+                      {formatQty(l.onHandQty)} left
                     </span>
                   </li>
                 ))}
