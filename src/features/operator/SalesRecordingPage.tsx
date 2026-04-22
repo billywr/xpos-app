@@ -94,6 +94,14 @@ interface Row {
   qtyRaw: string;
 }
 
+interface SaveDraftVars {
+  orgId: string;
+  branchId: string;
+  terminalId: string;
+  saleDate: string;
+  qtyMap: Record<string, string>;
+}
+
 export function SalesRecordingPage() {
   const token = useAppSelector(selectToken);
   const orgId = useAppSelector(selectOrgId);
@@ -119,44 +127,45 @@ export function SalesRecordingPage() {
       ? `${orgId}:${branchId}:${terminalId}:${saleDate}`
       : null;
 
-  const draftQuery = useQuery({
-    queryKey: ["sales-recording-draft", orgId, branchId, terminalId, saleDate],
-    queryFn: () =>
-      fetchSalesRecordingDraft(token, orgId!, branchId!, terminalId!, saleDate),
-    enabled: Boolean(token && orgId && branchId && terminalId && saleDate),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
-
+  // Fetch the server-side draft whenever scope changes. We manage this with a plain useEffect
+  // (rather than useQuery) because we need deterministic, race-free behavior: every scope
+  // change must clear local state and kick off a fresh fetch, and the response must hydrate
+  // only if the scope hasn't changed again. TanStack Query's observer/structural-sharing
+  // internals made this brittle in StrictMode — a stale observer or a same-reference response
+  // could prevent the hydration effect from ever firing for the newly picked date.
   useEffect(() => {
-    if (draftScopeKey == null) {
-      return;
-    }
-    if (hydratedKeyRef.current === draftScopeKey) {
-      return;
-    }
-    if (draftQuery.isLoading) {
-      return;
-    }
-    const data = draftQuery.data;
-    if (data) {
-      setQtyByItem(data.qtyByItem ?? {});
-      setLastSavedAt(data.updatedAt ? new Date(data.updatedAt) : null);
-    } else {
+    if (!token || !orgId || !branchId || !terminalId || !saleDate) {
       setQtyByItem({});
       setLastSavedAt(null);
-    }
-    setDraftSaveError(false);
-    hydratedKeyRef.current = draftScopeKey;
-  }, [draftScopeKey, draftQuery.isLoading, draftQuery.data]);
-
-  // Reset hydration when scope changes so the new scope's draft re-seeds local state.
-  useEffect(() => {
-    return () => {
+      setDraftSaveError(false);
       hydratedKeyRef.current = null;
+      return;
+    }
+    const scope = `${orgId}:${branchId}:${terminalId}:${saleDate}`;
+    let cancelled = false;
+    hydratedKeyRef.current = null;
+    setQtyByItem({});
+    setLastSavedAt(null);
+    setDraftSaveError(false);
+    fetchSalesRecordingDraft(token, orgId, branchId, terminalId, saleDate)
+      .then((resp) => {
+        if (cancelled) return;
+        // If the user has already started typing for this scope, handleQtyChange will have
+        // claimed the ref — don't overwrite their in-progress input with the fetched draft.
+        if (hydratedKeyRef.current === scope) return;
+        setQtyByItem(resp.qtyByItem ?? {});
+        setLastSavedAt(resp.updatedAt ? new Date(resp.updatedAt) : null);
+        setDraftSaveError(false);
+        hydratedKeyRef.current = scope;
+      })
+      .catch(() => {
+        // If the load fails (e.g. network blip), leave inputs empty — user can retry by
+        // re-picking the date. Don't flag draftSaveError, which is reserved for save failures.
+      });
+    return () => {
+      cancelled = true;
     };
-  }, [orgId, branchId, terminalId, saleDate]);
+  }, [token, orgId, branchId, terminalId, saleDate]);
 
   useEffect(() => {
     if (!lastSavedAt) return;
@@ -173,19 +182,41 @@ export function SalesRecordingPage() {
   }, []);
 
   const saveDraftMutation = useMutation({
-    mutationFn: (qtyMap: Record<string, string>) =>
-      saveSalesRecordingDraft(token, orgId!, branchId!, terminalId!, saleDate, qtyMap),
-    onSuccess: (resp) => {
-      setLastSavedAt(resp.updatedAt ? new Date(resp.updatedAt) : new Date());
-      setDraftSaveError(false);
-      setNowMs(Date.now());
-      queryClient.setQueryData(
-        ["sales-recording-draft", orgId, branchId, terminalId, saleDate],
-        resp
-      );
+    mutationFn: (vars: SaveDraftVars) =>
+      saveSalesRecordingDraft(
+        token,
+        vars.orgId,
+        vars.branchId,
+        vars.terminalId,
+        vars.saleDate,
+        vars.qtyMap
+      ),
+    onSuccess: (resp, vars) => {
+      // Only reflect save status in the UI if the user is still on the scope the save targeted —
+      // otherwise a late-firing debounce could claim "Draft saved" for a date the user already left.
+      if (
+        orgId === vars.orgId &&
+        branchId === vars.branchId &&
+        terminalId === vars.terminalId &&
+        saleDate === vars.saleDate
+      ) {
+        setLastSavedAt(resp.updatedAt ? new Date(resp.updatedAt) : new Date());
+        setDraftSaveError(false);
+        setNowMs(Date.now());
+      }
+      // Nothing to write back to a query cache — the draft is loaded via a plain useEffect
+      // fetch, not useQuery. The server response is already reflected in local state above.
+      void resp;
     },
-    onError: () => {
-      setDraftSaveError(true);
+    onError: (_err, vars) => {
+      if (
+        orgId === vars.orgId &&
+        branchId === vars.branchId &&
+        terminalId === vars.terminalId &&
+        saleDate === vars.saleDate
+      ) {
+        setDraftSaveError(true);
+      }
     },
   });
 
@@ -319,15 +350,7 @@ export function SalesRecordingPage() {
       setQtyByItem({});
       setLastSavedAt(null);
       setDraftSaveError(false);
-      queryClient.setQueryData(
-        ["sales-recording-draft", orgId, branchId, terminalId, saleDate],
-        {
-          exists: false,
-          saleDate,
-          qtyByItem: {},
-          updatedAt: null,
-        }
-      );
+      hydratedKeyRef.current = null;
       queryClient.invalidateQueries({
         queryKey: ["sales-recording-stock", orgId, branchId],
       });
@@ -351,6 +374,16 @@ export function SalesRecordingPage() {
 
   const scheduleDraftSave = (next: Record<string, string>) => {
     if (!orgId || !branchId || !terminalId || !saleDate) return;
+    // Capture the scope at schedule time. When the 300ms debounce fires, we must save to the
+    // date/branch/terminal the user was on when they typed — not whatever saleDate the
+    // latest render happens to have if the user switched dates during the debounce window.
+    const target: SaveDraftVars = {
+      orgId,
+      branchId,
+      terminalId,
+      saleDate,
+      qtyMap: {},
+    };
     if (saveTimerRef.current != null) {
       window.clearTimeout(saveTimerRef.current);
     }
@@ -363,11 +396,17 @@ export function SalesRecordingPage() {
           clean[itemId] = raw.trim();
         }
       }
-      saveDraftMutation.mutate(clean);
+      saveDraftMutation.mutate({ ...target, qtyMap: clean });
     }, DRAFT_SAVE_DEBOUNCE_MS);
   };
 
   const handleQtyChange = (itemId: string, value: string) => {
+    // Claim hydration for this scope as soon as the user touches it. Otherwise, if the user
+    // types before the draft query has resolved (common on a past date that was just picked),
+    // the hydration effect would run on arrival and overwrite the typed value with server data.
+    if (draftScopeKey != null) {
+      hydratedKeyRef.current = draftScopeKey;
+    }
     setQtyByItem((prev) => {
       const next = { ...prev, [itemId]: value };
       scheduleDraftSave(next);
