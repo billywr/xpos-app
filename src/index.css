@@ -260,6 +260,20 @@ body {
   background-color: color-mix(in srgb, var(--sidebar-start) 95%, transparent) !important;
 }
 
+/* Menu order — search dropdown row hover (base dark:bg-slate-800 remap beats Tailwind hover utilities) */
+.menu-order-search-row.can-select:hover {
+  background-color: #dbeafe;
+  box-shadow: inset 0 0 0 1px rgb(147 197 253 / 0.55);
+}
+.dark .menu-order-search-row.can-select:hover {
+  background-color: #475569;
+  box-shadow: inset 0 0 0 1px rgb(100 116 139 / 0.65);
+}
+[data-theme]:not([data-theme=""]).dark .menu-order-search-row.can-select:hover {
+  background-color: var(--table-row-hover) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-500) 35%, transparent);
+}
+
 /* Responsive table: always-visible horizontal scrollbar on mobile */
 @media (max-width: 639px) {
   .overflow-x-auto,

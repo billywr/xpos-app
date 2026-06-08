@@ -1,6 +1,10 @@
 # Full Cursor rules (optional copy into .cursor/rules/project.mdc)
 
-The file `.cursor/rules/project.mdc` contains a short summary. If you prefer the full rules in Cursor, copy the markdown below into `.cursor/rules/project.mdc`.
+**Updated:** Rules are now maintained in `.cursor/rules/` (`project.mdc` + `architecture.mdc` synced from `CLAUDE.md`). See `.cursor/README.md`.
+
+The file `.cursor/rules/project.mdc` contains product/requirements rules. Architecture and conventions from `CLAUDE.md` live in `.cursor/rules/architecture.mdc`.
+
+If you prefer a single file, copy the markdown below into `.cursor/rules/project.mdc`.
 
 ---
 

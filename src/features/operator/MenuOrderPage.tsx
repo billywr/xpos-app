@@ -118,20 +118,12 @@ export function MenuOrderPage() {
   const [itemSearchOpen, setItemSearchOpen] = useState(false);
   const [itemSearchQuery, setItemSearchQuery] = useState("");
   const itemSearchRef = useRef<HTMLDivElement>(null);
+  const itemSearchDropdownRef = useRef<HTMLDivElement>(null);
   const searchListScrollRef = useRef<HTMLDivElement>(null);
-  const [searchListScrollTop, setSearchListScrollTop] = useState(0);
-  const [searchListHeight, setSearchListHeight] = useState(320);
 
+  /** ~3× original 14px item text; row height kept tight (not 3× row padding). */
   const SEARCH_ROW_HEIGHT = 44;
-  const SEARCH_ROW_OVERSCAN = 8;
-  const SEARCH_ROW_BG_PALETTE = [
-    "bg-slate-50 dark:bg-slate-800/90",
-    "bg-blue-50/80 dark:bg-slate-700/85",
-    "bg-primary-50/60 dark:bg-primary-900/25",
-    "bg-slate-100/80 dark:bg-slate-800",
-    "bg-blue-50/60 dark:bg-slate-700",
-    "bg-primary-50/40 dark:bg-primary-900/20",
-  ];
+  const SEARCH_ITEM_TEXT = "text-[1.75rem] leading-none tracking-tight";
   const navContext = useNavVisibilityContextOrNull();
   const operatorVisibility = navContext?.operatorVisibility ?? {};
   const showOrderType = isMenuOrderOptionVisible(
@@ -613,34 +605,46 @@ export function MenuOrderPage() {
       !q
         ? allItemsForSearch
         : allItemsForSearch.filter((i: Item) => i.name.toLowerCase().includes(q));
-    return filterOutOfStockItems(byQuery, stockMap, hideOutOfStock);
-  }, [allItemsForSearch, itemSearchQuery, stockMap, hideOutOfStock]);
-
-  const searchVirtualSlice = useMemo(() => {
-    const n = searchFilteredItems.length;
-    if (n === 0) return { start: 0, end: 0, totalHeight: 0 };
-    const totalHeight = n * SEARCH_ROW_HEIGHT;
-    const start = Math.max(
-      0,
-      Math.floor(searchListScrollTop / SEARCH_ROW_HEIGHT) - SEARCH_ROW_OVERSCAN
-    );
-    const visibleCount = Math.ceil(searchListHeight / SEARCH_ROW_HEIGHT);
-    const end = Math.min(
-      n,
-      start + visibleCount + SEARCH_ROW_OVERSCAN * 2
-    );
-    return { start, end: Math.max(start, end), totalHeight };
-  }, [
-    searchFilteredItems.length,
-    searchListScrollTop,
-    searchListHeight,
-  ]);
+    return filterOutOfStockItems(byQuery, stockMap, true);
+  }, [allItemsForSearch, itemSearchQuery, stockMap]);
 
   useLayoutEffect(() => {
-    if (!itemSearchOpen || searchFilteredItems.length === 0) return;
-    const el = searchListScrollRef.current;
-    if (el) setSearchListHeight(el.clientHeight);
-  }, [itemSearchOpen, searchFilteredItems.length]);
+    if (!itemSearchOpen) return;
+
+    const list = searchListScrollRef.current;
+    if (list) {
+      list.scrollTop = 0;
+    }
+
+    const updateHeights = () => {
+      const dropdown = itemSearchDropdownRef.current;
+      if (!dropdown) return;
+
+      const top = dropdown.getBoundingClientRect().top;
+      const available = Math.max(280, window.innerHeight - top - 16);
+      dropdown.style.maxHeight = `${available}px`;
+      dropdown.style.height = `${available}px`;
+    };
+
+    updateHeights();
+    const ro = new ResizeObserver(updateHeights);
+    if (itemSearchDropdownRef.current) {
+      ro.observe(itemSearchDropdownRef.current);
+    }
+    window.addEventListener("resize", updateHeights);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", updateHeights);
+    };
+  }, [itemSearchOpen, posExpanded]);
+
+  useLayoutEffect(() => {
+    if (!itemSearchOpen) return;
+    const list = searchListScrollRef.current;
+    if (list) {
+      list.scrollTop = 0;
+    }
+  }, [itemSearchQuery, itemSearchOpen]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -772,48 +776,33 @@ export function MenuOrderPage() {
             </button>
             {itemSearchOpen && (
               <div
-                className="fixed inset-x-4 top-auto z-50 mt-1 max-h-[min(60vh,400px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:w-[420px] dark:border-slate-600 dark:bg-slate-800"
+                ref={itemSearchDropdownRef}
+                className="fixed inset-x-2 top-auto z-50 mt-1 flex min-h-[280px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:w-[720px] sm:max-w-[min(96vw,840px)] dark:border-slate-600 dark:bg-slate-800"
               role="listbox"
               aria-multiselectable
               aria-label="Sellable items"
             >
-              <div className="border-b border-slate-200 p-2 pl-2 pr-4 dark:border-slate-600">
+              <div className="shrink-0 border-b border-slate-200 p-2 dark:border-slate-600">
                 <input
                   type="search"
                   value={itemSearchQuery}
                   onChange={(e) => setItemSearchQuery(e.target.value)}
                   placeholder="Type to search…"
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-base text-slate-900 placeholder:text-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-2xl leading-tight text-slate-900 placeholder:text-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:placeholder:text-slate-400"
                   aria-label="Filter items"
                   autoFocus
                 />
               </div>
               <div
                 ref={searchListScrollRef}
-                onScroll={() =>
-                  setSearchListScrollTop(searchListScrollRef.current?.scrollTop ?? 0)
-                }
-                className="max-h-[min(45vh,320px)] overflow-y-auto p-1.5"
+                className="min-h-0 flex-1 overflow-y-auto p-1"
               >
                 {searchFilteredItems.length === 0 ? (
-                  <p className="py-4 text-center text-base text-slate-500 dark:text-slate-400">
+                  <p className="py-3 text-center text-xl text-slate-500 dark:text-slate-400">
                     No items match
                   </p>
                 ) : (
-                  <div
-                    style={{ minHeight: searchVirtualSlice.totalHeight }}
-                    className="relative"
-                  >
-                    <div
-                      style={{
-                        height: searchVirtualSlice.start * SEARCH_ROW_HEIGHT,
-                      }}
-                      aria-hidden
-                    />
-                    {searchFilteredItems
-                      .slice(searchVirtualSlice.start, searchVirtualSlice.end)
-                      .map((item: Item, i: number) => {
-                        const index = searchVirtualSlice.start + i;
+                  searchFilteredItems.map((item: Item, index: number) => {
                         const onHand = item.trackInventory
                           ? (stockMap.get(item.id) ?? 0)
                           : Infinity;
@@ -825,16 +814,17 @@ export function MenuOrderPage() {
                         const canSelect = available && priceSet;
                         const qtyInCart = getQtyInCart(item.id);
                         const isChecked = qtyInCart > 0;
-                        const rowBg =
-                          SEARCH_ROW_BG_PALETTE[
-                            index % SEARCH_ROW_BG_PALETTE.length
-                          ];
+                        const rowBase = isChecked
+                          ? "bg-primary-50 dark:bg-slate-800 dark:ring-1 dark:ring-inset dark:ring-primary-500/50"
+                          : index % 2 === 1
+                            ? "bg-slate-50 dark:bg-slate-800"
+                            : "bg-white dark:bg-slate-800";
                         return (
                           <label
                             key={item.id}
-                            className={`flex touch-manipulation cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-base transition ${rowBg} ${
+                            className={`menu-order-search-row flex touch-manipulation items-center gap-2 rounded-md px-2 py-0 ${SEARCH_ITEM_TEXT} transition-colors ${rowBase} ${
                               canSelect
-                                ? "hover:bg-primary-100 dark:hover:bg-primary-700/50"
+                                ? "can-select cursor-pointer"
                                 : "cursor-not-allowed opacity-60"
                             }`}
                             style={{
@@ -849,7 +839,7 @@ export function MenuOrderPage() {
                                 handleSearchItemCheck(item, e.target.checked)
                               }
                               disabled={!canSelect}
-                              className="h-5 w-5 shrink-0 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+                              className="h-6 w-6 shrink-0 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-500 dark:bg-slate-700"
                               aria-label={`${item.name}, ${formatCurrency(price)}`}
                             />
                             <span className="min-w-0 flex-1 truncate font-semibold text-slate-900 dark:text-white">
@@ -859,7 +849,7 @@ export function MenuOrderPage() {
                               {formatCurrency(price)}
                             </span>
                             {item.trackInventory && (
-                              <span className="shrink-0 text-sm text-slate-500 dark:text-slate-400">
+                              <span className="shrink-0 text-lg leading-none text-slate-500 dark:text-slate-300">
                                 {onHand > 0
                                   ? `${Math.floor(onHand)} in stock`
                                   : "Out"}
@@ -867,16 +857,7 @@ export function MenuOrderPage() {
                             )}
                           </label>
                         );
-                      })}
-                    <div
-                      style={{
-                        height:
-                          (searchFilteredItems.length - searchVirtualSlice.end) *
-                          SEARCH_ROW_HEIGHT,
-                      }}
-                      aria-hidden
-                    />
-                  </div>
+                      })
                 )}
               </div>
               </div>

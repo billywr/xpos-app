@@ -22,6 +22,10 @@ pnpm-debug.log*
 # Editor
 .vscode/*
 .cursor/*
+!.cursor/rules/
+!.cursor/rules/**
+!.cursor/skills/
+!.cursor/skills/**
 !.vscode/extensions.json
 .idea
 *.suo
