@@ -5,12 +5,13 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * One row in the Standard Stock Count Sheet. {@code openingStock} is strictly the previous branch
- * business day's saved closing from {@code std_stock_count_snapshot} (never negative); if no
- * snapshot exists for the previous business day, it is {@code 0}. {@code addedStock} is same-day
- * receipts only: sum of {@code GrnLine} qty for active GRNs whose {@code receivedAt} is on that
- * date. {@code addedTodayStock} is positive stock-take adjustments (e.g. session close variance).
- * Frontend computes totalStock (opening + addedStock + addedTodayStock), unitsSold, amount.
+ * One row in the Standard Stock Count Sheet. {@code openingStock} is the latest saved closing from
+ * {@code std_stock_count_snapshot} with {@code business_date} strictly before the sheet date (never
+ * negative); if no prior snapshot exists for the item, it is {@code 0}. {@code addedStock} is the
+ * sum of {@code GrnLine} qty for active GRNs received from the day after that last save through the
+ * sheet date (same-day only when never saved before). {@code addedTodayStock} is positive
+ * stock-take adjustments over the same receipt window. Frontend computes totalStock (opening +
+ * addedStock + addedTodayStock), unitsSold, amount.
  */
 public record StdStockCountRowDto(
     UUID itemId,

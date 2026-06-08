@@ -40,4 +40,14 @@ public interface StdStockCountSnapshotRepository
       @Param("branchId") UUID branchId,
       @Param("itemId") UUID itemId,
       @Param("businessDate") LocalDate businessDate);
+
+  @Query(
+      """
+      select s from StdStockCountSnapshot s
+      left join fetch s.item
+      where s.branch.id = :branchId and s.businessDate < :businessDate
+      order by s.businessDate desc
+      """)
+  List<StdStockCountSnapshot> findAllByBranchIdAndBusinessDateBefore(
+      @Param("branchId") UUID branchId, @Param("businessDate") LocalDate businessDate);
 }

@@ -1,5 +1,7 @@
 package com.blinc.xpos.modules.inventory.service;
 
+import com.blinc.xpos.modules.inventory.dto.StdStockCountRecordSalesResponse;
+import com.blinc.xpos.modules.inventory.dto.StdStockCountSalesPreviewDto;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountSaveRequest;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountSheetDto;
 import java.time.LocalDate;
@@ -15,4 +17,15 @@ public interface StdStockCountService {
 
   StdStockCountSheetDto saveCounts(
       UUID orgId, UUID branchId, UUID staffUserId, StdStockCountSaveRequest request);
+
+  /** Preview implied sales from saved closings, reconciled against completed sales on the date. */
+  StdStockCountSalesPreviewDto previewSalesFromSheet(
+      UUID orgId, UUID branchId, LocalDate businessDate);
+
+  /**
+   * Record delta sales (implied minus already completed) via the sales-recording pipeline. Future:
+   * gate with {@code STD_STOCK_COUNT_RECORD_SALES} permission when role matrix expands.
+   */
+  StdStockCountRecordSalesResponse recordSalesFromSheet(
+      UUID orgId, UUID branchId, UUID terminalId, UUID staffUserId, LocalDate businessDate);
 }

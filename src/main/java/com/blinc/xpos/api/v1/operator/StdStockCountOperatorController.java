@@ -1,6 +1,9 @@
 package com.blinc.xpos.api.v1.operator;
 
 import com.blinc.xpos.common.security.CurrentPrincipalResolver;
+import com.blinc.xpos.modules.inventory.dto.StdStockCountRecordSalesRequest;
+import com.blinc.xpos.modules.inventory.dto.StdStockCountRecordSalesResponse;
+import com.blinc.xpos.modules.inventory.dto.StdStockCountSalesPreviewDto;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountSaveRequest;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountSheetDto;
 import com.blinc.xpos.modules.inventory.service.StdStockCountService;
@@ -9,9 +12,11 @@ import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -60,5 +65,31 @@ public class StdStockCountOperatorController {
     StdStockCountSheetDto result =
         stdStockCountService.saveCounts(orgId, branchId, staffUser.getId(), request);
     return ResponseEntity.ok(result);
+  }
+
+  @GetMapping("/sales-preview")
+  public StdStockCountSalesPreviewDto previewSales(
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @RequestParam LocalDate date) {
+    staffAuthorizationService.requireStaffUserForBranch(
+        orgId, branchId, principalResolver.require().iamUserId());
+    return stdStockCountService.previewSalesFromSheet(orgId, branchId, date);
+  }
+
+  @PostMapping("/record-sales")
+  public ResponseEntity<StdStockCountRecordSalesResponse> recordSales(
+      @PathVariable UUID orgId,
+      @PathVariable UUID branchId,
+      @Valid @RequestBody StdStockCountRecordSalesRequest request) {
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
+    StdStockCountRecordSalesResponse result =
+        stdStockCountService.recordSalesFromSheet(
+            orgId, branchId, request.terminalId(), staffUser.getId(), request.date());
+    HttpStatus status =
+        result.saleIds() != null && !result.saleIds().isEmpty()
+            ? HttpStatus.CREATED
+            : HttpStatus.OK;
+    return ResponseEntity.status(status).body(result);
   }
 }

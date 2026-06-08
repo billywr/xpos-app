@@ -46,4 +46,17 @@ public interface SaleLineRepository extends JpaRepository<SaleLine, UUID> {
       order by l.createdAt
       """)
   List<SaleLine> findBySaleIdOrderByCreatedAtWithItemAndUom(@Param("saleId") UUID saleId);
+
+  @Query(
+      """
+      select l.item.id, coalesce(sum(l.qty), 0)
+      from SaleLine l join l.sale s
+      where s.org.id = :orgId and s.branch.id = :branchId
+      and s.status = 'COMPLETED' and s.businessDate = :businessDate
+      group by l.item.id
+      """)
+  List<Object[]> sumQtyByItemForOrgBranchAndBusinessDate(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("businessDate") java.time.LocalDate businessDate);
 }

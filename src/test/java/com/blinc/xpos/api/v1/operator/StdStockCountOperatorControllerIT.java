@@ -274,6 +274,151 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
+  void getSheetUsesLatestPriorSnapshotWhenDaysSkipped() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate threeDaysAgo = today.minusDays(3);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+
+    String saveThreeDaysAgo =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":10}]}
+        """
+            .formatted(threeDaysAgo, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(saveThreeDaysAgo))
+        .andExpect(status().isOk());
+
+    String urlToday =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + today;
+    mockMvc
+        .perform(get(urlToday).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(10));
+  }
+
+  @Test
+  void getSheetIncludesGrnReceiptsFromSkippedDaysInAdded() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate threeDaysAgo = today.minusDays(3);
+    LocalDate twoDaysAgo = today.minusDays(2);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+
+    String saveThreeDaysAgo =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":10}]}
+        """
+            .formatted(threeDaysAgo, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(saveThreeDaysAgo))
+        .andExpect(status().isOk());
+
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 5, twoDaysAgo, zone);
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 3, today, zone);
+
+    String urlToday =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + today;
+    mockMvc
+        .perform(get(urlToday).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(10))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(8));
+  }
+
+  @Test
+  void getSheetSkipsBlankBulkZeroSaveWhenCarryingOpeningForward() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate threeDaysAgo = today.minusDays(3);
+    LocalDate yesterday = today.minusDays(1);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId, "Balozi bottle");
+    UUID itemId2 = createItem(orgId, "Best gin 250ml");
+
+    String saveThreeDaysAgo =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":10}]}
+        """
+            .formatted(threeDaysAgo, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(saveThreeDaysAgo))
+        .andExpect(status().isOk());
+
+    String blankBulkSave =
+        """
+        {"date":"%s","outletId":"%s","counts":[\
+        {"itemId":"%s","closingStock":0},\
+        {"itemId":"%s","closingStock":0}]}
+        """
+            .formatted(yesterday, branchId, itemId, itemId2);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(blankBulkSave))
+        .andExpect(status().isOk());
+
+    String urlToday =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + today;
+    mockMvc
+        .perform(get(urlToday).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(10));
+  }
+
+  @Test
   void saveCountsPersistsCommentsWhenProvided() throws Exception {
     UUID orgId = createOrg();
     UUID businessId = createBusiness(orgId);
@@ -415,14 +560,18 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   private UUID createItem(UUID orgId) throws Exception {
+    return createItem(orgId, "Test Product");
+  }
+
+  private UUID createItem(UUID orgId, String name) throws Exception {
     UUID taxProfileId = createTaxProfile(orgId);
     String body =
         """
-        {"name":"Test Product","itemType":"STOCK","taxProfileId":"%s",\
+        {"name":"%s","itemType":"STOCK","taxProfileId":"%s",\
         "trackInventory":true,"active":true,\
         "buyingPrice":80.00,"defaultSellingPrice":99.50,"visibleInPos":true}
         """
-            .formatted(taxProfileId);
+            .formatted(name, taxProfileId);
     MvcResult result =
         mockMvc
             .perform(
@@ -439,8 +588,9 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
   private UUID createTaxProfile(UUID orgId) throws Exception {
     String body =
         """
-        {"name":"VAT Standard","vatCategory":"STANDARD","serviceChargeRate":0,"levyRate":0}
-        """;
+        {"name":"VAT Standard %s","vatCategory":"STANDARD","serviceChargeRate":0,"levyRate":0}
+        """
+            .formatted(UUID.randomUUID());
     MvcResult result =
         mockMvc
             .perform(
@@ -470,17 +620,52 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
 
   private void createGrnForItem(UUID orgId, UUID branchId, UUID supplierId, UUID itemId)
       throws Exception {
+    createGrnForItemOnDate(
+        orgId, branchId, supplierId, itemId, 5, LocalDate.now(), ZoneId.of("Africa/Nairobi"));
+  }
+
+  private void createGrnForItemOnDate(
+      UUID orgId,
+      UUID branchId,
+      UUID supplierId,
+      UUID itemId,
+      int qty,
+      LocalDate receivedDate,
+      ZoneId zone)
+      throws Exception {
     String body =
         """
-        {"branchId":"%s","supplierId":"%s","lines":[{"itemId":"%s","qty":5,"receivedUnitCost":80.00}]}
+        {"branchId":"%s","supplierId":"%s","lines":[{"itemId":"%s","qty":%d,"receivedUnitCost":80.00}]}
         """
-            .formatted(branchId, supplierId, itemId);
+            .formatted(branchId, supplierId, itemId, qty);
+    MvcResult grnResult =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
+                    .with(operatorJwt())
+                    .contentType(APPLICATION_JSON)
+                    .content(body))
+            .andExpect(status().isCreated())
+            .andReturn();
+    String grnJson = grnResult.getResponse().getContentAsString();
+    UUID grnId = UUID.fromString(objectMapper.readTree(grnJson).get("id").asText());
+    String receivedAt = receivedDate.atTime(12, 0).atZone(zone).toInstant().toString();
+    String patchBody =
+        "{\"supplierId\":\""
+            + supplierId
+            + "\",\"receivedAt\":\""
+            + receivedAt
+            + "\",\"lines\":[{\"itemId\":\""
+            + itemId
+            + "\",\"qty\":"
+            + qty
+            + ",\"receivedUnitCost\":80.00}]}";
     mockMvc
         .perform(
-            post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
+            patch("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes/" + grnId)
                 .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
-                .content(body))
-        .andExpect(status().isCreated());
+                .content(patchBody))
+        .andExpect(status().isOk());
   }
 }
