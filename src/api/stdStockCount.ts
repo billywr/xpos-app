@@ -2,16 +2,17 @@ import { apiFetch } from "@/api/client";
 
 /**
  * One row in the Standard Stock Count Sheet. Backend provides opening, added columns, price, closing.
- * Opening is strictly the previous business day's saved closing; 0 when no snapshot exists.
+ * Opening is the latest saved closing before this date; 0 when no prior snapshot exists.
+ * Added covers GRN receipts from the day after that last save through this date.
  * Frontend computes totalStock, unitsSold, amount.
  */
 export interface StdStockCountRowResponse {
   itemId: string;
   sku: string;
   name: string;
-  /** Yesterday's saved closing; 0 when no snapshot exists for the previous business day. */
+  /** Latest saved closing before this date; 0 when no prior snapshot exists. */
   openingStock: number;
-  /** Qty on active GRNs with receivedAt on this sheet date (current line totals; includes edits). */
+  /** GRN receipts since last saved count through this date (current line totals; includes edits). */
   addedStock: number;
   /** Stock-take adjustments today (not GRN). Included in Total Stock; no separate table column. */
   addedTodayStock: number;
@@ -62,5 +63,70 @@ export async function saveStdStockCount(
   return apiFetch<StdStockCountSheetResponse>(
     `/api/v1/operator/orgs/${orgId}/branches/${branchId}/std-stock-count`,
     { token, method: "PUT", body }
+  );
+}
+
+export type StdStockCountSalesLineStatus =
+  | "RECORDED"
+  | "SKIPPED_NO_QTY"
+  | "SKIPPED_NO_CLOSING"
+  | "SKIPPED_NO_IMPLIED_SALE"
+  | "WARNING_OVER_RECORDED";
+
+export interface StdStockCountSalesLineResponse {
+  itemId: string;
+  name: string;
+  impliedSold: number;
+  alreadyRecorded: number;
+  qtyToRecord: number;
+  qtyRecorded: number | null;
+  unitPrice: number;
+  lineValue: number;
+  status: StdStockCountSalesLineStatus | null;
+}
+
+export interface StdStockCountSalesPreviewResponse {
+  date: string;
+  branchId: string;
+  lines: StdStockCountSalesLineResponse[];
+  totalQtyToRecord: number;
+  totalValueToRecord: number;
+}
+
+export interface StdStockCountRecordSalesRequest {
+  date: string;
+  terminalId: string;
+}
+
+export interface StdStockCountRecordSalesResponse {
+  date: string;
+  terminalId: string;
+  totalItemsRecorded: number;
+  totalValue: number;
+  saleIds: string[];
+  lines: StdStockCountSalesLineResponse[];
+}
+
+export async function fetchStdStockCountSalesPreview(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  date: string
+): Promise<StdStockCountSalesPreviewResponse> {
+  return apiFetch<StdStockCountSalesPreviewResponse>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/std-stock-count/sales-preview?date=${encodeURIComponent(date)}`,
+    { token }
+  );
+}
+
+export async function recordStdStockCountSales(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  body: StdStockCountRecordSalesRequest
+): Promise<StdStockCountRecordSalesResponse> {
+  return apiFetch<StdStockCountRecordSalesResponse>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/std-stock-count/record-sales`,
+    { token, method: "POST", body }
   );
 }

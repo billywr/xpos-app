@@ -122,7 +122,7 @@ export function MenuOrderPage() {
   const [searchListScrollTop, setSearchListScrollTop] = useState(0);
   const [searchListHeight, setSearchListHeight] = useState(320);
 
-  const SEARCH_ROW_HEIGHT = 36;
+  const SEARCH_ROW_HEIGHT = 44;
   const SEARCH_ROW_OVERSCAN = 8;
   const SEARCH_ROW_BG_PALETTE = [
     "bg-slate-50 dark:bg-slate-800/90",
@@ -772,7 +772,7 @@ export function MenuOrderPage() {
             </button>
             {itemSearchOpen && (
               <div
-                className="fixed inset-x-4 top-auto z-50 mt-1 max-h-[min(60vh,400px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:w-[380px] dark:border-slate-600 dark:bg-slate-800"
+                className="fixed inset-x-4 top-auto z-50 mt-1 max-h-[min(60vh,400px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:w-[420px] dark:border-slate-600 dark:bg-slate-800"
               role="listbox"
               aria-multiselectable
               aria-label="Sellable items"
@@ -783,7 +783,7 @@ export function MenuOrderPage() {
                   value={itemSearchQuery}
                   onChange={(e) => setItemSearchQuery(e.target.value)}
                   placeholder="Type to search…"
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-base text-slate-900 placeholder:text-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:placeholder:text-slate-400"
                   aria-label="Filter items"
                   autoFocus
                 />
@@ -796,7 +796,7 @@ export function MenuOrderPage() {
                 className="max-h-[min(45vh,320px)] overflow-y-auto p-1.5"
               >
                 {searchFilteredItems.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                  <p className="py-4 text-center text-base text-slate-500 dark:text-slate-400">
                     No items match
                   </p>
                 ) : (
@@ -832,7 +832,7 @@ export function MenuOrderPage() {
                         return (
                           <label
                             key={item.id}
-                            className={`flex touch-manipulation cursor-pointer items-center gap-2 rounded-lg px-2 text-sm transition ${rowBg} ${
+                            className={`flex touch-manipulation cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-base transition ${rowBg} ${
                               canSelect
                                 ? "hover:bg-primary-100 dark:hover:bg-primary-700/50"
                                 : "cursor-not-allowed opacity-60"
@@ -849,17 +849,17 @@ export function MenuOrderPage() {
                                 handleSearchItemCheck(item, e.target.checked)
                               }
                               disabled={!canSelect}
-                              className="h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+                              className="h-5 w-5 shrink-0 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
                               aria-label={`${item.name}, ${formatCurrency(price)}`}
                             />
-                            <span className="min-w-0 flex-1 truncate font-semibold text-white">
+                            <span className="min-w-0 flex-1 truncate font-semibold text-slate-900 dark:text-white">
                               {item.name}
                             </span>
-                            <span className="shrink-0 tabular-nums font-medium text-primary-400">
+                            <span className="shrink-0 tabular-nums font-medium text-primary-600 dark:text-primary-400">
                               {formatCurrency(price)}
                             </span>
                             {item.trackInventory && (
-                              <span className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
+                              <span className="shrink-0 text-sm text-slate-500 dark:text-slate-400">
                                 {onHand > 0
                                   ? `${Math.floor(onHand)} in stock`
                                   : "Out"}

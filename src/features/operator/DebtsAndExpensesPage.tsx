@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -77,6 +77,21 @@ function defaultFromDateStr(): string {
   const d = new Date();
   d.setDate(d.getDate() - 30);
   return toDateStr(d);
+}
+
+/** Earliest createdAt among debts (local calendar). Backend list sort ignores Pageable. */
+function earliestDebtDateStr(debts: CustomerDebtResponse[]): string | null {
+  let earliest: string | null = null;
+  for (const d of debts) {
+    if (!d.createdAt) {
+      continue;
+    }
+    const ds = toDateStr(new Date(d.createdAt));
+    if (earliest === null || ds < earliest) {
+      earliest = ds;
+    }
+  }
+  return earliest;
 }
 
 // ---------------------------------------------------------------------------
@@ -279,8 +294,40 @@ export function DebtsAndExpensesPage() {
 
   // Shared state
   const [tab, setTab] = useState<TabId>("debts");
-  const [fromDate, setFromDate] = useState(defaultFromDateStr);
+  const [fromDate, setFromDate] = useState<string | null>(null);
   const [toDate, setToDate] = useState(todayStr);
+  const fromDateBootstrappedRef = useRef(false);
+
+  const dateRangeReady = fromDate !== null;
+
+  useEffect(() => {
+    fromDateBootstrappedRef.current = false;
+    setFromDate(null);
+  }, [orgId, branchId]);
+
+  const { data: activeDebtsBootstrapPage, isLoading: activeDebtsBootstrapLoading } = useQuery({
+    queryKey: ["operator-debts-active-bootstrap", token, orgId, branchId],
+    queryFn: () =>
+      fetchDebts(token, orgId!, branchId!, {
+        page: 0,
+        size: 2000,
+        status: ["OPEN", "PARTIAL"],
+      }),
+    enabled: Boolean(token && orgId && branchId),
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (fromDateBootstrappedRef.current || activeDebtsBootstrapLoading) {
+      return;
+    }
+    if (activeDebtsBootstrapPage === undefined) {
+      return;
+    }
+    const earliest = earliestDebtDateStr(activeDebtsBootstrapPage.content ?? []);
+    setFromDate(earliest ?? defaultFromDateStr());
+    fromDateBootstrappedRef.current = true;
+  }, [activeDebtsBootstrapPage, activeDebtsBootstrapLoading]);
 
   // -----------------------------------------------------------------------
   // Debts state
@@ -371,10 +418,10 @@ export function DebtsAndExpensesPage() {
         page: debtsPage,
         size: DEBTS_PAGE_SIZE,
         status: statusQueryForFilter(statusFilter),
-        fromDate,
+        fromDate: fromDate!,
         toDate,
       }),
-    enabled: Boolean(token && orgId && branchId),
+    enabled: Boolean(token && orgId && branchId && dateRangeReady),
   });
 
   const { data: debtsTotalPage, isLoading: pendingTotalLoading } = useQuery({
@@ -384,42 +431,15 @@ export function DebtsAndExpensesPage() {
         page: 0,
         size: 2000,
         status: statusQueryForFilter(statusFilter),
-        fromDate,
+        fromDate: fromDate!,
         toDate,
       }),
-    enabled: Boolean(token && orgId && branchId),
+    enabled: Boolean(token && orgId && branchId && dateRangeReady),
   });
-  const pendingTotalForDateRange = useMemo(
-    () =>
-      (debtsTotalPage?.content ?? [])
-        .filter((d) => d.status !== "CANCELLED")
-        .reduce((sum, d) => sum + (d.outstanding ?? 0), 0),
-    [debtsTotalPage],
-  );
 
   // Per-customer outstanding totals, sorted max → min, for the "Total pending"
   // breakdown modal. Cancelled debts are excluded to match the pending total.
   const [debtBreakdownOpen, setDebtBreakdownOpen] = useState(false);
-  const debtsByCustomer = useMemo(() => {
-    const acc = new Map<string, number>();
-    for (const d of debtsTotalPage?.content ?? []) {
-      if (d.status === "CANCELLED") continue;
-      const amt = Number(d.outstanding ?? 0);
-      if (amt <= 0) continue;
-      acc.set(d.customerName, (acc.get(d.customerName) ?? 0) + amt);
-    }
-    const total = [...acc.values()].reduce((s, a) => s + a, 0);
-    return {
-      rows: [...acc.entries()]
-        .map(([customerName, amount]) => ({
-          customerName,
-          amount,
-          pct: total > 0 ? (amount / total) * 100 : 0,
-        }))
-        .sort((a, b) => b.amount - a.amount),
-      total,
-    };
-  }, [debtsTotalPage]);
 
   const debtFormDataEnabled = Boolean(debtFormOpen && token && orgId);
 
@@ -473,10 +493,10 @@ export function DebtsAndExpensesPage() {
       fetchMiscExpenses(token, orgId!, branchId!, {
         page: expensesPage,
         size: EXPENSES_PAGE_SIZE,
-        fromDate,
+        fromDate: fromDate!,
         toDate,
       }),
-    enabled: Boolean(token && orgId && branchId),
+    enabled: Boolean(token && orgId && branchId && dateRangeReady),
   });
 
   // Full dataset for the current date range — powers cross-page search.
@@ -486,10 +506,10 @@ export function DebtsAndExpensesPage() {
       fetchMiscExpenses(token, orgId!, branchId!, {
         page: 0,
         size: 2000,
-        fromDate,
+        fromDate: fromDate!,
         toDate,
       }),
-    enabled: Boolean(token && orgId && branchId),
+    enabled: Boolean(token && orgId && branchId && dateRangeReady),
   });
 
   // -----------------------------------------------------------------------
@@ -733,6 +753,35 @@ export function DebtsAndExpensesPage() {
     [filteredDebts]
   );
   const debtTotalElements = filteredDebts.length;
+
+  const pendingTotalForDateRange = useMemo(
+    () =>
+      filteredDebts
+        .filter((d) => d.status !== "CANCELLED")
+        .reduce((sum, d) => sum + (d.outstanding ?? 0), 0),
+    [filteredDebts],
+  );
+
+  const debtsByCustomer = useMemo(() => {
+    const acc = new Map<string, number>();
+    for (const d of filteredDebts) {
+      if (d.status === "CANCELLED") continue;
+      const amt = Number(d.outstanding ?? 0);
+      if (amt <= 0) continue;
+      acc.set(d.customerName, (acc.get(d.customerName) ?? 0) + amt);
+    }
+    const total = [...acc.values()].reduce((s, a) => s + a, 0);
+    return {
+      rows: [...acc.entries()]
+        .map(([customerName, amount]) => ({
+          customerName,
+          amount,
+          pct: total > 0 ? (amount / total) * 100 : 0,
+        }))
+        .sort((a, b) => b.amount - a.amount),
+      total,
+    };
+  }, [filteredDebts]);
 
   const openDebtEditForm = (d: CustomerDebtResponse) => {
     setEditingDebt(d);
@@ -980,15 +1029,16 @@ export function DebtsAndExpensesPage() {
     [filteredExpenses]
   );
   const expTotalElements = filteredExpenses.length;
-  const expTotalAmount = expensesData?.totalAmount ?? 0;
+  const expTotalAmount = useMemo(
+    () => filteredExpenses.reduce((sum, e) => sum + Number(e.amount ?? 0), 0),
+    [filteredExpenses],
+  );
 
   // Per-category subtotals, sorted max → min, for the "TOTAL" breakdown modal.
-  // Built from the bulk dataset so it reflects every expense in the date range,
-  // not just the current page.
   const [expBreakdownOpen, setExpBreakdownOpen] = useState(false);
   const expensesByCategory = useMemo(() => {
     const acc = new Map<string, number>();
-    for (const e of expensesAll) {
+    for (const e of filteredExpenses) {
       acc.set(e.category, (acc.get(e.category) ?? 0) + Number(e.amount ?? 0));
     }
     const total = [...acc.values()].reduce((s, a) => s + a, 0);
@@ -1002,7 +1052,7 @@ export function DebtsAndExpensesPage() {
         .sort((a, b) => b.amount - a.amount),
       total,
     };
-  }, [expensesAll]);
+  }, [filteredExpenses]);
 
   const openExpEditForm = (e: MiscExpenseResponse) => {
     setEditingExpense(e);
@@ -1071,10 +1121,10 @@ export function DebtsAndExpensesPage() {
   // -----------------------------------------------------------------------
   const [debtsPdfLoading, setDebtsPdfLoading] = useState(false);
   const [expensesPdfLoading, setExpensesPdfLoading] = useState(false);
-  const dateRangeLabel = `${fromDate} to ${toDate}`;
+  const dateRangeLabel = `${fromDate ?? ""} to ${toDate}`;
 
   const handleDownloadDebtsPdf = async () => {
-    if (!orgId || !branchId) return;
+    if (!orgId || !branchId || !fromDate) return;
     setDebtsPdfLoading(true);
     try {
       const resp = await fetchDebts(token, orgId, branchId, {
@@ -1108,7 +1158,7 @@ export function DebtsAndExpensesPage() {
   };
 
   const handleDownloadExpensesPdf = async () => {
-    if (!orgId || !branchId) return;
+    if (!orgId || !branchId || !fromDate) return;
     setExpensesPdfLoading(true);
     try {
       const resp = await fetchMiscExpenses(token, orgId, branchId, {
@@ -1237,7 +1287,7 @@ export function DebtsAndExpensesPage() {
             </div>
           </div>
 
-          {debtsLoading && (
+          {(debtsLoading || activeDebtsBootstrapLoading || !dateRangeReady) && (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-10 w-10 animate-spin text-primary-500" />
             </div>
@@ -1251,12 +1301,12 @@ export function DebtsAndExpensesPage() {
             </div>
           )}
 
-          {!debtsLoading && !debtsIsError && (
+          {!debtsLoading && !activeDebtsBootstrapLoading && dateRangeReady && !debtsIsError && (
             <>
               <div className="mb-4 flex items-center gap-2">
                 <TableSearchInput value={debtSearchQuery} onChange={setDebtSearchQuery} placeholder="Search debts…" />
                 <div className="flex shrink-0 items-center gap-1">
-                  <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value || todayStr())} className="w-[8.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" aria-label="From date" />
+                  <input type="date" value={fromDate ?? ""} onChange={(e) => setFromDate(e.target.value || todayStr())} className="w-[8.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" aria-label="From date" />
                   <span className="text-xs text-slate-400">to</span>
                   <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value || todayStr())} className="w-[8.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" aria-label="To date" />
                 </div>
@@ -1566,7 +1616,13 @@ export function DebtsAndExpensesPage() {
                   </>
                 )}
               </div>
-              <div className="mt-3 flex justify-end">
+              <div className="mt-3 flex flex-col items-end gap-1">
+                {debtSearchActive && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Total reflects {filteredDebts.length} search match
+                    {filteredDebts.length === 1 ? "" : "es"} only.
+                  </p>
+                )}
                 <DebtPendingTotalDisplay
                   loading={pendingTotalLoading}
                   totalPending={pendingTotalForDateRange}
@@ -1616,7 +1672,7 @@ export function DebtsAndExpensesPage() {
             </div>
           </div>
 
-          {expensesLoading && (
+          {(expensesLoading || activeDebtsBootstrapLoading || !dateRangeReady) && (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-10 w-10 animate-spin text-primary-500" />
             </div>
@@ -1630,12 +1686,12 @@ export function DebtsAndExpensesPage() {
             </div>
           )}
 
-          {!expensesLoading && !expensesIsError && (
+          {!expensesLoading && !activeDebtsBootstrapLoading && dateRangeReady && !expensesIsError && (
             <>
               <div className="mb-4 flex items-center gap-2">
                 <TableSearchInput value={expSearchQuery} onChange={setExpSearchQuery} placeholder="Search expenses…" />
                 <div className="flex shrink-0 items-center gap-1">
-                  <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value || todayStr())} className="w-[8.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" aria-label="From date" />
+                  <input type="date" value={fromDate ?? ""} onChange={(e) => setFromDate(e.target.value || todayStr())} className="w-[8.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" aria-label="From date" />
                   <span className="text-xs text-slate-400">to</span>
                   <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value || todayStr())} className="w-[8.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" aria-label="To date" />
                 </div>
@@ -1727,7 +1783,13 @@ export function DebtsAndExpensesPage() {
                 )}
               </div>
               {expTotalElements > 0 ? (
-                <div className="mt-3 flex justify-end">
+                <div className="mt-3 flex flex-col items-end gap-1">
+                  {expSearchActive && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Total reflects {filteredExpenses.length} search match
+                      {filteredExpenses.length === 1 ? "" : "es"} only.
+                    </p>
+                  )}
                   <MiscExpensesTotalBadge
                     totalAmount={expTotalAmount}
                     onClick={

@@ -10,11 +10,15 @@ import {
   selectBranchId,
   selectBranchName,
   selectOrgName,
+  selectTerminalId,
 } from "@/store/selectors/orgContextSelectors";
 import {
   fetchStdStockCountSheet,
   saveStdStockCount,
+  fetchStdStockCountSalesPreview,
+  recordStdStockCountSales,
   type StdStockCountRowResponse,
+  type StdStockCountSalesPreviewResponse,
 } from "@/api/stdStockCount";
 import { fetchOperatorAnalyticsSnapshot } from "@/api/operatorAnalytics";
 import { fetchDebts } from "@/api/debts";
@@ -33,9 +37,11 @@ import {
   FileSpreadsheet,
   Download,
   X,
+  ShoppingBag,
 } from "lucide-react";
 import { downloadStdStockCountPdf } from "@/utils/stdStockCountPdf";
-import { Pagination, TableSearchInput } from "@/components/ui";
+import { Pagination, TableSearchInput, ConfirmDialog } from "@/components/ui";
+import { SlideOver } from "@/components/ui/SlideOver";
 import { useTableSearch } from "@/hooks/useTableSearch";
 
 /** YYYY-MM-DD in the browser's local calendar (not UTC). toISOString().slice(0,10) is wrong for TZ ahead of UTC. */
@@ -148,6 +154,7 @@ export function StandardStockCountSheetPage({
   const contextBranchId = useAppSelector(selectBranchId) ?? "";
   const contextBranchName = useAppSelector(selectBranchName);
   const contextOrgName = useAppSelector(selectOrgName);
+  const terminalId = useAppSelector(selectTerminalId);
 
   const orgId = orgIdProp ?? contextOrgId;
   const branchId = branchIdProp ?? contextBranchId;
@@ -167,6 +174,11 @@ export function StandardStockCountSheetPage({
   const [pageSize, setPageSize] = useState(15);
   const [debtModal, setDebtModal] = useState<"day" | "all" | null>(null);
   const [tableExpanded, setTableExpanded] = useState(false);
+  const [recordPreview, setRecordPreview] = useState<StdStockCountSalesPreviewResponse | null>(
+    null
+  );
+  const [saveBeforeRecordOpen, setSaveBeforeRecordOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const isToday = dateStr === todayStr();
   const isYesterday = dateStr === yesterdayStr();
@@ -232,12 +244,8 @@ export function StandardStockCountSheetPage({
   }
 
   function isRowChanged(r: StdStockCountRowResponse): boolean {
-    const closingLocal = localClosings[r.itemId];
-    if (closingLocal !== undefined) {
-      const parsed =
-        closingLocal === "" || closingLocal === "."
-          ? 0
-          : parseFloat(closingLocal) || 0;
+    if (localClosings[r.itemId] !== undefined) {
+      const parsed = parseClosing(r.itemId, r);
       const baseline = defaultClosingFromRow(r);
       if (parsed !== baseline) return true;
     }
@@ -249,18 +257,18 @@ export function StandardStockCountSheetPage({
     return false;
   }
 
-  // Always saves ALL rows — ensures every item has a snapshot for tomorrow's
-  // Opening. Backend upserts are idempotent so unchanged rows are harmless.
+  // Save only rows the operator changed — avoids blank zero saves blocking carry-forward.
   const saveMutation = useMutation({
     mutationFn: async () => {
       const rows = sheet?.rows ?? [];
-      if (rows.length === 0) {
+      const changedRows = rows.filter((r) => isRowChanged(r));
+      if (changedRows.length === 0) {
         return;
       }
       await saveStdStockCount(token, orgId, branchId, {
         date: dateStr,
         outletId: branchId,
-        counts: rows.map((r) => ({
+        counts: changedRows.map((r) => ({
           itemId: r.itemId,
           closingStock: parseClosing(r.itemId, r),
           comments: parseCommentForSave(r.itemId, r),
@@ -272,6 +280,41 @@ export function StandardStockCountSheetPage({
       setLocalClosings({});
       setLocalComments({});
       toast.success("Stock count saved.", { title: "Saved" });
+    },
+    onError: (err) => {
+      toast.error(getApiErrorMessage(err), {
+        detail: getApiErrorRequestId(err)
+          ? `Reference: ${getApiErrorRequestId(err)}`
+          : undefined,
+      });
+    },
+  });
+
+  const recordSalesMutation = useMutation({
+    mutationFn: async () => {
+      if (!terminalId) {
+        throw new Error("Select a terminal in context before recording sales.");
+      }
+      return recordStdStockCountSales(token, orgId, branchId, {
+        date: dateStr,
+        terminalId,
+      });
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["std-stock-count"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-recording-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-recording-stock"] });
+      setRecordPreview(null);
+      if (result.saleIds.length === 0) {
+        toast.success("No new sales to record — counts already match recorded sales.", {
+          title: "Record sales",
+        });
+      } else {
+        toast.success(
+          `Recorded ${result.totalItemsRecorded} item(s) · ${formatCurrency(result.totalValue)}`,
+          { title: "Sales recorded" }
+        );
+      }
     },
     onError: (err) => {
       toast.error(getApiErrorMessage(err), {
@@ -350,6 +393,76 @@ export function StandardStockCountSheetPage({
   );
 
   const hasChanges = changedItemIds.size > 0;
+
+  const latestSavedAt = useMemo(() => {
+    const times = (sheet?.rows ?? [])
+      .map((r) => r.lastSavedAt)
+      .filter((t): t is string => Boolean(t))
+      .map((t) => new Date(t).getTime());
+    return times.length > 0 ? new Date(Math.max(...times)).toISOString() : null;
+  }, [sheet?.rows]);
+
+  const recordablePreviewLines = useMemo(
+    () =>
+      (recordPreview?.lines ?? []).filter(
+        (line) => line.qtyToRecord > 0 || line.status === "WARNING_OVER_RECORDED"
+      ),
+    [recordPreview]
+  );
+
+  const recordPreviewLinesWithQty = useMemo(
+    () =>
+      (recordPreview?.lines ?? []).filter((line) => line.qtyToRecord > 0).length,
+    [recordPreview]
+  );
+
+  async function openRecordPreview() {
+    setPreviewLoading(true);
+    try {
+      const preview = await fetchStdStockCountSalesPreview(token, orgId, branchId, dateStr);
+      setRecordPreview(preview);
+    } catch (err) {
+      toast.error(getApiErrorMessage(err), {
+        detail: getApiErrorRequestId(err)
+          ? `Reference: ${getApiErrorRequestId(err)}`
+          : undefined,
+      });
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  async function handleRecordSalesClick() {
+    if (!terminalId) {
+      toast.error("Select a terminal in context before recording sales.");
+      return;
+    }
+    if (!canEdit) {
+      toast.error("Sales can only be recorded for today or yesterday.");
+      return;
+    }
+    if (hasErrors) {
+      toast.error("Fix validation errors before recording sales.");
+      return;
+    }
+    if (hasChanges) {
+      setSaveBeforeRecordOpen(true);
+      return;
+    }
+    await openRecordPreview();
+  }
+
+  async function handleSaveBeforeRecordConfirm() {
+    setSaveBeforeRecordOpen(false);
+    if (hasChanges) {
+      try {
+        await saveMutation.mutateAsync();
+      } catch {
+        return;
+      }
+    }
+    await openRecordPreview();
+  }
 
   function handleDownloadPdf() {
     downloadStdStockCountPdf(
@@ -458,7 +571,7 @@ export function StandardStockCountSheetPage({
       {!tableExpanded && (
         <PageHeader
           title="Stock Count Sheet"
-          subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = strictly the previous day's saved Closing (0 if you didn't save yesterday). Total Stock = Opening + Added + Added today. Closing = physical count (defaults to Total Stock for unsaved rows so Units Sold starts at 0; editable); Units Sold = Total Stock − Closing.`}
+          subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = latest saved Closing before this date (0 if never saved). Added = GRN receipts since that last save through this date. Total Stock = Opening + Added + Added today. Closing = physical count (defaults to Total Stock for unsaved rows so Units Sold starts at 0; editable); Units Sold = Total Stock − Closing.`}
           subtitleRevealOnTitleHover
           icon={FileSpreadsheet}
           fallbackTo="/operator"
@@ -469,9 +582,9 @@ export function StandardStockCountSheetPage({
         {sheet ? (
           <div className="flex min-w-0 items-center gap-2">
             <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Filter by name or SKU" />
-            {sheet.rows[0]?.lastSavedAt && (
+            {latestSavedAt && (
               <span className="hidden shrink-0 text-xs text-slate-500 md:inline dark:text-slate-400">
-                Saved: {new Date(sheet.rows[0].lastSavedAt).toLocaleString()}
+                Saved: {new Date(latestSavedAt).toLocaleString()}
               </span>
             )}
           </div>
@@ -519,7 +632,7 @@ export function StandardStockCountSheetPage({
           <button
             type="button"
             onClick={handleSave}
-            disabled={saveMutation.isPending || hasErrors || !canEdit || (!hasChanges && Boolean(sheet?.rows?.[0]?.lastSavedAt))}
+            disabled={saveMutation.isPending || hasErrors || !canEdit || !hasChanges}
             className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 sm:gap-2 sm:px-4 sm:py-2"
           >
             {saveMutation.isPending ? (
@@ -528,6 +641,35 @@ export function StandardStockCountSheetPage({
               <Save className="h-4 w-4" />
             )}
             <span className="hidden xs:inline">Save</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleRecordSalesClick()}
+            disabled={
+              !sheet ||
+              !canEdit ||
+              !terminalId ||
+              hasErrors ||
+              previewLoading ||
+              recordSalesMutation.isPending ||
+              saveMutation.isPending
+            }
+            title={
+              !terminalId
+                ? "Select a terminal in context"
+                : hasChanges
+                  ? "Save stock count first"
+                  : "Record sales from Sold column"
+            }
+            className="flex items-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-50 px-2.5 py-1.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:py-2 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-900/50"
+            aria-label="Record sales"
+          >
+            {previewLoading || recordSalesMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ShoppingBag className="h-4 w-4" />
+            )}
+            <span className="hidden xs:inline">Record sales</span>
           </button>
           <button
             type="button"
@@ -598,13 +740,13 @@ export function StandardStockCountSheetPage({
                   </th>
                   <th
                     className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
-                    title="Previous business day's saved closing, or ledger fallback if that day was not saved"
+                    title="Latest saved closing before this date (from your last stock count save)"
                   >
                     Open
                   </th>
                   <th
                     className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
-                    title="Received today per receipt date (sum of current GRN lines; edits apply immediately)"
+                    title="GRN receipts since your last saved count through this date"
                   >
                     Added
                   </th>
@@ -820,6 +962,143 @@ export function StandardStockCountSheetPage({
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={saveBeforeRecordOpen}
+        onClose={() => setSaveBeforeRecordOpen(false)}
+        onConfirm={() => void handleSaveBeforeRecordConfirm()}
+        title="Save stock count first?"
+        message="Closing counts must be saved before sales can be recorded from the Sold column."
+        confirmLabel="Save and continue"
+        variant="primary"
+        loading={saveMutation.isPending || previewLoading}
+      />
+
+      <SlideOver
+        open={recordPreview !== null}
+        onClose={() => setRecordPreview(null)}
+        title="Record sales from stock count"
+        maxWidth="max-w-xl"
+      >
+        {recordPreview && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Evaluates all{" "}
+              <span className="font-semibold text-slate-900 dark:text-white">
+                {recordPreview.lines.length} products
+              </span>{" "}
+              on this sheet (every page), not just the rows visible now. Quantities below
+              reconcile with POS and sales already recorded for {dateStr}.
+            </p>
+            {searchQuery.trim().length > 0 && (
+              <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-200">
+                Table filter is active — Record sales still uses the full sheet.
+              </p>
+            )}
+            {recordPreview.totalQtyToRecord <= 0 ? (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                No new quantities to record. Implied sold already matches completed sales for
+                this date, or closings are not saved yet.
+              </p>
+            ) : (
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                The following quantities will be posted as completed cash sales and will reduce
+                inventory on hand.
+              </p>
+            )}
+            {recordablePreviewLines.length > 0 && (
+              <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-600">
+                <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
+                  <thead className="bg-slate-50 dark:bg-slate-700">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                        Item
+                      </th>
+                      <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                        Implied
+                      </th>
+                      <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                        Recorded
+                      </th>
+                      <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                        To record
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                        Amt (KSH)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
+                    {recordablePreviewLines.map((line) => (
+                      <tr key={line.itemId}>
+                        <td className="px-3 py-2 text-sm text-slate-900 dark:text-white">
+                          {line.name}
+                          {line.status === "WARNING_OVER_RECORDED" && (
+                            <span className="mt-0.5 block text-xs text-amber-600 dark:text-amber-400">
+                              Already recorded exceeds implied sold
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right text-sm tabular-nums text-slate-700 dark:text-slate-300">
+                          {line.impliedSold}
+                        </td>
+                        <td className="px-3 py-2 text-right text-sm tabular-nums text-slate-700 dark:text-slate-300">
+                          {line.alreadyRecorded}
+                        </td>
+                        <td className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-emerald-700 dark:text-emerald-400">
+                          {line.qtyToRecord}
+                        </td>
+                        <td className="px-3 py-2 text-left text-sm tabular-nums text-slate-700 dark:text-slate-300">
+                          {formatAmount(line.lineValue)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-600">
+              <div className="text-sm text-slate-600 dark:text-slate-300">
+                <span className="font-semibold text-slate-900 dark:text-white">
+                  {recordPreviewLinesWithQty} product(s) to record
+                </span>
+                {" · "}
+                <span className="font-semibold text-slate-900 dark:text-white">
+                  {recordPreview.totalQtyToRecord} units
+                </span>
+                {" · "}
+                <span className="font-semibold text-slate-900 dark:text-white">
+                  {formatCurrency(recordPreview.totalValueToRecord)}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRecordPreview(null)}
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => recordSalesMutation.mutate()}
+                  disabled={
+                    recordPreview.totalQtyToRecord <= 0 || recordSalesMutation.isPending
+                  }
+                  className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+                >
+                  {recordSalesMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ShoppingBag className="h-4 w-4" />
+                  )}
+                  Record sales
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </SlideOver>
     </div>
   );
 }
