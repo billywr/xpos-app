@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -16,6 +16,14 @@ import * as analyticsApi from "@/api/operatorAnalytics";
 vi.mock("@/api/stdStockCount");
 vi.mock("@/api/debts");
 vi.mock("@/api/operatorAnalytics");
+
+function localTodayStr(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 function wrap(component: React.ReactElement) {
   const store = configureStore({
@@ -43,22 +51,24 @@ function wrap(component: React.ReactElement) {
       },
     },
   });
-  const qc = new QueryClient({
+  const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return render(
+  const view = render(
     <MemoryRouter>
       <Provider store={store}>
-        <QueryClientProvider client={qc}>
+        <QueryClientProvider client={queryClient}>
           <ToastProvider>{component}</ToastProvider>
         </QueryClientProvider>
       </Provider>
     </MemoryRouter>
   );
+  return { ...view, queryClient };
 }
 
 describe("StandardStockCountSheetPage filter", () => {
   beforeEach(() => {
+    vi.mocked(stdApi.saveStdStockCount).mockReset();
     const rows = Array.from({ length: 73 }, (_, i) => ({
       itemId: `item-${i + 1}`,
       sku: `SKU${String(i + 1).padStart(3, "0")}`,
@@ -444,6 +454,7 @@ describe("StandardStockCountSheetPage save button", () => {
   const laterSavedAt = "2026-06-06T14:30:00.000Z";
 
   beforeEach(() => {
+    vi.mocked(stdApi.saveStdStockCount).mockReset();
     vi.mocked(debtsApi.fetchDebts).mockResolvedValue([] as never);
     vi.mocked(analyticsApi.fetchOperatorAnalyticsSnapshot).mockResolvedValue({
       expenseIntelligence: { todayTotal: 0 },
@@ -611,4 +622,269 @@ describe("StandardStockCountSheetPage save button", () => {
       expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
     });
   });
+
+  describe("auto-save on added change", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    });
+
+  it(
+    "auto-saves stale closing when added stock exceeds saved closing",
+    async () => {
+      const today = localTodayStr();
+      vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+        date: today,
+        outletId: "branch-1",
+        rows: [
+          {
+            itemId: "item-1",
+            sku: "SKU001",
+            name: "Bond 7 - 750ml",
+            openingStock: 0,
+            addedStock: 1,
+            addedTodayStock: 0,
+            sellingPrice: 100,
+            closingStock: 0,
+            lastSavedAt: "2026-06-08T10:00:00.000Z",
+            comments: null,
+          },
+        ],
+      });
+      vi.mocked(stdApi.saveStdStockCount).mockResolvedValue({
+        date: today,
+        outletId: "branch-1",
+        rows: [
+          {
+            itemId: "item-1",
+            sku: "SKU001",
+            name: "Bond 7 - 750ml",
+            openingStock: 0,
+            addedStock: 1,
+            addedTodayStock: 0,
+            sellingPrice: 100,
+            closingStock: 1,
+            lastSavedAt: "2026-06-09T12:00:00.000Z",
+            comments: null,
+          },
+        ],
+      });
+
+      wrap(<StandardStockCountSheetPage />);
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue("1")).toBeInTheDocument();
+      });
+
+      await vi.advanceTimersByTimeAsync(1500);
+
+      await waitFor(() => {
+        expect(stdApi.saveStdStockCount).toHaveBeenCalledWith(
+          "t",
+          "org-1",
+          "branch-1",
+          expect.objectContaining({
+            date: today,
+            counts: [
+              expect.objectContaining({
+                itemId: "item-1",
+                closingStock: 1,
+              }),
+            ],
+          })
+        );
+      });
+    },
+    10000
+  );
+
+  it(
+    "auto-saves Viceroy stale closing when saved closing equals opening and GRN added",
+    async () => {
+      const today = localTodayStr();
+      vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+        date: today,
+        outletId: "branch-1",
+        rows: [
+          {
+            itemId: "item-viceroy",
+            sku: "VIC250",
+            name: "Viceroy 250ml",
+            openingStock: 1,
+            addedStock: 2,
+            addedTodayStock: 0,
+            sellingPrice: 100,
+            closingStock: 1,
+            lastSavedAt: "2026-06-08T10:00:00.000Z",
+            comments: null,
+          },
+        ],
+      });
+      vi.mocked(stdApi.saveStdStockCount).mockResolvedValue({
+        date: today,
+        outletId: "branch-1",
+        rows: [
+          {
+            itemId: "item-viceroy",
+            sku: "VIC250",
+            name: "Viceroy 250ml",
+            openingStock: 1,
+            addedStock: 2,
+            addedTodayStock: 0,
+            sellingPrice: 100,
+            closingStock: 3,
+            lastSavedAt: "2026-06-09T12:00:00.000Z",
+            comments: null,
+          },
+        ],
+      });
+
+      wrap(<StandardStockCountSheetPage />);
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue("3")).toBeInTheDocument();
+      });
+
+      await vi.advanceTimersByTimeAsync(1500);
+
+      await waitFor(() => {
+        expect(stdApi.saveStdStockCount).toHaveBeenCalledWith(
+          "t",
+          "org-1",
+          "branch-1",
+          expect.objectContaining({
+            date: today,
+            counts: [
+              expect.objectContaining({
+                itemId: "item-viceroy",
+                closingStock: 3,
+              }),
+            ],
+          })
+        );
+      });
+    },
+    10000
+  );
+
+  it("does not auto-save sold row when added unchanged", async () => {
+    const today = localTodayStr();
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-750",
+          sku: "VIC750",
+          name: "Viceroy 750ml",
+          openingStock: 8,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 5,
+          lastSavedAt: "2026-06-08T10:00:00.000Z",
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("5")).toBeInTheDocument();
+    });
+
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(stdApi.saveStdStockCount).not.toHaveBeenCalled();
+  });
+
+  });
+
+  it(
+    "auto-saves when added increases on refetch",
+    async () => {
+      const today = localTodayStr();
+      const initialRow = {
+        itemId: "item-1",
+        sku: "SKU001",
+        name: "Product 1",
+        openingStock: 1,
+        addedStock: 0,
+        addedTodayStock: 0,
+        sellingPrice: 100,
+        closingStock: null as number | null,
+        lastSavedAt: null as string | null,
+        comments: null as string | null,
+      };
+      vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+        date: today,
+        outletId: "branch-1",
+        rows: [initialRow],
+      });
+      vi.mocked(stdApi.saveStdStockCount).mockResolvedValue({
+        date: today,
+        outletId: "branch-1",
+        rows: [
+          {
+            ...initialRow,
+            addedStock: 2,
+            closingStock: 3,
+            lastSavedAt: "2026-06-09T12:00:00.000Z",
+          },
+        ],
+      });
+
+      const { queryClient } = wrap(<StandardStockCountSheetPage />);
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue("1")).toBeInTheDocument();
+      });
+
+      const sheetQuery = queryClient
+        .getQueryCache()
+        .getAll()
+        .find((q) => q.queryKey[0] === "std-stock-count");
+      expect(sheetQuery).toBeDefined();
+
+      await act(async () => {
+        queryClient.setQueryData(sheetQuery!.queryKey, {
+          date: today,
+          outletId: "branch-1",
+          rows: [{ ...initialRow, addedStock: 2 }],
+        });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue("3")).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
+      });
+
+      await waitFor(() => {
+        expect(stdApi.saveStdStockCount).toHaveBeenCalledWith(
+          "t",
+          "org-1",
+          "branch-1",
+          expect.objectContaining({
+            date: today,
+            counts: [
+              expect.objectContaining({
+                itemId: "item-1",
+                closingStock: 3,
+              }),
+            ],
+          })
+        );
+      }, { timeout: 3000 });
+    },
+    10000
+  );
 });

@@ -101,6 +101,8 @@ interface ComputedRow {
   comments: string;
   lastSavedAt: string | null;
   closingError?: string;
+  /** Saved closing is below total after stock receipt; pending auto-sync save. */
+  closingStale?: boolean;
 }
 
 const STANDARD_STOCK_SORT = {
@@ -114,16 +116,64 @@ const STANDARD_STOCK_SORT = {
   amount: (row: ComputedRow) => row.amount,
 };
 
-/** Saved closing if present; otherwise Total stock (Open + Added + AddedToday) so unsaved rows start at "nothing sold yet" and never exceed Total. */
-function defaultClosingFromRow(row: StdStockCountRowResponse): number {
-  if (row.closingStock !== null && row.closingStock !== undefined) {
-    return row.closingStock;
+/** Saved closing is stale when stock arrived after last save and closing still equals opening. */
+function isStaleSavedClosing(row: StdStockCountRowResponse): boolean {
+  if (row.closingStock == null || !row.lastSavedAt) return false;
+  const total = totalStockFromRow(row);
+  return row.closingStock < total && row.closingStock === row.openingStock;
+}
+
+interface AutoSyncClosingContext {
+  addedIncreased: boolean;
+  priorAdded?: number;
+}
+
+/** Whether closing should be bumped to total and auto-saved (GRN / cross-tab Added increase). */
+function shouldAutoSyncClosing(
+  row: StdStockCountRowResponse,
+  ctx: AutoSyncClosingContext
+): boolean {
+  if (isStaleSavedClosing(row)) {
+    return true;
   }
+  if (!ctx.addedIncreased) {
+    return false;
+  }
+  const total = totalStockFromRow(row);
+  const saved = row.closingStock;
+  if (saved == null) {
+    return true;
+  }
+  if (saved >= total) {
+    return false;
+  }
+  if (saved === row.openingStock) {
+    return true;
+  }
+  if (ctx.priorAdded !== undefined) {
+    const priorTotal =
+      row.openingStock + ctx.priorAdded + (row.addedTodayStock ?? 0);
+    if (saved === priorTotal) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function totalStockFromRow(row: StdStockCountRowResponse): number {
   return (
     (row.openingStock ?? 0) +
     (row.addedStock ?? 0) +
     (row.addedTodayStock ?? 0)
   );
+}
+
+/** Saved closing if present; otherwise Total stock (Open + Added + AddedToday) so unsaved rows start at "nothing sold yet" and never exceed Total. */
+function defaultClosingFromRow(row: StdStockCountRowResponse): number {
+  if (row.closingStock !== null && row.closingStock !== undefined) {
+    return row.closingStock;
+  }
+  return totalStockFromRow(row);
 }
 
 function computeRow(
@@ -146,6 +196,10 @@ function computeRow(
     closingError = "Cannot exceed total stock";
   }
 
+  const closingStale =
+    isStaleSavedClosing(row) &&
+    (localClosing === undefined || closing !== row.closingStock);
+
   return {
     itemId: row.itemId,
     sku: row.sku,
@@ -161,6 +215,7 @@ function computeRow(
     comments,
     lastSavedAt: row.lastSavedAt,
     closingError,
+    closingStale,
   };
 }
 
@@ -209,6 +264,7 @@ export function StandardStockCountSheetPage({
   );
   const [saveBeforeRecordOpen, setSaveBeforeRecordOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const priorAddedStockSignatureRef = useRef("");
 
   const isToday = dateStr === todayStr();
   const isYesterday = dateStr === yesterdayStr();
@@ -295,8 +351,10 @@ export function StandardStockCountSheetPage({
   function isRowChanged(r: StdStockCountRowResponse): boolean {
     if (localClosings[r.itemId] !== undefined) {
       const parsed = parseClosing(r.itemId, r);
-      const baseline = defaultClosingFromRow(r);
-      if (parsed !== baseline) return true;
+      if (r.closingStock == null) {
+        return true;
+      }
+      if (parsed !== r.closingStock) return true;
     }
     const commentLocal = localComments[r.itemId];
     if (commentLocal !== undefined) {
@@ -403,6 +461,53 @@ export function StandardStockCountSheetPage({
     setPage,
     sortAccessors: STANDARD_STOCK_SORT,
   });
+
+  const addedStockSignature = useMemo(
+    () =>
+      (sheet?.rows ?? [])
+        .map((r) => `${r.itemId}:${r.addedStock}`)
+        .join("|"),
+    [sheet]
+  );
+
+  useEffect(() => {
+    priorAddedStockSignatureRef.current = "";
+  }, [dateStr]);
+
+  // After stock receipt (or cross-tab refetch), bump closing to total so auto-save persists carry-forward.
+  useEffect(() => {
+    const rows = sheet?.rows;
+    if (!rows || !canEdit) return;
+
+    const priorAddedByItem = new Map<string, number>();
+    if (priorAddedStockSignatureRef.current) {
+      for (const part of priorAddedStockSignatureRef.current.split("|")) {
+        const colon = part.indexOf(":");
+        if (colon === -1) continue;
+        priorAddedByItem.set(
+          part.slice(0, colon),
+          Number(part.slice(colon + 1))
+        );
+      }
+    }
+
+    setLocalClosings((prev) => {
+      let next: Record<string, string> | null = null;
+      for (const row of rows) {
+        if (prev[row.itemId] !== undefined) continue;
+        const priorAdded = priorAddedByItem.get(row.itemId);
+        const addedIncreased =
+          priorAdded !== undefined && row.addedStock > priorAdded;
+        if (shouldAutoSyncClosing(row, { addedIncreased, priorAdded })) {
+          if (next === null) next = { ...prev };
+          next[row.itemId] = String(totalStockFromRow(row));
+        }
+      }
+      return next ?? prev;
+    });
+
+    priorAddedStockSignatureRef.current = addedStockSignature;
+  }, [sheet, addedStockSignature, canEdit, dateStr]);
 
   useEffect(() => {
     setPage(0);
@@ -915,7 +1020,9 @@ export function StandardStockCountSheetPage({
                             className={`w-20 rounded border px-2 py-1 text-left text-lg tabular-nums sm:w-24 sm:text-xl ${
                               r.closingError
                                 ? "border-red-500 bg-red-50 dark:border-red-600 dark:bg-red-950/20"
-                                : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800"
+                                : r.closingStale
+                                  ? "border-amber-400 bg-amber-50 dark:border-amber-500 dark:bg-amber-950/20"
+                                  : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800"
                             } text-slate-900 dark:text-white`}
                           />
                           {r.closingError && (
