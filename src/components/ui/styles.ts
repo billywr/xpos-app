@@ -106,13 +106,20 @@ export const tableEmptyCell =
   "px-4 py-8 text-center text-lg text-slate-500 sm:px-6 sm:text-xl dark:text-slate-400";
 
 /** Use on `<col>` in `table-fixed` layouts so the No. column stays narrow. */
-export const tableRowNoCol = "w-[3.25rem]";
+export const tableRowNoCol = "w-[2.25rem]";
+
+/** Inline width for `<col>` — Tailwind width classes are unreliable on col elements. */
+export const tableRowNoColStyle = {
+  width: "2.25rem",
+  minWidth: "2.25rem",
+  maxWidth: "2.25rem",
+} as const;
 
 export const tableRowNoHead =
-  "w-[3.25rem] max-w-[3.25rem] px-1 py-3 text-center text-lg font-semibold uppercase tracking-wide text-slate-700 sm:py-3 sm:text-xl dark:text-slate-300";
+  "box-border w-[2.25rem] min-w-[2.25rem] max-w-[2.25rem] px-0.5 py-3 text-center text-base font-semibold uppercase tracking-wide text-slate-700 sm:py-3 sm:text-lg dark:text-slate-300";
 
 export const tableRowNoCell =
-  "w-[3.25rem] max-w-[3.25rem] px-1 py-2 text-center text-lg tabular-nums text-slate-600 sm:py-2.5 sm:text-xl dark:text-slate-400";
+  "box-border w-[2.25rem] min-w-[2.25rem] max-w-[2.25rem] px-0.5 py-2 text-center text-base tabular-nums text-slate-600 sm:py-2.5 sm:text-lg dark:text-slate-400";
 
 export const tableStickyFirstCell =
   "xpos-table-sticky-first sticky left-0 z-10";

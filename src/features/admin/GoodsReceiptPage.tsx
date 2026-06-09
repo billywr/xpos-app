@@ -38,7 +38,6 @@ import {
   tableEmptyCell,
   tableBodyCellNumDebts,
   tableCard,
-  tableRowNoCol,
 } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
@@ -470,7 +469,7 @@ export function GoodsReceiptPage({
     () => pagedRows.some((r) => r.line?.receivedUnitCost != null),
     [pagedRows]
   );
-  const visibleColCount = 6 + (showBarcodeCol ? 1 : 0) + (showBuyPriceCol ? 1 : 0);
+  const visibleColCount = 7 + (showBarcodeCol ? 1 : 0) + (showBuyPriceCol ? 1 : 0);
 
   const grnsTotalAmount = grns.reduce(
     (sum, grn) =>
@@ -882,17 +881,7 @@ export function GoodsReceiptPage({
           <div className={tableCard}>
             <div className="relative min-h-0 flex-1 overflow-auto">
               <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-              <table className="w-full table-fixed divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "960px" }}>
-                <colgroup>
-                  <col className={tableRowNoCol} />
-                  <col className="w-[16%]" />
-                  <col className="w-[20%]" />
-                  {showBarcodeCol && <col className="w-[11%]" />}
-                  <col className="w-[8%]" />
-                  {showBuyPriceCol && <col className="w-[10%]" />}
-                  <col className="w-[10%]" />
-                  <col className="w-[12%]" />
-                </colgroup>
+              <table className="w-full table-auto divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "960px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
                     <TableRowNumberHead />

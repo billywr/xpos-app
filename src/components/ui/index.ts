@@ -34,6 +34,7 @@ export {
   tableStickyFirstBody,
   tableEmptyCell,
   tableRowNoCol,
+  tableRowNoColStyle,
   tableRowNoHead,
   tableRowNoCell,
   tableStickyFirstCell,
