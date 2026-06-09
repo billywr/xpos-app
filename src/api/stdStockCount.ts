@@ -3,7 +3,7 @@ import { apiFetch } from "@/api/client";
 /**
  * One row in the Standard Stock Count Sheet. Backend provides opening, added columns, price, closing.
  * Opening is the latest saved closing before this date; 0 when no prior snapshot exists.
- * Added covers GRN receipts from the day after that last save through this date.
+ * Added covers GRN receipts on this sheet date only.
  * Frontend computes totalStock, unitsSold, amount.
  */
 export interface StdStockCountRowResponse {
@@ -12,7 +12,7 @@ export interface StdStockCountRowResponse {
   name: string;
   /** Latest saved closing before this date; 0 when no prior snapshot exists. */
   openingStock: number;
-  /** GRN receipts since last saved count through this date (current line totals; includes edits). */
+  /** GRN receipts on this sheet date only (current line totals; includes edits). */
   addedStock: number;
   /** Stock-take adjustments today (not GRN). Included in Total Stock; no separate table column. */
   addedTodayStock: number;

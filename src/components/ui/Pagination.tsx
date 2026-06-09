@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { TableRefreshButton } from "./TableRefreshButton";
 
 export interface PaginationProps {
   /** Zero-based current page */
@@ -14,6 +15,9 @@ export interface PaginationProps {
   sizeOptions?: number[];
   /** Position hint — "top" uses border-bottom, "bottom" (default) uses border-top */
   position?: "top" | "bottom";
+  /** Refetch table data from the server */
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 /**
@@ -27,6 +31,8 @@ export function Pagination({
   onSizeChange,
   sizeOptions = [10, 25, 50, 100],
   position = "bottom",
+  onRefresh,
+  isRefreshing = false,
 }: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(totalElements / size));
   const first = totalElements === 0 ? 0 : page * size + 1;
@@ -60,6 +66,9 @@ export function Pagination({
         )}
       </div>
       <div className="flex items-center gap-1 sm:gap-2">
+        {onRefresh && (
+          <TableRefreshButton onRefresh={onRefresh} isRefreshing={isRefreshing} />
+        )}
         <span className="whitespace-nowrap text-sm font-semibold text-slate-700 sm:text-base dark:text-slate-300">
           <span className="font-bold">{page + 1}</span>/
           <span className="font-bold">{totalPages}</span>

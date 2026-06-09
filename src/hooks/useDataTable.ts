@@ -1,0 +1,51 @@
+import { useEffect } from "react";
+import { useTableSearch, type UseTableSearchOptions } from "@/hooks/useTableSearch";
+import { useTableSort } from "@/hooks/useTableSort";
+import type { SortValueGetter } from "@/utils/tableSort";
+
+export type SortAccessors<T> = Record<string, (row: T) => unknown>;
+
+export interface UseDataTableOptions<T>
+  extends Omit<
+    UseTableSearchOptions<T>,
+    "sortColumn" | "sortDirection" | "getSortValue"
+  > {
+  sortAccessors?: SortAccessors<T>;
+  setPage?: (page: number) => void;
+}
+
+/**
+ * Search + sort + optional client/server pagination for datatables.
+ */
+export function useDataTable<T>(
+  rows: T[],
+  storageSuffix?: string,
+  options?: UseDataTableOptions<T>
+) {
+  const { sortAccessors, setPage, ...searchOptions } = options ?? {};
+  const sort = useTableSort(storageSuffix);
+
+  const getSortValue: SortValueGetter<T> = (row, column) => {
+    const accessor = sortAccessors?.[column];
+    return accessor ? accessor(row) : null;
+  };
+
+  const search = useTableSearch(rows, storageSuffix, {
+    ...searchOptions,
+    sortColumn: sort.sortColumn,
+    sortDirection: sort.sortDirection,
+    getSortValue: sortAccessors ? getSortValue : undefined,
+  });
+
+  useEffect(() => {
+    setPage?.(0);
+  }, [search.searchQuery, sort.sortColumn, sort.sortDirection, options?.size, setPage]);
+
+  return {
+    ...search,
+    sortColumn: sort.sortColumn,
+    sortDirection: sort.sortDirection,
+    toggleSort: sort.toggleSort,
+    isSortActive: sort.isSortActive,
+  };
+}

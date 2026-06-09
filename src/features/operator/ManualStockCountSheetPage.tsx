@@ -22,8 +22,8 @@ import { useToast } from "@/contexts/ToastContext";
 import { generateUuid } from "@/utils/uuid";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { Pagination, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import { Pagination, SortableTableHead, TableSearchInput } from "@/components/ui";
+import { useDataTable } from "@/hooks/useDataTable";
 import {
   ChevronLeft,
   ChevronRight,
@@ -65,6 +65,19 @@ interface LocalRow {
   comments: string;
   lineOrder: number;
 }
+
+const MANUAL_STOCK_SORT = {
+  item: (row: LocalRow) => row.itemName,
+  open: (row: LocalRow) => parseNonNegInt(row.opening, 0),
+  added: (row: LocalRow) => parseNonNegInt(row.added, 0),
+  total: (row: LocalRow) => computePreview(row).total,
+  close: (row: LocalRow) => parseOptionalNonNegInt(row.closing) ?? Number.NEGATIVE_INFINITY,
+  sys: (row: LocalRow) => parseOptionalNonNegInt(row.system) ?? Number.NEGATIVE_INFINITY,
+  var: (row: LocalRow) => computePreview(row).variance ?? Number.NEGATIVE_INFINITY,
+  sold: (row: LocalRow) => computePreview(row).unitsSold,
+  price: (row: LocalRow) => parsePrice(row.sellingPrice),
+  amount: (row: LocalRow) => computePreview(row).amount,
+};
 
 function serverRowToLocal(r: import("@/api/manualStockCount").ManualStockCountLineResponse): LocalRow {
   const combinedAdded = r.addedQty + r.addedTodayQty;
@@ -164,7 +177,7 @@ export function ManualStockCountSheetPage() {
   const [customSku, setCustomSku] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<LocalRow | null>(null);
 
-  const { data: sheet, isLoading, isError, error } = useQuery({
+  const { data: sheet, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["manual-stock-count", token, orgId, branchId, dateStr],
     queryFn: () => fetchManualStockCountSheet(token, orgId, branchId, dateStr),
     enabled: Boolean(token && orgId && branchId),
@@ -225,12 +238,20 @@ export function ManualStockCountSheetPage() {
     [catalogItems]
   );
 
-  const { searchQuery, setSearchQuery, filteredRows } = useTableSearch(localRows);
-
-  const paginatedRows = useMemo(() => {
-    const start = page * pageSize;
-    return filteredRows.slice(start, start + pageSize);
-  }, [filteredRows, page, pageSize]);
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: paginatedRows,
+    allFilteredRows: filteredRows,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useDataTable(localRows, undefined, {
+    page,
+    size: pageSize,
+    setPage,
+    sortAccessors: MANUAL_STOCK_SORT,
+  });
 
   const showVarCol = useMemo(
     () => paginatedRows.some((r) => computePreview(r).variance != null),
@@ -466,6 +487,8 @@ export function ManualStockCountSheetPage() {
                 setPage(0);
               }}
               sizeOptions={[10, 25, 50, 100]}
+              onRefresh={() => void refetch()}
+              isRefreshing={isFetching}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">
@@ -477,38 +500,88 @@ export function ManualStockCountSheetPage() {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "750px" }}>
                 <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                      Item
-                    </th>
-                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Open
-                    </th>
-                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Added
-                    </th>
-                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Total
-                    </th>
-                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Close
-                    </th>
-                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Sys
-                    </th>
+                    <SortableTableHead
+                      columnKey="item"
+                      label="Item"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="open"
+                      label="Open"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="added"
+                      label="Added"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="total"
+                      label="Total"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="close"
+                      label="Close"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="sys"
+                      label="Sys"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                     {showVarCol && (
-                      <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Var
-                      </th>
+                      <SortableTableHead
+                        columnKey="var"
+                        label="Var"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     )}
-                    <th className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Sold
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Price (KSH)
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Amt (KSH)
-                    </th>
+                    <SortableTableHead
+                      columnKey="sold"
+                      label="Sold"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="price"
+                      label="Price (KSH)"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="amount"
+                      label="Amt (KSH)"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                     <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
                       Notes
                     </th>

@@ -13,14 +13,24 @@ import type { Org } from "@/types/org";
 import { filterActiveOrgs } from "@/types/org";
 import type { TenderType } from "@/types/sales";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, ConfirmDialog, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import {
+  SlideOver,
+  ConfirmDialog,
+  SortableTableHead,
+  TableSearchInput,
+} from "@/components/ui";
+import { useDataTable } from "@/hooks/useDataTable";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Trash2, CreditCard } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
 export function TenderTypesListPage() {
+  const TENDER_TYPE_SORT = {
+    code: (row: TenderType) => row.code,
+    name: (row: TenderType) => row.name,
+    active: (row: TenderType) => (row.active ? 1 : 0),
+  };
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -41,7 +51,7 @@ export function TenderTypesListPage() {
     enabled: Boolean(token),
   });
 
-  const { data: tenderTypesData, isLoading, isError, error } = useQuery({
+  const { data: tenderTypesData, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["admin-tender-types", token, selectedOrgId],
     queryFn: () =>
       fetchTenderTypes(token, selectedOrgId, { includeInactive: true }),
@@ -130,7 +140,16 @@ export function TenderTypesListPage() {
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const tenderTypes = tenderTypesData ?? [];
-  const { searchQuery, setSearchQuery, filteredRows: filteredTenderTypes } = useTableSearch(tenderTypes);
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredTenderTypes,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useDataTable(tenderTypes, undefined, {
+    sortAccessors: TENDER_TYPE_SORT,
+  });
 
   useEffect(() => {
     if (!selectedOrgId && orgs.length > 0) {
@@ -303,7 +322,7 @@ export function TenderTypesListPage() {
         </div>
       ) : (
         <>
-          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search tender types…" className="mb-4" />
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search tender types…" className="mb-4" onRefresh={() => void refetch()} isRefreshing={isFetching} />
 
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -312,18 +331,39 @@ export function TenderTypesListPage() {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "480px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                      Code
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Active
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Actions
-                    </th>
+                    <SortableTableHead
+                      columnKey="code"
+                      label="Code"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="name"
+                      label="Name"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="active"
+                      label="Active"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="actions"
+                      label="Actions"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      sortable={false}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">

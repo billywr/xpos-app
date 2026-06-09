@@ -427,6 +427,7 @@ export function MenuOrderPage() {
     queryFn: () =>
       fetchStockLevels(token, orgId!, branchId!, trackedItemIds),
     enabled: Boolean(orgId && branchId && token && trackedItemIds.length > 0),
+    refetchOnWindowFocus: true,
   });
 
   const stockMap = useMemo(() => {

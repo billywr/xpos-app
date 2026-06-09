@@ -14,8 +14,13 @@ import {
 } from "@/api/stockTaking";
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
-import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import {
+  Pagination,
+  ConfirmDialog,
+  SortableTableHead,
+  TableSearchInput,
+} from "@/components/ui";
+import { useDataTable } from "@/hooks/useDataTable";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
@@ -26,6 +31,12 @@ import { PageHeader } from "@/components/PageHeader";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
 const PAGE_SIZE = 10;
+const STOCK_COUNT_SESSION_SORT = {
+  startedAt: (row: StockCountSessionResponse) => row.startedAt,
+  sourceType: (row: StockCountSessionResponse) => row.sourceType,
+  lines: (row: StockCountSessionResponse) => row.lines?.length ?? 0,
+  status: (row: StockCountSessionResponse) => row.status,
+};
 
 export function StockCountSessionsPage() {
   const token = useAppSelector(selectToken);
@@ -57,7 +68,7 @@ export function StockCountSessionsPage() {
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
 
-  const { data: sessionsData, isLoading, isError, error } = useQuery({
+  const { data: sessionsData, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: [
       "admin-stock-count-sessions",
       token,
@@ -81,7 +92,16 @@ export function StockCountSessionsPage() {
   const filteredOrgs = filterActiveOrgs(orgs);
   const filteredBranches = filterNonDeletedBranches(branches);
   const sessions = sessionsData?.content ?? [];
-  const { searchQuery, setSearchQuery, filteredRows: filteredSessions } = useTableSearch(sessions);
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredSessions,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useDataTable(sessions, undefined, {
+    sortAccessors: STOCK_COUNT_SESSION_SORT,
+  });
   const totalElements = sessionsData?.totalElements ?? 0;
 
   useEffect(() => {
@@ -289,6 +309,8 @@ export function StockCountSessionsPage() {
                   size={PAGE_SIZE}
                   totalElements={totalElements}
                   onPageChange={setPage}
+                  onRefresh={() => void refetch()}
+                  isRefreshing={isFetching}
                 />
               )}
               <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -297,21 +319,47 @@ export function StockCountSessionsPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "600px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr className="bg-slate-50 dark:bg-slate-700/50">
-                      <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                        Started
-                      </th>
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Source
-                      </th>
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Lines
-                      </th>
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Actions
-                      </th>
+                      <SortableTableHead
+                        columnKey="startedAt"
+                        label="Started"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                      />
+                      <SortableTableHead
+                        columnKey="sourceType"
+                        label="Source"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
+                      <SortableTableHead
+                        columnKey="lines"
+                        label="Lines"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
+                      <SortableTableHead
+                        columnKey="status"
+                        label="Status"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
+                      <SortableTableHead
+                        columnKey="actions"
+                        label="Actions"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        sortable={false}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">

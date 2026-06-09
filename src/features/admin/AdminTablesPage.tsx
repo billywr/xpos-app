@@ -23,14 +23,23 @@ import {
   filterNonDeletedBranches,
 } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import { SlideOver, SortableTableHead, TableSearchInput } from "@/components/ui";
+import { useDataTable } from "@/hooks/useDataTable";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 25;
+const TABLE_AREA_SORT = {
+  name: (row: TableArea) => row.name,
+};
+const TABLE_SORT = {
+  name: (row: TableEntity) => row.name,
+  area: (row: TableEntity) => row.tableAreaId ?? "",
+  capacity: (row: TableEntity) => row.capacity ?? Number.NEGATIVE_INFINITY,
+  status: (row: TableEntity) => row.status ?? "",
+};
 
 export function AdminTablesPage() {
   const token = useAppSelector(selectToken);
@@ -68,7 +77,7 @@ export function AdminTablesPage() {
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
 
-  const { data: areasData } = useQuery({
+  const { data: areasData, refetch: refetchAreas, isFetching: isAreasFetching } = useQuery({
     queryKey: ["admin-table-areas", token, selectedOrgId, selectedBranchId],
     queryFn: () =>
       fetchTableAreas(token, selectedOrgId, selectedBranchId, {
@@ -78,7 +87,7 @@ export function AdminTablesPage() {
     enabled: Boolean(token) && Boolean(selectedOrgId) && Boolean(selectedBranchId),
   });
 
-  const { data: tablesData, isLoading, isError, error } = useQuery({
+  const { data: tablesData, isLoading, isError, error, refetch: refetchTables, isFetching: isTablesFetching } = useQuery({
     queryKey: [
       "admin-tables",
       token,
@@ -216,8 +225,22 @@ export function AdminTablesPage() {
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
   const areas = areasData?.content ?? [];
   const tables = tablesData?.content ?? [];
-  const { searchQuery: areasSearchQuery, setSearchQuery: setAreasSearchQuery, filteredRows: filteredAreas } = useTableSearch(areas);
-  const { searchQuery: tablesSearchQuery, setSearchQuery: setTablesSearchQuery, filteredRows: filteredTables } = useTableSearch(tables);
+  const {
+    searchQuery: areasSearchQuery,
+    setSearchQuery: setAreasSearchQuery,
+    filteredRows: filteredAreas,
+    sortColumn: areaSortColumn,
+    sortDirection: areaSortDirection,
+    toggleSort: toggleAreaSort,
+  } = useDataTable(areas, "areas", { sortAccessors: TABLE_AREA_SORT });
+  const {
+    searchQuery: tablesSearchQuery,
+    setSearchQuery: setTablesSearchQuery,
+    filteredRows: filteredTables,
+    sortColumn: tableSortColumn,
+    sortDirection: tableSortDirection,
+    toggleSort: toggleTableSort,
+  } = useDataTable(tables, "tables", { sortAccessors: TABLE_SORT });
   const totalElements = tablesData?.totalElements ?? 0;
 
   const showTableAreaCol = useMemo(
@@ -480,7 +503,7 @@ export function AdminTablesPage() {
                 Add area
               </button>
             </div>
-            <TableSearchInput value={areasSearchQuery} onChange={setAreasSearchQuery} placeholder="Search areas…" className="mb-4" />
+            <TableSearchInput value={areasSearchQuery} onChange={setAreasSearchQuery} placeholder="Search areas…" className="mb-4" onRefresh={() => void refetchAreas()} isRefreshing={isAreasFetching} />
             <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
               {filteredAreas.length === 0 ? (
@@ -493,10 +516,24 @@ export function AdminTablesPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "280px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
-                      <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                        Name
-                      </th>
-                      <th className="w-24 px-4 py-3 sm:px-6 sm:py-3" aria-label="Actions" />
+                      <SortableTableHead
+                        columnKey="name"
+                        label="Name"
+                        sortColumn={areaSortColumn}
+                        sortDirection={areaSortDirection}
+                        onSort={toggleAreaSort}
+                        className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                      />
+                      <SortableTableHead
+                        columnKey="actions"
+                        label=""
+                        sortColumn={areaSortColumn}
+                        sortDirection={areaSortDirection}
+                        onSort={toggleAreaSort}
+                        sortable={false}
+                        className="w-24 px-4 py-3 sm:px-6 sm:py-3"
+                        title="Actions"
+                      />
                     </tr>
                   </thead>
                   <tbody>
@@ -542,7 +579,7 @@ export function AdminTablesPage() {
                 Add table
               </button>
             </div>
-            <TableSearchInput value={tablesSearchQuery} onChange={setTablesSearchQuery} placeholder="Search tables…" className="mb-4" />
+            <TableSearchInput value={tablesSearchQuery} onChange={setTablesSearchQuery} placeholder="Search tables…" className="mb-4" onRefresh={() => void refetchTables()} isRefreshing={isTablesFetching} />
             <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
               {filteredTables.length === 0 ? (
@@ -555,23 +592,52 @@ export function AdminTablesPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "500px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
-                      <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                        Name
-                      </th>
+                      <SortableTableHead
+                        columnKey="name"
+                        label="Name"
+                        sortColumn={tableSortColumn}
+                        sortDirection={tableSortDirection}
+                        onSort={toggleTableSort}
+                        className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                      />
                       {showTableAreaCol && (
-                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                          Area
-                        </th>
+                        <SortableTableHead
+                          columnKey="area"
+                          label="Area"
+                          sortColumn={tableSortColumn}
+                          sortDirection={tableSortDirection}
+                          onSort={toggleTableSort}
+                          className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        />
                       )}
                       {showTableCapacityCol && (
-                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                          Capacity
-                        </th>
+                        <SortableTableHead
+                          columnKey="capacity"
+                          label="Capacity"
+                          sortColumn={tableSortColumn}
+                          sortDirection={tableSortDirection}
+                          onSort={toggleTableSort}
+                          className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        />
                       )}
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Status
-                      </th>
-                      <th className="w-24 px-4 py-3 sm:px-6 sm:py-3" aria-label="Actions" />
+                      <SortableTableHead
+                        columnKey="status"
+                        label="Status"
+                        sortColumn={tableSortColumn}
+                        sortDirection={tableSortDirection}
+                        onSort={toggleTableSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
+                      <SortableTableHead
+                        columnKey="actions"
+                        label=""
+                        sortColumn={tableSortColumn}
+                        sortDirection={tableSortDirection}
+                        onSort={toggleTableSort}
+                        sortable={false}
+                        className="w-24 px-4 py-3 sm:px-6 sm:py-3"
+                        title="Actions"
+                      />
                     </tr>
                   </thead>
                   <tbody>

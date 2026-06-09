@@ -10,12 +10,9 @@ import {
   selectBranchId,
   selectBranchName,
 } from "@/store/selectors/orgContextSelectors";
-import { fetchOrgs } from "@/api/orgs";
+import { useActiveOrgs } from "@/hooks/useActiveOrgs";
 import { fetchBranches } from "@/api/branches";
-import {
-  filterActiveOrgs,
-  filterNonDeletedBranches,
-} from "@/types/org";
+import { filterNonDeletedBranches } from "@/types/org";
 import { setStoredAdminContext } from "@/utils/contextStorage";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -31,11 +28,7 @@ export function ContextSelectDropdowns() {
   const branchName = useAppSelector(selectBranchName);
   const dispatch = useAppDispatch();
 
-  const { data: orgsData } = useQuery({
-    queryKey: ["orgs-header", token],
-    queryFn: () => fetchOrgs(token, { size: 200 }),
-    enabled: Boolean(token),
-  });
+  const { orgs } = useActiveOrgs();
 
   const { data: branchesData } = useQuery({
     queryKey: ["branches-header", token, orgId],
@@ -43,7 +36,6 @@ export function ContextSelectDropdowns() {
     enabled: Boolean(token && orgId),
   });
 
-  const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
 
   useEffect(() => {

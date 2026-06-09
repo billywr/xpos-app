@@ -15,8 +15,14 @@ import type { Org } from "@/types/org";
 import { filterActiveOrgs } from "@/types/org";
 import type { Branch } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, ConfirmDialog, Pagination, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import {
+  SlideOver,
+  ConfirmDialog,
+  Pagination,
+  SortableTableHead,
+  TableSearchInput,
+} from "@/components/ui";
+import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Ban, Trash2 } from "lucide-react";
@@ -30,6 +36,13 @@ const DEFAULT_CURRENCY = "KES";
 export interface BranchesListPageProps {
   initialOrgId?: string;
 }
+
+const BRANCH_SORT = {
+  name: (row: Branch) => row.name,
+  timezone: (row: Branch) => row.timezone,
+  currency: (row: Branch) => row.currency,
+  status: (row: Branch) => row.status,
+};
 
 export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
   const token = useAppSelector(selectToken);
@@ -58,7 +71,7 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
     enabled: Boolean(token),
   });
 
-  const { data: branchesData, isLoading, isError, error } = useQuery({
+  const { data: branchesData, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["admin-branches", token, selectedOrgId, page, size],
     queryFn: () => fetchBranches(token, selectedOrgId, { page, size }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
@@ -180,8 +193,26 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const branches = branchesData?.content ?? [];
-  const totalElements = branchesData?.totalElements ?? 0;
-  const { searchQuery, setSearchQuery, filteredRows: filteredBranches } = useTableSearch(branches);
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredBranches,
+    totalElements,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useServerPaginatedTableSearch({
+    pageRows: branches,
+    serverTotalElements: branchesData?.totalElements ?? 0,
+    page,
+    size,
+    setPage,
+    searchAllQueryKey: ["admin-branches", token, selectedOrgId],
+    searchAllQueryFn: (fetchSize) =>
+      fetchBranches(token, selectedOrgId, { page: 0, size: fetchSize }),
+    searchAllEnabled: Boolean(token) && Boolean(selectedOrgId),
+    sortAccessors: BRANCH_SORT,
+  });
   const businesses = businessesData?.content ?? [];
 
   const openCreate = () => {
@@ -398,6 +429,8 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
               onPageChange={setPage}
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
+              onRefresh={() => void refetch()}
+              isRefreshing={isFetching}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -407,21 +440,47 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "550px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                      Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      TZ
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Cur
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Actions
-                    </th>
+                    <SortableTableHead
+                      columnKey="name"
+                      label="Name"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="timezone"
+                      label="TZ"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="currency"
+                      label="Cur"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="status"
+                      label="Status"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="actions"
+                      label="Actions"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      sortable={false}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">

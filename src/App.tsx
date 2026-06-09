@@ -4,7 +4,9 @@ import { useDispatch } from "react-redux";
 import { set401Handler } from "@/api/client";
 import { clearCredentials } from "@/store/slices/authSlice";
 import { clearContext } from "@/store/slices/orgContextSlice";
+import { clearStoredAuth } from "@/utils/authStorage";
 import { clearStoredContext } from "@/utils/contextStorage";
+import { clearAllStoredTableSearch } from "@/utils/tableSearchStorage";
 import { Layout } from "@/components/Layout";
 import { AdminLayout } from "@/components/AdminLayout";
 import { NavVisibilityProvider } from "@/components/NavVisibilityProvider";
@@ -62,7 +64,9 @@ function App() {
 
   useEffect(() => {
     set401Handler(() => {
+      clearStoredAuth();
       clearStoredContext();
+      clearAllStoredTableSearch();
       dispatch(clearCredentials());
       dispatch(clearContext());
       navigate("/login");

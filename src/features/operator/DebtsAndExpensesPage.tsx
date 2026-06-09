@@ -31,9 +31,17 @@ import {
   type MiscExpenseUpdateRequest,
 } from "@/api/miscExpenses";
 import { SlideOver } from "@/components/ui/SlideOver";
-import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
+import {
+  Pagination,
+  ConfirmDialog,
+  SortableTableHead,
+  TableSearchInput,
+} from "@/components/ui";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import { filterRowsBySearch } from "@/utils/tableSearchMatch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import { useTableSort } from "@/hooks/useTableSort";
+import { sortTableRows } from "@/utils/tableSort";
 import { downloadDebtsPdf } from "@/utils/debtsPdf";
 import { downloadExpensesPdf } from "@/utils/expensesPdf";
 import { recordedAtToCreatedAt, todayInputValue } from "@/utils/recordedAt";
@@ -154,6 +162,18 @@ function debtByNameAsc(a: CustomerDebtResponse, b: CustomerDebtResponse): number
   return a.customerName.localeCompare(b.customerName, undefined, { sensitivity: "base" });
 }
 
+const DEBT_SORT: Record<string, (row: CustomerDebtResponse) => unknown> = {
+  customer: (row: CustomerDebtResponse) => row.customerName,
+  phone: (row: CustomerDebtResponse) => row.customerPhone ?? "",
+  amount: (row: CustomerDebtResponse) => row.amount,
+  amountSettled: (row: CustomerDebtResponse) => row.amountSettled ?? 0,
+  outstanding: (row: CustomerDebtResponse) => row.outstanding,
+  status: (row: CustomerDebtResponse) => row.status,
+  due: (row: CustomerDebtResponse) => row.dueDate ?? "",
+  created: (row: CustomerDebtResponse) => row.createdAt,
+  notes: (row: CustomerDebtResponse) => row.notes ?? "",
+};
+
 /**
  * Sort key for expenses: prefer the "incurred by" person's name, fall back to
  * the description so every row has something to sort against.
@@ -169,6 +189,15 @@ function expenseByNameAsc(a: MiscExpenseResponse, b: MiscExpenseResponse): numbe
     { sensitivity: "base" },
   );
 }
+
+const EXPENSE_SORT: Record<string, (row: MiscExpenseResponse) => unknown> = {
+  incurredBy: (row: MiscExpenseResponse) => row.incurredBy ?? "",
+  amount: (row: MiscExpenseResponse) => row.amount,
+  category: (row: MiscExpenseResponse) => row.category ?? "",
+  description: (row: MiscExpenseResponse) => row.description ?? "",
+  receiptRef: (row: MiscExpenseResponse) => row.receiptRef ?? "",
+  created: (row: MiscExpenseResponse) => row.createdAt ?? "",
+};
 
 /** Validate an inline-pay input. Returns null when empty or valid. */
 function validateInlinePay(raw: string, outstanding: number): string | null {
@@ -364,6 +393,11 @@ export function DebtsAndExpensesPage() {
   const [inlineNameValue, setInlineNameValue] = useState("");
   const [inlineNameSubmitting, setInlineNameSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_OUTSTANDING);
+  const {
+    sortColumn: debtSortColumn,
+    sortDirection: debtSortDirection,
+    toggleSort: toggleDebtSort,
+  } = useTableSort("debts");
 
   const debtStatusFilterOptions = useMemo(
     () => STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label })),
@@ -391,6 +425,11 @@ export function DebtsAndExpensesPage() {
   const [editExpSubmitting, setEditExpSubmitting] = useState(false);
   const [cancelDialogExpense, setCancelDialogExpense] = useState<MiscExpenseResponse | null>(null);
   const [cancelExpSubmitting, setCancelExpSubmitting] = useState(false);
+  const {
+    sortColumn: expSortColumn,
+    sortDirection: expSortDirection,
+    toggleSort: toggleExpSort,
+  } = useTableSort("expenses");
 
   const { data: categoriesFromApi } = useQuery({
     queryKey: ["expense-categories", token, orgId],
@@ -411,7 +450,7 @@ export function DebtsAndExpensesPage() {
   // -----------------------------------------------------------------------
   // Debts queries
   // -----------------------------------------------------------------------
-  const { data: debtsData, isLoading: debtsLoading, isError: debtsIsError, error: debtsError } = useQuery({
+  const { data: debtsData, isLoading: debtsLoading, isError: debtsIsError, error: debtsError, refetch: refetchDebts, isFetching: isDebtsFetching } = useQuery({
     queryKey: ["operator-debts", token, orgId, branchId, debtsPage, statusFilter, fromDate, toDate],
     queryFn: () =>
       fetchDebts(token, orgId!, branchId!, {
@@ -487,7 +526,7 @@ export function DebtsAndExpensesPage() {
   // -----------------------------------------------------------------------
   // Expenses queries
   // -----------------------------------------------------------------------
-  const { data: expensesData, isLoading: expensesLoading, isError: expensesIsError, error: expensesError } = useQuery({
+  const { data: expensesData, isLoading: expensesLoading, isError: expensesIsError, error: expensesError, refetch: refetchExpenses, isFetching: isExpensesFetching } = useQuery({
     queryKey: ["operator-misc-expenses", token, orgId, branchId, expensesPage, fromDate, toDate],
     queryFn: () =>
       fetchMiscExpenses(token, orgId!, branchId!, {
@@ -708,26 +747,33 @@ export function DebtsAndExpensesPage() {
   // every page instead of just the visible 20 rows.
   const debts = useMemo(() => debtsData?.content ?? [], [debtsData]);
   const debtsAll = useMemo(() => debtsTotalPage?.content ?? [], [debtsTotalPage]);
-  const sortedDebts = useMemo(() => {
+  const baseDebts = useMemo(() => {
     const source = debtsAll.length > 0 ? debtsAll : debts;
     return [...source].sort(debtByNameAsc);
   }, [debtsAll, debts]);
   const [debtSearchQuery, setDebtSearchQuery] = useState("");
   const debtSearchActive = debtSearchQuery.trim().length > 0;
-  const filteredDebts = useMemo(() => {
-    if (!debtSearchActive) return sortedDebts;
-    const q = debtSearchQuery.trim().toLowerCase();
-    return sortedDebts.filter((row) =>
-      Object.values(row as unknown as Record<string, unknown>).some((v) =>
-        v == null ? false : String(v).toLowerCase().includes(q),
+  const filteredDebts = useMemo(
+    () =>
+      debtSearchActive
+        ? filterRowsBySearch(baseDebts, debtSearchQuery)
+        : baseDebts,
+    [baseDebts, debtSearchActive, debtSearchQuery]
+  );
+  const sortedDebts = useMemo(
+    () =>
+      sortTableRows(
+        filteredDebts,
+        { column: debtSortColumn, direction: debtSortDirection },
+        (row, column) => DEBT_SORT[column]?.(row) ?? null
       ),
-    );
-  }, [debtSearchActive, debtSearchQuery, sortedDebts]);
+    [filteredDebts, debtSortColumn, debtSortDirection]
+  );
   const visibleDebts = useMemo(() => {
-    if (debtSearchActive) return filteredDebts;
+    if (debtSearchActive) return sortedDebts;
     const start = debtsPage * DEBTS_PAGE_SIZE;
-    return filteredDebts.slice(start, start + DEBTS_PAGE_SIZE);
-  }, [debtSearchActive, filteredDebts, debtsPage]);
+    return sortedDebts.slice(start, start + DEBTS_PAGE_SIZE);
+  }, [debtSearchActive, sortedDebts, debtsPage]);
 
   const showDebtPhoneCol = useMemo(
     () =>
@@ -752,19 +798,19 @@ export function DebtsAndExpensesPage() {
       ),
     [filteredDebts]
   );
-  const debtTotalElements = filteredDebts.length;
+  const debtTotalElements = sortedDebts.length;
 
   const pendingTotalForDateRange = useMemo(
     () =>
-      filteredDebts
+      sortedDebts
         .filter((d) => d.status !== "CANCELLED")
         .reduce((sum, d) => sum + (d.outstanding ?? 0), 0),
-    [filteredDebts],
+    [sortedDebts],
   );
 
   const debtsByCustomer = useMemo(() => {
     const acc = new Map<string, number>();
-    for (const d of filteredDebts) {
+    for (const d of sortedDebts) {
       if (d.status === "CANCELLED") continue;
       const amt = Number(d.outstanding ?? 0);
       if (amt <= 0) continue;
@@ -781,7 +827,7 @@ export function DebtsAndExpensesPage() {
         .sort((a, b) => b.amount - a.amount),
       total,
     };
-  }, [filteredDebts]);
+  }, [sortedDebts]);
 
   const openDebtEditForm = (d: CustomerDebtResponse) => {
     setEditingDebt(d);
@@ -991,54 +1037,61 @@ export function DebtsAndExpensesPage() {
   // Same approach as debts: render from the bulk dataset so the A–Z ordering
   // holds across every page. Sort key is "incurredBy" when present (person's
   // name), otherwise "description" — keeps rows with a real name grouped.
-  const sortedExpenses = useMemo(() => {
+  const baseExpenses = useMemo(() => {
     const source = expensesAll.length > 0 ? expensesAll : expenses;
     return [...source].sort(expenseByNameAsc);
   }, [expensesAll, expenses]);
   const [expSearchQuery, setExpSearchQuery] = useState("");
   const expSearchActive = expSearchQuery.trim().length > 0;
-  const filteredExpenses = useMemo(() => {
-    if (!expSearchActive) return sortedExpenses;
-    const q = expSearchQuery.trim().toLowerCase();
-    return sortedExpenses.filter((row) =>
-      Object.values(row as unknown as Record<string, unknown>).some((v) =>
-        v == null ? false : String(v).toLowerCase().includes(q),
+  const filteredExpenses = useMemo(
+    () =>
+      expSearchActive
+        ? filterRowsBySearch(baseExpenses, expSearchQuery)
+        : baseExpenses,
+    [baseExpenses, expSearchActive, expSearchQuery]
+  );
+  const sortedExpenses = useMemo(
+    () =>
+      sortTableRows(
+        filteredExpenses,
+        { column: expSortColumn, direction: expSortDirection },
+        (row, column) => EXPENSE_SORT[column]?.(row) ?? null
       ),
-    );
-  }, [expSearchActive, expSearchQuery, sortedExpenses]);
+    [filteredExpenses, expSortColumn, expSortDirection]
+  );
   const visibleExpenses = useMemo(() => {
-    if (expSearchActive) return filteredExpenses;
+    if (expSearchActive) return sortedExpenses;
     const start = expensesPage * EXPENSES_PAGE_SIZE;
-    return filteredExpenses.slice(start, start + EXPENSES_PAGE_SIZE);
-  }, [expSearchActive, filteredExpenses, expensesPage]);
+    return sortedExpenses.slice(start, start + EXPENSES_PAGE_SIZE);
+  }, [expSearchActive, sortedExpenses, expensesPage]);
 
   const showExpIncurredByCol = useMemo(
     () =>
-      filteredExpenses.some(
+      sortedExpenses.some(
         (e: MiscExpenseResponse) =>
           !!e.incurredBy && e.incurredBy.trim() !== "" && e.incurredBy !== "—"
       ),
-    [filteredExpenses]
+    [sortedExpenses]
   );
   const showExpReceiptRefCol = useMemo(
     () =>
-      filteredExpenses.some(
+      sortedExpenses.some(
         (e: MiscExpenseResponse) =>
           !!e.receiptRef && e.receiptRef.trim() !== "" && e.receiptRef !== "—"
       ),
-    [filteredExpenses]
+    [sortedExpenses]
   );
-  const expTotalElements = filteredExpenses.length;
+  const expTotalElements = sortedExpenses.length;
   const expTotalAmount = useMemo(
-    () => filteredExpenses.reduce((sum, e) => sum + Number(e.amount ?? 0), 0),
-    [filteredExpenses],
+    () => sortedExpenses.reduce((sum, e) => sum + Number(e.amount ?? 0), 0),
+    [sortedExpenses],
   );
 
   // Per-category subtotals, sorted max → min, for the "TOTAL" breakdown modal.
   const [expBreakdownOpen, setExpBreakdownOpen] = useState(false);
   const expensesByCategory = useMemo(() => {
     const acc = new Map<string, number>();
-    for (const e of filteredExpenses) {
+    for (const e of sortedExpenses) {
       acc.set(e.category, (acc.get(e.category) ?? 0) + Number(e.amount ?? 0));
     }
     const total = [...acc.values()].reduce((s, a) => s + a, 0);
@@ -1052,7 +1105,7 @@ export function DebtsAndExpensesPage() {
         .sort((a, b) => b.amount - a.amount),
       total,
     };
-  }, [filteredExpenses]);
+  }, [sortedExpenses]);
 
   const openExpEditForm = (e: MiscExpenseResponse) => {
     setEditingExpense(e);
@@ -1338,6 +1391,8 @@ export function DebtsAndExpensesPage() {
                         size={DEBTS_PAGE_SIZE}
                         totalElements={debtTotalElements}
                         onPageChange={setDebtsPage}
+                        onRefresh={() => void refetchDebts()}
+                        isRefreshing={isDebtsFetching}
                       />
                     )}
                     {debtSearchActive && (
@@ -1351,22 +1406,93 @@ export function DebtsAndExpensesPage() {
                       <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "1100px" }}>
                         <thead className="bg-slate-50 dark:bg-slate-700">
                           <tr>
-                            <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:bg-slate-700 dark:text-slate-300">Customer</th>
+                            <SortableTableHead
+                              columnKey="customer"
+                              label="Customer"
+                              sortColumn={debtSortColumn}
+                              sortDirection={debtSortDirection}
+                              onSort={toggleDebtSort}
+                              className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:bg-slate-700 dark:text-slate-300"
+                            />
                             {showDebtPhoneCol && (
-                              <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Phone</th>
+                              <SortableTableHead
+                                columnKey="phone"
+                                label="Phone"
+                                sortColumn={debtSortColumn}
+                                sortDirection={debtSortDirection}
+                                onSort={toggleDebtSort}
+                                className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              />
                             )}
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Original (KSH)</th>
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Repaid (KSH)</th>
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Balance (KSH)</th>
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Status</th>
+                            <SortableTableHead
+                              columnKey="amount"
+                              label="Original (KSH)"
+                              sortColumn={debtSortColumn}
+                              sortDirection={debtSortDirection}
+                              onSort={toggleDebtSort}
+                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                            />
+                            <SortableTableHead
+                              columnKey="amountSettled"
+                              label="Repaid (KSH)"
+                              sortColumn={debtSortColumn}
+                              sortDirection={debtSortDirection}
+                              onSort={toggleDebtSort}
+                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                            />
+                            <SortableTableHead
+                              columnKey="outstanding"
+                              label="Balance (KSH)"
+                              sortColumn={debtSortColumn}
+                              sortDirection={debtSortDirection}
+                              onSort={toggleDebtSort}
+                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                            />
+                            <SortableTableHead
+                              columnKey="status"
+                              label="Status"
+                              sortColumn={debtSortColumn}
+                              sortDirection={debtSortDirection}
+                              onSort={toggleDebtSort}
+                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                            />
                             {showDebtDueCol && (
-                              <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Due</th>
+                              <SortableTableHead
+                                columnKey="due"
+                                label="Due"
+                                sortColumn={debtSortColumn}
+                                sortDirection={debtSortDirection}
+                                onSort={toggleDebtSort}
+                                className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              />
                             )}
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Created</th>
+                            <SortableTableHead
+                              columnKey="created"
+                              label="Created"
+                              sortColumn={debtSortColumn}
+                              sortDirection={debtSortDirection}
+                              onSort={toggleDebtSort}
+                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                            />
                             {showDebtNotesCol && (
-                              <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Notes</th>
+                              <SortableTableHead
+                                columnKey="notes"
+                                label="Notes"
+                                sortColumn={debtSortColumn}
+                                sortDirection={debtSortDirection}
+                                onSort={toggleDebtSort}
+                                className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              />
                             )}
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Actions</th>
+                            <SortableTableHead
+                              columnKey="actions"
+                              label="Actions"
+                              sortColumn={debtSortColumn}
+                              sortDirection={debtSortDirection}
+                              onSort={toggleDebtSort}
+                              sortable={false}
+                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                            />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
@@ -1723,6 +1849,8 @@ export function DebtsAndExpensesPage() {
                         size={EXPENSES_PAGE_SIZE}
                         totalElements={expTotalElements}
                         onPageChange={setExpensesPage}
+                        onRefresh={() => void refetchExpenses()}
+                        isRefreshing={isExpensesFetching}
                       />
                     )}
                     {expSearchActive && (
@@ -1737,16 +1865,66 @@ export function DebtsAndExpensesPage() {
                         <thead className="bg-slate-50 dark:bg-slate-700">
                           <tr>
                             {showExpIncurredByCol && (
-                              <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:bg-slate-700 dark:text-slate-300">Incurred by</th>
+                              <SortableTableHead
+                                columnKey="incurredBy"
+                                label="Incurred by"
+                                sortColumn={expSortColumn}
+                                sortDirection={expSortDirection}
+                                onSort={toggleExpSort}
+                                className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:bg-slate-700 dark:text-slate-300"
+                              />
                             )}
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Amount (KSH)</th>
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Category</th>
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Desc.</th>
+                            <SortableTableHead
+                              columnKey="amount"
+                              label="Amount (KSH)"
+                              sortColumn={expSortColumn}
+                              sortDirection={expSortDirection}
+                              onSort={toggleExpSort}
+                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                            />
+                            <SortableTableHead
+                              columnKey="category"
+                              label="Category"
+                              sortColumn={expSortColumn}
+                              sortDirection={expSortDirection}
+                              onSort={toggleExpSort}
+                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                            />
+                            <SortableTableHead
+                              columnKey="description"
+                              label="Desc."
+                              sortColumn={expSortColumn}
+                              sortDirection={expSortDirection}
+                              onSort={toggleExpSort}
+                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                            />
                             {showExpReceiptRefCol && (
-                              <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Receipt ref</th>
+                              <SortableTableHead
+                                columnKey="receiptRef"
+                                label="Receipt ref"
+                                sortColumn={expSortColumn}
+                                sortDirection={expSortDirection}
+                                onSort={toggleExpSort}
+                                className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              />
                             )}
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Created</th>
-                            <th className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300">Actions</th>
+                            <SortableTableHead
+                              columnKey="created"
+                              label="Created"
+                              sortColumn={expSortColumn}
+                              sortDirection={expSortDirection}
+                              onSort={toggleExpSort}
+                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                            />
+                            <SortableTableHead
+                              columnKey="actions"
+                              label="Actions"
+                              sortColumn={expSortColumn}
+                              sortDirection={expSortDirection}
+                              onSort={toggleExpSort}
+                              sortable={false}
+                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                            />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-600">

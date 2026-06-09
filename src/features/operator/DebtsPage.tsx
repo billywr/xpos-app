@@ -23,8 +23,13 @@ import { fetchAllOrgItems } from "@/api/items";
 
 import type { Item } from "@/types/catalog";
 import { SlideOver } from "@/components/ui/SlideOver";
-import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import {
+  Pagination,
+  ConfirmDialog,
+  SortableTableHead,
+  TableSearchInput,
+} from "@/components/ui";
+import { useDataTable } from "@/hooks/useDataTable";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { downloadDebtsPdf } from "@/utils/debtsPdf";
@@ -90,6 +95,17 @@ function statusQueryForFilter(filter: string): string | readonly string[] | unde
 }
 
 const PENDING_TOTAL_QUERY_KEY = "operator-debts-pending-total";
+const DEBT_SORT = {
+  customerName: (row: CustomerDebtResponse) => row.customerName,
+  customerPhone: (row: CustomerDebtResponse) => row.customerPhone ?? "",
+  amount: (row: CustomerDebtResponse) => row.amount,
+  amountSettled: (row: CustomerDebtResponse) => row.amountSettled ?? 0,
+  outstanding: (row: CustomerDebtResponse) => row.outstanding,
+  status: (row: CustomerDebtResponse) => row.status,
+  dueDate: (row: CustomerDebtResponse) => row.dueDate ?? "",
+  createdAt: (row: CustomerDebtResponse) => row.createdAt,
+  notes: (row: CustomerDebtResponse) => row.notes ?? "",
+};
 
 function DebtPendingTotalDisplay(props: { totalPending: number; loading: boolean }) {
   const { totalPending, loading } = props;
@@ -163,7 +179,7 @@ export function DebtsPage() {
     []
   );
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["operator-debts", token, orgId, branchId, page, statusFilter],
     queryFn: () =>
       fetchDebts(token, orgId!, branchId!, {
@@ -363,7 +379,16 @@ export function DebtsPage() {
   });
 
   const debts = data?.content ?? [];
-  const { searchQuery, setSearchQuery, filteredRows: filteredDebts } = useTableSearch(debts);
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredDebts,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useDataTable(debts, undefined, {
+    sortAccessors: DEBT_SORT,
+  });
 
   const showPhoneCol = useMemo(
     () =>
@@ -650,6 +675,8 @@ export function DebtsPage() {
                   size={PAGE_SIZE}
                   totalElements={totalElements}
                   onPageChange={setPage}
+                  onRefresh={() => void refetch()}
+                  isRefreshing={isFetching}
                 />
               )}
               <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
@@ -658,42 +685,65 @@ export function DebtsPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "1100px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
-                      <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                        Customer
-                      </th>
+                      <SortableTableHead
+                        columnKey="customerName"
+                        label="Customer"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                      />
                       {showPhoneCol && (
-                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                          Phone
-                        </th>
+                        <SortableTableHead
+                          columnKey="customerPhone"
+                          label="Phone"
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={toggleSort}
+                          className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        />
                       )}
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Original (KSH)
-                      </th>
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Repaid (KSH)
-                      </th>
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Balance (KSH)
-                      </th>
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Status
-                      </th>
+                      <SortableTableHead columnKey="amount" label="Original (KSH)" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300" />
+                      <SortableTableHead columnKey="amountSettled" label="Repaid (KSH)" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300" />
+                      <SortableTableHead columnKey="outstanding" label="Balance (KSH)" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300" />
+                      <SortableTableHead columnKey="status" label="Status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300" />
                       {showDueCol && (
-                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                          Due
-                        </th>
+                        <SortableTableHead
+                          columnKey="dueDate"
+                          label="Due"
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={toggleSort}
+                          className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        />
                       )}
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Created
-                      </th>
+                      <SortableTableHead
+                        columnKey="createdAt"
+                        label="Created"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                       {showNotesCol && (
-                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                          Notes
-                        </th>
+                        <SortableTableHead
+                          columnKey="notes"
+                          label="Notes"
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={toggleSort}
+                          className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        />
                       )}
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Actions
-                      </th>
+                      <SortableTableHead
+                        columnKey="actions"
+                        label="Actions"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        sortable={false}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">

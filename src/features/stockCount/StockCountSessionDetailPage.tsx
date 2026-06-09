@@ -14,13 +14,14 @@ import {
 } from "lucide-react";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { PageHeader } from "@/components/PageHeader";
-import { ConfirmDialog, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import { ConfirmDialog, SortableTableHead, TableSearchInput } from "@/components/ui";
+import { useDataTable } from "@/hooks/useDataTable";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/contexts/ToastContext";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { APP_NAME_KEY } from "@/config/headerNavItems";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import { invalidateInventoryQueries } from "@/utils/invalidateInventoryQueries";
 import {
   downloadStockCountPdf,
   shareStockCountPdf,
@@ -62,6 +63,17 @@ function formatVariance(v: number): string {
   return `${sign}${v}`;
 }
 
+const STOCK_COUNT_LINE_SORT = {
+  item: (row: StockCountLineResponse) => row.itemName,
+  systemQty: (row: StockCountLineResponse) => row.systemQty,
+  countedQty: (row: StockCountLineResponse) => row.countedQty,
+  variance: (row: StockCountLineResponse) => row.varianceQty,
+  unitCost: (row: StockCountLineResponse) => row.unitCost ?? Number.NEGATIVE_INFINITY,
+  sold: (row: StockCountLineResponse) => row.qtySold ?? 0,
+  sellPrice: (row: StockCountLineResponse) =>
+    row.sellingPrice ?? Number.NEGATIVE_INFINITY,
+};
+
 export function StockCountSessionDetailPage({
   token,
   orgId,
@@ -93,7 +105,7 @@ export function StockCountSessionDetailPage({
   const [editingQty, setEditingQty] = useState("");
   const [deleteConfirmLineId, setDeleteConfirmLineId] = useState<string | null>(null);
 
-  const { data: session, isLoading, isError, error } = useQuery({
+  const { data: session, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: [...queryKey, "session", sessionId],
     queryFn: () => fetchSession(sessionId!),
     enabled: Boolean(token && orgId && sessionId),
@@ -190,7 +202,7 @@ export function StockCountSessionDetailPage({
     try {
       await closeSession(sessionId);
       queryClient.invalidateQueries({ queryKey });
-      queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
+      void invalidateInventoryQueries(queryClient);
       toast.success("Session closed. Stock adjusted.", { title: "Stock count" });
       navigate(backHref);
     } catch (err) {
@@ -256,7 +268,14 @@ export function StockCountSessionDetailPage({
   }
 
   const lines = session.lines ?? [];
-  const { searchQuery, setSearchQuery, filteredRows: filteredLines } = useTableSearch(lines);
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredLines,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useDataTable(lines, undefined, { sortAccessors: STOCK_COUNT_LINE_SORT });
 
   const showUnitCostCol = useMemo(
     () => filteredLines.some((l: StockCountLineResponse) => l.unitCost != null),
@@ -350,7 +369,7 @@ export function StockCountSessionDetailPage({
       </div>
 
       {/* Counted items – full page display */}
-      <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search items…" className="mb-4" />
+      <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search items…" className="mb-4" onRefresh={() => void refetch()} isRefreshing={isFetching} />
       <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
         <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-600">
           <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -369,35 +388,76 @@ export function StockCountSessionDetailPage({
             <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "900px" }}>
               <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr className="bg-slate-50 dark:bg-slate-700/50">
-                  <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                    Item
-                  </th>
-                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                    Sys qty
-                  </th>
-                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                    Counted
-                  </th>
-                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                    Var.
-                  </th>
+                  <SortableTableHead
+                    columnKey="item"
+                    label="Item"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
+                    className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                  />
+                  <SortableTableHead
+                    columnKey="systemQty"
+                    label="Sys qty"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
+                    className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                  />
+                  <SortableTableHead
+                    columnKey="countedQty"
+                    label="Counted"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
+                    className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                  />
+                  <SortableTableHead
+                    columnKey="variance"
+                    label="Var."
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
+                    className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                  />
                   {showUnitCostCol && (
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Unit cost (KSH)
-                    </th>
+                    <SortableTableHead
+                      columnKey="unitCost"
+                      label="Unit cost (KSH)"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                   )}
-                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                    Sold
-                  </th>
+                  <SortableTableHead
+                    columnKey="sold"
+                    label="Sold"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
+                    className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                  />
                   {showSellPriceCol && (
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Sell price (KSH)
-                    </th>
+                    <SortableTableHead
+                      columnKey="sellPrice"
+                      label="Sell price (KSH)"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                   )}
                   {session.status === "OPEN" && (
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Actions
-                    </th>
+                    <SortableTableHead
+                      columnKey="actions"
+                      label="Actions"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      sortable={false}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                   )}
                 </tr>
               </thead>

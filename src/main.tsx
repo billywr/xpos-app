@@ -8,6 +8,7 @@ import { createRoot } from "react-dom/client";
 import { Provider } from "react-redux";
 import { BrowserRouter } from "react-router-dom";
 import { store } from "@/store";
+import { setupCrossTabQuerySync } from "@/sync/setupCrossTabQuerySync";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import App from "./App";
@@ -24,6 +25,11 @@ const queryClient = new QueryClient({
     },
     mutations: { retry: 0 },
   },
+});
+
+setupCrossTabQuerySync(queryClient, () => {
+  const { orgId, branchId } = store.getState().orgContext;
+  return { orgId, branchId };
 });
 
 createRoot(document.getElementById("root")!).render(

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useDataTable } from "@/hooks/useDataTable";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -20,10 +21,11 @@ import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { Item } from "@/types/catalog";
 import type { Supplier } from "@/api/suppliers";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, Pagination, ConfirmDialog, TableSearchInput, TableSkeleton } from "@/components/ui";
+import { SlideOver, Pagination, ConfirmDialog, SortableTableHead, TableSearchInput, TableSkeleton } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { useToast } from "@/contexts/ToastContext";
+import { invalidateInventoryQueries } from "@/utils/invalidateInventoryQueries";
 import { Link } from "react-router-dom";
 import { Plus, PackagePlus, Trash2, Pencil, FileEdit, FileX } from "lucide-react";
 import { BarcodeCaptureInput } from "@/components/BarcodeCaptureInput";
@@ -40,6 +42,42 @@ const DEFAULT_PAGE_SIZE = 15;
 const GRN_FETCH_PAGE_SIZE = 500;
 /** Recent active receipts while slide-over is open (to hide items already received today elsewhere). */
 const GRN_RECEIVE_CONTEXT_PAGE_SIZE = 400;
+
+type GrnFlattenedRow = {
+  grn: GoodsReceiptNoteResponse;
+  line: GrnLineResponse | null;
+  isFirstLineOfReceipt: boolean;
+};
+
+function grnFlattenedRowSearchText(row: GrnFlattenedRow): string {
+  const parts: string[] = [row.grn.supplierName ?? "", row.grn.receivedAt ?? ""];
+  if (row.grn.receivedAt) {
+    try {
+      parts.push(new Date(row.grn.receivedAt).toLocaleString());
+    } catch {
+      // ignore invalid dates in search haystack
+    }
+  }
+  if (row.line) {
+    parts.push(
+      row.line.itemName ?? "",
+      row.line.barcode ?? "",
+      String(row.line.qty),
+      row.line.receivedUnitCost != null ? String(row.line.receivedUnitCost) : ""
+    );
+  }
+  return parts.join(" ");
+}
+
+const GRN_SORT = {
+  received: (row: GrnFlattenedRow) => row.grn.receivedAt,
+  name: (row: GrnFlattenedRow) => row.line?.itemName ?? "",
+  barcode: (row: GrnFlattenedRow) => row.line?.barcode ?? "",
+  qty: (row: GrnFlattenedRow) => row.line?.qty ?? 0,
+  buyPrice: (row: GrnFlattenedRow) => row.line?.receivedUnitCost ?? 0,
+  total: (row: GrnFlattenedRow) =>
+    row.line ? row.line.qty * (row.line.receivedUnitCost ?? 0) : 0,
+};
 
 function formatDatetimeLocal(iso: string): string {
   const d = new Date(iso);
@@ -128,8 +166,6 @@ export function GoodsReceiptPage({
     text: string;
   } | null>(null);
   const [scannedItems, setScannedItems] = useState<Item[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
     queryFn: () => fetchOrgs(token, { size: 200 }),
@@ -174,7 +210,7 @@ export function GoodsReceiptPage({
       slideOpen,
   });
 
-  const { data: grnsData, isLoading, isError, error } = useQuery({
+  const { data: grnsData, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: [
       "admin-grns",
       token,
@@ -192,8 +228,6 @@ export function GoodsReceiptPage({
       Boolean(selectedOrgId) &&
       Boolean(selectedBranchId),
   });
-
-  const isSearching = searchQuery.trim().length > 0;
 
   const createMutation = useMutation({
     mutationFn: (body: {
@@ -213,7 +247,7 @@ export function GoodsReceiptPage({
           selectedBranchId,
         ],
       });
-      queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
+      void invalidateInventoryQueries(queryClient);
       setSlideOpen(false);
       setEditingGrn(null);
       setEditingSingleLineId(null);
@@ -257,7 +291,7 @@ export function GoodsReceiptPage({
         ],
       });
       if (variables.lines != null) {
-        queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
+        void invalidateInventoryQueries(queryClient);
       }
       setSlideOpen(false);
       setEditingGrn(null);
@@ -291,7 +325,7 @@ export function GoodsReceiptPage({
           selectedBranchId,
         ],
       });
-      queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
+      void invalidateInventoryQueries(queryClient);
       setConfirmDeleteReceipt(null);
       setPermanentDeleteLoading(false);
       toast.success(
@@ -380,11 +414,7 @@ export function GoodsReceiptPage({
 
   /** Flattened rows: one entry per receipt line (or one placeholder per empty receipt). */
   const allRows = useMemo(() => {
-    const rows: Array<{
-      grn: GoodsReceiptNoteResponse;
-      line: GrnLineResponse | null;
-      isFirstLineOfReceipt: boolean;
-    }> = [];
+    const rows: GrnFlattenedRow[] = [];
     for (const grn of grns) {
       if (grn.lines.length === 0) {
         rows.push({ grn, line: null, isFirstLineOfReceipt: true });
@@ -397,27 +427,21 @@ export function GoodsReceiptPage({
     return rows;
   }, [grns]);
 
-  const filteredRows = useMemo(() => {
-    if (!isSearching) return allRows;
-    const q = searchQuery.trim().toLowerCase();
-    return allRows.filter((row) => {
-      if (!row.line) return false;
-      const haystack = [
-        row.line.itemName ?? "",
-        row.line.barcode ?? "",
-        row.grn.supplierName ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(q);
-    });
-  }, [isSearching, searchQuery, allRows]);
-
-  const totalElements = filteredRows.length;
-  const pagedRows = useMemo(
-    () => filteredRows.slice(page * size, page * size + size),
-    [filteredRows, page, size]
-  );
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: pagedRows,
+    totalElements,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useDataTable(allRows, undefined, {
+    page,
+    size,
+    setPage,
+    getSearchableText: grnFlattenedRowSearchText,
+    sortAccessors: GRN_SORT,
+  });
 
   /** Hide columns whose every row on this page has no meaningful value. */
   const showBarcodeCol = useMemo(
@@ -429,11 +453,6 @@ export function GoodsReceiptPage({
     [pagedRows]
   );
   const visibleColCount = 5 + (showBarcodeCol ? 1 : 0) + (showBuyPriceCol ? 1 : 0);
-
-  // Reset to first page when the filter or page size changes the result set.
-  useEffect(() => {
-    setPage(0);
-  }, [searchQuery, size]);
 
   const grnsTotalAmount = grns.reduce(
     (sum, grn) =>
@@ -837,6 +856,8 @@ export function GoodsReceiptPage({
                 setPage(0);
               }}
               sizeOptions={[10, 15, 25, 50, 100]}
+              onRefresh={() => void refetch()}
+              isRefreshing={isFetching}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -846,31 +867,67 @@ export function GoodsReceiptPage({
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "900px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                      Received
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Name
-                    </th>
+                    <SortableTableHead
+                      columnKey="received"
+                      label="Received"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="name"
+                      label="Name"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                     {showBarcodeCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Barcode
-                      </th>
+                      <SortableTableHead
+                        columnKey="barcode"
+                        label="Barcode"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Qty
-                    </th>
+                    <SortableTableHead
+                      columnKey="qty"
+                      label="Qty"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                     {showBuyPriceCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Buy price (KSH)
-                      </th>
+                      <SortableTableHead
+                        columnKey="buyPrice"
+                        label="Buy price (KSH)"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Total (KSH)
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Actions
-                    </th>
+                    <SortableTableHead
+                      columnKey="total"
+                      label="Total (KSH)"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="actions"
+                      label="Actions"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      sortable={false}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">

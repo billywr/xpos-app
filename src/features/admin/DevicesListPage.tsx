@@ -15,8 +15,14 @@ import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { DeviceRegistration } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, ConfirmDialog, Pagination, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import {
+  SlideOver,
+  ConfirmDialog,
+  Pagination,
+  SortableTableHead,
+  TableSearchInput,
+} from "@/components/ui";
+import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Power, PowerOff, Trash2 } from "lucide-react";
@@ -28,6 +34,11 @@ const MAX_PAGE_SIZE = 100;
 export interface DevicesListPageProps {
   initialOrgId?: string;
 }
+
+const DEVICE_SORT = {
+  deviceId: (row: DeviceRegistration) => row.deviceId,
+  status: (row: DeviceRegistration) => row.status,
+};
 
 export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
   const token = useAppSelector(selectToken);
@@ -61,7 +72,7 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
     enabled: Boolean(token) && Boolean(selectedOrgId) && slideOpen,
   });
 
-  const { data: devicesData, isLoading, isError, error } = useQuery({
+  const { data: devicesData, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["admin-devices", token, selectedOrgId, page, size],
     queryFn: () => fetchDevices(token, selectedOrgId, { page, size }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
@@ -156,8 +167,26 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
   const devices = devicesData?.content ?? [];
-  const totalElements = devicesData?.totalElements ?? 0;
-  const { searchQuery, setSearchQuery, filteredRows: filteredDevices } = useTableSearch(devices);
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredDevices,
+    totalElements,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useServerPaginatedTableSearch({
+    pageRows: devices,
+    serverTotalElements: devicesData?.totalElements ?? 0,
+    page,
+    size,
+    setPage,
+    searchAllQueryKey: ["admin-devices", token, selectedOrgId],
+    searchAllQueryFn: (fetchSize) =>
+      fetchDevices(token, selectedOrgId, { page: 0, size: fetchSize }),
+    searchAllEnabled: Boolean(token) && Boolean(selectedOrgId),
+    sortAccessors: DEVICE_SORT,
+  });
 
   useEffect(() => {
     if (initialOrgId) {
@@ -343,6 +372,8 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
               onPageChange={setPage}
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
+              onRefresh={() => void refetch()}
+              isRefreshing={isFetching}
             />
           )}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -350,15 +381,31 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Device ID
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Actions
-                    </th>
+                    <SortableTableHead
+                      columnKey="deviceId"
+                      label="Device ID"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="status"
+                      label="Status"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="actions"
+                      label="Actions"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      sortable={false}
+                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                    />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">

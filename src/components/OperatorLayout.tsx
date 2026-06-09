@@ -29,6 +29,7 @@ import { clearCredentials } from "@/store/slices/authSlice";
 import { clearContext } from "@/store/slices/orgContextSlice";
 import { clearStoredAuth } from "@/utils/authStorage";
 import { clearStoredContext } from "@/utils/contextStorage";
+import { clearAllStoredTableSearch } from "@/utils/tableSearchStorage";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
 import { useCartPersistence } from "@/hooks/useCartPersistence";
@@ -127,6 +128,7 @@ export function OperatorLayout() {
   const handleLogout = () => {
     clearStoredAuth();
     clearStoredContext();
+    clearAllStoredTableSearch();
     dispatch(clearCredentials());
     dispatch(clearContext());
     navigate("/login", { replace: true });

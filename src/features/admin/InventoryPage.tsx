@@ -8,8 +8,14 @@ import { fetchInventoryReport, type InventoryReportLineResponse } from "@/api/in
 import { fetchAllOrgItems } from "@/api/items";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { Pagination, TableSearchInput, TableSkeleton } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import {
+  Pagination,
+  SortableTableHead,
+  TableSearchInput,
+  TableSkeleton,
+} from "@/components/ui";
+import { useDataTable } from "@/hooks/useDataTable";
+import { TABLE_SEARCH_FETCH_SIZE } from "@/constants/tableSearch";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { formatAmount } from "@/utils/formatCurrency";
 import {
@@ -32,6 +38,12 @@ import { Link } from "react-router-dom";
 const DEFAULT_PAGE_SIZE = 20;
 const LOW_STOCK_THRESHOLD = 5;
 const ANALYTICS_FETCH_SIZE = 500;
+const INVENTORY_SORT = {
+  itemName: (row: InventoryReportLineResponse) => row.itemName,
+  receivedQty: (row: InventoryReportLineResponse) => row.receivedQty,
+  onHandQty: (row: InventoryReportLineResponse) => row.onHandQty,
+  soldQty: (row: InventoryReportLineResponse) => row.soldQty,
+};
 
 function formatQty(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(2);
@@ -70,10 +82,15 @@ export function InventoryPage({
     isLoading,
     isError,
     error,
+    refetch,
+    isFetching,
   } = useQuery({
-    queryKey: ["admin-inventory-report", token, selectedOrgId, selectedBranchId, page, size],
+    queryKey: ["admin-inventory-report", token, selectedOrgId, selectedBranchId],
     queryFn: () =>
-      fetchInventoryReport(token, selectedOrgId, selectedBranchId, { page, size }),
+      fetchInventoryReport(token, selectedOrgId, selectedBranchId, {
+        page: 0,
+        size: TABLE_SEARCH_FETCH_SIZE,
+      }),
     enabled:
       Boolean(token) && Boolean(selectedOrgId) && Boolean(selectedBranchId),
   });
@@ -108,7 +125,21 @@ export function InventoryPage({
   const filteredOrgs = filterActiveOrgs(orgs);
   const filteredBranches = filterNonDeletedBranches(branches);
   const lines = reportData?.content ?? [];
-  const { searchQuery, setSearchQuery, filteredRows: filteredLines } = useTableSearch(lines);
+
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredLines,
+    totalElements,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useDataTable(lines, undefined, {
+    page,
+    size,
+    setPage,
+    sortAccessors: INVENTORY_SORT,
+  });
 
   const analytics = useMemo(() => {
     const all = analyticsData?.content ?? [];
@@ -189,7 +220,9 @@ export function InventoryPage({
       setSelectedBranchId(filteredBranches[0].id);
     }
   }, [initialBranchId, selectedOrgId, filteredBranches, selectedBranchId]);
-  const totalElements = reportData?.totalElements ?? 0;
+  useEffect(() => {
+    setPage(0);
+  }, [searchQuery, size]);
 
   if (isError && selectedOrgId && selectedBranchId) {
     return (
@@ -267,6 +300,8 @@ export function InventoryPage({
                 setPage(0);
               }}
               sizeOptions={[10, 20, 50]}
+              onRefresh={() => void refetch()}
+              isRefreshing={isFetching}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -276,18 +311,38 @@ export function InventoryPage({
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "700px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                      Item
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Received
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      On hand
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Sold
-                    </th>
+                    <SortableTableHead
+                      columnKey="itemName"
+                      label="Item"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="receivedQty"
+                      label="Received"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="onHandQty"
+                      label="On hand"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="soldQty"
+                      label="Sold"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePersistedSearch } from "@/hooks/usePersistedSearch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -34,8 +35,12 @@ import {
   saveSalesRecordingDraft,
 } from "@/api/salesRecordingDraft";
 import { Pagination } from "@/components/ui/Pagination";
+import { SortableTableHead } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import { rowMatchesSearch } from "@/utils/tableSearchMatch";
+import { sortTableRows } from "@/utils/tableSort";
 import { useToast } from "@/contexts/ToastContext";
+import { useTableSort } from "@/hooks/useTableSort";
 import type { Item } from "@/types/catalog";
 
 const BACKDATE_MAX_DAYS = 7;
@@ -122,13 +127,14 @@ export function SalesRecordingPage() {
 
   const [saleDate, setSaleDate] = useState<string>(todayIso());
   const [qtyByItem, setQtyByItem] = useState<Record<string, string>>({});
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = usePersistedSearch();
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [draftSaveError, setDraftSaveError] = useState<boolean>(false);
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
   const [page, setPage] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const { sortColumn, sortDirection, toggleSort } = useTableSort();
   const saveTimerRef = useRef<number | null>(null);
   const hydratedKeyRef = useRef<string | null>(null);
 
@@ -301,22 +307,44 @@ export function SalesRecordingPage() {
   }, [statsQuery.data]);
 
   const rows = useMemo<Row[]>(() => {
-    const q = search.trim().toLowerCase();
     return sellableItems
       .filter((i) =>
-        q ? i.name.toLowerCase().includes(q) || (i.sku ?? "").toLowerCase().includes(q) : true
+        rowMatchesSearch(
+          { name: i.name, sku: i.sku ?? "", barcode: i.barcode ?? "" },
+          search
+        )
       )
       .map((item) => ({ item, qtyRaw: qtyByItem[item.id] ?? "" }));
   }, [sellableItems, qtyByItem, search]);
 
   useEffect(() => {
     setPage(0);
-  }, [search, pageSize]);
+  }, [search, pageSize, sortColumn, sortDirection]);
+
+  const sortedRows = useMemo(
+    () =>
+      sortTableRows(
+        rows,
+        { column: sortColumn, direction: sortDirection },
+        (row, column) => {
+          if (column === "item") return row.item.name;
+          if (column === "sku") return row.item.sku ?? "";
+          if (column === "qty") return Number(row.qtyRaw) || 0;
+          if (column === "onHand") return stockByItem[row.item.id] ?? 0;
+          if (column === "price") return Number(row.item.defaultSellingPrice ?? 0);
+          if (column === "lineTotal") {
+            return (Number(row.qtyRaw) || 0) * Number(row.item.defaultSellingPrice ?? 0);
+          }
+          return null;
+        }
+      ),
+    [rows, sortColumn, sortDirection, stockByItem]
+  );
 
   const pageRows = useMemo<Row[]>(() => {
     const start = page * pageSize;
-    return rows.slice(start, start + pageSize);
-  }, [rows, page, pageSize]);
+    return sortedRows.slice(start, start + pageSize);
+  }, [sortedRows, page, pageSize]);
 
   const batchSummary = useMemo(() => {
     let total = 0;
@@ -578,11 +606,32 @@ export function SalesRecordingPage() {
           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
             <thead className="bg-slate-50 text-left text-sm font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
               <tr>
-                <th className="px-4 py-3">Item</th>
-                <th className="px-4 py-3">SKU</th>
+                <SortableTableHead
+                  columnKey="item"
+                  label="Item"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={toggleSort}
+                  className="px-4 py-3"
+                />
+                <SortableTableHead
+                  columnKey="sku"
+                  label="SKU"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={toggleSort}
+                  className="px-4 py-3"
+                />
                 <th className="px-4 py-3">On hand</th>
                 <th className="px-4 py-3">Price (KSH)</th>
-                <th className="px-4 py-3">Sold qty</th>
+                <SortableTableHead
+                  columnKey="qty"
+                  label="Sold qty"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={toggleSort}
+                  className="px-4 py-3"
+                />
                 <th className="px-4 py-3">Line total (KSH)</th>
               </tr>
             </thead>
@@ -685,10 +734,18 @@ export function SalesRecordingPage() {
           <Pagination
             page={page}
             size={pageSize}
-            totalElements={rows.length}
+            totalElements={sortedRows.length}
             onPageChange={setPage}
             onSizeChange={setPageSize}
             sizeOptions={PAGE_SIZE_OPTIONS}
+            onRefresh={() => {
+              void itemsQuery.refetch();
+              void stockLevelsQuery.refetch();
+              void statsQuery.refetch();
+            }}
+            isRefreshing={
+              itemsQuery.isFetching || stockLevelsQuery.isFetching || statsQuery.isFetching
+            }
           />
         )}
       </div>

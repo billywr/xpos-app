@@ -15,8 +15,13 @@ import {
   type SaleSummary,
 } from "@/api/sales";
 import { ReceiptModal } from "@/components/ReceiptModal";
-import { Pagination, TableSearchInput, TableSkeleton } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import {
+  Pagination,
+  SortableTableHead,
+  TableSearchInput,
+  TableSkeleton,
+} from "@/components/ui";
+import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { formatAmount } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -24,6 +29,12 @@ import { Receipt, Printer } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 
 const DEFAULT_PAGE_SIZE = 20;
+const RECEIPT_SORT = {
+  receiptNumber: (row: SaleSummary) => row.receiptNumber ?? "",
+  completedAt: (row: SaleSummary) => row.completedAt ?? "",
+  total: (row: SaleSummary) => row.total,
+  staff: (row: SaleSummary) => row.createdByUsername ?? "",
+};
 
 /** Local date as YYYY-MM-DD for date inputs. Ensures "today" respects user timezone. */
 function getTodayLocal(): string {
@@ -48,7 +59,7 @@ export function ReceiptsPage() {
   const [receiptDetails, setReceiptDetails] = useState<import("@/types/sales").ReceiptDetailResponse | null>(null);
   const [reprintingSaleId, setReprintingSaleId] = useState<string | null>(null);
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: [
       "operator-receipts",
       token,
@@ -111,8 +122,38 @@ export function ReceiptsPage() {
   });
 
   const receipts = data?.content ?? [];
-  const { searchQuery, setSearchQuery, filteredRows: filteredReceipts } = useTableSearch(receipts);
-  const totalElements = data?.totalElements ?? 0;
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredReceipts,
+    totalElements,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useServerPaginatedTableSearch({
+    pageRows: receipts,
+    serverTotalElements: data?.totalElements ?? 0,
+    page,
+    size,
+    setPage,
+    searchAllQueryKey: [
+      "operator-receipts",
+      token,
+      orgId,
+      branchId,
+      fromDate,
+      toDate,
+    ],
+    searchAllQueryFn: (fetchSize) =>
+      fetchOperatorReceipts(token, orgId!, branchId!, {
+        page: 0,
+        size: fetchSize,
+        fromDate,
+        toDate,
+      }),
+    searchAllEnabled: Boolean(token && orgId && branchId),
+    sortAccessors: RECEIPT_SORT,
+  });
 
   const showCompletedCol = useMemo(
     () => filteredReceipts.some((s: SaleSummary) => !!s.completedAt),
@@ -226,6 +267,8 @@ export function ReceiptsPage() {
               setPage(0);
             }}
             sizeOptions={[10, 20, 50]}
+            onRefresh={() => void refetch()}
+            isRefreshing={isFetching}
           />
         )}
         <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
@@ -235,25 +278,51 @@ export function ReceiptsPage() {
             <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "600px" }}>
               <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr>
-                  <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                    Receipt
-                  </th>
+                  <SortableTableHead
+                    columnKey="receiptNumber"
+                    label="Receipt"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
+                    className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                  />
                   {showCompletedCol && (
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Completed
-                    </th>
+                    <SortableTableHead
+                      columnKey="completedAt"
+                      label="Completed"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                   )}
-                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                    Total (KSH)
-                  </th>
+                  <SortableTableHead
+                    columnKey="total"
+                    label="Total (KSH)"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
+                    className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                  />
                   {showStaffCol && (
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Staff
-                    </th>
+                    <SortableTableHead
+                      columnKey="staff"
+                      label="Staff"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                   )}
-                  <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                    Actions
-                  </th>
+                  <SortableTableHead
+                    columnKey="actions"
+                    label="Actions"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
+                    sortable={false}
+                    className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                  />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">

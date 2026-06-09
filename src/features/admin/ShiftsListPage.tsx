@@ -9,8 +9,8 @@ import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { Shift } from "@/types/shift";
 import { PageHeader } from "@/components/PageHeader";
-import { Pagination, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import { Pagination, SortableTableHead, TableSearchInput } from "@/components/ui";
+import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatAmount } from "@/utils/formatCurrency";
 import { Wallet } from "lucide-react";
@@ -20,6 +20,15 @@ const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
 
 export function ShiftsListPage() {
+  const SHIFT_SORT = {
+    openedAt: (row: Shift) => row.openedAt,
+    closedAt: (row: Shift) => row.closedAt ?? "",
+    status: (row: Shift) => row.status,
+    openingFloatAmount: (row: Shift) => row.openingFloatAmount,
+    closingCountedAmount: (row: Shift) => row.closingCountedAmount ?? Number.NEGATIVE_INFINITY,
+    varianceAmount: (row: Shift) => row.varianceAmount ?? Number.NEGATIVE_INFINITY,
+  };
+
   const token = useAppSelector(selectToken);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
@@ -38,7 +47,7 @@ export function ShiftsListPage() {
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
 
-  const { data: shiftsData, isLoading, isError, error } = useQuery({
+  const { data: shiftsData, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["admin-shifts", token, selectedOrgId, selectedBranchId, page, size],
     queryFn: () =>
       fetchShifts(token, selectedOrgId, selectedBranchId, { page, size }),
@@ -48,8 +57,27 @@ export function ShiftsListPage() {
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
   const shifts = shiftsData?.content ?? [];
-  const totalElements = shiftsData?.totalElements ?? 0;
-  const { searchQuery, setSearchQuery, filteredRows: filteredShifts } = useTableSearch(shifts);
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredShifts,
+    totalElements,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useServerPaginatedTableSearch({
+    pageRows: shifts,
+    serverTotalElements: shiftsData?.totalElements ?? 0,
+    page,
+    size,
+    setPage,
+    searchAllQueryKey: ["admin-shifts", token, selectedOrgId, selectedBranchId],
+    searchAllQueryFn: (fetchSize) =>
+      fetchShifts(token, selectedOrgId, selectedBranchId, { page: 0, size: fetchSize }),
+    searchAllEnabled:
+      Boolean(token) && Boolean(selectedOrgId) && Boolean(selectedBranchId),
+    sortAccessors: SHIFT_SORT,
+  });
 
   const showClosedCol = useMemo(
     () => filteredShifts.some((s: Shift) => !!s.closedAt),
@@ -218,6 +246,8 @@ export function ShiftsListPage() {
               onPageChange={setPage}
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
+              onRefresh={() => void refetch()}
+              isRefreshing={isFetching}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -227,29 +257,59 @@ export function ShiftsListPage() {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "720px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                      Opened
-                    </th>
+                    <SortableTableHead
+                      columnKey="openedAt"
+                      label="Opened"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                    />
                     {showClosedCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Closed
-                      </th>
+                      <SortableTableHead
+                        columnKey="closedAt"
+                        label="Closed"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Float (KSH)
-                    </th>
+                    <SortableTableHead
+                      columnKey="status"
+                      label="Status"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="openingFloatAmount"
+                      label="Float (KSH)"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                     {showCountedCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Counted (KSH)
-                      </th>
+                      <SortableTableHead
+                        columnKey="closingCountedAmount"
+                        label="Counted (KSH)"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     )}
                     {showVarianceCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Variance (KSH)
-                      </th>
+                      <SortableTableHead
+                        columnKey="varianceAmount"
+                        label="Variance (KSH)"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     )}
                   </tr>
                 </thead>

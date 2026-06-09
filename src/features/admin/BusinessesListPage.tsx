@@ -13,8 +13,14 @@ import type { Org } from "@/types/org";
 import { filterActiveOrgs } from "@/types/org";
 import type { Business } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, ConfirmDialog, Pagination, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import {
+  SlideOver,
+  ConfirmDialog,
+  Pagination,
+  SortableTableHead,
+  TableSearchInput,
+} from "@/components/ui";
+import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -26,6 +32,11 @@ const MAX_PAGE_SIZE = 100;
 export interface BusinessesListPageProps {
   initialOrgId?: string;
 }
+
+const BUSINESS_SORT = {
+  legalName: (row: Business) => row.legalName,
+  kraPin: (row: Business) => row.kraPin ?? "",
+};
 
 export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {}) {
   const token = useAppSelector(selectToken);
@@ -51,7 +62,7 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
     enabled: Boolean(token),
   });
 
-  const { data: businessesData, isLoading, isError, error } = useQuery({
+  const { data: businessesData, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["admin-businesses", token, selectedOrgId, page, size],
     queryFn: () => fetchBusinesses(token, selectedOrgId, { page, size }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
@@ -136,8 +147,26 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const businesses = businessesData?.content ?? [];
-  const totalElements = businessesData?.totalElements ?? 0;
-  const { searchQuery, setSearchQuery, filteredRows: filteredBusinesses } = useTableSearch(businesses);
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredBusinesses,
+    totalElements,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useServerPaginatedTableSearch({
+    pageRows: businesses,
+    serverTotalElements: businessesData?.totalElements ?? 0,
+    page,
+    size,
+    setPage,
+    searchAllQueryKey: ["admin-businesses", token, selectedOrgId],
+    searchAllQueryFn: (fetchSize) =>
+      fetchBusinesses(token, selectedOrgId, { page: 0, size: fetchSize }),
+    searchAllEnabled: Boolean(token) && Boolean(selectedOrgId),
+    sortAccessors: BUSINESS_SORT,
+  });
 
   const showKraPinCol = useMemo(
     () => filteredBusinesses.some((b: Business) => !!b.kraPin && b.kraPin.trim() !== "" && b.kraPin !== "—"),
@@ -326,6 +355,8 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
               onPageChange={setPage}
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
+              onRefresh={() => void refetch()}
+              isRefreshing={isFetching}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -335,17 +366,33 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "360px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                      Legal name
-                    </th>
+                    <SortableTableHead
+                      columnKey="legalName"
+                      label="Legal name"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                    />
                     {showKraPinCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        KRA PIN
-                      </th>
+                      <SortableTableHead
+                        columnKey="kraPin"
+                        label="KRA PIN"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Actions
-                    </th>
+                    <SortableTableHead
+                      columnKey="actions"
+                      label="Actions"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      sortable={false}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">

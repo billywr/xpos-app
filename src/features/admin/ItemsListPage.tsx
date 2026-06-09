@@ -26,8 +26,15 @@ import type { Item } from "@/types/catalog";
 import type { Category } from "@/types/catalog";
 import type { ItemModifierGroupLink } from "@/types/catalog";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, Pagination, ConfirmDialog, TableSearchInput, TableSkeleton } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import {
+  SlideOver,
+  Pagination,
+  ConfirmDialog,
+  SortableTableHead,
+  TableSearchInput,
+  TableSkeleton,
+} from "@/components/ui";
+import { useDataTable } from "@/hooks/useDataTable";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { formatAmount } from "@/utils/formatCurrency";
@@ -42,6 +49,15 @@ const DEFAULT_PAGE_SIZE = 15;
 const MAX_PAGE_SIZE = 100;
 const ITEMS_FETCH_PAGE_SIZE = 500;
 const ITEM_TYPES = ["STOCK", "SERVICE", "MENU", "BUNDLE"] as const;
+const ITEM_SORT = {
+  name: (row: Item) => row.name,
+  sku: (row: Item) => row.sku ?? "",
+  barcode: (row: Item) => row.barcode ?? "",
+  itemType: (row: Item) => row.itemType,
+  active: (row: Item) => (row.active ? 1 : 0),
+  buyingPrice: (row: Item) => row.buyingPrice ?? Number.NEGATIVE_INFINITY,
+  defaultSellingPrice: (row: Item) => row.defaultSellingPrice ?? Number.NEGATIVE_INFINITY,
+};
 
 export interface ItemsListPageProps {
   initialOrgId?: string;
@@ -189,7 +205,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     enabled: Boolean(token),
   });
 
-  const { data: itemsData, isLoading, isError, error } = useQuery({
+  const { data: itemsData, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: [
       "admin-items",
       token,
@@ -412,12 +428,20 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const items = (itemsData?.content ?? []).filter((i: Item) => i.active);
-  const { searchQuery, setSearchQuery, filteredRows: filteredItems } = useTableSearch(items);
-  const totalElements = filteredItems.length;
-  const pagedItems = useMemo(
-    () => filteredItems.slice(page * size, page * size + size),
-    [filteredItems, page, size]
-  );
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: pagedItems,
+    totalElements,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useDataTable(items, undefined, {
+    page,
+    size,
+    setPage,
+    sortAccessors: ITEM_SORT,
+  });
 
   useEffect(() => {
     setPage(0);
@@ -913,6 +937,8 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               onPageChange={setPage}
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 15, 25, 50, 100]}
+              onRefresh={() => void refetch()}
+              isRefreshing={isFetching}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -922,39 +948,86 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "1000px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                      Name
-                    </th>
+                    <SortableTableHead
+                      columnKey="name"
+                      label="Name"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                    />
                     {showSkuCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        SKU
-                      </th>
+                      <SortableTableHead
+                        columnKey="sku"
+                        label="SKU"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     )}
                     {showBarcode && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Barcode
-                      </th>
+                      <SortableTableHead
+                        columnKey="barcode"
+                        label="Barcode"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Type
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Active
-                    </th>
+                    <SortableTableHead
+                      columnKey="itemType"
+                      label="Type"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="active"
+                      label="Active"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                     {showBuyingCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Buying (KSH)
-                      </th>
+                      <SortableTableHead
+                        columnKey="buyingPrice"
+                        label="Buying (KSH)"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Selling (KSH)
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Image
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Actions
-                    </th>
+                    <SortableTableHead
+                      columnKey="defaultSellingPrice"
+                      label="Selling (KSH)"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="image"
+                      label="Image"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      sortable={false}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="actions"
+                      label="Actions"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      sortable={false}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">

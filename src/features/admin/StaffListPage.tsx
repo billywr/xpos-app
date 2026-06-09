@@ -20,8 +20,14 @@ import type { Branch } from "@/types/org";
 import type { StaffUser } from "@/types/staff";
 import type { StaffBranchAssignment } from "@/types/staff";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, ConfirmDialog, Pagination, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import {
+  SlideOver,
+  ConfirmDialog,
+  Pagination,
+  SortableTableHead,
+  TableSearchInput,
+} from "@/components/ui";
+import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import {
   getApiErrorMessage,
   getApiErrorRequestId,
@@ -37,6 +43,11 @@ const MAX_PAGE_SIZE = 100;
 export interface StaffListPageProps {
   initialOrgId?: string;
 }
+
+const STAFF_SORT = {
+  username: (row: StaffUser) => row.username,
+  status: (row: StaffUser) => row.status,
+};
 
 export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
   const token = useAppSelector(selectToken);
@@ -73,7 +84,7 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
     enabled: Boolean(token),
   });
 
-  const { data: staffData, isLoading, isError, error } = useQuery({
+  const { data: staffData, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["admin-staff", token, selectedOrgId, page, size],
     queryFn: () => fetchStaffUsers(token, selectedOrgId, { page, size }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
@@ -249,8 +260,26 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const staffUsers = staffData?.content ?? [];
-  const totalElements = staffData?.totalElements ?? 0;
-  const { searchQuery, setSearchQuery, filteredRows: filteredStaff } = useTableSearch(staffUsers);
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredStaff,
+    totalElements,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useServerPaginatedTableSearch({
+    pageRows: staffUsers,
+    serverTotalElements: staffData?.totalElements ?? 0,
+    page,
+    size,
+    setPage,
+    searchAllQueryKey: ["admin-staff", token, selectedOrgId],
+    searchAllQueryFn: (fetchSize) =>
+      fetchStaffUsers(token, selectedOrgId, { page: 0, size: fetchSize }),
+    searchAllEnabled: Boolean(token) && Boolean(selectedOrgId),
+    sortAccessors: STAFF_SORT,
+  });
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
   const profile = profileData;
   const assignments = assignmentsData ?? [];
@@ -504,6 +533,8 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
               onPageChange={setPage}
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
+              onRefresh={() => void refetch()}
+              isRefreshing={isFetching}
             />
           )}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -511,15 +542,31 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Username
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                      Actions
-                    </th>
+                    <SortableTableHead
+                      columnKey="username"
+                      label="Username"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="status"
+                      label="Status"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="actions"
+                      label="Actions"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      sortable={false}
+                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                    />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">

@@ -24,6 +24,7 @@ import { fetchOperatorAnalyticsSnapshot } from "@/api/operatorAnalytics";
 import { fetchDebts } from "@/api/debts";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import { invalidateInventoryQueries } from "@/utils/invalidateInventoryQueries";
 import { useToast } from "@/contexts/ToastContext";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { APP_NAME_KEY } from "@/config/headerNavItems";
@@ -40,9 +41,14 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { downloadStdStockCountPdf } from "@/utils/stdStockCountPdf";
-import { Pagination, TableSearchInput, ConfirmDialog } from "@/components/ui";
+import {
+  Pagination,
+  SortableTableHead,
+  TableSearchInput,
+  ConfirmDialog,
+} from "@/components/ui";
 import { SlideOver } from "@/components/ui/SlideOver";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import { useDataTable } from "@/hooks/useDataTable";
 
 /** YYYY-MM-DD in the browser's local calendar (not UTC). toISOString().slice(0,10) is wrong for TZ ahead of UTC. */
 function toDateStr(d: Date): string {
@@ -83,6 +89,17 @@ interface ComputedRow {
   lastSavedAt: string | null;
   closingError?: string;
 }
+
+const STANDARD_STOCK_SORT = {
+  item: (row: ComputedRow) => row.name,
+  open: (row: ComputedRow) => row.openingStock,
+  added: (row: ComputedRow) => row.addedStock,
+  total: (row: ComputedRow) => row.totalStock,
+  close: (row: ComputedRow) => row.closingStock,
+  sold: (row: ComputedRow) => row.unitsSold,
+  price: (row: ComputedRow) => row.sellingPrice,
+  amount: (row: ComputedRow) => row.amount,
+};
 
 /** Saved closing if present; otherwise Total stock (Open + Added + AddedToday) so unsaved rows start at "nothing sold yet" and never exceed Total. */
 function defaultClosingFromRow(row: StdStockCountRowResponse): number {
@@ -184,10 +201,27 @@ export function StandardStockCountSheetPage({
   const isYesterday = dateStr === yesterdayStr();
   const canEdit = isToday || isYesterday;
 
-  const { data: sheet, isLoading, isError, error } = useQuery({
+  const { data: sheet, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["std-stock-count", token, orgId, branchId, dateStr],
     queryFn: () => fetchStdStockCountSheet(token, orgId, branchId, dateStr),
     enabled: Boolean(token && orgId && branchId),
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const salesPreviewQueryEnabled = Boolean(
+    token && orgId && branchId && terminalId && canEdit && sheet
+  );
+
+  const {
+    data: cachedSalesPreview,
+    isLoading: salesPreviewLoading,
+    isFetched: salesPreviewFetched,
+    refetch: refetchSalesPreview,
+  } = useQuery({
+    queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
+    queryFn: () => fetchStdStockCountSalesPreview(token, orgId, branchId, dateStr),
+    enabled: salesPreviewQueryEnabled,
     staleTime: 30_000,
   });
 
@@ -276,7 +310,10 @@ export function StandardStockCountSheetPage({
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["std-stock-count"] });
+      void invalidateInventoryQueries(queryClient);
+      void queryClient.invalidateQueries({
+        queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
+      });
       setLocalClosings({});
       setLocalComments({});
       toast.success("Stock count saved.", { title: "Saved" });
@@ -301,9 +338,10 @@ export function StandardStockCountSheetPage({
       });
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["std-stock-count"] });
-      queryClient.invalidateQueries({ queryKey: ["sales-recording-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["sales-recording-stock"] });
+      void invalidateInventoryQueries(queryClient);
+      void queryClient.invalidateQueries({
+        queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
+      });
       setRecordPreview(null);
       if (result.saleIds.length === 0) {
         toast.success("No new sales to record — counts already match recorded sales.", {
@@ -336,12 +374,20 @@ export function StandardStockCountSheetPage({
     );
   }, [sheet?.rows, localClosings, localComments]);
 
-  const { searchQuery, setSearchQuery, filteredRows: computedRows } = useTableSearch(allComputedRows);
-
-  const paginatedRows = useMemo(() => {
-    const start = page * pageSize;
-    return computedRows.slice(start, start + pageSize);
-  }, [computedRows, page, pageSize]);
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: paginatedRows,
+    allFilteredRows: computedRows,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useDataTable(allComputedRows, undefined, {
+    page,
+    size: pageSize,
+    setPage,
+    sortAccessors: STANDARD_STOCK_SORT,
+  });
 
   useEffect(() => {
     setPage(0);
@@ -394,6 +440,10 @@ export function StandardStockCountSheetPage({
 
   const hasChanges = changedItemIds.size > 0;
 
+  const hasSalesToRecord = (cachedSalesPreview?.totalQtyToRecord ?? 0) > 0;
+  const noSalesToRecord =
+    !hasChanges && salesPreviewFetched && salesPreviewQueryEnabled && !hasSalesToRecord;
+
   const latestSavedAt = useMemo(() => {
     const times = (sheet?.rows ?? [])
       .map((r) => r.lastSavedAt)
@@ -419,8 +469,13 @@ export function StandardStockCountSheetPage({
   async function openRecordPreview() {
     setPreviewLoading(true);
     try {
-      const preview = await fetchStdStockCountSalesPreview(token, orgId, branchId, dateStr);
-      setRecordPreview(preview);
+      const result = cachedSalesPreview
+        ? { data: cachedSalesPreview }
+        : await refetchSalesPreview();
+      const preview = result.data;
+      if (preview) {
+        setRecordPreview(preview);
+      }
     } catch (err) {
       toast.error(getApiErrorMessage(err), {
         detail: getApiErrorRequestId(err)
@@ -571,7 +626,7 @@ export function StandardStockCountSheetPage({
       {!tableExpanded && (
         <PageHeader
           title="Stock Count Sheet"
-          subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = latest saved Closing before this date (0 if never saved). Added = GRN receipts since that last save through this date. Total Stock = Opening + Added + Added today. Closing = physical count (defaults to Total Stock for unsaved rows so Units Sold starts at 0; editable); Units Sold = Total Stock − Closing.`}
+          subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = latest saved Closing before this date (0 if never saved). Added = GRN receipts on this date. Total Stock = Opening + Added + Added today. Closing = physical count (defaults to Total Stock for unsaved rows so Units Sold starts at 0; editable); Units Sold = Total Stock − Closing.`}
           subtitleRevealOnTitleHover
           icon={FileSpreadsheet}
           fallbackTo="/operator"
@@ -652,16 +707,22 @@ export function StandardStockCountSheetPage({
               hasErrors ||
               previewLoading ||
               recordSalesMutation.isPending ||
-              saveMutation.isPending
+              saveMutation.isPending ||
+              noSalesToRecord ||
+              (salesPreviewLoading && !hasChanges)
             }
             title={
               !terminalId
                 ? "Select a terminal in context"
-                : hasChanges
-                  ? "Save stock count first"
-                  : "Record sales from Sold column"
+                : noSalesToRecord
+                  ? "No sales to record for this date"
+                  : hasChanges
+                    ? "Save stock count first"
+                    : salesPreviewLoading
+                      ? "Checking sales to record…"
+                      : "Record sales from Sold column"
             }
-            className="flex items-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-50 px-2.5 py-1.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:py-2 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-900/50"
+            className="flex items-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-50 px-2.5 py-1.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-400 disabled:hover:bg-slate-100 sm:gap-2 sm:px-4 sm:py-2 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-900/50 dark:disabled:border-slate-600 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 dark:disabled:hover:bg-slate-800"
             aria-label="Record sales"
           >
             {previewLoading || recordSalesMutation.isPending ? (
@@ -720,6 +781,8 @@ export function StandardStockCountSheetPage({
                 setPage(0);
               }}
               sizeOptions={[10, 15, 25, 50, 100]}
+              onRefresh={() => void refetch()}
+              isRefreshing={isFetching}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">
@@ -732,54 +795,78 @@ export function StandardStockCountSheetPage({
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "600px" }}>
               <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700">
                 <tr>
-                  <th
+                  <SortableTableHead
+                    columnKey="item"
+                    label="Item"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
                     className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
                     title="Product name"
-                  >
-                    Item
-                  </th>
-                  <th
+                  />
+                  <SortableTableHead
+                    columnKey="open"
+                    label="Open"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
                     className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="Latest saved closing before this date (from your last stock count save)"
-                  >
-                    Open
-                  </th>
-                  <th
+                  />
+                  <SortableTableHead
+                    columnKey="added"
+                    label="Added"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
                     className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="GRN receipts since your last saved count through this date"
-                  >
-                    Added
-                  </th>
-                  <th
+                  />
+                  <SortableTableHead
+                    columnKey="total"
+                    label="Total"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
                     className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="Opening + Added + stock-take adds; equals System when counts align with the ledger"
-                  >
-                    Total
-                  </th>
-                  <th
+                  />
+                  <SortableTableHead
+                    columnKey="close"
+                    label="Close"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
                     className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="Physical count at end of day"
-                  >
-                    Close
-                  </th>
-                  <th
+                  />
+                  <SortableTableHead
+                    columnKey="sold"
+                    label="Sold"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
                     className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="Total Stock − Closing (units sold)"
-                  >
-                    Sold
-                  </th>
-                  <th
+                  />
+                  <SortableTableHead
+                    columnKey="price"
+                    label="Price (KSH)"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
                     className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="Selling price per unit from price list"
-                  >
-                    Price (KSH)
-                  </th>
-                  <th
+                  />
+                  <SortableTableHead
+                    columnKey="amount"
+                    label="Amt (KSH)"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={toggleSort}
                     className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                     title="Units Sold × Selling Price (revenue value)"
-                  >
-                    Amt (KSH)
-                  </th>
+                  />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-600">

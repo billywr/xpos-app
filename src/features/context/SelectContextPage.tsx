@@ -150,6 +150,31 @@ export function SelectContextPage() {
   };
 
   const canConfirm = Boolean(selectedOrgId && selectedBranch && selectedTerminal);
+  const isFullyDeterministic =
+    orgs.length === 1 && branches.length === 1 && terminals.length === 1;
+
+  useEffect(() => {
+    if (!canConfirm || !isFullyDeterministic) return;
+    if (!selectedOrgId || !selectedBranch || !selectedTerminal) return;
+    setStoredContext({
+      orgId: selectedOrgId,
+      orgName: selectedOrgName,
+      branchId: selectedBranch.id,
+      branchName: selectedBranch.name,
+      terminalId: selectedTerminal.id,
+      terminalName: selectedTerminal.terminalCode,
+    });
+    navigate(returnTo, { replace: true });
+  }, [
+    canConfirm,
+    isFullyDeterministic,
+    selectedOrgId,
+    selectedOrgName,
+    selectedBranch,
+    selectedTerminal,
+    returnTo,
+    navigate,
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -161,7 +186,8 @@ export function SelectContextPage() {
         Choose organization, branch, and terminal to use for this session.
       </p>
 
-      {/* Step 1: Org */}
+      {/* Step 1: Org (hidden when only one organization) */}
+      {orgs.length !== 1 && (
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           1. Organization
@@ -195,11 +221,12 @@ export function SelectContextPage() {
           </ul>
         )}
       </section>
+      )}
 
       {/* Step 2: Branch */}
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          2. Branch
+          {orgs.length === 1 ? "1. Branch" : "2. Branch"}
         </h2>
         {!selectedOrgId ? (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
@@ -238,7 +265,7 @@ export function SelectContextPage() {
       {/* Step 3: Terminal */}
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          3. Terminal
+          {orgs.length === 1 ? "2. Terminal" : "3. Terminal"}
         </h2>
         {!selectedBranch ? (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">

@@ -13,8 +13,14 @@ import type { Org } from "@/types/org";
 import { filterActiveOrgs } from "@/types/org";
 import type { Category } from "@/types/catalog";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import {
+  SlideOver,
+  Pagination,
+  ConfirmDialog,
+  SortableTableHead,
+  TableSearchInput,
+} from "@/components/ui";
+import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -28,6 +34,12 @@ export interface CategoriesListPageProps {
   initialOrgId?: string;
   onOrgChange?: (orgId: string) => void;
 }
+
+const CATEGORY_SORT = {
+  name: (row: Category) => row.name,
+  parent: (row: Category) => row.parentId ?? "",
+  type: (row: Category) => row.type,
+};
 
 export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesListPageProps = {}) {
   const token = useAppSelector(selectToken);
@@ -52,7 +64,7 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
     enabled: Boolean(token),
   });
 
-  const { data: categoriesData, isLoading, isError, error } = useQuery({
+  const { data: categoriesData, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["admin-categories", token, selectedOrgId, page, size],
     queryFn: () => fetchCategories(token, selectedOrgId, { page, size }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
@@ -149,8 +161,26 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const categories = categoriesData?.content ?? [];
-  const totalElements = categoriesData?.totalElements ?? 0;
-  const { searchQuery, setSearchQuery, filteredRows: filteredCategories } = useTableSearch(categories);
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredCategories,
+    totalElements,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useServerPaginatedTableSearch({
+    pageRows: categories,
+    serverTotalElements: categoriesData?.totalElements ?? 0,
+    page,
+    size,
+    setPage,
+    searchAllQueryKey: ["admin-categories", token, selectedOrgId],
+    searchAllQueryFn: (fetchSize) =>
+      fetchCategories(token, selectedOrgId, { page: 0, size: fetchSize }),
+    searchAllEnabled: Boolean(token) && Boolean(selectedOrgId),
+    sortAccessors: CATEGORY_SORT,
+  });
   const allCategories = allCategoriesData?.content ?? [];
 
   const showParentCol = useMemo(
@@ -358,6 +388,8 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
               onPageChange={setPage}
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
+              onRefresh={() => void refetch()}
+              isRefreshing={isFetching}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -367,20 +399,41 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "480px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                      Name
-                    </th>
+                    <SortableTableHead
+                      columnKey="name"
+                      label="Name"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                    />
                     {showParentCol && (
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Parent
-                      </th>
+                      <SortableTableHead
+                        columnKey="parent"
+                        label="Parent"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     )}
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Type
-                    </th>
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                      Actions
-                    </th>
+                    <SortableTableHead
+                      columnKey="type"
+                      label="Type"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
+                    <SortableTableHead
+                      columnKey="actions"
+                      label="Actions"
+                      sortColumn={sortColumn}
+                      sortDirection={sortDirection}
+                      onSort={toggleSort}
+                      sortable={false}
+                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">

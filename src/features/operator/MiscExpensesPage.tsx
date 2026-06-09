@@ -18,8 +18,13 @@ import {
   type MiscExpenseUpdateRequest,
 } from "@/api/miscExpenses";
 import { SlideOver } from "@/components/ui/SlideOver";
-import { Pagination, ConfirmDialog, TableSearchInput } from "@/components/ui";
-import { useTableSearch } from "@/hooks/useTableSearch";
+import {
+  Pagination,
+  ConfirmDialog,
+  SortableTableHead,
+  TableSearchInput,
+} from "@/components/ui";
+import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { downloadExpensesPdf } from "@/utils/expensesPdf";
@@ -57,6 +62,15 @@ const DEFAULT_CATEGORIES = [
   "Salaries",
   "Other",
 ];
+
+const MISC_EXPENSE_SORT = {
+  incurredBy: (row: MiscExpenseResponse) => row.incurredBy ?? "",
+  amount: (row: MiscExpenseResponse) => row.amount,
+  category: (row: MiscExpenseResponse) => row.category ?? "",
+  description: (row: MiscExpenseResponse) => row.description ?? "",
+  receiptRef: (row: MiscExpenseResponse) => row.receiptRef ?? "",
+  created: (row: MiscExpenseResponse) => row.createdAt ?? "",
+};
 
 export function MiscExpensesPage() {
   const token = useAppSelector(selectToken);
@@ -102,7 +116,7 @@ export function MiscExpensesPage() {
       .map((c) => ({ value: c, label: c }));
   }, [categoriesFromApi]);
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["operator-misc-expenses", token, orgId, branchId, page],
     queryFn: () =>
       fetchMiscExpenses(token, orgId!, branchId!, { page, size: PAGE_SIZE }),
@@ -133,7 +147,26 @@ export function MiscExpensesPage() {
   });
 
   const expenses = data?.content ?? [];
-  const { searchQuery, setSearchQuery, filteredRows: filteredExpenses } = useTableSearch(expenses);
+  const totalElements = data?.totalElements ?? 0;
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredExpenses,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useServerPaginatedTableSearch({
+    pageRows: expenses,
+    serverTotalElements: totalElements,
+    page,
+    size: PAGE_SIZE,
+    setPage,
+    searchAllQueryKey: ["operator-misc-expenses", token, orgId, branchId],
+    searchAllQueryFn: (size) =>
+      fetchMiscExpenses(token, orgId!, branchId!, { page: 0, size }),
+    searchAllEnabled: Boolean(token && orgId && branchId),
+    sortAccessors: MISC_EXPENSE_SORT,
+  });
 
   const showIncurredByCol = useMemo(
     () =>
@@ -151,7 +184,6 @@ export function MiscExpensesPage() {
       ),
     [filteredExpenses]
   );
-  const totalElements = data?.totalElements ?? 0;
   const totalAmount = data?.totalAmount ?? 0;
 
   const updateMutation = useMutation({
@@ -352,6 +384,8 @@ export function MiscExpensesPage() {
                   size={PAGE_SIZE}
                   totalElements={totalElements}
                   onPageChange={setPage}
+                  onRefresh={() => void refetch()}
+                  isRefreshing={isFetching}
                 />
               )}
               <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
@@ -361,30 +395,66 @@ export function MiscExpensesPage() {
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
                       {showIncurredByCol && (
-                        <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300">
-                          Incurred by
-                        </th>
+                        <SortableTableHead
+                          columnKey="incurredBy"
+                          label="Incurred by"
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={toggleSort}
+                          className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                        />
                       )}
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Amount (KSH)
-                      </th>
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Category
-                      </th>
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Desc.
-                      </th>
+                      <SortableTableHead
+                        columnKey="amount"
+                        label="Amount (KSH)"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
+                      <SortableTableHead
+                        columnKey="category"
+                        label="Category"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
+                      <SortableTableHead
+                        columnKey="description"
+                        label="Desc."
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                       {showReceiptRefCol && (
-                        <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                          Receipt ref
-                        </th>
+                        <SortableTableHead
+                          columnKey="receiptRef"
+                          label="Receipt ref"
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={toggleSort}
+                          className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        />
                       )}
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Created
-                      </th>
-                      <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
-                        Actions
-                      </th>
+                      <SortableTableHead
+                        columnKey="created"
+                        label="Created"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
+                      <SortableTableHead
+                        columnKey="actions"
+                        label="Actions"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        sortable={false}
+                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">

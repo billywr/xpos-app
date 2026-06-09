@@ -138,6 +138,57 @@ describe("StandardStockCountSheetPage filter", () => {
     });
   });
 
+  it("disables Record sales when preview has no quantities to record", async () => {
+    const store = configureStore({
+      reducer: {
+        auth: authReducer,
+        orgContext: orgContextReducer,
+        cart: cartReducer,
+      },
+      preloadedState: {
+        auth: {
+          token: "t",
+          iamUserId: "u",
+          username: null,
+          expiresAt: null,
+          refreshToken: null,
+          roles: [],
+        },
+        orgContext: {
+          orgId: "org-1",
+          orgName: "Acme",
+          branchId: "branch-1",
+          branchName: "Main",
+          terminalId: "term-1",
+          terminalName: "T1",
+        },
+      },
+    });
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    render(
+      <MemoryRouter>
+        <Provider store={store}>
+          <QueryClientProvider client={qc}>
+            <ToastProvider>
+              <StandardStockCountSheetPage />
+            </ToastProvider>
+          </QueryClientProvider>
+        </Provider>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /record sales/i })).toBeDisabled();
+    });
+    expect(stdApi.fetchStdStockCountSalesPreview).toHaveBeenCalled();
+  });
+
   it("opens preview slide-over with lines to record", async () => {
     const store = configureStore({
       reducer: {
@@ -200,6 +251,10 @@ describe("StandardStockCountSheetPage filter", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /record sales/i })).toBeEnabled();
     });
 
     fireEvent.click(screen.getByRole("button", { name: /record sales/i }));
@@ -281,6 +336,10 @@ describe("StandardStockCountSheetPage filter", () => {
       expect(screen.getByText("Product 1")).toBeInTheDocument();
     });
     expect(screen.queryByText("Product 50")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /record sales/i })).toBeEnabled();
+    });
 
     fireEvent.click(screen.getByRole("button", { name: /record sales/i }));
 
@@ -365,6 +424,11 @@ describe("StandardStockCountSheetPage filter", () => {
     fireEvent.change(screen.getByPlaceholderText(/filter by name or sku/i), {
       target: { value: "Product 1" },
     });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /record sales/i })).toBeEnabled();
+    });
+
     fireEvent.click(screen.getByRole("button", { name: /record sales/i }));
 
     await waitFor(() => {

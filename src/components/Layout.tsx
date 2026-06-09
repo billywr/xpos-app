@@ -16,6 +16,8 @@ import { APP_NAME_KEY } from "@/config/headerNavItems";
 import { set401Handler } from "@/api/client";
 import { clearStoredAuth } from "@/utils/authStorage";
 import { clearStoredContext } from "@/utils/contextStorage";
+import { clearAllStoredTableSearch } from "@/utils/tableSearchStorage";
+import { useActiveOrgs } from "@/hooks/useActiveOrgs";
 
 const HEADER_NAV_LINKS = [
   { to: "/", label: "Home", end: true },
@@ -50,6 +52,7 @@ export function Layout() {
     set401Handler(() => {
       clearStoredAuth();
       clearStoredContext();
+      clearAllStoredTableSearch();
       dispatch(clearCredentials());
       dispatch(clearContext());
       navigate("/login", { replace: true });
@@ -62,6 +65,7 @@ export function Layout() {
   useIdleLogout(() => {
     clearStoredAuth();
     clearStoredContext();
+    clearAllStoredTableSearch();
     dispatch(clearCredentials());
     dispatch(clearContext());
     navigate("/login", { replace: true, state: { from: "idle" } });
@@ -75,15 +79,18 @@ export function Layout() {
   const handleLogout = () => {
     clearStoredAuth();
     clearStoredContext();
+    clearAllStoredTableSearch();
     dispatch(clearCredentials());
     dispatch(clearContext());
     const returnTo = location.pathname + location.search || "/";
     navigate(`/login?returnTo=${encodeURIComponent(returnTo)}`, { replace: true });
   };
 
+  const { orgs: activeOrgs } = useActiveOrgs();
   const filteredNavLinks = HEADER_NAV_LINKS.filter((item) => {
     if (item.to === "/admin" && !isAdmin) return false;
     if (item.to === "/operator" && !isOperator && !isAdmin) return false;
+    if (item.to === "/select-context" && activeOrgs.length <= 1) return false;
     return isHeaderNavItemVisible(item.to, true, headerVisibility);
   });
 
