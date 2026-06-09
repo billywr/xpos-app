@@ -44,11 +44,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Standard Stock Count Sheet service. Bar-style: {@code openingStock} is the latest saved physical
- * closing before the sheet date when a snapshot exists; otherwise {@code 0} (no ledger-derived
- * fallback — operators must save a closing to seed the chain). {@code addedStock} and {@code
- * addedTodayStock} cover GRN receipts and stock-take positive adjustments on the sheet date only
- * (not accumulated from skipped days). Units Sold = Total − Closing.
+ * Standard Stock Count Sheet service. Bar-style: {@code openingStock} is the effective
+ * carry-forward from the latest meaningful saved closing before the sheet date, plus GRN/stock-take
+ * receipts on that prior day that arrived after {@code last_saved_at}; otherwise {@code 0} (no
+ * ledger-derived fallback). {@code addedStock} and {@code addedTodayStock} cover GRN receipts and
+ * stock-take positive adjustments on the sheet date only (not accumulated from skipped days). Units
+ * Sold = Total − Closing.
  */
 @Service
 public class StdStockCountServiceImpl implements StdStockCountService {
@@ -153,24 +154,21 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     List<StdStockCountSnapshot> priorSnapshots =
         snapshotRepository.findAllByBranchIdAndBusinessDateBefore(branchId, businessDate);
     Set<LocalDate> blankSaveDates = computeBlankSaveDates(priorSnapshots);
-    Map<UUID, StdStockCountSnapshot> latestPriorByItem =
-        resolveLatestMeaningfulPriorByItem(priorSnapshots, blankSaveDates);
 
     Map<UUID, BigDecimal> addedGrnByItem =
         loadReceiptQtyByItemForSheetDate(orgId, branchId, zone, businessDate, dayEnd);
     Map<UUID, BigDecimal> stockTakeAddedByItem =
         loadStockTakeAddedByItemForSheetDate(orgId, branchId, zone, businessDate, dayEnd);
 
+    CarryForwardContext carryForward =
+        new CarryForwardContext(orgId, branchId, zone, priorSnapshots, blankSaveDates);
+
     List<StdStockCountRowDto> rows = new ArrayList<>();
     for (Item item : items) {
       UUID itemId = item.getId();
       BigDecimal addedGrn = addedGrnByItem.getOrDefault(itemId, BigDecimal.ZERO);
       BigDecimal addedToday = stockTakeAddedByItem.getOrDefault(itemId, BigDecimal.ZERO);
-      StdStockCountSnapshot priorSnap = latestPriorByItem.get(itemId);
-      BigDecimal opening =
-          priorSnap != null
-              ? nonnegativeQtyFromLedgerQty(priorSnap.getClosingQty())
-              : BigDecimal.ZERO.setScale(SCALE);
+      BigDecimal opening = carryForward.openingForSheetDate(itemId, businessDate);
       BigDecimal price =
           item.getDefaultSellingPrice() != null ? item.getDefaultSellingPrice() : BigDecimal.ZERO;
       StdStockCountSnapshot snap = todayByItem.get(itemId);
@@ -214,22 +212,6 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     return blank;
   }
 
-  private static Map<UUID, StdStockCountSnapshot> resolveLatestMeaningfulPriorByItem(
-      List<StdStockCountSnapshot> priorSnapshots, Set<LocalDate> blankSaveDates) {
-    Map<UUID, List<StdStockCountSnapshot>> byItem =
-        priorSnapshots.stream().collect(Collectors.groupingBy(s -> s.getItem().getId()));
-    Map<UUID, StdStockCountSnapshot> latestPriorByItem = new HashMap<>();
-    for (Map.Entry<UUID, List<StdStockCountSnapshot>> entry : byItem.entrySet()) {
-      entry.getValue().stream()
-          .sorted(Comparator.comparing(StdStockCountSnapshot::getBusinessDate).reversed())
-          .filter(
-              s -> s.getClosingQty().signum() > 0 || !blankSaveDates.contains(s.getBusinessDate()))
-          .findFirst()
-          .ifPresent(s -> latestPriorByItem.put(entry.getKey(), s));
-    }
-    return latestPriorByItem;
-  }
-
   private Map<UUID, BigDecimal> loadReceiptQtyByItemForSheetDate(
       UUID orgId, UUID branchId, ZoneId zone, LocalDate businessDate, Instant dayEnd) {
     Instant rangeStartInstant = businessDate.atStartOfDay(zone).toInstant();
@@ -245,6 +227,167 @@ public class StdStockCountServiceImpl implements StdStockCountService {
         stockMovementRepository.sumStockTakePositiveAdjustQtyByItemIdForBranchAndDateRange(
             orgId, branchId, rangeStartInstant, dayEnd));
   }
+
+  /**
+   * Resolves effective carry-forward per item/date: when saved closing still equals opening but
+   * same-day receipts exist, uses day total (opening + added); otherwise saved closing plus
+   * receipts after {@code last_saved_at}.
+   */
+  private final class CarryForwardContext {
+    private final UUID orgId;
+    private final UUID branchId;
+    private final ZoneId zone;
+    private final Set<LocalDate> blankSaveDates;
+    private final Map<UUID, List<StdStockCountSnapshot>> priorByItem;
+    private final Map<LocalDate, PriorDayLateAddedCache> lateCacheByDate = new HashMap<>();
+    private final Map<LocalDate, Map<UUID, BigDecimal>> grnAddedByDate = new HashMap<>();
+    private final Map<LocalDate, Map<UUID, BigDecimal>> stockTakeAddedByDate = new HashMap<>();
+    private final Map<UUID, Map<LocalDate, BigDecimal>> effectiveByItemAndDate = new HashMap<>();
+
+    private CarryForwardContext(
+        UUID orgId,
+        UUID branchId,
+        ZoneId zone,
+        List<StdStockCountSnapshot> priorSnapshots,
+        Set<LocalDate> blankSaveDates) {
+      this.orgId = orgId;
+      this.branchId = branchId;
+      this.zone = zone;
+      this.blankSaveDates = blankSaveDates;
+      this.priorByItem =
+          priorSnapshots.stream().collect(Collectors.groupingBy(s -> s.getItem().getId()));
+      Set<LocalDate> priorDates =
+          priorSnapshots.stream()
+              .map(StdStockCountSnapshot::getBusinessDate)
+              .collect(Collectors.toSet());
+      for (LocalDate priorDate : priorDates) {
+        Instant dayStart = priorDate.atStartOfDay(zone).toInstant();
+        Instant dayEnd = priorDate.plusDays(1).atStartOfDay(zone).toInstant();
+        lateCacheByDate.put(
+            priorDate,
+            new PriorDayLateAddedCache(
+                grnLineRepository.findGrnLineQtyWithReceivedAtByBranchAndDayRange(
+                    orgId, branchId, dayStart, dayEnd),
+                stockMovementRepository.findStockTakePositiveAdjustRowsByBranchAndDateRange(
+                    orgId, branchId, dayStart, dayEnd)));
+        grnAddedByDate.put(
+            priorDate, loadReceiptQtyByItemForSheetDate(orgId, branchId, zone, priorDate, dayEnd));
+        stockTakeAddedByDate.put(
+            priorDate,
+            loadStockTakeAddedByItemForSheetDate(orgId, branchId, zone, priorDate, dayEnd));
+      }
+    }
+
+    private BigDecimal openingForSheetDate(UUID itemId, LocalDate sheetDate) {
+      StdStockCountSnapshot priorSnap = latestMeaningfulBefore(itemId, sheetDate);
+      if (priorSnap == null) {
+        return BigDecimal.ZERO.setScale(SCALE);
+      }
+      return effectiveCarryForward(priorSnap);
+    }
+
+    private BigDecimal effectiveCarryForward(StdStockCountSnapshot snap) {
+      UUID itemId = snap.getItem().getId();
+      LocalDate snapDate = snap.getBusinessDate();
+      Map<LocalDate, BigDecimal> itemCache =
+          effectiveByItemAndDate.computeIfAbsent(itemId, k -> new HashMap<>());
+      BigDecimal cached = itemCache.get(snapDate);
+      if (cached != null) {
+        return cached;
+      }
+
+      BigDecimal openingOnDay = openingAtStartOfSnapDay(itemId, snapDate);
+      BigDecimal addedOnDay = addedOnSnapDay(itemId, snapDate);
+      BigDecimal saved = snap.getClosingQty().setScale(SCALE, ROUNDING);
+
+      BigDecimal effective;
+      if (saved.compareTo(openingOnDay) == 0 && addedOnDay.signum() > 0) {
+        effective = openingOnDay.add(addedOnDay).setScale(SCALE, ROUNDING);
+      } else {
+        PriorDayLateAddedCache cache = lateCacheByDate.get(snapDate);
+        BigDecimal lateGrn =
+            cache != null ? cache.lateGrnQtyAfter(itemId, snap.getLastSavedAt()) : BigDecimal.ZERO;
+        BigDecimal lateStockTake =
+            cache != null
+                ? cache.lateStockTakeQtyAfter(itemId, snap.getLastSavedAt())
+                : BigDecimal.ZERO;
+        effective = saved.add(lateGrn).add(lateStockTake).setScale(SCALE, ROUNDING);
+      }
+
+      effective = nonnegativeQtyFromLedgerQty(effective);
+      itemCache.put(snapDate, effective);
+      return effective;
+    }
+
+    private BigDecimal openingAtStartOfSnapDay(UUID itemId, LocalDate snapDate) {
+      StdStockCountSnapshot before = latestMeaningfulBefore(itemId, snapDate);
+      if (before == null) {
+        return BigDecimal.ZERO.setScale(SCALE);
+      }
+      return effectiveCarryForward(before);
+    }
+
+    private BigDecimal addedOnSnapDay(UUID itemId, LocalDate snapDate) {
+      BigDecimal grn =
+          grnAddedByDate.getOrDefault(snapDate, Map.of()).getOrDefault(itemId, BigDecimal.ZERO);
+      BigDecimal stockTake =
+          stockTakeAddedByDate
+              .getOrDefault(snapDate, Map.of())
+              .getOrDefault(itemId, BigDecimal.ZERO);
+      return grn.add(stockTake).setScale(SCALE, ROUNDING);
+    }
+
+    private StdStockCountSnapshot latestMeaningfulBefore(UUID itemId, LocalDate beforeDate) {
+      return priorByItem.getOrDefault(itemId, List.of()).stream()
+          .filter(s -> s.getBusinessDate().isBefore(beforeDate))
+          .sorted(Comparator.comparing(StdStockCountSnapshot::getBusinessDate).reversed())
+          .filter(
+              s -> s.getClosingQty().signum() > 0 || !blankSaveDates.contains(s.getBusinessDate()))
+          .findFirst()
+          .orElse(null);
+    }
+  }
+
+  private static final class PriorDayLateAddedCache {
+    private final Map<UUID, List<TimestampedQty>> grnByItem;
+    private final Map<UUID, List<TimestampedQty>> stockTakeByItem;
+
+    private PriorDayLateAddedCache(List<Object[]> grnRows, List<Object[]> stockTakeRows) {
+      this.grnByItem = groupTimestampedQtyRows(grnRows);
+      this.stockTakeByItem = groupTimestampedQtyRows(stockTakeRows);
+    }
+
+    private BigDecimal lateGrnQtyAfter(UUID itemId, Instant afterExclusive) {
+      return sumQtyAfter(grnByItem.getOrDefault(itemId, List.of()), afterExclusive);
+    }
+
+    private BigDecimal lateStockTakeQtyAfter(UUID itemId, Instant afterExclusive) {
+      return sumQtyAfter(stockTakeByItem.getOrDefault(itemId, List.of()), afterExclusive);
+    }
+
+    private static Map<UUID, List<TimestampedQty>> groupTimestampedQtyRows(List<Object[]> rows) {
+      Map<UUID, List<TimestampedQty>> byItem = new HashMap<>();
+      for (Object[] row : rows) {
+        UUID itemId = (UUID) row[0];
+        Instant at = (Instant) row[1];
+        BigDecimal qty = ((BigDecimal) row[2]).setScale(SCALE, ROUNDING);
+        byItem.computeIfAbsent(itemId, k -> new ArrayList<>()).add(new TimestampedQty(at, qty));
+      }
+      return byItem;
+    }
+
+    private static BigDecimal sumQtyAfter(List<TimestampedQty> rows, Instant afterExclusive) {
+      BigDecimal sum = BigDecimal.ZERO.setScale(SCALE);
+      for (TimestampedQty row : rows) {
+        if (row.at().isAfter(afterExclusive)) {
+          sum = sum.add(row.qty());
+        }
+      }
+      return sum.setScale(SCALE, ROUNDING);
+    }
+  }
+
+  private record TimestampedQty(Instant at, BigDecimal qty) {}
 
   @Override
   @Transactional

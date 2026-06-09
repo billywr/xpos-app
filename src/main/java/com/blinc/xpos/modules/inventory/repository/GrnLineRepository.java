@@ -58,4 +58,22 @@ public interface GrnLineRepository extends JpaRepository<GrnLine, UUID> {
       @Param("branchId") UUID branchId,
       @Param("dayStart") Instant dayStart,
       @Param("dayEnd") Instant dayEnd);
+
+  /**
+   * GRN line qty per item with receipt timestamp for a branch business day (carry-forward
+   * late-added after last save).
+   */
+  @Query(
+      """
+      select l.item.id, g.receivedAt, l.qty from GrnLine l
+      join l.grn g
+      where g.org.id = :orgId and g.branch.id = :branchId
+        and g.active = true
+        and g.receivedAt >= :dayStart and g.receivedAt < :dayEnd
+      """)
+  List<Object[]> findGrnLineQtyWithReceivedAtByBranchAndDayRange(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("dayStart") Instant dayStart,
+      @Param("dayEnd") Instant dayEnd);
 }

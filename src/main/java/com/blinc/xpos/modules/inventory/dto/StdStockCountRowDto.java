@@ -5,10 +5,12 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * One row in the Standard Stock Count Sheet. {@code openingStock} is the latest saved closing from
- * {@code std_stock_count_snapshot} with {@code business_date} strictly before the sheet date (never
- * negative); if no prior snapshot exists for the item, it is {@code 0}. {@code addedStock} is the
- * sum of {@code GrnLine} qty for active GRNs received on the sheet date only. {@code
+ * One row in the Standard Stock Count Sheet. {@code openingStock} is the effective carry-forward
+ * from the latest meaningful {@code std_stock_count_snapshot} before the sheet date: when saved
+ * {@code closing_qty} still equals that day's opening but same-day receipts exist, opening uses the
+ * day total (opening + added); otherwise saved closing plus receipts after {@code last_saved_at}
+ * (never negative). If no prior snapshot exists for the item, it is {@code 0}. {@code addedStock}
+ * is the sum of {@code GrnLine} qty for active GRNs received on the sheet date only. {@code
  * addedTodayStock} is positive stock-take adjustments on the sheet date only. Frontend computes
  * totalStock (opening + addedStock + addedTodayStock), unitsSold, amount.
  */

@@ -14,6 +14,8 @@ import com.blinc.xpos.AbstractIntegrationTest;
 import com.blinc.xpos.api.v1.admin.organization.dto.OrgCreateRequest;
 import com.blinc.xpos.api.v1.admin.organization.dto.OrgResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.UUID;
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -32,6 +35,8 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
   @Autowired private MockMvc mockMvc;
 
   @Autowired private ObjectMapper objectMapper;
+
+  @Autowired private JdbcTemplate jdbcTemplate;
 
   @Test
   void getSheetReturnsRowsFromPriceListItems() throws Exception {
@@ -473,6 +478,298 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
+  void getSheetOpeningReflectsGrnReceivedAfterLastSave() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate priorDay = today.minusDays(1);
+    Instant priorMorning = priorDay.atTime(8, 0).atZone(zone).toInstant();
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+
+    String savePrior =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":0}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(savePrior))
+        .andExpect(status().isOk());
+
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 1, priorDay, zone);
+    backdateSnapshotLastSavedAt(branchId, itemId, priorDay, priorMorning);
+
+    String urlToday =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + today;
+    mockMvc
+        .perform(get(urlToday).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(1))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(0));
+  }
+
+  @Test
+  void getSheetOpeningUnchangedWhenClosingSavedAfterGrn() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate priorDay = today.minusDays(1);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 7, priorDay, zone);
+
+    String savePrior =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":7}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(savePrior))
+        .andExpect(status().isOk());
+
+    String urlToday =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + today;
+    mockMvc
+        .perform(get(urlToday).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(7))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(0));
+  }
+
+  @Test
+  void getSheetOpeningAddsLateStockTakeAfterSave() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate priorDay = today.minusDays(1);
+    Instant priorMorning = priorDay.atTime(8, 0).atZone(zone).toInstant();
+    Instant priorEvening = priorDay.atTime(18, 0).atZone(zone).toInstant();
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID itemId = createItem(orgId);
+
+    String savePrior =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":5}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(savePrior))
+        .andExpect(status().isOk());
+
+    backdateSnapshotLastSavedAt(branchId, itemId, priorDay, priorMorning);
+
+    String sessionBody = "{\"branchId\":\"" + branchId + "\"}";
+    MvcResult sessionResult =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions")
+                    .with(operatorJwt())
+                    .contentType(APPLICATION_JSON)
+                    .content(sessionBody))
+            .andExpect(status().isCreated())
+            .andReturn();
+    UUID sessionId =
+        UUID.fromString(
+            objectMapper
+                .readTree(sessionResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
+
+    String lineBody = """
+        {"itemId":"%s","countedQty":8}
+        """.formatted(itemId);
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions/" + sessionId + "/lines")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(lineBody))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/stock-count-sessions/" + sessionId + "/close")
+                .with(operatorJwt()))
+        .andExpect(status().isOk());
+
+    jdbcTemplate.update(
+        """
+        UPDATE stock_movement SET created_at = ?
+        WHERE org_id = ? AND branch_id = ? AND item_id = ?
+          AND movement_type = 'ADJUST' AND source_type = 'STOCKTAKE'
+        """,
+        Timestamp.from(priorEvening),
+        orgId,
+        branchId,
+        itemId);
+
+    String urlToday =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + today;
+    mockMvc
+        .perform(get(urlToday).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(13));
+  }
+
+  @Test
+  void getSheetOpeningUsesDayTotalWhenSavedClosingEqualsOpeningAndGrnSameDay() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate priorDay = today.minusDays(1);
+    LocalDate twoDaysAgo = today.minusDays(2);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId, "Viceroy 250ml");
+
+    String seedOpening =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":1}]}
+        """
+            .formatted(twoDaysAgo, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(seedOpening))
+        .andExpect(status().isOk());
+
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 2, priorDay, zone);
+
+    String staleSave =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":1}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(staleSave))
+        .andExpect(status().isOk());
+
+    String urlToday =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + today;
+    mockMvc
+        .perform(get(urlToday).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(3))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(0));
+  }
+
+  @Test
+  void getSheetOpeningRespectsSalesWhenSavedClosingBelowOpening() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate priorDay = today.minusDays(1);
+    LocalDate twoDaysAgo = today.minusDays(2);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID itemId = createItem(orgId, "Viceroy 750ml");
+
+    String seedOpening =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":8}]}
+        """
+            .formatted(twoDaysAgo, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(seedOpening))
+        .andExpect(status().isOk());
+
+    String soldSave =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":5}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(soldSave))
+        .andExpect(status().isOk());
+
+    String urlToday =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + today;
+    mockMvc
+        .perform(get(urlToday).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(5))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(0));
+  }
+
+  @Test
   void getSheetNotFoundWhenStaffNotInOrg() throws Exception {
     UUID orgId = createOrg();
     UUID otherOrgId = createOrg();
@@ -629,6 +926,19 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
             .andReturn();
     return UUID.fromString(
         objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private void backdateSnapshotLastSavedAt(
+      UUID branchId, UUID itemId, LocalDate businessDate, Instant lastSavedAt) {
+    jdbcTemplate.update(
+        """
+        UPDATE std_stock_count_snapshot SET last_saved_at = ?
+        WHERE branch_id = ? AND item_id = ? AND business_date = ?
+        """,
+        Timestamp.from(lastSavedAt),
+        branchId,
+        itemId,
+        businessDate);
   }
 
   private void createGrnForItem(UUID orgId, UUID branchId, UUID supplierId, UUID itemId)

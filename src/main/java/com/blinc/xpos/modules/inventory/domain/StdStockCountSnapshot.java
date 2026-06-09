@@ -22,7 +22,8 @@ import lombok.Setter;
 
 /**
  * Stores closing stock counts for the Standard Stock Count Sheet (bar-style). One row per (branch,
- * item, businessDate). Opening = previous day's closing; Added = sum of IN movements.
+ * item, businessDate). Next-day opening is derived from saved closing plus same-day receipts after
+ * last save; Added on the sheet is GRN/stock-take on the sheet date only.
  */
 @Entity
 @Table(name = "std_stock_count_snapshot")

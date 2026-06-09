@@ -202,4 +202,23 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
       @Param("branchId") UUID branchId,
       @Param("start") java.time.Instant start,
       @Param("end") java.time.Instant end);
+
+  /**
+   * Positive stock-take adjustment rows with timestamp for a branch business day (carry-forward
+   * late-added after last save).
+   */
+  @Query(
+      """
+      select s.item.id, s.createdAt, s.qty from StockMovement s
+      where s.org.id = :orgId and s.branch.id = :branchId
+        and s.movementType = com.blinc.xpos.common.constants.enums.MovementType.ADJUST
+        and s.sourceType = com.blinc.xpos.common.constants.enums.SourceType.STOCKTAKE
+        and s.qty > 0
+        and s.createdAt >= :start and s.createdAt < :end
+      """)
+  List<Object[]> findStockTakePositiveAdjustRowsByBranchAndDateRange(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("start") Instant start,
+      @Param("end") Instant end);
 }
