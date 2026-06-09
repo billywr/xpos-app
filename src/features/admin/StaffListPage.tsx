@@ -28,9 +28,16 @@ import {
   ConfirmDialog,
   Pagination,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   TableSearchInput,
   TableSkeleton,
   FormLabel,
+  tableBodyRow,
+  tableHeadCell,
+  tableBodyCell,
+  tableStickyFirstBody,
+  tableEmptyCell,
 } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
@@ -520,13 +527,14 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
+                    <TableRowNumberHead />
                     <SortableTableHead
                       columnKey="username"
                       label="Username"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="status"
@@ -534,7 +542,7 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="actions"
@@ -543,35 +551,36 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                       sortDirection={sortDirection}
                       onSort={toggleSort}
                       sortable={false}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {isInitialLoad ? (
-                    <TableSkeleton columns={5} />
+                    <TableSkeleton columns={6} />
                   ) : filteredStaff.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={3}
-                        className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                        colSpan={4}
+                        className={tableEmptyCell}
                       >
                         {staffUsers.length === 0 ? "No staff users yet. Add a staff user to get started." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    filteredStaff.map((s: StaffUser) => (
+                    filteredStaff.map((s: StaffUser, index) => (
                       <tr
                         key={s.id}
-                        className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                        className={tableBodyRow}
                       >
-                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">
+                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
+                        <td className={tableStickyFirstBody}>
                           {s.username}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className={tableBodyCell}>
                           <Badge status={s.status}>{s.status}</Badge>
                         </td>
-                        <td className="px-4 py-3 text-left">
+                        <td className={tableBodyCell}>
                           <div className="flex justify-start gap-2">
                             <IconButton
                               onClick={() => openProfile(s)}

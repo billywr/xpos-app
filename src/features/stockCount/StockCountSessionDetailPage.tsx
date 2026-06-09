@@ -14,7 +14,20 @@ import {
 } from "lucide-react";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { PageHeader } from "@/components/PageHeader";
-import { ConfirmDialog, SortableTableHead, TableSearchInput, TableSkeleton } from "@/components/ui";
+import {
+  ConfirmDialog,
+  SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
+  TableSearchInput,
+  TableSkeleton,
+  tableBodyRow,
+  tableStickyHeadCell,
+  tableHeadCell,
+  tableBodyCell,
+  tableBodyCellNum,
+  tableStickyFirstBody,
+} from "@/components/ui";
 import { useDataTable } from "@/hooks/useDataTable";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -377,7 +390,7 @@ export function StockCountSessionDetailPage({
           <div className="overflow-auto">
             <table className="w-full">
               <tbody>
-                <TableSkeleton columns={6} rows={10} />
+                <TableSkeleton columns={7} rows={10} />
               </tbody>
             </table>
           </div>
@@ -406,64 +419,71 @@ export function StockCountSessionDetailPage({
             <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "900px" }}>
               <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr className="bg-slate-50 dark:bg-slate-700/50">
+                  <TableRowNumberHead />
                   <SortableTableHead
                     columnKey="item"
                     label="Item"
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                    className={`${tableStickyHeadCell} ${tableHeadCell}`}
                   />
                   <SortableTableHead
+                      align="right"
                     columnKey="systemQty"
                     label="Sys qty"
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    className={tableHeadCell}
                   />
                   <SortableTableHead
+                      align="right"
                     columnKey="countedQty"
                     label="Counted"
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    className={tableHeadCell}
                   />
                   <SortableTableHead
+                      align="right"
                     columnKey="variance"
                     label="Var."
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    className={tableHeadCell}
                   />
                   {showUnitCostCol && (
                     <SortableTableHead
+                      align="right"
                       columnKey="unitCost"
                       label="Unit cost (KSH)"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   )}
                   <SortableTableHead
+                      align="right"
                     columnKey="sold"
                     label="Sold"
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    className={tableHeadCell}
                   />
                   {showSellPriceCol && (
                     <SortableTableHead
+                      align="right"
                       columnKey="sellPrice"
                       label="Sell price (KSH)"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   )}
                   {session.status === "OPEN" && (
@@ -474,28 +494,29 @@ export function StockCountSessionDetailPage({
                       sortDirection={sortDirection}
                       onSort={toggleSort}
                       sortable={false}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                {filteredLines.map((l: StockCountLineResponse) => (
+                {filteredLines.map((l: StockCountLineResponse, index) => (
                   <tr
                     key={l.id}
-                    className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                    className={tableBodyRow}
                   >
-                    <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                    <TableRowNumberCell page={0} pageSize={filteredLines.length || 1} indexInPage={index} />
+                    <td className={tableStickyFirstBody}>
                       {l.itemName}
                     </td>
-                    <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                    <td className={tableBodyCellNum}>
                       {l.systemQty}
                     </td>
-                    <td className="px-4 py-2 text-left text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                    <td className={`${tableBodyCellNum} font-semibold text-slate-700 dark:text-slate-300`}>
                       {l.countedQty}
                     </td>
                     <td
-                      className={`px-4 py-2 text-left text-base font-semibold tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl ${
+                      className={`${tableBodyCellNum} font-semibold ${
                         l.varianceQty > 0
                           ? "text-emerald-600 dark:text-emerald-400"
                           : l.varianceQty < 0
@@ -506,20 +527,20 @@ export function StockCountSessionDetailPage({
                       {formatVariance(l.varianceQty)}
                     </td>
                     {showUnitCostCol && (
-                      <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                      <td className={tableBodyCellNum}>
                         {l.unitCost != null ? formatAmount(l.unitCost) : "—"}
                       </td>
                     )}
-                    <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                    <td className={tableBodyCellNum}>
                       {l.qtySold ?? 0}
                     </td>
                     {showSellPriceCol && (
-                      <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                      <td className={tableBodyCellNum}>
                         {l.sellingPrice != null ? formatAmount(l.sellingPrice) : "—"}
                       </td>
                     )}
                     {session.status === "OPEN" && (
-                      <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
+                      <td className={tableBodyCell}>
                         {editingLineId === l.id ? (
                           <div className="flex items-center justify-start gap-1">
                             <input

@@ -29,9 +29,17 @@ import {
   IconButton,
   SlideOver,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   TableSearchInput,
   TableSkeleton,
   FormLabel,
+  tableBodyRow,
+  tableStickyHeadCell,
+  tableHeadCell,
+  tableBodyCell,
+  tableStickyFirstBody,
+  tableEmptyCell,
 } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useDataTable } from "@/hooks/useDataTable";
@@ -498,13 +506,14 @@ export function AdminTablesPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "280px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
+                      <TableRowNumberHead />
                       <SortableTableHead
                         columnKey="name"
                         label="Name"
                         sortColumn={areaSortColumn}
                         sortDirection={areaSortDirection}
                         onSort={toggleAreaSort}
-                        className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                        className={`${tableStickyHeadCell} ${tableHeadCell}`}
                       />
                       <SortableTableHead
                         columnKey="actions"
@@ -519,15 +528,20 @@ export function AdminTablesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAreas.map((area: TableArea) => (
+                    {filteredAreas.map((area: TableArea, index) => (
                       <tr
                         key={area.id}
                         className="border-t border-slate-200 dark:border-slate-700"
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                        <TableRowNumberCell
+                          page={0}
+                          pageSize={filteredAreas.length || 1}
+                          indexInPage={index}
+                        />
+                        <td className={tableStickyFirstBody}>
                           {area.name}
                         </td>
-                        <td className="px-4 py-2 sm:px-6 sm:py-2.5">
+                        <td className={tableBodyCell}>
                           <IconButton
                             onClick={() => openAreaEdit(area)}
                             title={`Edit ${area.name}`}
@@ -563,13 +577,14 @@ export function AdminTablesPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "500px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
+                      <TableRowNumberHead />
                       <SortableTableHead
                         columnKey="name"
                         label="Name"
                         sortColumn={tableSortColumn}
                         sortDirection={tableSortDirection}
                         onSort={toggleTableSort}
-                        className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                        className={`${tableStickyHeadCell} ${tableHeadCell}`}
                       />
                       {showTableAreaCol && (
                         <SortableTableHead
@@ -578,7 +593,7 @@ export function AdminTablesPage() {
                           sortColumn={tableSortColumn}
                           sortDirection={tableSortDirection}
                           onSort={toggleTableSort}
-                          className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                          className={tableHeadCell}
                         />
                       )}
                       {showTableCapacityCol && (
@@ -588,7 +603,7 @@ export function AdminTablesPage() {
                           sortColumn={tableSortColumn}
                           sortDirection={tableSortDirection}
                           onSort={toggleTableSort}
-                          className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                          className={tableHeadCell}
                         />
                       )}
                       <SortableTableHead
@@ -597,7 +612,7 @@ export function AdminTablesPage() {
                         sortColumn={tableSortColumn}
                         sortDirection={tableSortDirection}
                         onSort={toggleTableSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                       <SortableTableHead
                         columnKey="actions"
@@ -613,16 +628,16 @@ export function AdminTablesPage() {
                   </thead>
                   <tbody>
                     {isInitialLoad ? (
-                      <TableSkeleton columns={5} />
+                      <TableSkeleton columns={6} />
                     ) : filteredTables.length === 0 ? (
                       <tr>
                         <td
                           colSpan={
-                            3 +
+                            4 +
                             (showTableAreaCol ? 1 : 0) +
                             (showTableCapacityCol ? 1 : 0)
                           }
-                          className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                          className={tableEmptyCell}
                         >
                           {tables.length === 0
                             ? "No tables. Add tables for dine-in service."
@@ -630,16 +645,17 @@ export function AdminTablesPage() {
                         </td>
                       </tr>
                     ) : (
-                      filteredTables.map((table: TableEntity) => (
+                      filteredTables.map((table: TableEntity, index) => (
                       <tr
                         key={table.id}
-                        className="border-t border-slate-200 dark:border-slate-700"
+                        className={`${tableBodyRow} border-t border-slate-200 dark:border-slate-700`}
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                        <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
+                        <td className={tableStickyFirstBody}>
                           {table.name}
                         </td>
                         {showTableAreaCol && (
-                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                          <td className={tableBodyCell}>
                             {table.tableAreaId
                               ? areas.find((a) => a.id === table.tableAreaId)
                                   ?.name ?? "—"
@@ -647,14 +663,14 @@ export function AdminTablesPage() {
                           </td>
                         )}
                         {showTableCapacityCol && (
-                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                          <td className={tableBodyCell}>
                             {table.capacity ?? "—"}
                           </td>
                         )}
-                        <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
+                        <td className={tableBodyCell}>
                           <Badge status={table.status}>{table.status}</Badge>
                         </td>
-                        <td className="px-4 py-2 sm:px-6 sm:py-2.5">
+                        <td className={tableBodyCell}>
                           <IconButton
                             onClick={() => openTableEdit(table)}
                             title={`Edit ${table.name}`}

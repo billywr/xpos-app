@@ -13,8 +13,15 @@ import {
   Pagination,
   PageLoadingShell,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   TableSearchInput,
   FormLabel,
+  tableBodyRow,
+  tableHeadCell,
+  tableBodyCell,
+  tableStickyFirstBody,
+  tableEmptyCell,
 } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
@@ -222,13 +229,14 @@ export function OrgsListPage() {
 
   const orgTableHead = (
     <tr>
+      <TableRowNumberHead />
       <SortableTableHead
         columnKey="name"
         label="Name"
         sortColumn={sortColumn}
         sortDirection={sortDirection}
         onSort={toggleSort}
-        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+        className={tableHeadCell}
       />
       <SortableTableHead
         columnKey="status"
@@ -236,7 +244,7 @@ export function OrgsListPage() {
         sortColumn={sortColumn}
         sortDirection={sortDirection}
         onSort={toggleSort}
-        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+        className={tableHeadCell}
       />
       <SortableTableHead
         columnKey="actions"
@@ -245,7 +253,7 @@ export function OrgsListPage() {
         sortDirection={sortDirection}
         onSort={toggleSort}
         sortable={false}
-        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+        className={tableHeadCell}
       />
     </tr>
   );
@@ -262,7 +270,7 @@ export function OrgsListPage() {
         fallbackTo="/admin"
         loading={isInitialLoad}
         error={isError ? error : undefined}
-        columns={3}
+        columns={4}
         tableHead={orgTableHead}
         headerActions={
           <Button onClick={openCreate}>
@@ -304,25 +312,26 @@ export function OrgsListPage() {
               {filteredOrgs.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={3}
-                    className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                    colSpan={4}
+                    className={tableEmptyCell}
                   >
                     {orgs.length === 0 ? "No organizations yet. Add one to get started." : "No results match your search."}
                   </td>
                 </tr>
               ) : (
-                filteredOrgs.map((org: Org) => (
+                filteredOrgs.map((org: Org, index) => (
                   <tr
                     key={org.id}
-                    className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                    className={tableBodyRow}
                   >
-                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">
+                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
+                    <td className={tableStickyFirstBody}>
                       {org.name}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={tableBodyCell}>
                       <Badge status={org.status}>{org.status}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-left">
+                    <td className={tableBodyCell}>
                       <div className="flex justify-start gap-2">
                         <IconButton
                           onClick={() => openEdit(org)}

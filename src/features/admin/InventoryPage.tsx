@@ -11,8 +11,18 @@ import { PageHeader } from "@/components/PageHeader";
 import {
   Pagination,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   TableSearchInput,
   TableSkeleton,
+  tableBodyRow,
+  tableStickyHeadCell,
+  tableHeadCell,
+  tableBodyCellNumDebts,
+  tableStickyFirstBody,
+  tableEmptyCell,
+  tableCard,
+  tableRowNoCol,
 } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useDataTable } from "@/hooks/useDataTable";
@@ -299,19 +309,27 @@ export function InventoryPage({
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className={tableCard}>
             <div className="relative min-h-0 flex-1 overflow-auto">
               <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-              <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "700px" }}>
+              <table className="w-full table-fixed divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "720px" }}>
+                <colgroup>
+                  <col className={tableRowNoCol} />
+                  <col className="w-[38%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[18%]" />
+                </colgroup>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
+                    <TableRowNumberHead />
                     <SortableTableHead
                       columnKey="itemName"
                       label="Item"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                      className={`${tableStickyHeadCell} ${tableHeadCell}`}
                     />
                     <SortableTableHead
                       columnKey="receivedQty"
@@ -319,7 +337,7 @@ export function InventoryPage({
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="onHandQty"
@@ -327,7 +345,7 @@ export function InventoryPage({
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="soldQty"
@@ -335,18 +353,18 @@ export function InventoryPage({
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {isInitialLoad ? (
-                    <TableSkeleton rows={10} columns={4} />
+                    <TableSkeleton rows={10} columns={5} />
                   ) : filteredLines.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={4}
-                        className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                        colSpan={5}
+                        className={tableEmptyCell}
                       >
                         {lines.length === 0 ? (
                           <>
@@ -363,12 +381,13 @@ export function InventoryPage({
                       </td>
                     </tr>
                   ) : (
-                    filteredLines.map((line: InventoryReportLineResponse) => (
+                    filteredLines.map((line: InventoryReportLineResponse, index) => (
                       <tr
                         key={line.itemId}
-                        className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                        className={tableBodyRow}
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
+                        <td className={tableStickyFirstBody}>
                           <span>
                             {line.itemName}
                           </span>
@@ -378,16 +397,16 @@ export function InventoryPage({
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                        <td className={tableBodyCellNumDebts}>
                           {formatQty(line.receivedQty)}
                         </td>
-                        <td className="px-4 py-2 text-left text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl">
+                        <td className={tableBodyCellNumDebts}>
                           <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
                             <TrendingUp className="h-4 w-4" />
                             {formatQty(line.onHandQty)}
                           </span>
                         </td>
-                        <td className="px-4 py-2 text-left text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl">
+                        <td className={tableBodyCellNumDebts}>
                           <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400">
                             <TrendingDown className="h-4 w-4" />
                             {formatQty(line.soldQty)}

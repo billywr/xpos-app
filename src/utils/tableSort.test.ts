@@ -49,4 +49,5 @@ describe("sortTableRows", () => {
       sortTableRows(rows, { column: null, direction: "asc" }, getSortValue)
     ).toEqual(rows);
   });
+
 });

@@ -27,6 +27,17 @@ export {
   tableCard,
   tableHeadRow,
   tableHeadCell,
+  tableBodyRow,
+  tableBodyCell,
+  tableBodyCellNum,
+  tableBodyCellNumDebts,
+  tableStickyFirstBody,
+  tableEmptyCell,
+  tableRowNoCol,
+  tableRowNoHead,
+  tableRowNoCell,
+  tableStickyFirstCell,
+  tableStickyHeadCell,
   formLabel,
   navActive,
   navInactive,
@@ -49,6 +60,8 @@ export { TableSkeleton } from "./TableSkeleton";
 export type { TableSkeletonProps } from "./TableSkeleton";
 export { SortableTableHead } from "./SortableTableHead";
 export type { SortableTableHeadProps } from "./SortableTableHead";
+export { TableRowNumberHead, TableRowNumberCell } from "./TableRowNumber";
+export type { TableRowNumberHeadProps, TableRowNumberCellProps } from "./TableRowNumber";
 export { SearchableSelect } from "../SearchableSelect";
 export type {
   SearchableSelectOption,

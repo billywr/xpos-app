@@ -20,9 +20,17 @@ import {
   SlideOver,
   ConfirmDialog,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   TableSearchInput,
   TableSkeleton,
   FormLabel,
+  tableBodyRow,
+  tableStickyHeadCell,
+  tableHeadCell,
+  tableBodyCell,
+  tableEmptyCell,
+  tableStickyFirstBody,
 } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useDataTable } from "@/hooks/useDataTable";
@@ -307,13 +315,14 @@ export function TenderTypesListPage() {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "480px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
+                    <TableRowNumberHead />
                     <SortableTableHead
                       columnKey="code"
                       label="Code"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                      className={`${tableStickyHeadCell} ${tableHeadCell}`}
                     />
                     <SortableTableHead
                       columnKey="name"
@@ -321,7 +330,7 @@ export function TenderTypesListPage() {
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="active"
@@ -329,7 +338,7 @@ export function TenderTypesListPage() {
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="actions"
@@ -338,40 +347,41 @@ export function TenderTypesListPage() {
                       sortDirection={sortDirection}
                       onSort={toggleSort}
                       sortable={false}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {isInitialLoad ? (
-                    <TableSkeleton columns={4} />
+                    <TableSkeleton columns={5} />
                   ) : filteredTenderTypes.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={4}
-                        className="px-4 py-8 text-center text-base text-slate-500 sm:px-6 sm:text-2xl dark:text-slate-400"
+                        colSpan={5}
+                        className={tableEmptyCell}
                       >
                         {tenderTypes.length === 0 ? "No tender types yet. Add one (e.g. Cash, M-Pesa) for payment options." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    filteredTenderTypes.map((tt: TenderType) => (
+                    filteredTenderTypes.map((tt: TenderType, index) => (
                       <tr
                         key={tt.id}
-                        className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                        className={tableBodyRow}
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 font-mono text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                    <TableRowNumberCell page={0} pageSize={filteredTenderTypes.length || 1} indexInPage={index} />
+                        <td className={`${tableStickyFirstBody} font-mono`}>
                           {tt.code}
                         </td>
-                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                        <td className={tableBodyCell}>
                           {tt.name}
                         </td>
-                        <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
+                        <td className={tableBodyCell}>
                           <Badge variant={tt.active ? "success" : "neutral"}>
                             {tt.active ? "Yes" : "No"}
                           </Badge>
                         </td>
-                        <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
+                        <td className={tableBodyCell}>
                           <div className="flex justify-start gap-2">
                             <IconButton
                               onClick={() => openEdit(tt)}

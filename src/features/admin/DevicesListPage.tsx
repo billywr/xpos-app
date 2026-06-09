@@ -23,9 +23,16 @@ import {
   ConfirmDialog,
   Pagination,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   TableSearchInput,
   TableSkeleton,
   FormLabel,
+  tableBodyRow,
+  tableHeadCell,
+  tableBodyCell,
+  tableStickyFirstBody,
+  tableEmptyCell,
 } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
@@ -359,13 +366,14 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
+                    <TableRowNumberHead />
                     <SortableTableHead
                       columnKey="deviceId"
                       label="Device ID"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="status"
@@ -373,7 +381,7 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="actions"
@@ -382,35 +390,36 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                       sortDirection={sortDirection}
                       onSort={toggleSort}
                       sortable={false}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {isInitialLoad ? (
-                    <TableSkeleton columns={5} />
+                    <TableSkeleton columns={6} />
                   ) : filteredDevices.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={3}
-                        className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                        colSpan={4}
+                        className={tableEmptyCell}
                       >
                         {devices.length === 0 ? "No devices registered yet. Register a device to get started." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    filteredDevices.map((device: DeviceRegistration) => (
+                    filteredDevices.map((device: DeviceRegistration, index) => (
                       <tr
                         key={device.id}
-                        className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                        className={tableBodyRow}
                       >
-                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">
+                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
+                        <td className={tableStickyFirstBody}>
                           {device.deviceId}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className={tableBodyCell}>
                           <Badge status={device.status}>{device.status}</Badge>
                         </td>
-                        <td className="px-4 py-3 text-left">
+                        <td className={tableBodyCell}>
                           <div className="flex justify-start gap-2">
                             {device.status !== "ACTIVE" && (
                               <IconButton

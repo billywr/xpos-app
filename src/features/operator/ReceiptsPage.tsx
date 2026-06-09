@@ -18,8 +18,17 @@ import { ReceiptModal } from "@/components/ReceiptModal";
 import {
   Pagination,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   TableSearchInput,
   TableSkeleton,
+  tableBodyRow,
+  tableStickyHeadCell,
+  tableHeadCell,
+  tableBodyCell,
+  tableStickyFirstBody,
+  tableEmptyCell,
+  tableBodyCellNum,
 } from "@/components/ui";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { formatAmount } from "@/utils/formatCurrency";
@@ -170,7 +179,7 @@ export function ReceiptsPage() {
     [filteredReceipts]
   );
   const visibleReceiptsColCount =
-    3 + (showCompletedCol ? 1 : 0) + (showStaffCol ? 1 : 0);
+    4 + (showCompletedCol ? 1 : 0) + (showStaffCol ? 1 : 0);
 
   const handleReprint = async (sale: SaleSummary) => {
     if (!orgId || !branchId) return;
@@ -278,13 +287,14 @@ export function ReceiptsPage() {
             <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "600px" }}>
               <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr>
+                  <TableRowNumberHead />
                   <SortableTableHead
                     columnKey="receiptNumber"
                     label="Receipt"
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                    className={`${tableStickyHeadCell} ${tableHeadCell}`}
                   />
                   {showCompletedCol && (
                     <SortableTableHead
@@ -293,16 +303,17 @@ export function ReceiptsPage() {
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   )}
                   <SortableTableHead
+                      align="right"
                     columnKey="total"
                     label="Total (KSH)"
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    className={tableHeadCell}
                   />
                   {showStaffCol && (
                     <SortableTableHead
@@ -311,7 +322,7 @@ export function ReceiptsPage() {
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   )}
                   <SortableTableHead
@@ -321,7 +332,7 @@ export function ReceiptsPage() {
                     sortDirection={sortDirection}
                     onSort={toggleSort}
                     sortable={false}
-                    className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    className={tableHeadCell}
                   />
                 </tr>
               </thead>
@@ -332,36 +343,37 @@ export function ReceiptsPage() {
                   <tr>
                     <td
                       colSpan={visibleReceiptsColCount}
-                      className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                      className={tableEmptyCell}
                     >
                       {receipts.length === 0 ? "No receipts for this date range." : "No results match your search."}
                     </td>
                   </tr>
                 ) : (
-                  filteredReceipts.map((sale) => (
+                  filteredReceipts.map((sale, index) => (
                     <tr
                       key={sale.id}
-                      className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                      className={tableBodyRow}
                     >
-                      <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
+                      <td className={tableStickyFirstBody}>
                         #{sale.receiptNumber ?? "—"}
                       </td>
                       {showCompletedCol && (
-                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                        <td className={tableBodyCell}>
                           {sale.completedAt
                             ? new Date(sale.completedAt).toLocaleString()
                             : "—"}
                         </td>
                       )}
-                      <td className="px-4 py-2 text-left text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                      <td className={`${tableBodyCellNum} font-semibold text-slate-700 dark:text-slate-300`}>
                         {formatAmount(sale.total)}
                       </td>
                       {showStaffCol && (
-                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                        <td className={tableBodyCell}>
                           {sale.createdByUsername ?? "—"}
                         </td>
                       )}
-                      <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
+                      <td className={tableBodyCell}>
                         <button
                           type="button"
                           onClick={() => handleReprint(sale)}

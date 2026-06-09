@@ -15,9 +15,17 @@ import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import {
   Pagination,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   TableSearchInput,
   TableSkeleton,
   StatChip,
+  tableBodyRow,
+  tableStickyFirstCell,
+  tableHeadCell,
+  tableBodyCell,
+  tableBodyCellNum,
+  tableEmptyCell,
 } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
@@ -139,7 +147,7 @@ export function SalesListPage() {
     [filteredSales]
   );
   const visibleSalesColCount =
-    2 +
+    3 +
     (showReceiptCol ? 1 : 0) +
     (showCompletedCol ? 1 : 0) +
     (showCashierCol ? 1 : 0);
@@ -386,6 +394,7 @@ export function SalesListPage() {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "600px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
+                    <TableRowNumberHead />
                     <SortableTableHead
                       columnKey="expand"
                       label=""
@@ -402,7 +411,7 @@ export function SalesListPage() {
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                     )}
                     {showCompletedCol && (
@@ -412,7 +421,7 @@ export function SalesListPage() {
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                     )}
                     {showCashierCol && (
@@ -422,16 +431,17 @@ export function SalesListPage() {
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                     )}
                     <SortableTableHead
+                      align="right"
                       columnKey="total"
                       label="Total (KSH)"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   </tr>
                 </thead>
@@ -442,19 +452,20 @@ export function SalesListPage() {
                     <tr>
                       <td
                         colSpan={visibleSalesColCount}
-                        className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                        className={tableEmptyCell}
                       >
                         {sales.length === 0 ? `No completed sales for ${selectedBranch?.name ?? "this branch"} in the selected date range.` : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    filteredSales.map((sale: SaleSummary) => (
+                    filteredSales.map((sale: SaleSummary, index) => (
                       <Fragment key={sale.id}>
                         <tr
                           key={sale.id}
-                          className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                          className={tableBodyRow}
                         >
-                          <td className="sticky left-0 z-10 w-10 bg-white group-hover:!bg-slate-100 px-4 py-2 sm:py-2.5 dark:bg-slate-800 dark:group-hover:!bg-slate-700">
+                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
+                          <td className={`${tableStickyFirstCell} w-10 px-4 py-2 sm:py-2.5`}>
                             <button
                               type="button"
                               onClick={() =>
@@ -477,23 +488,23 @@ export function SalesListPage() {
                             </button>
                           </td>
                           {showReceiptCol && (
-                            <td className="px-4 py-2 font-mono text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                            <td className={`${tableBodyCell} font-mono font-semibold text-slate-700 dark:text-slate-300`}>
                               {sale.receiptNumber ?? "—"}
                             </td>
                           )}
                           {showCompletedCol && (
-                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                            <td className={tableBodyCell}>
                               {sale.completedAt
                                 ? new Date(sale.completedAt).toLocaleString()
                                 : "—"}
                             </td>
                           )}
                           {showCashierCol && (
-                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                            <td className={tableBodyCell}>
                               {sale.createdByUsername ?? "—"}
                             </td>
                           )}
-                          <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                          <td className={tableBodyCellNum}>
                             {formatAmount(sale.total)}
                           </td>
                         </tr>

@@ -27,8 +27,13 @@ import {
   Pagination,
   ConfirmDialog,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   StatChip,
   TableSearchInput,
+  tableBodyRow,
+  tableStickyFirstCell,
+  tableStickyHeadCell,
 } from "@/components/ui";
 import { useDataTable } from "@/hooks/useDataTable";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
@@ -667,13 +672,14 @@ export function DebtsPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "1100px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
+                      <TableRowNumberHead />
                       <SortableTableHead
                         columnKey="customerName"
                         label="Customer"
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                        className={`${tableStickyHeadCell} px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300`}
                       />
                       {showPhoneCol && (
                         <SortableTableHead
@@ -729,9 +735,10 @@ export function DebtsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                    {filteredDebts.map((d: CustomerDebtResponse) => (
-                      <tr key={d.id} className="group hover:bg-slate-100 dark:hover:bg-slate-700">
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                    {filteredDebts.map((d: CustomerDebtResponse, index) => (
+                      <tr key={d.id} className={tableBodyRow}>
+                    <TableRowNumberCell page={data?.number ?? page} pageSize={PAGE_SIZE} indexInPage={index} />
+                        <td className={`${tableStickyFirstCell} px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300`}>
                           {d.customerName}
                         </td>
                         {showPhoneCol && (

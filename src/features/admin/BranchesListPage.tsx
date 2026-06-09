@@ -23,9 +23,17 @@ import {
   ConfirmDialog,
   Pagination,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   TableSearchInput,
   TableSkeleton,
   FormLabel,
+  tableBodyRow,
+  tableStickyHeadCell,
+  tableHeadCell,
+  tableBodyCell,
+  tableStickyFirstBody,
+  tableEmptyCell,
 } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
@@ -421,13 +429,14 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "550px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
+                    <TableRowNumberHead />
                     <SortableTableHead
                       columnKey="name"
                       label="Name"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                      className={`${tableStickyHeadCell} ${tableHeadCell}`}
                     />
                     <SortableTableHead
                       columnKey="timezone"
@@ -435,7 +444,7 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="currency"
@@ -443,7 +452,7 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="status"
@@ -451,7 +460,7 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="actions"
@@ -460,41 +469,42 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
                       sortDirection={sortDirection}
                       onSort={toggleSort}
                       sortable={false}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {isInitialLoad ? (
-                    <TableSkeleton columns={5} />
+                    <TableSkeleton columns={6} />
                   ) : filteredBranches.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5}
-                        className="px-4 py-8 text-center text-base text-slate-500 sm:px-6 sm:text-2xl dark:text-slate-400"
+                        colSpan={6}
+                        className={tableEmptyCell}
                       >
                         {branches.length === 0 ? `No branches yet for ${selectedOrg?.name}. Add one to get started.` : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    filteredBranches.map((branch: Branch) => (
+                    filteredBranches.map((branch: Branch, index) => (
                       <tr
                         key={branch.id}
-                        className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                        className={tableBodyRow}
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
+                        <td className={tableStickyFirstBody}>
                           {branch.name}
                         </td>
-                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                        <td className={tableBodyCell}>
                           {branch.timezone}
                         </td>
-                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                        <td className={tableBodyCell}>
                           {branch.currency}
                         </td>
-                        <td className="px-4 py-2 sm:px-6 sm:py-2.5">
+                        <td className={tableBodyCell}>
                           <Badge status={branch.status}>{branch.status}</Badge>
                         </td>
-                        <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
+                        <td className={tableBodyCell}>
                           <div className="flex justify-start gap-2">
                             <IconButton
                               onClick={() => openEdit(branch)}

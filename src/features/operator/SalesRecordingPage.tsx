@@ -33,7 +33,21 @@ import {
   saveSalesRecordingDraft,
 } from "@/api/salesRecordingDraft";
 import { Pagination } from "@/components/ui/Pagination";
-import { Button, SortableTableHead, StatChip } from "@/components/ui";
+import {
+  Button,
+  SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
+  StatChip,
+  tableBodyCell,
+  tableBodyCellNumDebts,
+  tableBodyRow,
+  tableCard,
+  tableEmptyCell,
+  tableHeadCell,
+  tableStickyFirstBody,
+  tableStickyHeadCell,
+} from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { rowMatchesSearch } from "@/utils/tableSearchMatch";
 import { sortTableRows } from "@/utils/tableSort";
@@ -596,18 +610,19 @@ export function SalesRecordingPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className={tableCard}>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
-            <thead className="bg-slate-50 text-left text-sm font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+          <table className="w-full table-auto divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "640px" }}>
+            <thead className="bg-slate-50 dark:bg-slate-700">
               <tr>
+                <TableRowNumberHead />
                 <SortableTableHead
                   columnKey="item"
                   label="Item"
                   sortColumn={sortColumn}
                   sortDirection={sortDirection}
                   onSort={toggleSort}
-                  className="px-4 py-3"
+                  className={`${tableStickyHeadCell} ${tableHeadCell} max-w-[11rem] sm:max-w-[14rem]`}
                 />
                 <SortableTableHead
                   columnKey="sku"
@@ -615,36 +630,60 @@ export function SalesRecordingPage() {
                   sortColumn={sortColumn}
                   sortDirection={sortDirection}
                   onSort={toggleSort}
-                  className="px-4 py-3"
+                  className={`${tableHeadCell} whitespace-nowrap`}
                 />
-                <th className="px-4 py-3">On hand</th>
-                <th className="px-4 py-3">Price (KSH)</th>
+                <SortableTableHead
+                  columnKey="onHand"
+                  label="On hand"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={toggleSort}
+                  sortable={false}
+                  className={`${tableHeadCell} whitespace-nowrap`}
+                />
+                <SortableTableHead
+                  columnKey="price"
+                  label="Price (KSH)"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={toggleSort}
+                  sortable={false}
+                  className={`${tableHeadCell} whitespace-nowrap`}
+                />
                 <SortableTableHead
                   columnKey="qty"
                   label="Sold qty"
                   sortColumn={sortColumn}
                   sortDirection={sortDirection}
                   onSort={toggleSort}
-                  className="px-4 py-3"
+                  className={`${tableHeadCell} min-w-[8.5rem] whitespace-nowrap`}
                 />
-                <th className="px-4 py-3">Line total (KSH)</th>
+                <SortableTableHead
+                  columnKey="lineTotal"
+                  label="Line total (KSH)"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={toggleSort}
+                  sortable={false}
+                  className={`${tableHeadCell} whitespace-nowrap`}
+                />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xl dark:divide-slate-600">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
               {itemsQuery.isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={7} className={tableEmptyCell}>
                     <Loader2 className="mx-auto h-5 w-5 animate-spin" />
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={7} className={tableEmptyCell}>
                     No sellable items found.
                   </td>
                 </tr>
               ) : (
-                pageRows.map(({ item, qtyRaw }) => {
+                pageRows.map(({ item, qtyRaw }, index) => {
                   const price = Number(item.defaultSellingPrice ?? 0);
                   const qty = Number(qtyRaw) || 0;
                   const lineTotal = qty * price;
@@ -654,36 +693,38 @@ export function SalesRecordingPage() {
                   const savedValue = soldValueByItem[item.id] ?? 0;
                   const hasDraft = qty > 0 && !err;
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-700/40">
-                      <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
-                        {item.name}
+                    <tr key={item.id} className={tableBodyRow}>
+                    <TableRowNumberCell page={page} pageSize={pageSize} indexInPage={index} />
+                      <td className={`${tableStickyFirstBody} max-w-[11rem] sm:max-w-[14rem]`}>
+                        <span className="block truncate" title={item.name}>
+                          {item.name}
+                        </span>
                       </td>
-                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
+                      <td className={`${tableBodyCell} whitespace-nowrap`}>
                         {item.sku ?? "—"}
                       </td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                      <td className={`${tableBodyCellNumDebts} whitespace-nowrap`}>
                         {item.trackInventory
                           ? onHand != null
                             ? formatQty(onHand)
                             : "—"
                           : "N/A"}
                       </td>
-                      <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
+                      <td className={`${tableBodyCellNumDebts} whitespace-nowrap`}>
                         {formatQty(price)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className={`${tableBodyCell} min-w-[8.5rem]`}>
                         <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              value={qtyRaw}
-                              onChange={(e) =>
-                                handleQtyChange(item.id, e.target.value)
-                              }
-                              placeholder="0"
-                              aria-label={`Draft quantity for ${item.name}`}
-                              className={`w-32 shrink-0 rounded-md border bg-white px-3 py-2 text-xl focus:outline-none dark:bg-slate-700 ${
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={qtyRaw}
+                            onChange={(e) =>
+                              handleQtyChange(item.id, e.target.value)
+                            }
+                            placeholder="0"
+                            aria-label={`Draft quantity for ${item.name}`}
+                            className={`w-[4.5rem] max-w-full rounded border bg-white px-2 py-1 text-left text-lg tabular-nums focus:outline-none sm:text-xl dark:bg-slate-700 ${
                                 err
                                   ? "border-red-400 text-red-700 focus:border-red-500 dark:border-red-500 dark:text-red-300"
                                   : hasDraft
@@ -691,28 +732,27 @@ export function SalesRecordingPage() {
                                     : "border-slate-300 focus:border-primary dark:border-slate-600 dark:text-white"
                               }`}
                             />
-                            {savedQty > 0 && (
-                              <span className="inline-flex items-center gap-1 whitespace-nowrap text-xl font-medium text-emerald-600 dark:text-emerald-400">
-                                <CheckCircle2 className="h-5 w-5" />
-                                {formatQty(savedQty)}
-                              </span>
-                            )}
-                          </div>
+                          {savedQty > 0 && (
+                            <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                              {formatQty(savedQty)}
+                            </span>
+                          )}
                           {err && (
-                            <p className="mt-1 text-sm text-red-500">{err}</p>
+                            <p className="text-sm text-red-500">{err}</p>
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                        <div className="flex items-center gap-3">
+                      <td className={`${tableBodyCellNumDebts} whitespace-nowrap`}>
+                        <div className="flex items-center gap-1.5">
                           {qty > 0 ? (
                             <span>{formatQty(lineTotal)}</span>
                           ) : savedValue > 0 ? null : (
                             <span>—</span>
                           )}
                           {savedValue > 0 && (
-                            <span className="inline-flex items-center gap-1 whitespace-nowrap text-xl font-medium text-emerald-600 dark:text-emerald-400">
-                              <CheckCircle2 className="h-5 w-5" />
+                            <span className="inline-flex items-center gap-1 whitespace-nowrap font-medium text-emerald-600 dark:text-emerald-400">
+                              <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
                               {formatQty(savedValue)}
                             </span>
                           )}

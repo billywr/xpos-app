@@ -22,7 +22,15 @@ import {
   Pagination,
   ConfirmDialog,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   TableSearchInput,
+  tableBodyRow,
+  tableStickyHeadCell,
+  tableHeadCell,
+  tableBodyCell,
+  tableStickyFirstBody,
+  tableBodyCellNum,
 } from "@/components/ui";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
@@ -390,6 +398,7 @@ export function MiscExpensesPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "840px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
+                      <TableRowNumberHead />
                       {showIncurredByCol && (
                         <SortableTableHead
                           columnKey="incurredBy"
@@ -397,16 +406,17 @@ export function MiscExpensesPage() {
                           sortColumn={sortColumn}
                           sortDirection={sortDirection}
                           onSort={toggleSort}
-                          className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                          className={`${tableStickyHeadCell} ${tableHeadCell}`}
                         />
                       )}
                       <SortableTableHead
+                      align="right"
                         columnKey="amount"
                         label="Amount (KSH)"
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                       <SortableTableHead
                         columnKey="category"
@@ -414,7 +424,7 @@ export function MiscExpensesPage() {
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                       <SortableTableHead
                         columnKey="description"
@@ -422,7 +432,7 @@ export function MiscExpensesPage() {
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                       {showReceiptRefCol && (
                         <SortableTableHead
@@ -431,7 +441,7 @@ export function MiscExpensesPage() {
                           sortColumn={sortColumn}
                           sortDirection={sortDirection}
                           onSort={toggleSort}
-                          className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                          className={tableHeadCell}
                         />
                       )}
                       <SortableTableHead
@@ -440,7 +450,7 @@ export function MiscExpensesPage() {
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                       <SortableTableHead
                         columnKey="actions"
@@ -449,41 +459,42 @@ export function MiscExpensesPage() {
                         sortDirection={sortDirection}
                         onSort={toggleSort}
                         sortable={false}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                    {filteredExpenses.map((e: MiscExpenseResponse) => (
+                    {filteredExpenses.map((e: MiscExpenseResponse, index) => (
                       <tr
                         key={e.id}
-                        className="hover:bg-slate-100 dark:hover:bg-slate-700"
+                        className={tableBodyRow}
                       >
+                    <TableRowNumberCell page={data?.number ?? page} pageSize={PAGE_SIZE} indexInPage={index} />
                         {showIncurredByCol && (
-                          <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                          <td className={tableStickyFirstBody}>
                             {e.incurredBy ?? "—"}
                           </td>
                         )}
-                        <td className="px-4 py-2 text-left text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                        <td className={`${tableBodyCellNum} font-semibold text-slate-700 dark:text-slate-300`}>
                           {formatAmount(e.amount)}
                         </td>
-                        <td className="px-4 py-2 sm:px-6 sm:py-2.5">
+                        <td className={tableBodyCell}>
                           <span className="inline-flex justify-start rounded-full bg-slate-100 px-2.5 py-0.5 text-left text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">
                             {e.category}
                           </span>
                         </td>
-                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                        <td className={tableBodyCell}>
                           {e.description}
                         </td>
                         {showReceiptRefCol && (
-                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                          <td className={tableBodyCell}>
                             {e.receiptRef ?? "—"}
                           </td>
                         )}
-                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                        <td className={tableBodyCell}>
                           {new Date(e.createdAt).toLocaleString()}
                         </td>
-                        <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
+                        <td className={tableBodyCell}>
                           <div className="flex justify-start gap-1">
                             <button
                               type="button"

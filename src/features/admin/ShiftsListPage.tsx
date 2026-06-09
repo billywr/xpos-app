@@ -9,7 +9,22 @@ import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { Shift } from "@/types/shift";
 import { PageHeader } from "@/components/PageHeader";
-import { Badge, Pagination, SortableTableHead, TableSearchInput, TableSkeleton } from "@/components/ui";
+import {
+  Badge,
+  Pagination,
+  SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
+  TableSearchInput,
+  TableSkeleton,
+  tableBodyRow,
+  tableStickyHeadCell,
+  tableHeadCell,
+  tableBodyCell,
+  tableBodyCellNum,
+  tableStickyFirstBody,
+  tableEmptyCell,
+} from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
@@ -95,7 +110,7 @@ export function ShiftsListPage() {
     [filteredShifts]
   );
   const visibleShiftsColCount =
-    3 +
+    4 +
     (showClosedCol ? 1 : 0) +
     (showCountedCol ? 1 : 0) +
     (showVarianceCol ? 1 : 0);
@@ -235,22 +250,25 @@ export function ShiftsListPage() {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "720px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
+                    <TableRowNumberHead />
                     <SortableTableHead
+                      align="right"
                       columnKey="openedAt"
                       label="Opened"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                      className={`${tableStickyHeadCell} ${tableHeadCell}`}
                     />
                     {showClosedCol && (
                       <SortableTableHead
+                      align="right"
                         columnKey="closedAt"
                         label="Closed"
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                     )}
                     <SortableTableHead
@@ -259,81 +277,85 @@ export function ShiftsListPage() {
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
+                      align="right"
                       columnKey="openingFloatAmount"
                       label="Float (KSH)"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     {showCountedCol && (
                       <SortableTableHead
+                      align="right"
                         columnKey="closingCountedAmount"
                         label="Counted (KSH)"
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                     )}
                     {showVarianceCol && (
                       <SortableTableHead
+                      align="right"
                         columnKey="varianceAmount"
                         label="Variance (KSH)"
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                     )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {isInitialLoad ? (
-                    <TableSkeleton columns={6} />
+                    <TableSkeleton columns={7} />
                   ) : filteredShifts.length === 0 ? (
                     <tr>
                       <td
                         colSpan={visibleShiftsColCount}
-                        className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                        className={tableEmptyCell}
                       >
                         {shifts.length === 0 ? `No shifts for ${selectedBranch?.name ?? "this branch"}.` : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    filteredShifts.map((shift: Shift) => (
+                    filteredShifts.map((shift: Shift, index) => (
                       <tr
                         key={shift.id}
-                        className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                        className={tableBodyRow}
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
+                        <td className={tableStickyFirstBody}>
                           {new Date(shift.openedAt).toLocaleString()}
                         </td>
                         {showClosedCol && (
-                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                          <td className={tableBodyCell}>
                             {shift.closedAt
                               ? new Date(shift.closedAt).toLocaleString()
                               : "—"}
                           </td>
                         )}
-                        <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
+                        <td className={tableBodyCell}>
                           <Badge status={shift.status}>{shift.status}</Badge>
                         </td>
-                        <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                        <td className={tableBodyCellNum}>
                           {formatAmount(shift.openingFloatAmount)}
                         </td>
                         {showCountedCol && (
-                          <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                          <td className={tableBodyCellNum}>
                             {shift.closingCountedAmount != null
                               ? formatAmount(shift.closingCountedAmount)
                               : "—"}
                           </td>
                         )}
                         {showVarianceCol && (
-                          <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                          <td className={tableBodyCellNum}>
                             {shift.varianceAmount != null
                               ? formatAmount(shift.varianceAmount)
                               : "—"}

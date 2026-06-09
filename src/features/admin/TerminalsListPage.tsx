@@ -27,9 +27,16 @@ import {
   ConfirmDialog,
   Pagination,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   TableSearchInput,
   TableSkeleton,
   FormLabel,
+  tableBodyRow,
+  tableHeadCell,
+  tableBodyCell,
+  tableStickyFirstBody,
+  tableEmptyCell,
 } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
@@ -443,13 +450,14 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
+                    <TableRowNumberHead />
                     <SortableTableHead
                       columnKey="code"
                       label="Code"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="status"
@@ -457,7 +465,7 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="actions"
@@ -466,35 +474,36 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                       sortDirection={sortDirection}
                       onSort={toggleSort}
                       sortable={false}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {isInitialLoad ? (
-                    <TableSkeleton columns={5} />
+                    <TableSkeleton columns={6} />
                   ) : filteredTerminals.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={3}
-                        className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                        colSpan={4}
+                        className={tableEmptyCell}
                       >
                         {terminals.length === 0 ? `No terminals yet for ${selectedBranch?.name}. Add one to get started.` : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    filteredTerminals.map((terminal: Terminal) => (
+                    filteredTerminals.map((terminal: Terminal, index) => (
                       <tr
                         key={terminal.id}
-                        className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                        className={tableBodyRow}
                       >
-                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">
+                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
+                        <td className={tableStickyFirstBody}>
                           {terminal.terminalCode}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className={tableBodyCell}>
                           <Badge status={terminal.status}>{terminal.status}</Badge>
                         </td>
-                        <td className="px-4 py-3 text-left">
+                        <td className={tableBodyCell}>
                           <div className="flex justify-start gap-2">
                             <IconButton
                               onClick={() => openEdit(terminal)}

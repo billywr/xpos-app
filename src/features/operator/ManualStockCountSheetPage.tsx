@@ -22,7 +22,21 @@ import { useToast } from "@/contexts/ToastContext";
 import { generateUuid } from "@/utils/uuid";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { Pagination, SortableTableHead, StatChip, TableSearchInput } from "@/components/ui";
+import {
+  Pagination,
+  SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
+  StatChip,
+  TableSearchInput,
+  tableBodyRow,
+  tableStickyHeadCell,
+  tableHeadCell,
+  tableBodyCell,
+  tableBodyCellNum,
+  tableStickyFirstBody,
+  tableEmptyCell,
+} from "@/components/ui";
 import { useDataTable } from "@/hooks/useDataTable";
 import {
   ChevronLeft,
@@ -257,7 +271,7 @@ export function ManualStockCountSheetPage() {
     () => paginatedRows.some((r) => computePreview(r).variance != null),
     [paginatedRows]
   );
-  const manualVisibleColCount = 11 + (showVarCol ? 1 : 0);
+  const manualVisibleColCount = 12 + (showVarCol ? 1 : 0);
 
   useEffect(() => {
     setPage(0);
@@ -500,93 +514,103 @@ export function ManualStockCountSheetPage() {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "750px" }}>
                 <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700">
                   <tr>
+                    <TableRowNumberHead />
                     <SortableTableHead
                       columnKey="item"
                       label="Item"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                      className={`${tableStickyHeadCell} ${tableHeadCell}`}
                     />
                     <SortableTableHead
+                      align="right"
                       columnKey="open"
                       label="Open"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
+                      align="right"
                       columnKey="added"
                       label="Added"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
+                      align="right"
                       columnKey="total"
                       label="Total"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
+                      align="right"
                       columnKey="close"
                       label="Close"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
+                      align="right"
                       columnKey="sys"
                       label="Sys"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     {showVarCol && (
                       <SortableTableHead
+                      align="right"
                         columnKey="var"
                         label="Var"
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                     )}
                     <SortableTableHead
+                      align="right"
                       columnKey="sold"
                       label="Sold"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-right text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
+                      align="right"
                       columnKey="price"
                       label="Price (KSH)"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
+                      align="right"
                       columnKey="amount"
                       label="Amt (KSH)"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
-                    <th className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300">
+                    <th className={tableHeadCell}>
                       Notes
                     </th>
                     <th
-                      className="w-10 px-1 py-3 text-center text-base font-semibold uppercase tracking-wide text-slate-700 sm:w-12 sm:px-2 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={`${tableHeadCell} w-10 px-1 text-center sm:w-12 sm:px-2`}
                       aria-label="Row actions"
                     >
                       {" "}
@@ -598,22 +622,23 @@ export function ManualStockCountSheetPage() {
                     <tr>
                       <td
                         colSpan={manualVisibleColCount}
-                        className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                        className={tableEmptyCell}
                       >
                         No lines yet. Add from catalog or a custom line, then save.
                       </td>
                     </tr>
                   ) : (
-                    paginatedRows.map((r) => {
+                    paginatedRows.map((r, index) => {
                       const p = computePreview(r);
                       const inputBase =
                         "w-12 rounded border px-1 py-0.5 text-right text-xs tabular-nums text-slate-900 sm:w-16 sm:px-2 sm:py-1 sm:text-sm dark:text-white";
                       return (
                         <tr
                           key={r.clientId}
-                          className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                          className={tableBodyRow}
                         >
-                          <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                    <TableRowNumberCell page={page} pageSize={pageSize} indexInPage={index} />
+                          <td className={tableStickyFirstBody}>
                             <div>{r.itemName || "—"}</div>
                             {r.sku ? (
                               <div className="text-[10px] font-normal text-slate-500 sm:text-xs dark:text-slate-400">
@@ -621,7 +646,7 @@ export function ManualStockCountSheetPage() {
                               </div>
                             ) : null}
                           </td>
-                          <td className="px-4 py-2 sm:px-6 sm:py-2.5">
+                          <td className={tableBodyCell}>
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
@@ -636,7 +661,7 @@ export function ManualStockCountSheetPage() {
                               />
                             </div>
                           </td>
-                          <td className="px-4 py-2 sm:px-6 sm:py-2.5">
+                          <td className={tableBodyCell}>
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
@@ -650,10 +675,10 @@ export function ManualStockCountSheetPage() {
                               />
                             </div>
                           </td>
-                          <td className="px-4 py-2 text-right text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                          <td className={tableBodyCellNum}>
                             {p.total}
                           </td>
-                          <td className="px-4 py-2 sm:px-6 sm:py-2.5">
+                          <td className={tableBodyCell}>
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
@@ -676,7 +701,7 @@ export function ManualStockCountSheetPage() {
                               ) : null}
                             </div>
                           </td>
-                          <td className="px-4 py-2 sm:px-6 sm:py-2.5">
+                          <td className={tableBodyCell}>
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
@@ -692,7 +717,7 @@ export function ManualStockCountSheetPage() {
                           </td>
                           {showVarCol && (
                             <td
-                              className={`px-4 py-2 text-right text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl ${
+                              className={`${tableBodyCellNum} ${
                                 p.variance != null && p.variance > 0
                                   ? "font-semibold text-emerald-600 dark:text-emerald-400"
                                   : p.variance != null && p.variance < 0
@@ -710,10 +735,10 @@ export function ManualStockCountSheetPage() {
                               )}
                             </td>
                           )}
-                          <td className="px-4 py-2 text-right text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                          <td className={tableBodyCellNum}>
                             {p.unitsSold}
                           </td>
-                          <td className="px-4 py-2 sm:px-6 sm:py-2.5">
+                          <td className={tableBodyCell}>
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
@@ -724,7 +749,7 @@ export function ManualStockCountSheetPage() {
                               />
                             </div>
                           </td>
-                          <td className="px-4 py-2 text-left text-base font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                          <td className={`${tableBodyCellNum} font-semibold text-slate-700 dark:text-slate-300`}>
                             {formatAmount(p.amount)}
                           </td>
                           <td className="px-4 py-2 align-top sm:px-6 sm:py-2.5">

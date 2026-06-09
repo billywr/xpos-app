@@ -21,7 +21,25 @@ import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { Item } from "@/types/catalog";
 import type { Supplier } from "@/api/suppliers";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, Pagination, ConfirmDialog, SortableTableHead, TableSearchInput, TableSkeleton } from "@/components/ui";
+import {
+  SlideOver,
+  Pagination,
+  ConfirmDialog,
+  SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
+  TableSearchInput,
+  TableSkeleton,
+  tableBodyRow,
+  tableStickyHeadCell,
+  tableHeadCell,
+  tableBodyCell,
+  tableStickyFirstBody,
+  tableEmptyCell,
+  tableBodyCellNumDebts,
+  tableCard,
+  tableRowNoCol,
+} from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { useToast } from "@/contexts/ToastContext";
@@ -452,7 +470,7 @@ export function GoodsReceiptPage({
     () => pagedRows.some((r) => r.line?.receivedUnitCost != null),
     [pagedRows]
   );
-  const visibleColCount = 5 + (showBarcodeCol ? 1 : 0) + (showBuyPriceCol ? 1 : 0);
+  const visibleColCount = 6 + (showBarcodeCol ? 1 : 0) + (showBuyPriceCol ? 1 : 0);
 
   const grnsTotalAmount = grns.reduce(
     (sum, grn) =>
@@ -861,19 +879,30 @@ export function GoodsReceiptPage({
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className={tableCard}>
             <div className="relative min-h-0 flex-1 overflow-auto">
               <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-              <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "900px" }}>
+              <table className="w-full table-fixed divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "960px" }}>
+                <colgroup>
+                  <col className={tableRowNoCol} />
+                  <col className="w-[16%]" />
+                  <col className="w-[20%]" />
+                  {showBarcodeCol && <col className="w-[11%]" />}
+                  <col className="w-[8%]" />
+                  {showBuyPriceCol && <col className="w-[10%]" />}
+                  <col className="w-[10%]" />
+                  <col className="w-[12%]" />
+                </colgroup>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
+                    <TableRowNumberHead />
                     <SortableTableHead
                       columnKey="received"
                       label="Received"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                      className={`${tableStickyHeadCell} ${tableHeadCell}`}
                     />
                     <SortableTableHead
                       columnKey="name"
@@ -881,7 +910,7 @@ export function GoodsReceiptPage({
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     {showBarcodeCol && (
                       <SortableTableHead
@@ -890,7 +919,7 @@ export function GoodsReceiptPage({
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                     )}
                     <SortableTableHead
@@ -899,7 +928,7 @@ export function GoodsReceiptPage({
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     {showBuyPriceCol && (
                       <SortableTableHead
@@ -908,7 +937,7 @@ export function GoodsReceiptPage({
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                     )}
                     <SortableTableHead
@@ -917,7 +946,7 @@ export function GoodsReceiptPage({
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="actions"
@@ -926,7 +955,7 @@ export function GoodsReceiptPage({
                       sortDirection={sortDirection}
                       onSort={toggleSort}
                       sortable={false}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   </tr>
                 </thead>
@@ -937,13 +966,13 @@ export function GoodsReceiptPage({
                     <tr>
                       <td
                         colSpan={visibleColCount}
-                        className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                        className={tableEmptyCell}
                       >
                         {grns.length === 0 ? <>No stock receipts yet. Click &quot;Receive stock&quot; to add inventory.</> : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    pagedRows.map(({ grn, line, isFirstLineOfReceipt }) => {
+                    pagedRows.map(({ grn, line, isFirstLineOfReceipt }, index) => {
                         const lineTotal =
                           line != null
                             ? line.qty * (line.receivedUnitCost ?? 0)
@@ -956,37 +985,38 @@ export function GoodsReceiptPage({
                                 ? `${grn.id}-${line.id}`
                                 : `${grn.id}-no-lines`
                             }
-                            className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                            className={tableBodyRow}
                           >
-                            <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
+                            <td className={tableStickyFirstBody}>
                               {new Date(grn.receivedAt).toLocaleString()}
                             </td>
-                            <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                            <td className={tableBodyCell}>
                               {line?.itemName ?? "—"}
                             </td>
                             {showBarcodeCol && (
-                              <td className="px-4 py-2 font-mono text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                              <td className={`${tableBodyCell} font-mono`}>
                                 {line?.barcode?.trim()
                                   ? line.barcode
                                   : "—"}
                               </td>
                             )}
-                            <td className="px-4 py-2 text-base text-slate-600 tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                            <td className={tableBodyCellNumDebts}>
                               {line != null ? line.qty : "—"}
                             </td>
                             {showBuyPriceCol && (
-                              <td className="px-4 py-2 text-left text-base text-slate-600 tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                              <td className={tableBodyCellNumDebts}>
                                 {line != null && line.receivedUnitCost != null
                                   ? formatAmount(line.receivedUnitCost)
                                   : "—"}
                               </td>
                             )}
-                            <td className="px-4 py-2 text-left text-base font-semibold text-slate-700 tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                            <td className={`${tableBodyCellNumDebts} font-bold text-slate-700 dark:text-slate-300`}>
                               {line != null
                                 ? formatAmount(lineTotal)
                                 : "—"}
                             </td>
-                            <td className="whitespace-nowrap px-4 py-2 text-left text-base align-middle sm:px-6 sm:py-2.5 sm:text-2xl">
+                            <td className={`${tableBodyCell} whitespace-nowrap align-middle`}>
                               <div className="flex items-center gap-1">
                                 {line != null && (
                                   <>

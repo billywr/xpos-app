@@ -233,6 +233,40 @@ body {
 }
 
 /*
+ * Uniform datatable row hover — apply background to every cell, not just tr.
+ * Sticky first column rest state uses --table-bg so horizontal scroll stays opaque.
+ */
+.xpos-table-sticky-first {
+  background-color: #fff;
+}
+.dark .xpos-table-sticky-first,
+[data-theme]:not([data-theme=""]).dark .xpos-table-sticky-first {
+  background-color: var(--table-bg) !important;
+}
+.xpos-table-sticky-head {
+  background-color: rgb(248 250 252);
+}
+.dark .xpos-table-sticky-head,
+[data-theme]:not([data-theme=""]).dark .xpos-table-sticky-head {
+  background-color: var(--table-header) !important;
+}
+.xpos-table-row:hover > td,
+.xpos-table-row:hover > th {
+  background-color: rgb(241 245 249);
+}
+.dark .xpos-table-row:hover > td,
+.dark .xpos-table-row:hover > th,
+[data-theme]:not([data-theme=""]).dark .xpos-table-row:hover > td,
+[data-theme]:not([data-theme=""]).dark .xpos-table-row:hover > th {
+  background-color: var(--table-row-hover) !important;
+}
+/* Sticky first column: beat rest-state + Tailwind dark:bg-slate-800 remap on hover */
+.dark .xpos-table-row:hover > .xpos-table-sticky-first,
+[data-theme]:not([data-theme=""]).dark .xpos-table-row:hover > .xpos-table-sticky-first {
+  background-color: var(--table-row-hover) !important;
+}
+
+/*
  * Theme-aware overrides: remap Tailwind's hardcoded dark:bg-slate-* classes
  * to CSS variables so ALL existing dark UI adapts to the selected theme.
  * Ocean (default): .dark only. Named themes: [data-theme] selector.
@@ -247,14 +281,6 @@ body {
 }
 .dark .dark\:hover\:bg-slate-700:hover,
 [data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-slate-700:hover {
-  background-color: var(--table-row-hover) !important;
-}
-.dark .dark\:group-hover\:\!bg-slate-700,
-[data-theme]:not([data-theme=""]).dark .dark\:group-hover\:\!bg-slate-700 {
-  --tw-bg-opacity: 1;
-}
-.dark .group:hover .dark\:group-hover\:\!bg-slate-700,
-.dark [data-theme]:not([data-theme=""]) .group:hover .dark\:group-hover\:\!bg-slate-700 {
   background-color: var(--table-row-hover) !important;
 }
 .dark .dark\:border-slate-700,

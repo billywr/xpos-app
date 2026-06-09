@@ -20,7 +20,14 @@ import {
   Pagination,
   ConfirmDialog,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   TableSearchInput,
+  tableBodyRow,
+  tableStickyHeadCell,
+  tableHeadCell,
+  tableBodyCell,
+  tableStickyFirstBody,
 } from "@/components/ui";
 import { useDataTable } from "@/hooks/useDataTable";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
@@ -319,13 +326,14 @@ export function StockCountSessionsPage() {
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "600px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr className="bg-slate-50 dark:bg-slate-700/50">
+                      <TableRowNumberHead />
                       <SortableTableHead
                         columnKey="startedAt"
                         label="Started"
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                        className={`${tableStickyHeadCell} ${tableHeadCell}`}
                       />
                       <SortableTableHead
                         columnKey="sourceType"
@@ -333,7 +341,7 @@ export function StockCountSessionsPage() {
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                       <SortableTableHead
                         columnKey="lines"
@@ -341,7 +349,7 @@ export function StockCountSessionsPage() {
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                       <SortableTableHead
                         columnKey="status"
@@ -349,7 +357,7 @@ export function StockCountSessionsPage() {
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                       <SortableTableHead
                         columnKey="actions"
@@ -358,29 +366,30 @@ export function StockCountSessionsPage() {
                         sortDirection={sortDirection}
                         onSort={toggleSort}
                         sortable={false}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                    {filteredSessions.map((s) => (
+                    {filteredSessions.map((s, index) => (
                       <tr
                         key={s.id}
-                        className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                        className={tableBodyRow}
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                    <TableRowNumberCell page={page} pageSize={PAGE_SIZE} indexInPage={index} />
+                        <td className={tableStickyFirstBody}>
                           {new Date(s.startedAt).toLocaleString("en-GB")}
                         </td>
-                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                        <td className={tableBodyCell}>
                           {s.sourceType}
                         </td>
-                        <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                        <td className={tableBodyCell}>
                           {s.lines?.length ?? 0}
                         </td>
-                        <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
+                        <td className={tableBodyCell}>
                           <Badge status={s.status}>{s.status}</Badge>
                         </td>
-                        <td className="px-4 py-2 text-left text-base sm:px-6 sm:py-2.5 sm:text-2xl">
+                        <td className={tableBodyCell}>
                           <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"

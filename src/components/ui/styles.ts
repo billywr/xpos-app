@@ -85,8 +85,43 @@ export const tableCard =
 
 export const tableHeadRow = "bg-slate-50 dark:bg-slate-700";
 
+/** Debts & Expenses reference scale — use on all datatables except the frozen debts pages. */
 export const tableHeadCell =
-  "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300";
+  "px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300";
+
+/** Uniform row hover — pairs with .xpos-table-row rules in index.css */
+export const tableBodyRow = "xpos-table-row";
+
+export const tableBodyCell =
+  "px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400";
+
+export const tableBodyCellNum =
+  "px-4 py-2 text-right text-lg tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400";
+
+/** Debts & Expenses reference — numeric columns are left-aligned with tabular-nums. */
+export const tableBodyCellNumDebts =
+  "px-4 py-2 text-left text-lg tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400";
+
+export const tableEmptyCell =
+  "px-4 py-8 text-center text-lg text-slate-500 sm:px-6 sm:text-xl dark:text-slate-400";
+
+/** Use on `<col>` in `table-fixed` layouts so the No. column stays narrow. */
+export const tableRowNoCol = "w-[3.25rem]";
+
+export const tableRowNoHead =
+  "w-[3.25rem] max-w-[3.25rem] px-1 py-3 text-center text-lg font-semibold uppercase tracking-wide text-slate-700 sm:py-3 sm:text-xl dark:text-slate-300";
+
+export const tableRowNoCell =
+  "w-[3.25rem] max-w-[3.25rem] px-1 py-2 text-center text-lg tabular-nums text-slate-600 sm:py-2.5 sm:text-xl dark:text-slate-400";
+
+export const tableStickyFirstCell =
+  "xpos-table-sticky-first sticky left-0 z-10";
+
+export const tableStickyFirstBody =
+  `${tableStickyFirstCell} px-4 py-2 text-lg font-bold text-slate-900 sm:px-6 sm:py-2.5 sm:text-xl dark:text-white`;
+
+export const tableStickyHeadCell =
+  "xpos-table-sticky-head sticky left-0 z-20";
 
 export const formLabel =
   "block text-sm font-medium text-slate-700 dark:text-slate-300";

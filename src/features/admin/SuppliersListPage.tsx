@@ -20,9 +20,19 @@ import {
   Pagination,
   ConfirmDialog,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   TableSearchInput,
   TableSkeleton,
   FormLabel,
+  tableBodyRow,
+  tableStickyHeadCell,
+  tableHeadCell,
+  tableBodyCell,
+  tableStickyFirstBody,
+  tableEmptyCell,
+  tableCard,
+  tableRowNoCol,
 } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
@@ -199,7 +209,7 @@ export function SuppliersListPage({
     [filteredSuppliers]
   );
   const visibleSuppliersColCount =
-    3 + (showPhoneCol ? 1 : 0) + (showEmailCol ? 1 : 0);
+    4 + (showPhoneCol ? 1 : 0) + (showEmailCol ? 1 : 0);
 
   useEffect(() => {
     if (initialOrgId) {
@@ -377,19 +387,28 @@ export function SuppliersListPage({
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className={tableCard}>
             <div className="relative min-h-0 flex-1 overflow-auto">
               <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-              <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "600px" }}>
+              <table className="w-full table-fixed divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "720px" }}>
+                <colgroup>
+                  <col className={tableRowNoCol} />
+                  <col className="w-[26%]" />
+                  {showPhoneCol && <col className="w-[15%]" />}
+                  {showEmailCol && <col className="w-[22%]" />}
+                  <col className="w-[13%]" />
+                  <col className="w-[16%]" />
+                </colgroup>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
+                    <TableRowNumberHead />
                     <SortableTableHead
                       columnKey="name"
                       label="Name"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                      className={`${tableStickyHeadCell} ${tableHeadCell}`}
                     />
                     {showPhoneCol && (
                       <SortableTableHead
@@ -398,7 +417,7 @@ export function SuppliersListPage({
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                     )}
                     {showEmailCol && (
@@ -408,7 +427,7 @@ export function SuppliersListPage({
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className={tableHeadCell}
                       />
                     )}
                     <SortableTableHead
@@ -417,7 +436,7 @@ export function SuppliersListPage({
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                     <SortableTableHead
                       columnKey="actions"
@@ -426,18 +445,18 @@ export function SuppliersListPage({
                       sortDirection={sortDirection}
                       onSort={toggleSort}
                       sortable={false}
-                      className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                      className={tableHeadCell}
                     />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {isInitialLoad ? (
-                    <TableSkeleton columns={4} />
+                    <TableSkeleton columns={5} />
                   ) : filteredSuppliers.length === 0 ? (
                     <tr>
                       <td
                         colSpan={visibleSuppliersColCount}
-                        className="px-4 py-8 text-center text-base text-slate-500 sm:px-6 sm:text-2xl dark:text-slate-400"
+                        className={tableEmptyCell}
                       >
                         {suppliers.length === 0
                           ? (includeInactive
@@ -447,32 +466,33 @@ export function SuppliersListPage({
                       </td>
                     </tr>
                   ) : (
-                    filteredSuppliers.map((s: Supplier) => (
+                    filteredSuppliers.map((s: Supplier, index) => (
                       <tr
                         key={s.id}
-                        className={`group hover:bg-slate-100 dark:hover:bg-slate-700 ${
+                        className={`${tableBodyRow} ${
                           !s.active ? "opacity-60" : ""
                         }`}
                       >
-                        <td className="sticky left-0 z-10 bg-white group-hover:!bg-slate-100 dark:bg-slate-800 dark:group-hover:!bg-slate-700 px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                        <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
+                        <td className={tableStickyFirstBody}>
                           {s.name}
                         </td>
                         {showPhoneCol && (
-                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                          <td className={tableBodyCell}>
                             {s.phone ?? "—"}
                           </td>
                         )}
                         {showEmailCol && (
-                          <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                          <td className={tableBodyCell}>
                             {s.email ?? "—"}
                           </td>
                         )}
-                        <td className="px-4 py-2 sm:px-6 sm:py-2.5">
+                        <td className={tableBodyCell}>
                           <Badge status={s.active ? "ACTIVE" : "INACTIVE"}>
                             {s.active ? "Active" : "Inactive"}
                           </Badge>
                         </td>
-                        <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
+                        <td className={tableBodyCell}>
                           <div className="flex justify-start gap-1">
                             {s.active ? (
                               <>

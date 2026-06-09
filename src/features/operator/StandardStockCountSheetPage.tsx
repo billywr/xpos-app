@@ -45,11 +45,19 @@ import {
   Modal,
   Pagination,
   SortableTableHead,
+  TableRowNumberHead,
+  TableRowNumberCell,
   StatChip,
   TableSearchInput,
   TableSkeleton,
   ConfirmDialog,
   tableHeadCell,
+  tableBodyCell,
+  tableBodyCellNumDebts,
+  tableBodyRow,
+  tableStickyFirstBody,
+  tableStickyHeadCell,
+  tableCard,
 } from "@/components/ui";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { useDataTable } from "@/hooks/useDataTable";
@@ -792,20 +800,21 @@ export function StandardStockCountSheetPage({
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">
             ← swipe table to see all columns →
           </p>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+          <div className={tableCard}>
             <div className="relative min-h-0 flex-1 overflow-auto">
               {/* Gradient fade on right edge */}
               <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-              <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "600px" }}>
+              <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "900px" }}>
               <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700">
                 <tr>
+                  <TableRowNumberHead />
                   <SortableTableHead
                     columnKey="item"
                     label="Item"
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={`sticky left-0 z-20 bg-slate-50 dark:bg-slate-700 ${tableHeadCell}`}
+                    className={`${tableStickyHeadCell} ${tableHeadCell}`}
                     title="Product name"
                   />
                   <SortableTableHead
@@ -814,7 +823,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={`${tableHeadCell} text-right`}
+                    className={tableHeadCell}
                     title="Latest saved closing before this date (from your last stock count save)"
                   />
                   <SortableTableHead
@@ -823,7 +832,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={`${tableHeadCell} text-right`}
+                    className={tableHeadCell}
                     title="GRN receipts since your last saved count through this date"
                   />
                   <SortableTableHead
@@ -832,7 +841,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={`${tableHeadCell} text-right`}
+                    className={tableHeadCell}
                     title="Opening + Added + stock-take adds; equals System when counts align with the ledger"
                   />
                   <SortableTableHead
@@ -841,7 +850,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={`${tableHeadCell} text-right`}
+                    className={tableHeadCell}
                     title="Physical count at end of day"
                   />
                   <SortableTableHead
@@ -850,7 +859,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={`${tableHeadCell} text-right`}
+                    className={tableHeadCell}
                     title="Total Stock − Closing (units sold)"
                   />
                   <SortableTableHead
@@ -875,27 +884,22 @@ export function StandardStockCountSheetPage({
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                 {isInitialLoad ? (
-                  <TableSkeleton columns={8} rows={12} />
-                ) : paginatedRows.map((r) => (
+                  <TableSkeleton columns={9} rows={12} />
+                ) : paginatedRows.map((r, index) => (
                   <tr
                     key={r.itemId}
-                    className="group hover:bg-slate-100 dark:hover:bg-slate-700"
+                    className={tableBodyRow}
                   >
-                    <td className="sticky left-0 z-10 bg-white px-4 py-2 text-base font-semibold text-slate-700 group-hover:!bg-slate-100 sm:px-6 sm:py-2.5 sm:text-2xl dark:bg-slate-800 dark:text-slate-300 dark:group-hover:!bg-slate-700">
+                    <TableRowNumberCell page={page} pageSize={pageSize} indexInPage={index} />
+                    <td className={tableStickyFirstBody}>
                       {r.name || "—"}
                     </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
-                      {r.openingStock}
-                    </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
-                      {r.addedStock}
-                    </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
-                      {r.totalStock}
-                    </td>
-                    <td className="px-4 py-2 sm:px-6 sm:py-2.5">
+                    <td className={tableBodyCellNumDebts}>{r.openingStock}</td>
+                    <td className={tableBodyCellNumDebts}>{r.addedStock}</td>
+                    <td className={tableBodyCellNumDebts}>{r.totalStock}</td>
+                    <td className={canEdit ? tableBodyCell : tableBodyCellNumDebts}>
                       {canEdit ? (
-                        <div className="flex flex-col items-end">
+                        <div className="flex flex-col">
                           <input
                             type="text"
                             inputMode="decimal"
@@ -908,7 +912,7 @@ export function StandardStockCountSheetPage({
                             onChange={(e) =>
                               handleClosingChange(r.itemId, e.target.value)
                             }
-                            className={`w-20 rounded border px-1.5 py-1 text-right text-base tabular-nums font-medium sm:w-24 sm:px-2 sm:py-1 sm:text-2xl ${
+                            className={`w-20 rounded border px-2 py-1 text-left text-lg tabular-nums sm:w-24 sm:text-xl ${
                               r.closingError
                                 ? "border-red-500 bg-red-50 dark:border-red-600 dark:bg-red-950/20"
                                 : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800"
@@ -921,18 +925,12 @@ export function StandardStockCountSheetPage({
                           )}
                         </div>
                       ) : (
-                        <span className="block text-right text-base tabular-nums font-medium text-slate-600 sm:text-2xl dark:text-slate-400">
-                          {r.closingStock}
-                        </span>
+                        r.closingStock
                       )}
                     </td>
-                    <td className="px-4 py-2 text-right text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
-                      {r.unitsSold}
-                    </td>
-                    <td className="px-4 py-2 text-left text-base tabular-nums font-medium text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
-                      {formatAmount(r.sellingPrice)}
-                    </td>
-                    <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                    <td className={tableBodyCellNumDebts}>{r.unitsSold}</td>
+                    <td className={tableBodyCellNumDebts}>{formatAmount(r.sellingPrice)}</td>
+                    <td className={`${tableBodyCellNumDebts} font-bold text-slate-700 dark:text-slate-300`}>
                       {formatAmount(r.amount)}
                     </td>
                   </tr>

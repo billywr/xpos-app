@@ -46,6 +46,17 @@ import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { getItemImageUrl } from "@/utils/itemImage";
 import { MenuItemCard } from "@/components/MenuItemCard";
 import { PageHeader } from "@/components/PageHeader";
+import {
+  tableBodyRow,
+  tableStickyHeadCell,
+  tableHeadCell,
+  tableHeadRow,
+  tableBodyCellNum,
+  tableStickyFirstBody,
+  tableBodyCell,
+  tableRowNoHead,
+  TableRowNumberCell,
+} from "@/components/ui";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { BarcodeCaptureInput } from "@/components/BarcodeCaptureInput";
 import { ModifierModal } from "@/components/ModifierModal";
@@ -1416,27 +1427,33 @@ function PaymentModal({
                 aria-label="Sale line items and subtotals"
               >
                 <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-                <table className="w-full text-left text-base sm:text-2xl" style={{ minWidth: "420px" }}>
-                  <thead className="border-b border-slate-200 bg-slate-50 text-base font-semibold uppercase tracking-wide text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                <table className="w-full text-left text-lg sm:text-xl" style={{ minWidth: "420px" }}>
+                  <thead className={`border-b border-slate-200 bg-slate-50 dark:border-slate-600 ${tableHeadRow}`}>
                     <tr>
-                      <th className="sticky left-0 z-20 bg-slate-50 px-4 py-3 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700">Item</th>
-                      <th className="px-4 py-3 text-right sm:px-6 sm:py-3 sm:text-2xl">Qty</th>
-                      <th className="px-4 py-3 text-left sm:px-6 sm:py-3 sm:text-2xl">Unit (KSH)</th>
-                      <th className="px-4 py-3 text-left sm:px-6 sm:py-3 sm:text-2xl">Subtotal (KSH)</th>
+                      <th className={tableRowNoHead}>No.</th>
+                      <th className={`${tableStickyHeadCell} ${tableHeadCell}`}>Item</th>
+                      <th className={`${tableHeadCell} text-right`}>Qty</th>
+                      <th className={`${tableHeadCell} text-right`}>Unit (KSH)</th>
+                      <th className={`${tableHeadCell} text-right`}>Subtotal (KSH)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                    {(sale.lines ?? []).map((line) => (
+                    {(sale.lines ?? []).map((line, index) => (
                       <Fragment key={line.id}>
-                        <tr className="group text-slate-800 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-700">
-                          <td className="sticky left-0 z-10 max-w-[7rem] bg-white group-hover:!bg-slate-100 px-4 py-2 align-top sm:max-w-[10rem] sm:px-6 sm:py-2.5 sm:text-2xl dark:bg-slate-800 dark:group-hover:!bg-slate-700">
+                        <tr className={`${tableBodyRow} text-slate-800 dark:text-white`}>
+                          <TableRowNumberCell
+                            page={0}
+                            pageSize={(sale.lines ?? []).length || 1}
+                            indexInPage={index}
+                          />
+                          <td className={`${tableStickyFirstBody} max-w-[7rem] sm:max-w-[10rem] align-top`}>
                             <span className="font-semibold text-slate-700 leading-snug dark:text-slate-300">{line.itemName}</span>
                           </td>
-                          <td className="px-4 py-2 text-right text-base tabular-nums text-slate-600 align-top sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">{line.qty}</td>
-                          <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 align-top sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
+                          <td className={tableBodyCellNum}>{line.qty}</td>
+                          <td className={tableBodyCellNum}>
                             {formatAmount(line.unitPrice)}
                           </td>
-                          <td className="px-4 py-2 text-left text-base tabular-nums font-semibold text-slate-700 align-top sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300">
+                          <td className={tableBodyCellNum}>
                             {formatAmount(line.lineTotal)}
                           </td>
                         </tr>
@@ -1447,14 +1464,14 @@ function PaymentModal({
                               key={`${line.id}-mod-${m.id}`}
                               className="bg-slate-50/80 text-xs text-slate-600 dark:bg-slate-800/40 dark:text-slate-400"
                             >
-                              <td className="px-4 py-2 pl-6 text-base sm:px-6 sm:py-2.5 sm:text-2xl" colSpan={2}>
+                              <td className={`${tableBodyCell} pl-6`} colSpan={3}>
                                 + {m.modifierOptionName}
                                 {m.qty > 1 ? ` × ${m.qty}` : ""}
                               </td>
-                              <td className="px-4 py-2 text-left text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl">
+                              <td className={tableBodyCellNum}>
                                 {modAmt !== 0 ? formatAmount(m.unitPriceDelta) : "—"}
                               </td>
-                              <td className="px-4 py-2 text-left text-base tabular-nums sm:px-6 sm:py-2.5 sm:text-2xl">
+                              <td className={tableBodyCellNum}>
                                 {modAmt !== 0 ? formatAmount(modAmt) : "—"}
                               </td>
                             </tr>
