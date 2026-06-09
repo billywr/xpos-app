@@ -22,7 +22,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { generateUuid } from "@/utils/uuid";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { Pagination, SortableTableHead, TableSearchInput } from "@/components/ui";
+import { Pagination, SortableTableHead, StatChip, TableSearchInput } from "@/components/ui";
 import { useDataTable } from "@/hooks/useDataTable";
 import {
   ChevronLeft,
@@ -392,7 +392,7 @@ export function ManualStockCountSheetPage() {
 
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex min-w-0 items-center gap-2">
-          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Filter by name or SKU" />
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search all columns…" />
           {sheet?.lastSavedAt && (
             <span className="hidden shrink-0 text-xs text-slate-500 md:inline dark:text-slate-400">
               Saved: {new Date(sheet.lastSavedAt).toLocaleString()}
@@ -762,23 +762,17 @@ export function ManualStockCountSheetPage() {
           </div>
 
           <div className="mt-4 flex justify-end">
-            <div
-              className="total-sales-badge inline-flex items-center gap-3 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 px-6 py-4 shadow-lg ring-2 ring-emerald-100/50 dark:border-emerald-800 dark:from-emerald-950/50 dark:to-teal-950/50 dark:ring-emerald-900/30"
-              role="status"
-            >
-              <span className="text-base font-medium uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                Total Sales
-              </span>
-              <span className="text-2xl font-bold tabular-nums text-emerald-900 dark:text-emerald-100">
-                {formatCurrency(totals.amount)}
-              </span>
-            </div>
+            <StatChip
+              label="Total Sales"
+              value={formatCurrency(totals.amount)}
+              tone="sales"
+            />
           </div>
         </>
       )}
 
       {addModal === "catalog" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm dark:bg-slate-950/60">
           <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-600 dark:bg-slate-800">
             <h3 className="mb-3 text-lg font-semibold text-slate-900 dark:text-white">
               Add from catalog
@@ -814,7 +808,7 @@ export function ManualStockCountSheetPage() {
       )}
 
       {addModal === "custom" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm dark:bg-slate-950/60">
           <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-600 dark:bg-slate-800">
             <h3 className="mb-3 text-lg font-semibold text-slate-900 dark:text-white">
               Custom line

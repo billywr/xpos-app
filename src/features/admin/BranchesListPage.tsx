@@ -16,12 +16,18 @@ import { filterActiveOrgs } from "@/types/org";
 import type { Branch } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
 import {
+  Badge,
+  Button,
+  IconButton,
   SlideOver,
   ConfirmDialog,
   Pagination,
   SortableTableHead,
   TableSearchInput,
+  TableSkeleton,
+  FormLabel,
 } from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -71,11 +77,13 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
     enabled: Boolean(token),
   });
 
-  const { data: branchesData, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const branchesQuery = useQuery({
     queryKey: ["admin-branches", token, selectedOrgId, page, size],
     queryFn: () => fetchBranches(token, selectedOrgId, { page, size }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
+  const { data: branchesData, isError, error, refetch } = branchesQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(branchesQuery);
 
   const { data: businessesData } = useQuery({
     queryKey: ["admin-businesses", token, selectedOrgId],
@@ -332,45 +340,6 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
     []
   );
 
-  if (isLoading && selectedOrgId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Branches"
-          subtitle="Loading…"
-          fallbackTo="/admin"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
-  if (isError && selectedOrgId) {
-    const message = getApiErrorMessage(error);
-    const requestId = getApiErrorRequestId(error);
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Branches"
-          fallbackTo="/admin"
-        />
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{message}</p>
-          {requestId && (
-            <p className="mt-2 text-sm opacity-90">
-              Reference: <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">{requestId}</code>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <PageHeader
@@ -401,14 +370,10 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
           />
         </div>
         {selectedOrgId && (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-500 dark:hover:bg-primary-600 dark:focus:ring-offset-slate-800"
-          >
+          <Button onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Add branch
-          </button>
+          </Button>
         )}
       </div>
 
@@ -418,6 +383,22 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
         </div>
       ) : (
         <>
+          {isError && (
+            <div
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              role="alert"
+            >
+              <p>{getApiErrorMessage(error)}</p>
+              {getApiErrorRequestId(error) && (
+                <p className="mt-2 text-sm opacity-90">
+                  Reference:{" "}
+                  <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
+                    {getApiErrorRequestId(error)}
+                  </code>
+                </p>
+              )}
+            </div>
+          )}
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search branches…" className="mb-4" />
 
           {totalElements > 0 && (
@@ -430,7 +411,7 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
               onRefresh={() => void refetch()}
-              isRefreshing={isFetching}
+              isRefreshing={isRefreshing}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -484,7 +465,9 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {filteredBranches.length === 0 ? (
+                  {isInitialLoad ? (
+                    <TableSkeleton columns={5} />
+                  ) : filteredBranches.length === 0 ? (
                     <tr>
                       <td
                         colSpan={5}
@@ -509,48 +492,35 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
                           {branch.currency}
                         </td>
                         <td className="px-4 py-2 sm:px-6 sm:py-2.5">
-                          <span
-                            className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
-                              branch.status === "ACTIVE"
-                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                            }`}
-                          >
-                            {branch.status}
-                          </span>
+                          <Badge status={branch.status}>{branch.status}</Badge>
                         </td>
                         <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
                           <div className="flex justify-start gap-2">
-                            <button
-                              type="button"
+                            <IconButton
                               onClick={() => openEdit(branch)}
-                              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
                               title={`Edit ${branch.name}`}
                               aria-label={`Edit ${branch.name}`}
                             >
                               <Pencil className="h-4 w-4" />
-                            </button>
+                            </IconButton>
                             {branch.status === "ACTIVE" && (
-                              <button
-                                type="button"
+                              <IconButton
                                 onClick={() => setConfirmDeactivate(branch)}
-                                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
                                 title={`Deactivate ${branch.name}`}
                                 aria-label={`Deactivate ${branch.name}`}
                               >
                                 <Ban className="h-4 w-4" />
-                              </button>
+                              </IconButton>
                             )}
                             {(branch.status === "ACTIVE" || branch.status === "INACTIVE") && (
-                              <button
-                                type="button"
+                              <IconButton
+                                variant="danger"
                                 onClick={() => setConfirmDelete(branch)}
-                                className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
                                 title={`Delete ${branch.name}`}
                                 aria-label={`Delete ${branch.name}`}
                               >
                                 <Trash2 className="h-4 w-4" />
-                              </button>
+                              </IconButton>
                             )}
                           </div>
                         </td>
@@ -578,12 +548,9 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
                 </p>
               )}
               <div>
-                <label
-                  htmlFor="branch-name"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="branch-name" className="mb-1">
                   Name
-                </label>
+                </FormLabel>
                 <input
                   id="branch-name"
                   type="text"
@@ -595,12 +562,9 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
                 />
               </div>
               <div>
-                <label
-                  htmlFor="branch-business"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="branch-business" className="mb-1">
                   Business
-                </label>
+                </FormLabel>
                 <SearchableSelect
                   id="branch-business"
                   options={businessSelectOptions}
@@ -624,12 +588,9 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
                 )}
               </div>
               <div>
-                <label
-                  htmlFor="branch-timezone"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="branch-timezone" className="mb-1">
                   Timezone
-                </label>
+                </FormLabel>
                 <input
                   id="branch-timezone"
                   type="text"
@@ -640,12 +601,9 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
                 />
               </div>
               <div>
-                <label
-                  htmlFor="branch-currency"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="branch-currency" className="mb-1">
                   Currency
-                </label>
+                </FormLabel>
                 <input
                   id="branch-currency"
                   type="text"
@@ -657,12 +615,9 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
               </div>
               {editingBranch && (
                 <div>
-                  <label
-                    htmlFor="branch-status"
-                    className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                  >
+                  <FormLabel htmlFor="branch-status" className="mb-1">
                     Status
-                  </label>
+                  </FormLabel>
                   <SearchableSelect
                     id="branch-status"
                     options={branchStatusOptions}
@@ -675,24 +630,16 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
                 </div>
               )}
               <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setSlideOpen(false)}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                >
+                <Button type="button" variant="secondary" size="md" onClick={() => setSlideOpen(false)}>
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitLoading}
-                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
-                >
+                </Button>
+                <Button type="submit" size="md" disabled={submitLoading}>
                   {submitLoading
                     ? "Saving…"
                     : editingBranch
                       ? "Save"
                       : "Create"}
-                </button>
+                </Button>
               </div>
             </form>
           </SlideOver>

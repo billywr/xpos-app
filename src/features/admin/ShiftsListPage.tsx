@@ -9,7 +9,8 @@ import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { Shift } from "@/types/shift";
 import { PageHeader } from "@/components/PageHeader";
-import { Pagination, SortableTableHead, TableSearchInput } from "@/components/ui";
+import { Badge, Pagination, SortableTableHead, TableSearchInput, TableSkeleton } from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatAmount } from "@/utils/formatCurrency";
@@ -47,12 +48,14 @@ export function ShiftsListPage() {
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
 
-  const { data: shiftsData, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const shiftsQuery = useQuery({
     queryKey: ["admin-shifts", token, selectedOrgId, selectedBranchId, page, size],
     queryFn: () =>
       fetchShifts(token, selectedOrgId, selectedBranchId, { page, size }),
     enabled: Boolean(token) && Boolean(selectedOrgId) && Boolean(selectedBranchId),
   });
+  const { data: shiftsData, isError, error, refetch } = shiftsQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(shiftsQuery);
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
@@ -135,47 +138,6 @@ export function ShiftsListPage() {
     [branches]
   );
 
-  if (isLoading && selectedOrgId && selectedBranchId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Shifts"
-          subtitle="Loading…"
-          icon={Wallet}
-          fallbackTo="/admin"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
-  if (isError && selectedOrgId && selectedBranchId) {
-    const message = getApiErrorMessage(error);
-    const requestId = getApiErrorRequestId(error);
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Shifts"
-          icon={Wallet}
-          fallbackTo="/admin"
-        />
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{message}</p>
-          {requestId && (
-            <p className="mt-2 text-sm opacity-90">
-              Reference: <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">{requestId}</code>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <PageHeader
@@ -235,6 +197,22 @@ export function ShiftsListPage() {
         </div>
       ) : (
         <>
+          {isError && (
+            <div
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              role="alert"
+            >
+              <p>{getApiErrorMessage(error)}</p>
+              {getApiErrorRequestId(error) && (
+                <p className="mt-2 text-sm opacity-90">
+                  Reference:{" "}
+                  <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
+                    {getApiErrorRequestId(error)}
+                  </code>
+                </p>
+              )}
+            </div>
+          )}
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search shifts…" className="mb-4" />
 
           {totalElements > 0 && (
@@ -247,7 +225,7 @@ export function ShiftsListPage() {
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
               onRefresh={() => void refetch()}
-              isRefreshing={isFetching}
+              isRefreshing={isRefreshing}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -314,7 +292,9 @@ export function ShiftsListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {filteredShifts.length === 0 ? (
+                  {isInitialLoad ? (
+                    <TableSkeleton columns={6} />
+                  ) : filteredShifts.length === 0 ? (
                     <tr>
                       <td
                         colSpan={visibleShiftsColCount}
@@ -340,15 +320,7 @@ export function ShiftsListPage() {
                           </td>
                         )}
                         <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
-                          <span
-                            className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
-                              shift.status === "OPEN"
-                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                            }`}
-                          >
-                            {shift.status}
-                          </span>
+                          <Badge status={shift.status}>{shift.status}</Badge>
                         </td>
                         <td className="px-4 py-2 text-left text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
                           {formatAmount(shift.openingFloatAmount)}

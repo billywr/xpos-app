@@ -11,7 +11,8 @@ import {
 import { fetchOpenOrHeldSales, voidSale } from "@/api/sales";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { PageHeader } from "@/components/PageHeader";
-import { ConfirmDialog } from "@/components/ui";
+import { ConfirmDialog, TableSkeleton } from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import type { Sale } from "@/types/sales";
@@ -30,12 +31,14 @@ export function PaymentsPage() {
   const toast = useToast();
   const [saleToVoid, setSaleToVoid] = useState<Sale | null>(null);
 
-  const { data: sales = [], isLoading } = useQuery({
+  const salesQuery = useQuery({
     queryKey: ["openOrHeldSales", token, orgId, branchId, terminalId],
     queryFn: () =>
       fetchOpenOrHeldSales(token!, orgId!, branchId!, terminalId!),
     enabled: Boolean(token && orgId && branchId && terminalId),
   });
+  const { data: sales = [] } = salesQuery;
+  const { isInitialLoad } = useQueryDisplay(salesQuery);
 
   const voidMutation = useMutation({
     mutationFn: (saleId: string) =>
@@ -61,22 +64,6 @@ export function PaymentsPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto p-4">
-        <PageHeader
-          title="Payments"
-          subtitle="Loading…"
-          icon={CreditCard}
-          fallbackTo="/operator"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto p-4">
       <PageHeader
@@ -86,7 +73,17 @@ export function PaymentsPage() {
         fallbackTo="/operator"
       />
 
-      {sales.length > 0 && (
+      {isInitialLoad && (
+        <div className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+          <table className="min-w-full">
+            <tbody>
+              <TableSkeleton rows={3} columns={1} />
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!isInitialLoad && sales.length > 0 && (
         <div className="mb-6">
           <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
             Open sales ({sales.length})
@@ -132,6 +129,7 @@ export function PaymentsPage() {
         </div>
       )}
 
+      {!isInitialLoad && (
       <Link
         to="/operator/menu-order"
         className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-3 font-medium text-white hover:bg-primary-500"
@@ -139,6 +137,7 @@ export function PaymentsPage() {
         <ShoppingBag className="h-5 w-5" />
         Open POS
       </Link>
+      )}
 
       <ConfirmDialog
         open={saleToVoid !== null}

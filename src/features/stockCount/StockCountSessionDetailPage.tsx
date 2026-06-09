@@ -14,8 +14,9 @@ import {
 } from "lucide-react";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { PageHeader } from "@/components/PageHeader";
-import { ConfirmDialog, SortableTableHead, TableSearchInput } from "@/components/ui";
+import { ConfirmDialog, SortableTableHead, TableSearchInput, TableSkeleton } from "@/components/ui";
 import { useDataTable } from "@/hooks/useDataTable";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/contexts/ToastContext";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
@@ -105,11 +106,32 @@ export function StockCountSessionDetailPage({
   const [editingQty, setEditingQty] = useState("");
   const [deleteConfirmLineId, setDeleteConfirmLineId] = useState<string | null>(null);
 
-  const { data: session, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const sessionQuery = useQuery({
     queryKey: [...queryKey, "session", sessionId],
     queryFn: () => fetchSession(sessionId!),
     enabled: Boolean(token && orgId && sessionId),
   });
+  const { data: session, isError, error, refetch } = sessionQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(sessionQuery);
+
+  const lines = session?.lines ?? [];
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredRows: filteredLines,
+    sortColumn,
+    sortDirection,
+    toggleSort,
+  } = useDataTable(lines, undefined, { sortAccessors: STOCK_COUNT_LINE_SORT });
+
+  const showUnitCostCol = useMemo(
+    () => filteredLines.some((l: StockCountLineResponse) => l.unitCost != null),
+    [filteredLines]
+  );
+  const showSellPriceCol = useMemo(
+    () => filteredLines.some((l: StockCountLineResponse) => l.sellingPrice != null),
+    [filteredLines]
+  );
 
   const { data: itemsData } = useQuery({
     queryKey: ["items", token, orgId],
@@ -239,53 +261,6 @@ export function StockCountSessionDetailPage({
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center p-6">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-      </div>
-    );
-  }
-
-  if (isError || !session) {
-    return (
-      <div className="p-6">
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{error ? getApiErrorMessage(error) : "Session not found."}</p>
-        </div>
-        <Link
-          to={backHref}
-          className="mt-4 inline-flex items-center gap-1 text-primary-600 hover:underline dark:text-primary-400"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to sessions
-        </Link>
-      </div>
-    );
-  }
-
-  const lines = session.lines ?? [];
-  const {
-    searchQuery,
-    setSearchQuery,
-    filteredRows: filteredLines,
-    sortColumn,
-    sortDirection,
-    toggleSort,
-  } = useDataTable(lines, undefined, { sortAccessors: STOCK_COUNT_LINE_SORT });
-
-  const showUnitCostCol = useMemo(
-    () => filteredLines.some((l: StockCountLineResponse) => l.unitCost != null),
-    [filteredLines]
-  );
-  const showSellPriceCol = useMemo(
-    () => filteredLines.some((l: StockCountLineResponse) => l.sellingPrice != null),
-    [filteredLines]
-  );
-
   const totalCountedValue = lines.reduce(
     (sum, l) =>
       sum +
@@ -327,49 +302,92 @@ export function StockCountSessionDetailPage({
     <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-6">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <PageHeader
-          title={`Stock count ${session.status === "OPEN" ? "(open)" : "(closed)"}`}
-          subtitle={`${branchName ?? "Branch"} · Started ${new Date(session.startedAt).toLocaleString("en-GB")} · ${session.sourceType}`}
+          title={
+            isInitialLoad
+              ? "Stock count"
+              : `Stock count ${session?.status === "OPEN" ? "(open)" : "(closed)"}`
+          }
           icon={ClipboardList}
           fallbackTo="/operator"
           noMargin
-        />
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleDownloadPdf}
-            className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-          >
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Download PDF</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleSharePdf}
-            className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-          >
-            <Share2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Share report</span>
-          </button>
-          {session.status === "OPEN" && (
+        >
+          {!isInitialLoad && session && (
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              {`${branchName ?? "Branch"} · Started ${new Date(session.startedAt).toLocaleString("en-GB")} · ${session.sourceType}`}
+            </p>
+          )}
+        </PageHeader>
+        {session && (
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={handleClose}
-              disabled={closeSubmitting}
-              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              onClick={handleDownloadPdf}
+              className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
             >
-              {closeSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-              <span className="hidden sm:inline">Close session</span>
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Download PDF</span>
             </button>
-          )}
-        </div>
+            <button
+              type="button"
+              onClick={handleSharePdf}
+              className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
+              <Share2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Share report</span>
+            </button>
+            {session.status === "OPEN" && (
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={closeSubmitting}
+                className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {closeSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">Close session</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
+      {(isError || (!isInitialLoad && !session)) && (
+        <>
+          <div
+            className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+            role="alert"
+          >
+            <p>{error ? getApiErrorMessage(error) : "Session not found."}</p>
+          </div>
+          <Link
+            to={backHref}
+            className="inline-flex items-center gap-1 text-primary-600 hover:underline dark:text-primary-400"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to sessions
+          </Link>
+        </>
+      )}
+
+      {isInitialLoad && (
+        <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+          <div className="overflow-auto">
+            <table className="w-full">
+              <tbody>
+                <TableSkeleton columns={6} rows={10} />
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {session && !isInitialLoad && (
+        <>
       {/* Counted items – full page display */}
-      <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search items…" className="mb-4" onRefresh={() => void refetch()} isRefreshing={isFetching} />
+      <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search items…" className="mb-4" onRefresh={() => void refetch()} isRefreshing={isRefreshing} />
       <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
         <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-600">
           <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -670,6 +688,8 @@ export function StockCountSessionDetailPage({
             </button>
           </div>
         </div>
+      )}
+        </>
       )}
 
       <ConfirmDialog

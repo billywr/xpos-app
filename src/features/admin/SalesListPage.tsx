@@ -17,7 +17,9 @@ import {
   SortableTableHead,
   TableSearchInput,
   TableSkeleton,
+  StatChip,
 } from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
@@ -72,12 +74,14 @@ export function SalesListPage() {
     toDate,
   };
 
-  const { data: salesData, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const salesQuery = useQuery({
     queryKey: ["admin-sales", token, selectedOrgId, selectedBranchId, params],
     queryFn: () =>
       fetchAdminSales(token, selectedOrgId, selectedBranchId, params),
     enabled: Boolean(token) && Boolean(selectedOrgId) && Boolean(selectedBranchId),
   });
+  const { data: salesData, isError, error, refetch } = salesQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(salesQuery);
 
   const sales = salesData?.content ?? [];
   const {
@@ -243,32 +247,6 @@ export function SalesListPage() {
     [branches]
   );
 
-  if (isError && selectedOrgId && selectedBranchId) {
-    const message = getApiErrorMessage(error);
-    const requestId = getApiErrorRequestId(error);
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Sales
-        </h1>
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{message}</p>
-          {requestId && (
-            <p className="mt-2 text-sm opacity-90">
-              Reference:{" "}
-              <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
-                {requestId}
-              </code>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -371,6 +349,22 @@ export function SalesListPage() {
         </div>
       ) : (
         <>
+          {isError && (
+            <div
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              role="alert"
+            >
+              <p>{getApiErrorMessage(error)}</p>
+              {getApiErrorRequestId(error) && (
+                <p className="mt-2 text-sm opacity-90">
+                  Reference:{" "}
+                  <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
+                    {getApiErrorRequestId(error)}
+                  </code>
+                </p>
+              )}
+            </div>
+          )}
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search sales…" className="mb-4" />
           {totalElements > 0 && (
             <Pagination
@@ -382,7 +376,7 @@ export function SalesListPage() {
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
               onRefresh={() => void refetch()}
-              isRefreshing={isFetching}
+              isRefreshing={isRefreshing}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -442,7 +436,7 @@ export function SalesListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {isLoading && sales.length === 0 ? (
+                  {isInitialLoad ? (
                     <TableSkeleton rows={10} columns={visibleSalesColCount} />
                   ) : filteredSales.length === 0 ? (
                     <tr>
@@ -562,17 +556,12 @@ export function SalesListPage() {
 
           {totalElements > 0 && (
             <div className="mt-4 flex justify-end">
-              <div
-                className="sales-total-chip inline-flex flex-col items-end gap-0.5 rounded-2xl border border-slate-200/90 bg-white px-5 py-3 shadow-md ring-1 ring-slate-200/50 hover:shadow-lg dark:border-slate-600/70 dark:bg-slate-800 dark:ring-slate-700/50 dark:hover:shadow-black/30"
-                aria-label={`Total sales for selected range: ${formatCurrency(totalSalesSum)}`}
-              >
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Total sales
-                </span>
-                <span className="text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
-                  {formatCurrency(totalSalesSum)}
-                </span>
-              </div>
+              <StatChip
+                label="Total sales"
+                value={formatCurrency(totalSalesSum)}
+                tone="neutral"
+                className="items-end text-right"
+              />
             </div>
           )}
         </>

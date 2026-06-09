@@ -62,6 +62,7 @@ export function useServerPaginatedTableSearch<T>({
     allRows: needsFullDataset ? allRowsData?.content : undefined,
     serverTotalElements,
     getSearchableText,
+    sortAccessors,
     sortColumn,
     sortDirection,
     getSortValue: sortAccessors

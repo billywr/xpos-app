@@ -18,11 +18,15 @@ import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
 import {
+  Badge,
+  Button,
+  IconButton,
   SlideOver,
   Pagination,
   ConfirmDialog,
   SortableTableHead,
   TableSearchInput,
+  FormLabel,
 } from "@/components/ui";
 import { useDataTable } from "@/hooks/useDataTable";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
@@ -352,15 +356,13 @@ export function StockTakingSchedulesPage() {
             className="w-full sm:w-auto min-w-[12rem]"
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
           />
-          <button
-            type="button"
+          <Button
             onClick={openCreate}
             disabled={!selectedOrgId || filteredBranches.length === 0}
-            className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
             Add schedule
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -474,20 +476,13 @@ export function StockTakingSchedulesPage() {
                           </td>
                         )}
                         <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
-                          <span
-                            className={`inline-flex justify-start rounded-full px-2 py-1 text-left text-xs font-medium ${
-                              s.isActive
-                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
-                            }`}
-                          >
+                          <Badge status={s.isActive ? "ACTIVE" : "INACTIVE"}>
                             {s.isActive ? "Active" : "Inactive"}
-                          </span>
+                          </Badge>
                         </td>
                         <td className="px-4 py-2 text-left text-base sm:px-6 sm:py-2.5 sm:text-2xl">
                           <div className="flex items-center justify-start gap-2">
-                            <button
-                              type="button"
+                            <IconButton
                               onClick={() => {
                                 setTriggeringId(s.id);
                                 triggerMutation.mutate(s.id);
@@ -496,30 +491,29 @@ export function StockTakingSchedulesPage() {
                                 !s.isActive || triggeringId === s.id
                               }
                               title="Run now"
-                              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-primary-600 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-primary-400"
+                              aria-label="Run now"
                             >
                               {triggeringId === s.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <Play className="h-4 w-4" />
                               )}
-                            </button>
-                            <button
-                              type="button"
+                            </IconButton>
+                            <IconButton
                               onClick={() => openEdit(s)}
-                              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-primary-600 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-primary-400"
                               title="Edit"
+                              aria-label="Edit"
                             >
                               <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
+                            </IconButton>
+                            <IconButton
+                              variant="danger"
                               onClick={() => setDeleteSchedule(s)}
-                              className="rounded-lg p-2 text-slate-600 hover:bg-red-100 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-900/30 dark:hover:text-red-400"
                               title="Delete"
+                              aria-label="Delete"
                             >
                               <Trash2 className="h-4 w-4" />
-                            </button>
+                            </IconButton>
                           </div>
                         </td>
                       </tr>
@@ -544,12 +538,9 @@ export function StockTakingSchedulesPage() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {!editingSchedule && (
             <div>
-              <label
-                htmlFor="stock-schedule-branch"
-                className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Branch *
-              </label>
+              <FormLabel htmlFor="stock-schedule-branch" className="mb-1" required>
+                Branch
+              </FormLabel>
               <SearchableSelect
                 id="stock-schedule-branch"
                 options={scheduleBranchFormOptions}
@@ -562,12 +553,9 @@ export function StockTakingSchedulesPage() {
             </div>
           )}
           <div>
-            <label
-              htmlFor="stock-schedule-frequency"
-              className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
+            <FormLabel htmlFor="stock-schedule-frequency" className="mb-1">
               Frequency
-            </label>
+            </FormLabel>
             <SearchableSelect
               id="stock-schedule-frequency"
               options={frequencyOptions}
@@ -580,12 +568,9 @@ export function StockTakingSchedulesPage() {
           </div>
           {frequency === "WEEKLY" && (
             <div>
-              <label
-                htmlFor="stock-schedule-dow"
-                className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
+              <FormLabel htmlFor="stock-schedule-dow" className="mb-1">
                 Day of week
-              </label>
+              </FormLabel>
               <SearchableSelect
                 id="stock-schedule-dow"
                 options={dayOfWeekOptions}
@@ -600,9 +585,9 @@ export function StockTakingSchedulesPage() {
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              <FormLabel className="mb-1">
                 Hour (0–23)
-              </label>
+              </FormLabel>
               <input
                 type="number"
                 min={0}
@@ -613,9 +598,9 @@ export function StockTakingSchedulesPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              <FormLabel className="mb-1">
                 Minute (0–59)
-              </label>
+              </FormLabel>
               <input
                 type="number"
                 min={0}
@@ -641,27 +626,28 @@ export function StockTakingSchedulesPage() {
             </div>
           )}
           <div className="mt-4 flex justify-end gap-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="md"
               onClick={() => {
                 setSlideOpen(false);
                 setEditingSchedule(null);
                 resetForm();
               }}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              size="md"
               disabled={createMutation.isPending || updateMutation.isPending}
-              className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
             >
               {(createMutation.isPending || updateMutation.isPending) && (
                 <Loader2 className="h-4 w-4 animate-spin" />
               )}
               {editingSchedule ? "Update" : "Create"}
-            </button>
+            </Button>
           </div>
         </form>
       </SlideOver>

@@ -32,6 +32,7 @@ export function useDataTable<T>(
 
   const search = useTableSearch(rows, storageSuffix, {
     ...searchOptions,
+    sortAccessors,
     sortColumn: sort.sortColumn,
     sortDirection: sort.sortDirection,
     getSortValue: sortAccessors ? getSortValue : undefined,

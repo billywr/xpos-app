@@ -4,14 +4,19 @@ import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import { fetchOrgs, createOrg, updateOrg, deleteOrg } from "@/api/orgs";
 import type { Org } from "@/types/org";
-import { PageHeader } from "@/components/PageHeader";
 import {
+  Badge,
+  Button,
+  IconButton,
   SlideOver,
   ConfirmDialog,
   Pagination,
+  PageLoadingShell,
   SortableTableHead,
   TableSearchInput,
+  FormLabel,
 } from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -48,11 +53,13 @@ export function OrgsListPage() {
   const [deactivateLoading, setDeactivateLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const orgsQuery = useQuery({
     queryKey: ["admin-orgs", token, page, size],
     queryFn: () => fetchOrgs(token, { page, size }),
     enabled: Boolean(token),
   });
+  const { data, isError, error, refetch } = orgsQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(orgsQuery);
 
   const createMutation = useMutation({
     mutationFn: (name: string) => createOrg(token, { name }),
@@ -213,111 +220,86 @@ export function OrgsListPage() {
     setPage(0);
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Organizations"
-          subtitle="Loading…"
-          fallbackTo="/admin"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
-  if (isError) {
-    const message = getApiErrorMessage(error);
-    const requestId = getApiErrorRequestId(error);
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Organizations"
-          fallbackTo="/admin"
-        />
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{message}</p>
-          {requestId && (
-            <p className="mt-2 text-sm opacity-90">
-              Reference: <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">{requestId}</code>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
+  const orgTableHead = (
+    <tr>
+      <SortableTableHead
+        columnKey="name"
+        label="Name"
+        sortColumn={sortColumn}
+        sortDirection={sortDirection}
+        onSort={toggleSort}
+        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+      />
+      <SortableTableHead
+        columnKey="status"
+        label="Status"
+        sortColumn={sortColumn}
+        sortDirection={sortDirection}
+        onSort={toggleSort}
+        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+      />
+      <SortableTableHead
+        columnKey="actions"
+        label="Actions"
+        sortColumn={sortColumn}
+        sortDirection={sortDirection}
+        onSort={toggleSort}
+        sortable={false}
+        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
+      />
+    </tr>
+  );
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <PageHeader
-          title="Organizations"
-          subtitle={`${totalElements} organization(s). Select an org to manage branches and catalog.`}
-          fallbackTo="/admin"
-          noMargin
-        />
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-500 dark:hover:bg-primary-600 dark:focus:ring-offset-slate-800"
-        >
-          <Plus className="h-4 w-4" />
-          Add organization
-        </button>
-      </div>
-
-      <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search organizations…" className="mb-4" />
-
-      {totalElements > 0 && (
-        <Pagination
-          position="top"
-          page={page}
-          size={size}
-          totalElements={totalElements}
-          onPageChange={setPage}
-          onSizeChange={handleSizeChange}
-          sizeOptions={[10, 25, 50, 100]}
-          onRefresh={() => void refetch()}
-          isRefreshing={isFetching}
-        />
-      )}
+    <>
+      <PageLoadingShell
+        title="Organizations"
+        subtitle={
+          isInitialLoad
+            ? undefined
+            : `${totalElements} organization(s). Select an org to manage branches and catalog.`
+        }
+        fallbackTo="/admin"
+        loading={isInitialLoad}
+        error={isError ? error : undefined}
+        columns={3}
+        tableHead={orgTableHead}
+        headerActions={
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            Add organization
+          </Button>
+        }
+        toolbar={
+          <>
+            <TableSearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search organizations…"
+              className="mb-4"
+            />
+            {totalElements > 0 && (
+              <Pagination
+                position="top"
+                page={page}
+                size={size}
+                totalElements={totalElements}
+                onPageChange={setPage}
+                onSizeChange={handleSizeChange}
+                sizeOptions={[10, 25, 50, 100]}
+                onRefresh={() => void refetch()}
+                isRefreshing={isRefreshing}
+              />
+            )}
+          </>
+        }
+      >
+        {!isInitialLoad && (
+          <>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="min-h-0 flex-1 overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-            <thead className="bg-slate-50 dark:bg-slate-700">
-              <tr>
-                <SortableTableHead
-                  columnKey="name"
-                  label="Name"
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onSort={toggleSort}
-                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
-                />
-                <SortableTableHead
-                  columnKey="status"
-                  label="Status"
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onSort={toggleSort}
-                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
-                />
-                <SortableTableHead
-                  columnKey="actions"
-                  label="Actions"
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onSort={toggleSort}
-                  sortable={false}
-                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300"
-                />
-              </tr>
-            </thead>
+            <thead className="bg-slate-50 dark:bg-slate-700">{orgTableHead}</thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
               {filteredOrgs.length === 0 ? (
                 <tr>
@@ -338,48 +320,35 @@ export function OrgsListPage() {
                       {org.name}
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
-                          org.status === "ACTIVE"
-                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                            : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                        }`}
-                      >
-                        {org.status}
-                      </span>
+                      <Badge status={org.status}>{org.status}</Badge>
                     </td>
                     <td className="px-4 py-3 text-left">
                       <div className="flex justify-start gap-2">
-                        <button
-                          type="button"
+                        <IconButton
                           onClick={() => openEdit(org)}
-                          className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
                           title={`Edit ${org.name}`}
                           aria-label={`Edit ${org.name}`}
                         >
                           <Pencil className="h-4 w-4" />
-                        </button>
+                        </IconButton>
                         {org.status === "ACTIVE" && (
-                          <button
-                            type="button"
+                          <IconButton
                             onClick={() => setConfirmDeactivate(org)}
-                            className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
                             title={`Deactivate ${org.name}`}
                             aria-label={`Deactivate ${org.name}`}
                           >
                             <Ban className="h-4 w-4" />
-                          </button>
+                          </IconButton>
                         )}
                         {(org.status === "ACTIVE" || org.status === "INACTIVE") && (
-                          <button
-                            type="button"
+                          <IconButton
+                            variant="danger"
                             onClick={() => setConfirmDelete(org)}
-                            className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
                             title={`Delete ${org.name}`}
                             aria-label={`Delete ${org.name}`}
                           >
                             <Trash2 className="h-4 w-4" />
-                          </button>
+                          </IconButton>
                         )}
                       </div>
                     </td>
@@ -390,6 +359,9 @@ export function OrgsListPage() {
           </table>
         </div>
       </div>
+          </>
+        )}
+      </PageLoadingShell>
 
       <SlideOver
         open={slideOpen}
@@ -407,12 +379,9 @@ export function OrgsListPage() {
             </p>
           )}
           <div>
-            <label
-              htmlFor="org-name"
-              className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
+            <FormLabel htmlFor="org-name" className="mb-1">
               Name
-            </label>
+            </FormLabel>
             <input
               id="org-name"
               type="text"
@@ -425,12 +394,9 @@ export function OrgsListPage() {
           </div>
           {editingOrg && (
             <div>
-              <label
-                htmlFor="org-status"
-                className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
+              <FormLabel htmlFor="org-status" className="mb-1">
                 Status
-              </label>
+              </FormLabel>
               <SearchableSelect
                 id="org-status"
                 options={ORG_STATUS_OPTIONS}
@@ -443,20 +409,12 @@ export function OrgsListPage() {
             </div>
           )}
           <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={() => setSlideOpen(false)}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-            >
+            <Button type="button" variant="secondary" size="md" onClick={() => setSlideOpen(false)}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitLoading}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
-            >
+            </Button>
+            <Button type="submit" size="md" disabled={submitLoading}>
               {submitLoading ? "Saving…" : editingOrg ? "Save" : "Create"}
-            </button>
+            </Button>
           </div>
         </form>
       </SlideOver>
@@ -500,6 +458,6 @@ export function OrgsListPage() {
         variant="danger"
         loading={deleteLoading}
       />
-    </div>
+    </>
   );
 }

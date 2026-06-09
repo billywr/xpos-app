@@ -14,9 +14,10 @@ import {
   TableSearchInput,
   TableSkeleton,
 } from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useDataTable } from "@/hooks/useDataTable";
 import { TABLE_SEARCH_FETCH_SIZE } from "@/constants/tableSearch";
-import { getApiErrorMessage } from "@/utils/apiError";
+import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatAmount } from "@/utils/formatCurrency";
 import {
   AlertCircle,
@@ -77,14 +78,7 @@ export function InventoryPage({
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
 
-  const {
-    data: reportData,
-    isLoading,
-    isError,
-    error,
-    refetch,
-    isFetching,
-  } = useQuery({
+  const reportQuery = useQuery({
     queryKey: ["admin-inventory-report", token, selectedOrgId, selectedBranchId],
     queryFn: () =>
       fetchInventoryReport(token, selectedOrgId, selectedBranchId, {
@@ -94,6 +88,8 @@ export function InventoryPage({
     enabled:
       Boolean(token) && Boolean(selectedOrgId) && Boolean(selectedBranchId),
   });
+  const { data: reportData, isError, error, refetch } = reportQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(reportQuery);
 
   const { data: analyticsData, isLoading: isAnalyticsLoading } = useQuery({
     queryKey: [
@@ -224,24 +220,6 @@ export function InventoryPage({
     setPage(0);
   }, [searchQuery, size]);
 
-  if (isError && selectedOrgId && selectedBranchId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Inventory"
-          icon={Package}
-          fallbackTo="/admin"
-        />
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{getApiErrorMessage(error)}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <PageHeader
@@ -257,6 +235,22 @@ export function InventoryPage({
         </div>
       ) : (
         <>
+          {isError && (
+            <div
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              role="alert"
+            >
+              <p>{getApiErrorMessage(error)}</p>
+              {getApiErrorRequestId(error) && (
+                <p className="mt-2 text-sm opacity-90">
+                  Reference:{" "}
+                  <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
+                    {getApiErrorRequestId(error)}
+                  </code>
+                </p>
+              )}
+            </div>
+          )}
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[220px]">
               <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search inventory…" />
@@ -301,7 +295,7 @@ export function InventoryPage({
               }}
               sizeOptions={[10, 20, 50]}
               onRefresh={() => void refetch()}
-              isRefreshing={isFetching}
+              isRefreshing={isRefreshing}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -346,7 +340,7 @@ export function InventoryPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {isLoading && lines.length === 0 ? (
+                  {isInitialLoad ? (
                     <TableSkeleton rows={10} columns={4} />
                   ) : filteredLines.length === 0 ? (
                     <tr>
@@ -435,20 +429,16 @@ function AnalyticsPanel({
   analytics: AnalyticsShape;
   isLoading: boolean;
 }) {
-  if (isLoading && analytics.totalItems === 0) {
-    return (
-      <div className="mb-4 rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-        Loading analytics…
-      </div>
-    );
-  }
-  if (analytics.totalItems === 0) {
+  const showAnalyticsSkeleton = isLoading && analytics.totalItems === 0;
+
+  if (!showAnalyticsSkeleton && analytics.totalItems === 0) {
     return (
       <div className="mb-4 rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
         No inventory yet — analytics will appear once stock is received.
       </div>
     );
   }
+
   const {
     outOfStock,
     lowStock,
@@ -462,8 +452,30 @@ function AnalyticsPanel({
     topSellers,
     stagnant,
   } = analytics;
+
   return (
     <div className="mb-4 space-y-3">
+      {showAnalyticsSkeleton ? (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-24 animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-700/60"
+              />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-20 animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-700/60"
+              />
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatusCard
           tone="red"
@@ -543,6 +555,8 @@ function AnalyticsPanel({
           emptyText="Nothing stagnant — all tracked items are moving."
         />
       </div>
+        </>
+      )}
     </div>
   );
 }

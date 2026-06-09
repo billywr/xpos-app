@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
+import { PageTransition } from "@/components/ui/PageTransition";
 import { ChevronDown, ChevronRight, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
 import { useNavVisibilityContext } from "@/contexts/NavVisibilityContext";
@@ -115,7 +116,7 @@ export function AdminLayout() {
                       !showLabels ? "justify-center px-3" : singleItem ? "px-3" : "pl-6 pr-3"
                     } ${
                       isActive
-                        ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-500/30 dark:text-indigo-100"
+                        ? "bg-primary-600 text-white dark:bg-primary-500"
                         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
                     }`
                   }
@@ -222,7 +223,7 @@ export function AdminLayout() {
           collapsed ? "md:ml-[4.25rem]" : "md:ml-56"
         }`}
       >
-        <Outlet />
+        <PageTransition />
       </main>
     </div>
   );

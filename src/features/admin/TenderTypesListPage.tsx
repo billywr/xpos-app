@@ -14,11 +14,17 @@ import { filterActiveOrgs } from "@/types/org";
 import type { TenderType } from "@/types/sales";
 import { PageHeader } from "@/components/PageHeader";
 import {
+  Badge,
+  Button,
+  IconButton,
   SlideOver,
   ConfirmDialog,
   SortableTableHead,
   TableSearchInput,
+  TableSkeleton,
+  FormLabel,
 } from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useDataTable } from "@/hooks/useDataTable";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -51,12 +57,14 @@ export function TenderTypesListPage() {
     enabled: Boolean(token),
   });
 
-  const { data: tenderTypesData, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const tenderTypesQuery = useQuery({
     queryKey: ["admin-tender-types", token, selectedOrgId],
     queryFn: () =>
       fetchTenderTypes(token, selectedOrgId, { includeInactive: true }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
+  const { data: tenderTypesData, isError, error, refetch } = tenderTypesQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(tenderTypesQuery);
 
   const createMutation = useMutation({
     mutationFn: (body: { code: string; name: string }) =>
@@ -233,50 +241,6 @@ export function TenderTypesListPage() {
     deleteMutation.mutate(confirmDelete.id);
   };
 
-  if (isLoading && selectedOrgId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Tender types"
-          subtitle="Loading…"
-          icon={CreditCard}
-          fallbackTo="/admin"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
-  if (isError && selectedOrgId) {
-    const message = getApiErrorMessage(error);
-    const requestId = getApiErrorRequestId(error);
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Tender types"
-          icon={CreditCard}
-          fallbackTo="/admin"
-        />
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{message}</p>
-          {requestId && (
-            <p className="mt-2 text-sm opacity-90">
-              Reference:{" "}
-              <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
-                {requestId}
-              </code>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <PageHeader
@@ -305,14 +269,10 @@ export function TenderTypesListPage() {
           />
         </div>
         {selectedOrgId && (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-500 dark:hover:bg-primary-600 dark:focus:ring-offset-slate-800"
-          >
+          <Button onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Add tender type
-          </button>
+          </Button>
         )}
       </div>
 
@@ -322,7 +282,23 @@ export function TenderTypesListPage() {
         </div>
       ) : (
         <>
-          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search tender types…" className="mb-4" onRefresh={() => void refetch()} isRefreshing={isFetching} />
+          {isError && (
+            <div
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              role="alert"
+            >
+              <p>{getApiErrorMessage(error)}</p>
+              {getApiErrorRequestId(error) && (
+                <p className="mt-2 text-sm opacity-90">
+                  Reference:{" "}
+                  <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
+                    {getApiErrorRequestId(error)}
+                  </code>
+                </p>
+              )}
+            </div>
+          )}
+          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search tender types…" className="mb-4" onRefresh={() => void refetch()} isRefreshing={isRefreshing} />
 
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -367,7 +343,9 @@ export function TenderTypesListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {filteredTenderTypes.length === 0 ? (
+                  {isInitialLoad ? (
+                    <TableSkeleton columns={4} />
+                  ) : filteredTenderTypes.length === 0 ? (
                     <tr>
                       <td
                         colSpan={4}
@@ -389,34 +367,27 @@ export function TenderTypesListPage() {
                           {tt.name}
                         </td>
                         <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
-                          {tt.active ? (
-                            <span className="text-emerald-600 dark:text-emerald-400">
-                              Yes
-                            </span>
-                          ) : (
-                            <span className="text-slate-500">No</span>
-                          )}
+                          <Badge variant={tt.active ? "success" : "neutral"}>
+                            {tt.active ? "Yes" : "No"}
+                          </Badge>
                         </td>
                         <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
                           <div className="flex justify-start gap-2">
-                            <button
-                              type="button"
+                            <IconButton
                               onClick={() => openEdit(tt)}
-                              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
                               title={`Edit ${tt.name}`}
                               aria-label={`Edit ${tt.name}`}
                             >
                               <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
+                            </IconButton>
+                            <IconButton
+                              variant="danger"
                               onClick={() => setConfirmDelete(tt)}
-                              className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
                               title={`Delete ${tt.name}`}
                               aria-label={`Delete ${tt.name}`}
                             >
                               <Trash2 className="h-4 w-4" />
-                            </button>
+                            </IconButton>
                           </div>
                         </td>
                       </tr>
@@ -444,12 +415,9 @@ export function TenderTypesListPage() {
                 </p>
               )}
               <div>
-                <label
-                  htmlFor="tender-type-code"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="tender-type-code" className="mb-1">
                   Code
-                </label>
+                </FormLabel>
                 <input
                   id="tender-type-code"
                   type="text"
@@ -461,12 +429,9 @@ export function TenderTypesListPage() {
                 />
               </div>
               <div>
-                <label
-                  htmlFor="tender-type-name"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="tender-type-name" className="mb-1">
                   Name
-                </label>
+                </FormLabel>
                 <input
                   id="tender-type-name"
                   type="text"
@@ -478,12 +443,9 @@ export function TenderTypesListPage() {
               </div>
               {editingTenderType && (
                 <div>
-                  <label
-                    htmlFor="tender-type-active"
-                    className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                  >
+                  <FormLabel htmlFor="tender-type-active" className="mb-1">
                     Active
-                  </label>
+                  </FormLabel>
                   <SearchableSelect
                     id="tender-type-active"
                     options={tenderActiveOptions}
@@ -496,24 +458,16 @@ export function TenderTypesListPage() {
                 </div>
               )}
               <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setSlideOpen(false)}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                >
+                <Button type="button" variant="secondary" size="md" onClick={() => setSlideOpen(false)}>
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitLoading}
-                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
-                >
+                </Button>
+                <Button type="submit" size="md" disabled={submitLoading}>
                   {submitLoading
                     ? "Saving…"
                     : editingTenderType
                       ? "Save"
                       : "Create"}
-                </button>
+                </Button>
               </div>
             </form>
           </SlideOver>

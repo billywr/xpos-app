@@ -13,12 +13,18 @@ import type { Supplier } from "@/api/suppliers";
 import { filterActiveOrgs } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
 import {
+  Badge,
+  Button,
+  IconButton,
   SlideOver,
   Pagination,
   ConfirmDialog,
   SortableTableHead,
   TableSearchInput,
+  TableSkeleton,
+  FormLabel,
 } from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -67,7 +73,7 @@ export function SuppliersListPage({
     enabled: Boolean(token),
   });
 
-  const { data: suppliersData, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const suppliersQuery = useQuery({
     queryKey: [
       "admin-suppliers",
       token,
@@ -84,6 +90,8 @@ export function SuppliersListPage({
       }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
+  const { data: suppliersData, isError, error, refetch } = suppliersQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(suppliersQuery);
 
   const createMutation = useMutation({
     mutationFn: (body: { name: string; phone?: string; email?: string }) =>
@@ -270,48 +278,6 @@ export function SuppliersListPage({
     setPage(0);
   };
 
-  if (isLoading && selectedOrgId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Suppliers"
-          subtitle="Loading…"
-          icon={Truck}
-          fallbackTo="/admin"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
-  if (isError && selectedOrgId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Suppliers"
-          icon={Truck}
-          fallbackTo="/admin"
-        />
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{getApiErrorMessage(error)}</p>
-          {getApiErrorRequestId(error) && (
-            <p className="mt-2 text-sm opacity-90">
-              Reference:{" "}
-              <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
-                {getApiErrorRequestId(error)}
-              </code>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -322,18 +288,16 @@ export function SuppliersListPage({
           fallbackTo="/admin"
           noMargin
         />
-        <button
-          type="button"
+        <Button
           onClick={() => {
             setEditingSupplier(null);
             resetForm();
             setSlideOpen(true);
           }}
-          className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
         >
           <Plus className="h-5 w-5" />
           Add supplier
-        </button>
+        </Button>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -381,6 +345,22 @@ export function SuppliersListPage({
         </div>
       ) : (
         <>
+          {isError && (
+            <div
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              role="alert"
+            >
+              <p>{getApiErrorMessage(error)}</p>
+              {getApiErrorRequestId(error) && (
+                <p className="mt-2 text-sm opacity-90">
+                  Reference:{" "}
+                  <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
+                    {getApiErrorRequestId(error)}
+                  </code>
+                </p>
+              )}
+            </div>
+          )}
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search suppliers…" className="mb-4" />
 
           {totalElements > 0 && (
@@ -393,7 +373,7 @@ export function SuppliersListPage({
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
               onRefresh={() => void refetch()}
-              isRefreshing={isFetching}
+              isRefreshing={isRefreshing}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -451,7 +431,9 @@ export function SuppliersListPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {filteredSuppliers.length === 0 ? (
+                  {isInitialLoad ? (
+                    <TableSkeleton columns={4} />
+                  ) : filteredSuppliers.length === 0 ? (
                     <tr>
                       <td
                         colSpan={visibleSuppliersColCount}
@@ -486,38 +468,29 @@ export function SuppliersListPage({
                           </td>
                         )}
                         <td className="px-4 py-2 sm:px-6 sm:py-2.5">
-                          <span
-                            className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
-                              s.active
-                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
-                            }`}
-                          >
+                          <Badge status={s.active ? "ACTIVE" : "INACTIVE"}>
                             {s.active ? "Active" : "Inactive"}
-                          </span>
+                          </Badge>
                         </td>
                         <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
                           <div className="flex justify-start gap-1">
                             {s.active ? (
                               <>
-                                <button
-                                  type="button"
+                                <IconButton
                                   onClick={() => handleEdit(s)}
-                                  className="rounded p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-white"
                                   title={`Edit ${s.name}`}
                                   aria-label={`Edit ${s.name}`}
                                 >
                                   <Pencil className="h-4 w-4" />
-                                </button>
-                                <button
-                                  type="button"
+                                </IconButton>
+                                <IconButton
+                                  variant="danger"
                                   onClick={() => setConfirmDeactivate(s)}
-                                  className="rounded p-2 text-slate-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-slate-600 dark:hover:text-red-300"
                                   title={`Deactivate ${s.name}`}
                                   aria-label={`Deactivate ${s.name}`}
                                 >
                                   <Trash2 className="h-4 w-4" />
-                                </button>
+                                </IconButton>
                               </>
                             ) : (
                               <button
@@ -569,12 +542,9 @@ export function SuppliersListPage({
             </div>
           )}
           <div>
-            <label
-              htmlFor="supplier-name"
-              className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Name *
-            </label>
+            <FormLabel htmlFor="supplier-name" className="mb-1" required>
+              Name
+            </FormLabel>
             <input
               id="supplier-name"
               type="text"
@@ -586,12 +556,9 @@ export function SuppliersListPage({
             />
           </div>
           <div>
-            <label
-              htmlFor="supplier-phone"
-              className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
+            <FormLabel htmlFor="supplier-phone" className="mb-1">
               Phone
-            </label>
+            </FormLabel>
             <input
               id="supplier-phone"
               type="text"
@@ -602,12 +569,9 @@ export function SuppliersListPage({
             />
           </div>
           <div>
-            <label
-              htmlFor="supplier-email"
-              className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
+            <FormLabel htmlFor="supplier-email" className="mb-1">
               Email
-            </label>
+            </FormLabel>
             <input
               id="supplier-email"
               type="email"
@@ -618,22 +582,19 @@ export function SuppliersListPage({
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="md"
               onClick={() => {
                 setSlideOpen(false);
                 setEditingSupplier(null);
                 resetForm();
               }}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
             >
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitLoading}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-400"
-            >
+            </Button>
+            <Button type="submit" size="md" disabled={submitLoading}>
               {submitLoading
                 ? editingSupplier
                   ? "Saving…"
@@ -641,7 +602,7 @@ export function SuppliersListPage({
                 : editingSupplier
                   ? "Save"
                   : "Create"}
-            </button>
+            </Button>
           </div>
         </form>
       </SlideOver>

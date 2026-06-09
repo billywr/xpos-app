@@ -27,13 +27,18 @@ import type { Category } from "@/types/catalog";
 import type { ItemModifierGroupLink } from "@/types/catalog";
 import { PageHeader } from "@/components/PageHeader";
 import {
+  Badge,
+  Button,
+  IconButton,
   SlideOver,
   Pagination,
   ConfirmDialog,
   SortableTableHead,
   TableSearchInput,
   TableSkeleton,
+  FormLabel,
 } from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useDataTable } from "@/hooks/useDataTable";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -205,7 +210,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     enabled: Boolean(token),
   });
 
-  const { data: itemsData, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const itemsQuery = useQuery({
     queryKey: [
       "admin-items",
       token,
@@ -220,6 +225,8 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
       }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
+  const { data: itemsData, isError, error, refetch } = itemsQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(itemsQuery);
 
   const { data: categoriesData } = useQuery({
     queryKey: ["admin-categories", token, selectedOrgId],
@@ -760,33 +767,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     modifierGroups.find((mg: { id: string; name: string }) => mg.id === modifierGroupId)
       ?.name ?? modifierGroupId;
 
-  if (isError && selectedOrgId) {
-    const message = getApiErrorMessage(error);
-    const requestId = getApiErrorRequestId(error);
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Items"
-          fallbackTo="/admin"
-        />
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{message}</p>
-          {requestId && (
-            <p className="mt-2 text-sm opacity-90">
-              Reference:{" "}
-              <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
-                {requestId}
-              </code>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <PageHeader
@@ -910,14 +890,10 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               placeholder="Search items…"
               className="w-full sm:w-64"
             />
-            <button
-              type="button"
-              onClick={openCreate}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-500 dark:hover:bg-primary-600 dark:focus:ring-offset-slate-800"
-            >
+            <Button onClick={openCreate}>
               <Plus className="h-4 w-4" />
               Add item
-            </button>
+            </Button>
           </>
         )}
       </div>
@@ -928,6 +904,22 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
         </div>
       ) : (
         <>
+          {isError && (
+            <div
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              role="alert"
+            >
+              <p>{getApiErrorMessage(error)}</p>
+              {getApiErrorRequestId(error) && (
+                <p className="mt-2 text-sm opacity-90">
+                  Reference:{" "}
+                  <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
+                    {getApiErrorRequestId(error)}
+                  </code>
+                </p>
+              )}
+            </div>
+          )}
           {totalElements > 0 && (
             <Pagination
               position="top"
@@ -938,7 +930,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 15, 25, 50, 100]}
               onRefresh={() => void refetch()}
-              isRefreshing={isFetching}
+              isRefreshing={isRefreshing}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -1031,7 +1023,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {isLoading && items.length === 0 ? (
+                  {isInitialLoad ? (
                     <TableSkeleton
                       rows={size}
                       columns={6 + (showSkuCol ? 1 : 0) + (showBarcode ? 1 : 0) + (showBuyingCol ? 1 : 0)}
@@ -1070,13 +1062,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                             </span>
                           </td>
                           <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
-                            {item.active ? (
-                              <span className="text-emerald-600 dark:text-emerald-400">
-                                Yes
-                              </span>
-                            ) : (
-                              <span className="text-slate-500">No</span>
-                            )}
+                            <Badge variant={item.active ? "success" : "neutral"}>
+                              {item.active ? "Yes" : "No"}
+                            </Badge>
                           </td>
                           {showBuyingCol && (
                             <td className="px-4 py-2 text-base tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
@@ -1145,24 +1133,21 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                           </td>
                           <td className="px-4 py-2 text-left text-base sm:px-6 sm:py-2.5 sm:text-2xl">
                             <div className="flex justify-start gap-2">
-                              <button
-                                type="button"
+                              <IconButton
                                 onClick={() => openEdit(item)}
-                                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
                                 title={`Edit ${item.name}`}
                                 aria-label={`Edit ${item.name}`}
                               >
                                 <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                type="button"
+                              </IconButton>
+                              <IconButton
+                                variant="danger"
                                 onClick={() => setConfirmDelete(item)}
-                                className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
                                 title={`Delete ${item.name}`}
                                 aria-label={`Delete ${item.name}`}
                               >
                                 <Trash2 className="h-4 w-4" />
-                              </button>
+                              </IconButton>
                             </div>
                           </td>
                         </tr>
@@ -1186,12 +1171,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 </p>
               )}
               <div>
-                <label
-                  htmlFor="item-name"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="item-name" className="mb-1">
                   Name
-                </label>
+                </FormLabel>
                 <input
                   id="item-name"
                   type="text"
@@ -1203,12 +1185,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 />
               </div>
               <div>
-                <label
-                  htmlFor="item-sku"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="item-sku" className="mb-1">
                   SKU (optional)
-                </label>
+                </FormLabel>
                 <input
                   id="item-sku"
                   type="text"
@@ -1219,12 +1198,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               </div>
               {showBarcode && (
                 <div>
-                  <label
-                    htmlFor="item-barcode"
-                    className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                  >
+                  <FormLabel htmlFor="item-barcode" className="mb-1">
                     Barcode (optional)
-                  </label>
+                  </FormLabel>
                   <input
                     id="item-barcode"
                     type="text"
@@ -1240,12 +1216,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 </div>
               )}
               <div>
-                <label
-                  htmlFor="item-type"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="item-type" className="mb-1">
                   Type
-                </label>
+                </FormLabel>
                 <SearchableSelect
                   id="item-type"
                   options={itemTypeOptions}
@@ -1257,12 +1230,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 />
               </div>
               <div>
-                <label
-                  htmlFor="item-category"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="item-category" className="mb-1">
                   Category
-                </label>
+                </FormLabel>
                 <SearchableSelect
                   id="item-category"
                   options={itemCategoryOptions}
@@ -1274,12 +1244,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 />
               </div>
               <div>
-                <label
-                  htmlFor="item-tax"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="item-tax" className="mb-1">
                   Tax profile
-                </label>
+                </FormLabel>
                 <SearchableSelect
                   id="item-tax"
                   options={itemTaxProfileOptions}
@@ -1292,12 +1259,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label
-                    htmlFor="item-buying-price"
-                    className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                  >
+                  <FormLabel htmlFor="item-buying-price" className="mb-1">
                     Buying price (KES)
-                  </label>
+                  </FormLabel>
                   <input
                     id="item-buying-price"
                     type="number"
@@ -1310,12 +1274,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="item-selling-price"
-                    className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                  >
-                    Selling price (KES) *
-                  </label>
+                  <FormLabel htmlFor="item-selling-price" className="mb-1" required>
+                    Selling price (KES)
+                  </FormLabel>
                   <input
                     id="item-selling-price"
                     type="number"
@@ -1363,9 +1324,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 </label>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                <FormLabel className="mb-1">
                   Item image (optional)
-                </label>
+                </FormLabel>
                 <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
                   Auto-resized to 400×400 px. JPEG, PNG or WebP, max 5MB.
                 </p>
@@ -1460,17 +1421,16 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                               className="flex items-center justify-between rounded bg-slate-50 px-2 py-1 text-sm dark:bg-slate-700/50"
                             >
                               {modifierGroupName(l.modifierGroupId)}
-                              <button
-                                type="button"
+                              <IconButton
+                                variant="danger"
                                 onClick={() =>
                                   deleteModifierGroupMutation.mutate(l.id)
                                 }
-                                className="rounded p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
                                 title={`Unlink ${modifierGroupName(l.modifierGroupId)}`}
                                 aria-label={`Unlink ${modifierGroupName(l.modifierGroupId)}`}
                               >
                                 <Trash2 className="h-4 w-4" />
-                              </button>
+                              </IconButton>
                             </li>
                           )
                         )}
@@ -1505,24 +1465,16 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               )}
 
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
-                <button
-                  type="button"
-                  onClick={closeSlide}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                >
+                <Button type="button" variant="secondary" size="md" onClick={closeSlide}>
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitLoading}
-                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
-                >
+                </Button>
+                <Button type="submit" size="md" disabled={submitLoading}>
                   {submitLoading
                     ? "Saving…"
                     : editingItem
                       ? "Save"
                       : "Create"}
-                </button>
+                </Button>
               </div>
             </form>
           </SlideOver>

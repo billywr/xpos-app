@@ -20,12 +20,18 @@ import {
 } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
 import {
+  Badge,
+  Button,
+  IconButton,
   SlideOver,
   ConfirmDialog,
   Pagination,
   SortableTableHead,
   TableSearchInput,
+  TableSkeleton,
+  FormLabel,
 } from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -77,12 +83,14 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
 
-  const { data: terminalsData, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const terminalsQuery = useQuery({
     queryKey: ["admin-terminals", token, selectedOrgId, selectedBranchId, page, size],
     queryFn: () =>
       fetchTerminals(token, selectedOrgId, selectedBranchId, { page, size }),
     enabled: Boolean(token) && Boolean(selectedOrgId) && Boolean(selectedBranchId),
   });
+  const { data: terminalsData, isError, error, refetch } = terminalsQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(terminalsQuery);
 
   const { data: devicesData } = useQuery({
     queryKey: ["admin-devices", token, selectedOrgId],
@@ -339,48 +347,6 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
     setPage(0);
   };
 
-  if (isLoading && selectedOrgId && selectedBranchId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Terminals"
-          subtitle="Loading…"
-          fallbackTo="/admin"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
-  if (isError && selectedOrgId && selectedBranchId) {
-    const message = getApiErrorMessage(error);
-    const requestId = getApiErrorRequestId(error);
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Terminals"
-          fallbackTo="/admin"
-        />
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{message}</p>
-          {requestId && (
-            <p className="mt-2 text-sm opacity-90">
-              Reference:{" "}
-              <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
-                {requestId}
-              </code>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <PageHeader
@@ -429,14 +395,10 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
           />
         </div>
         {selectedOrgId && selectedBranchId && (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-500 dark:hover:bg-primary-600 dark:focus:ring-offset-slate-800"
-          >
+          <Button onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Add terminal
-          </button>
+          </Button>
         )}
       </div>
 
@@ -446,6 +408,22 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
         </div>
       ) : (
         <>
+          {isError && (
+            <div
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              role="alert"
+            >
+              <p>{getApiErrorMessage(error)}</p>
+              {getApiErrorRequestId(error) && (
+                <p className="mt-2 text-sm opacity-90">
+                  Reference:{" "}
+                  <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
+                    {getApiErrorRequestId(error)}
+                  </code>
+                </p>
+              )}
+            </div>
+          )}
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search terminals…" className="mb-4" />
           {totalElements > 0 && (
             <Pagination
@@ -457,7 +435,7 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
               onRefresh={() => void refetch()}
-              isRefreshing={isFetching}
+              isRefreshing={isRefreshing}
             />
           )}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -493,7 +471,9 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {filteredTerminals.length === 0 ? (
+                  {isInitialLoad ? (
+                    <TableSkeleton columns={5} />
+                  ) : filteredTerminals.length === 0 ? (
                     <tr>
                       <td
                         colSpan={3}
@@ -512,45 +492,32 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                           {terminal.terminalCode}
                         </td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
-                              terminal.status === "ACTIVE"
-                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                            }`}
-                          >
-                            {terminal.status}
-                          </span>
+                          <Badge status={terminal.status}>{terminal.status}</Badge>
                         </td>
                         <td className="px-4 py-3 text-left">
                           <div className="flex justify-start gap-2">
-                            <button
-                              type="button"
+                            <IconButton
                               onClick={() => openEdit(terminal)}
-                              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
                               title={`Edit ${terminal.terminalCode}`}
                               aria-label={`Edit ${terminal.terminalCode}`}
                             >
                               <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
+                            </IconButton>
+                            <IconButton
                               onClick={() => openBind(terminal)}
-                              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
                               title={`Bind device to ${terminal.terminalCode}`}
                               aria-label={`Bind device to ${terminal.terminalCode}`}
                             >
                               <Smartphone className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
+                            </IconButton>
+                            <IconButton
+                              variant="danger"
                               onClick={() => setConfirmDelete(terminal)}
-                              className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
                               title={`Delete ${terminal.terminalCode}`}
                               aria-label={`Delete ${terminal.terminalCode}`}
                             >
                               <Trash2 className="h-4 w-4" />
-                            </button>
+                            </IconButton>
                           </div>
                         </td>
                       </tr>
@@ -577,12 +544,9 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                 </p>
               )}
               <div>
-                <label
-                  htmlFor="terminal-code"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="terminal-code" className="mb-1">
                   Terminal code
-                </label>
+                </FormLabel>
                 <input
                   id="terminal-code"
                   type="text"
@@ -594,12 +558,9 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                 />
               </div>
               <div>
-                <label
-                  htmlFor="terminal-printer"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="terminal-printer" className="mb-1">
                   Printer profile ID (optional)
-                </label>
+                </FormLabel>
                 <input
                   id="terminal-printer"
                   type="text"
@@ -610,24 +571,16 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                 />
               </div>
               <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setSlideOpen(false)}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                >
+                <Button type="button" variant="secondary" size="md" onClick={() => setSlideOpen(false)}>
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitLoading}
-                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
-                >
+                </Button>
+                <Button type="submit" size="md" disabled={submitLoading}>
                   {submitLoading
                     ? "Saving…"
                     : editingTerminal
                       ? "Save"
                       : "Create"}
-                </button>
+                </Button>
               </div>
             </form>
           </SlideOver>
@@ -648,12 +601,9 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                 </p>
               )}
               <div>
-                <label
-                  htmlFor="bind-device-select"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="bind-device-select" className="mb-1">
                   Device
-                </label>
+                </FormLabel>
                 <SearchableSelect
                   id="bind-device-select"
                   options={bindDeviceOptions}
@@ -671,20 +621,12 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                 )}
               </div>
               <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setBindSlideOpen(false)}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                >
+                <Button type="button" variant="secondary" size="md" onClick={() => setBindSlideOpen(false)}>
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={bindLoading || !formDeviceId}
-                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
-                >
+                </Button>
+                <Button type="submit" size="md" disabled={bindLoading || !formDeviceId}>
                   {bindLoading ? "Binding…" : "Bind"}
-                </button>
+                </Button>
               </div>
             </form>
           </SlideOver>

@@ -1,4 +1,5 @@
-import { Outlet, Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { PageTransition } from "@/components/ui/PageTransition";
 import {
   ChevronDown,
   FileSpreadsheet,
@@ -154,7 +155,7 @@ export function OperatorLayout() {
                 !showLabels ? "justify-center" : ""
               } ${
                 isActive
-                  ? "bg-indigo-600 text-white dark:bg-indigo-500"
+                  ? "bg-primary-600 text-white dark:bg-primary-500"
                   : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
               }`
             }
@@ -196,7 +197,7 @@ export function OperatorLayout() {
                         className={({ isActive }) =>
                           `rounded-lg px-2 py-1.5 text-sm ${
                             isActive
-                              ? "bg-indigo-600 text-white dark:bg-indigo-500"
+                              ? "bg-primary-600 text-white dark:bg-primary-500"
                               : "text-slate-500 hover:text-slate-900 dark:text-white/80 dark:hover:text-white"
                           }`
                         }
@@ -220,7 +221,7 @@ export function OperatorLayout() {
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                     isActive
-                      ? "bg-indigo-600 text-white dark:bg-indigo-500"
+                      ? "bg-primary-600 text-white dark:bg-primary-500"
                       : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
                   }`
                 }
@@ -308,7 +309,7 @@ export function OperatorLayout() {
               className={({ isActive }) =>
                 `flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition sm:gap-1.5 sm:px-2.5 sm:text-sm ${
                   isActive
-                    ? "bg-primary-600 text-white"
+                    ? "bg-primary-600 text-white dark:bg-primary-500"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
                 }`
               }
@@ -321,7 +322,7 @@ export function OperatorLayout() {
               className={({ isActive }) =>
                 `flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition sm:gap-1.5 sm:px-2.5 sm:text-sm ${
                   isActive
-                    ? "bg-primary-600 text-white"
+                    ? "bg-primary-600 text-white dark:bg-primary-500"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
                 }`
               }
@@ -335,7 +336,7 @@ export function OperatorLayout() {
               className={({ isActive }) =>
                 `flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition sm:gap-1.5 sm:px-2.5 sm:text-sm ${
                   isActive
-                    ? "bg-primary-600 text-white"
+                    ? "bg-primary-600 text-white dark:bg-primary-500"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
                 }`
               }
@@ -447,7 +448,7 @@ export function OperatorLayout() {
         </aside>
 
         <main className="flex min-h-0 flex-1 flex-col overflow-auto bg-slate-50 dark:bg-darkBg">
-          <Outlet />
+          <PageTransition />
         </main>
       </div>
     </div>

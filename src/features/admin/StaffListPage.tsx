@@ -21,12 +21,18 @@ import type { StaffUser } from "@/types/staff";
 import type { StaffBranchAssignment } from "@/types/staff";
 import { PageHeader } from "@/components/PageHeader";
 import {
+  Badge,
+  Button,
+  IconButton,
   SlideOver,
   ConfirmDialog,
   Pagination,
   SortableTableHead,
   TableSearchInput,
+  TableSkeleton,
+  FormLabel,
 } from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import {
   getApiErrorMessage,
@@ -84,11 +90,13 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
     enabled: Boolean(token),
   });
 
-  const { data: staffData, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const staffQuery = useQuery({
     queryKey: ["admin-staff", token, selectedOrgId, page, size],
     queryFn: () => fetchStaffUsers(token, selectedOrgId, { page, size }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
+  const { data: staffData, isError, error, refetch } = staffQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(staffQuery);
 
   const { data: branchesData } = useQuery({
     queryKey: ["admin-branches", token, selectedOrgId],
@@ -433,48 +441,6 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
     [availableBranches]
   );
 
-  if (isLoading && selectedOrgId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Staff"
-          subtitle="Loading…"
-          fallbackTo="/admin"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
-  if (isError && selectedOrgId) {
-    const message = getApiErrorMessage(error);
-    const requestId = getApiErrorRequestId(error);
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Staff"
-          fallbackTo="/admin"
-        />
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{message}</p>
-          {requestId && (
-            <p className="mt-2 text-sm opacity-90">
-              Reference:{" "}
-              <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
-                {requestId}
-              </code>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <PageHeader
@@ -505,14 +471,10 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
           />
         </div>
         {selectedOrgId && (
-          <button
-            type="button"
-            onClick={openRegister}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-500 dark:hover:bg-primary-600 dark:focus:ring-offset-slate-800"
-          >
+          <Button onClick={openRegister}>
             <Plus className="h-4 w-4" />
             Add Staff
-          </button>
+          </Button>
         )}
       </div>
 
@@ -522,6 +484,22 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
         </div>
       ) : (
         <>
+          {isError && (
+            <div
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              role="alert"
+            >
+              <p>{getApiErrorMessage(error)}</p>
+              {getApiErrorRequestId(error) && (
+                <p className="mt-2 text-sm opacity-90">
+                  Reference:{" "}
+                  <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
+                    {getApiErrorRequestId(error)}
+                  </code>
+                </p>
+              )}
+            </div>
+          )}
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search staff…" className="mb-4" />
 
           {totalElements > 0 && (
@@ -534,7 +512,7 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
               onRefresh={() => void refetch()}
-              isRefreshing={isFetching}
+              isRefreshing={isRefreshing}
             />
           )}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -570,7 +548,9 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {filteredStaff.length === 0 ? (
+                  {isInitialLoad ? (
+                    <TableSkeleton columns={5} />
+                  ) : filteredStaff.length === 0 ? (
                     <tr>
                       <td
                         colSpan={3}
@@ -589,58 +569,43 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                           {s.username}
                         </td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
-                              s.status === "ACTIVE"
-                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                            }`}
-                          >
-                            {s.status}
-                          </span>
+                          <Badge status={s.status}>{s.status}</Badge>
                         </td>
                         <td className="px-4 py-3 text-left">
                           <div className="flex justify-start gap-2">
-                            <button
-                              type="button"
+                            <IconButton
                               onClick={() => openProfile(s)}
-                              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
                               title={`Edit profile ${s.username}`}
                               aria-label={`Edit profile ${s.username}`}
                             >
                               <Pencil className="h-4 w-4" />
-                            </button>
+                            </IconButton>
                             {s.status !== "ACTIVE" && (
-                              <button
-                                type="button"
+                              <IconButton
                                 onClick={() => setConfirmActivate(s)}
-                                className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
                                 title={`Activate ${s.username}`}
                                 aria-label={`Activate ${s.username}`}
                               >
                                 <Power className="h-4 w-4" />
-                              </button>
+                              </IconButton>
                             )}
                             {s.status === "ACTIVE" && (
-                              <button
-                                type="button"
+                              <IconButton
                                 onClick={() => setConfirmDeactivate(s)}
-                                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-600"
                                 title={`Deactivate ${s.username}`}
                                 aria-label={`Deactivate ${s.username}`}
                               >
                                 <PowerOff className="h-4 w-4" />
-                              </button>
+                              </IconButton>
                             )}
-                            <button
-                              type="button"
+                            <IconButton
+                              variant="danger"
                               onClick={() => setConfirmDelete(s)}
-                              className="rounded-lg p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
                               title={`Delete ${s.username}`}
                               aria-label={`Delete ${s.username}`}
                             >
                               <Trash2 className="h-4 w-4" />
-                            </button>
+                            </IconButton>
                           </div>
                         </td>
                       </tr>
@@ -669,12 +634,9 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                 Enter the Keycloak username of the user you want to add as staff for this organization.
               </p>
               <div>
-                <label
-                  htmlFor="staff-username"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="staff-username" className="mb-1">
                   Keycloak Username
-                </label>
+                </FormLabel>
                 <input
                   id="staff-username"
                   type="text"
@@ -686,20 +648,12 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                 />
               </div>
               <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setRegisterSlideOpen(false)}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                >
+                <Button type="button" variant="secondary" size="md" onClick={() => setRegisterSlideOpen(false)}>
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitLoading}
-                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
-                >
+                </Button>
+                <Button type="submit" size="md" disabled={submitLoading}>
                   {submitLoading ? "Adding…" : "Add Staff"}
-                </button>
+                </Button>
               </div>
             </form>
           </SlideOver>
@@ -729,12 +683,9 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
               <div className="space-y-6">
                 <form onSubmit={handleProfileSubmit} className="space-y-4">
                   <div>
-                    <label
-                      htmlFor="profile-display-name"
-                      className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                    >
+                    <FormLabel htmlFor="profile-display-name" className="mb-1">
                       Display name
-                    </label>
+                    </FormLabel>
                     <input
                       id="profile-display-name"
                       type="text"
@@ -745,12 +696,9 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="profile-phone"
-                      className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                    >
+                    <FormLabel htmlFor="profile-phone" className="mb-1">
                       Phone
-                    </label>
+                    </FormLabel>
                     <input
                       id="profile-phone"
                       type="text"
@@ -760,12 +708,9 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="profile-email"
-                      className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                    >
+                    <FormLabel htmlFor="profile-email" className="mb-1">
                       Email
-                    </label>
+                    </FormLabel>
                     <input
                       id="profile-email"
                       type="email"
@@ -775,12 +720,9 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="profile-employee-no"
-                      className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                    >
+                    <FormLabel htmlFor="profile-employee-no" className="mb-1">
                       Employee number
-                    </label>
+                    </FormLabel>
                     <input
                       id="profile-employee-no"
                       type="text"
@@ -790,12 +732,9 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="profile-default-branch"
-                      className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                    >
+                    <FormLabel htmlFor="profile-default-branch" className="mb-1">
                       Default branch
-                    </label>
+                    </FormLabel>
                     <SearchableSelect
                       id="profile-default-branch"
                       options={profileDefaultBranchOptions}
@@ -807,12 +746,9 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="profile-status"
-                      className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                    >
+                    <FormLabel htmlFor="profile-status" className="mb-1">
                       Status
-                    </label>
+                    </FormLabel>
                     <SearchableSelect
                       id="profile-status"
                       options={profileStatusOptions}
@@ -824,13 +760,9 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                     />
                   </div>
                   <div className="flex justify-end gap-3 pt-2">
-                    <button
-                      type="submit"
-                      disabled={submitLoading}
-                      className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
-                    >
+                    <Button type="submit" size="md" disabled={submitLoading}>
                       {submitLoading ? "Saving…" : "Save profile"}
-                    </button>
+                    </Button>
                   </div>
                 </form>
 

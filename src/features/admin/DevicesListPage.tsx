@@ -16,12 +16,18 @@ import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { DeviceRegistration } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
 import {
+  Badge,
+  Button,
+  IconButton,
   SlideOver,
   ConfirmDialog,
   Pagination,
   SortableTableHead,
   TableSearchInput,
+  TableSkeleton,
+  FormLabel,
 } from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -72,11 +78,13 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
     enabled: Boolean(token) && Boolean(selectedOrgId) && slideOpen,
   });
 
-  const { data: devicesData, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const devicesQuery = useQuery({
     queryKey: ["admin-devices", token, selectedOrgId, page, size],
     queryFn: () => fetchDevices(token, selectedOrgId, { page, size }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
+  const { data: devicesData, isError, error, refetch } = devicesQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(devicesQuery);
 
   const registerMutation = useMutation({
     mutationFn: (body: { branchId: string; deviceId: string; deviceFingerprint?: string | null }) =>
@@ -272,48 +280,6 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
     setPage(0);
   };
 
-  if (isLoading && selectedOrgId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Devices"
-          subtitle="Loading…"
-          fallbackTo="/admin"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
-  if (isError && selectedOrgId) {
-    const message = getApiErrorMessage(error);
-    const requestId = getApiErrorRequestId(error);
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Devices"
-          fallbackTo="/admin"
-        />
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{message}</p>
-          {requestId && (
-            <p className="mt-2 text-sm opacity-90">
-              Reference:{" "}
-              <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
-                {requestId}
-              </code>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <PageHeader
@@ -344,14 +310,10 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
           />
         </div>
         {selectedOrgId && (
-          <button
-            type="button"
-            onClick={openRegister}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-500 dark:hover:bg-primary-600 dark:focus:ring-offset-slate-800"
-          >
+          <Button onClick={openRegister}>
             <Plus className="h-4 w-4" />
             Register device
-          </button>
+          </Button>
         )}
       </div>
 
@@ -361,6 +323,22 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
         </div>
       ) : (
         <>
+          {isError && (
+            <div
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              role="alert"
+            >
+              <p>{getApiErrorMessage(error)}</p>
+              {getApiErrorRequestId(error) && (
+                <p className="mt-2 text-sm opacity-90">
+                  Reference:{" "}
+                  <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
+                    {getApiErrorRequestId(error)}
+                  </code>
+                </p>
+              )}
+            </div>
+          )}
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search devices…" className="mb-4" />
 
           {totalElements > 0 && (
@@ -373,7 +351,7 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
               onRefresh={() => void refetch()}
-              isRefreshing={isFetching}
+              isRefreshing={isRefreshing}
             />
           )}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -409,7 +387,9 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {filteredDevices.length === 0 ? (
+                  {isInitialLoad ? (
+                    <TableSkeleton columns={5} />
+                  ) : filteredDevices.length === 0 ? (
                     <tr>
                       <td
                         colSpan={3}
@@ -428,49 +408,36 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                           {device.deviceId}
                         </td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
-                              device.status === "ACTIVE"
-                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
-                            }`}
-                          >
-                            {device.status}
-                          </span>
+                          <Badge status={device.status}>{device.status}</Badge>
                         </td>
                         <td className="px-4 py-3 text-left">
                           <div className="flex justify-start gap-2">
                             {device.status !== "ACTIVE" && (
-                              <button
-                                type="button"
+                              <IconButton
                                 onClick={() => setConfirmActivate(device)}
-                                className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
                                 title={`Activate ${device.deviceId}`}
                                 aria-label={`Activate ${device.deviceId}`}
                               >
                                 <Power className="h-4 w-4" />
-                              </button>
+                              </IconButton>
                             )}
                             {device.status === "ACTIVE" && (
-                              <button
-                                type="button"
+                              <IconButton
                                 onClick={() => setConfirmDeactivate(device)}
-                                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
                                 title={`Deactivate ${device.deviceId}`}
                                 aria-label={`Deactivate ${device.deviceId}`}
                               >
                                 <PowerOff className="h-4 w-4" />
-                              </button>
+                              </IconButton>
                             )}
-                            <button
-                              type="button"
+                            <IconButton
+                              variant="danger"
                               onClick={() => setConfirmDelete(device)}
-                              className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
                               title={`Delete ${device.deviceId}`}
                               aria-label={`Delete ${device.deviceId}`}
                             >
                               <Trash2 className="h-4 w-4" />
-                            </button>
+                            </IconButton>
                           </div>
                         </td>
                       </tr>
@@ -496,12 +463,9 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                 </p>
               )}
               <div>
-                <label
-                  htmlFor="register-branch"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="register-branch" className="mb-1">
                   Branch
-                </label>
+                </FormLabel>
                 <SearchableSelect
                   id="register-branch"
                   options={branchRegisterOptions}
@@ -518,12 +482,9 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                 )}
               </div>
               <div>
-                <label
-                  htmlFor="register-device-id"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="register-device-id" className="mb-1">
                   Device ID
-                </label>
+                </FormLabel>
                 <input
                   id="register-device-id"
                   type="text"
@@ -535,12 +496,9 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                 />
               </div>
               <div>
-                <label
-                  htmlFor="register-fingerprint"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="register-fingerprint" className="mb-1">
                   Device fingerprint (optional)
-                </label>
+                </FormLabel>
                 <input
                   id="register-fingerprint"
                   type="text"
@@ -551,20 +509,12 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                 />
               </div>
               <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setSlideOpen(false)}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                >
+                <Button type="button" variant="secondary" size="md" onClick={() => setSlideOpen(false)}>
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitLoading}
-                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
-                >
+                </Button>
+                <Button type="submit" size="md" disabled={submitLoading}>
                   {submitLoading ? "Registering…" : "Register"}
-                </button>
+                </Button>
               </div>
             </form>
           </SlideOver>

@@ -9,9 +9,7 @@ import {
   ChevronRight,
   Loader2,
   NotebookPen,
-  Package,
   RefreshCcw,
-  ShoppingBag,
   TrendingUp,
   X,
 } from "lucide-react";
@@ -35,7 +33,7 @@ import {
   saveSalesRecordingDraft,
 } from "@/api/salesRecordingDraft";
 import { Pagination } from "@/components/ui/Pagination";
-import { SortableTableHead } from "@/components/ui";
+import { Button, SortableTableHead, StatChip } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { rowMatchesSearch } from "@/utils/tableSearchMatch";
 import { sortTableRows } from "@/utils/tableSort";
@@ -309,10 +307,7 @@ export function SalesRecordingPage() {
   const rows = useMemo<Row[]>(() => {
     return sellableItems
       .filter((i) =>
-        rowMatchesSearch(
-          { name: i.name, sku: i.sku ?? "", barcode: i.barcode ?? "" },
-          search
-        )
+        rowMatchesSearch({ ...i, qtyRaw: qtyByItem[i.id] ?? "" }, search)
       )
       .map((item) => ({ item, qtyRaw: qtyByItem[item.id] ?? "" }));
   }, [sellableItems, qtyByItem, search]);
@@ -511,7 +506,7 @@ export function SalesRecordingPage() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <input
             type="search"
-            placeholder="Search items by name or SKU..."
+            placeholder="Search all columns…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none sm:w-64 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
@@ -777,41 +772,32 @@ function StatsCards({ stats, loading }: StatsProps) {
   return (
     <div className="mb-6">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          icon={TrendingUp}
-          label="Total sales"
-          valueLabel="KSH"
-          value={formatQty(total)}
-          loading={loading}
-          tone="emerald"
+        <StatChip
+          label="Total sales (KSH)"
+          value={loading ? "…" : formatQty(total)}
+          tone="sales"
         />
-        <StatCard
-          icon={ShoppingBag}
+        <StatChip
           label="Items sold"
-          value={formatQty(items)}
-          loading={loading}
-          tone="sky"
+          value={loading ? "…" : formatQty(items)}
+          tone="neutral"
         />
-        <StatCard
-          icon={Package}
+        <StatChip
           label="Sales recorded"
-          value={String(count)}
-          loading={loading}
-          tone="violet"
+          value={loading ? "…" : String(count)}
+          tone="neutral"
         />
-        <StatCard
-          icon={AlertTriangle}
+        <StatChip
           label="Low stock"
-          value={String(low.length)}
-          loading={loading}
-          tone="amber"
+          value={loading ? "…" : String(low.length)}
+          tone="debt"
         />
       </div>
       <div className="mt-3 flex justify-end">
-        <button
+        <Button
           type="button"
           onClick={() => setInsightsOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-500 to-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 ring-1 ring-violet-400/40 transition hover:from-violet-400 hover:to-sky-400 hover:shadow-violet-500/40 focus:outline-none focus:ring-2 focus:ring-violet-300 dark:shadow-violet-900/60 dark:ring-violet-400/30"
+          className="gap-2"
         >
           <BarChart3 className="h-4 w-4" />
           View insights
@@ -820,7 +806,7 @@ function StatsCards({ stats, loading }: StatsProps) {
               {low.length}
             </span>
           )}
-        </button>
+        </Button>
       </div>
       {insightsOpen && (
         <InsightsModal
@@ -937,39 +923,3 @@ function InsightsModal({ top, low, onClose }: InsightsModalProps) {
   );
 }
 
-interface StatCardProps {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  valueLabel?: string;
-  loading: boolean;
-  tone: "emerald" | "sky" | "violet" | "amber";
-}
-
-const TONE_CLASSES: Record<StatCardProps["tone"], string> = {
-  emerald: "from-emerald-50 to-white text-emerald-600 dark:from-emerald-950/40 dark:text-emerald-400",
-  sky: "from-sky-50 to-white text-sky-600 dark:from-sky-950/40 dark:text-sky-400",
-  violet: "from-violet-50 to-white text-violet-600 dark:from-violet-950/40 dark:text-violet-400",
-  amber: "from-amber-50 to-white text-amber-600 dark:from-amber-950/40 dark:text-amber-400",
-};
-
-function StatCard({ icon: Icon, label, value, valueLabel, loading, tone }: StatCardProps) {
-  const tones = TONE_CLASSES[tone];
-  return (
-    <div
-      className={`rounded-xl border border-slate-200 bg-gradient-to-br p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 ${tones}`}
-    >
-      <div className="flex items-center gap-2 text-sm font-medium">
-        <Icon className="h-5 w-5" /> {label}
-      </div>
-      <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-        {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : value}
-        {valueLabel && !loading && (
-          <span className="ml-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-            {valueLabel}
-          </span>
-        )}
-      </p>
-    </div>
-  );
-}

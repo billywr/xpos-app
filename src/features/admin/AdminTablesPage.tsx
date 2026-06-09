@@ -23,7 +23,17 @@ import {
   filterNonDeletedBranches,
 } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
-import { SlideOver, SortableTableHead, TableSearchInput } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  IconButton,
+  SlideOver,
+  SortableTableHead,
+  TableSearchInput,
+  TableSkeleton,
+  FormLabel,
+} from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useDataTable } from "@/hooks/useDataTable";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -87,7 +97,7 @@ export function AdminTablesPage() {
     enabled: Boolean(token) && Boolean(selectedOrgId) && Boolean(selectedBranchId),
   });
 
-  const { data: tablesData, isLoading, isError, error, refetch: refetchTables, isFetching: isTablesFetching } = useQuery({
+  const tablesQuery = useQuery({
     queryKey: [
       "admin-tables",
       token,
@@ -101,6 +111,8 @@ export function AdminTablesPage() {
     enabled:
       Boolean(token) && Boolean(selectedOrgId) && Boolean(selectedBranchId),
   });
+  const { data: tablesData, isError, error, refetch: refetchTables } = tablesQuery;
+  const { isInitialLoad, isRefreshing: isTablesRefreshing } = useQueryDisplay(tablesQuery);
 
   const areaCreateMutation = useMutation({
     mutationFn: (name: string) =>
@@ -400,48 +412,6 @@ export function AdminTablesPage() {
     }
   };
 
-  if (isLoading && selectedOrgId && selectedBranchId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Tables & Areas"
-          subtitle="Loading…"
-          fallbackTo="/admin"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
-  if (isError && selectedOrgId && selectedBranchId) {
-    const message = getApiErrorMessage(error);
-    const requestId = getApiErrorRequestId(error);
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Tables & Areas"
-          fallbackTo="/admin"
-        />
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{message}</p>
-          {requestId && (
-            <p className="mt-2 text-sm opacity-90">
-              Reference:{" "}
-              <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
-                {requestId}
-              </code>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <PageHeader
@@ -489,19 +459,31 @@ export function AdminTablesPage() {
 
       {selectedBranchId && (
         <>
+          {isError && (
+            <div
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              role="alert"
+            >
+              <p>{getApiErrorMessage(error)}</p>
+              {getApiErrorRequestId(error) && (
+                <p className="mt-2 text-sm opacity-90">
+                  Reference:{" "}
+                  <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
+                    {getApiErrorRequestId(error)}
+                  </code>
+                </p>
+              )}
+            </div>
+          )}
           <section className="mb-8">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
                 Table Areas
               </h2>
-              <button
-                type="button"
-                onClick={openAreaCreate}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500"
-              >
+              <Button onClick={openAreaCreate}>
                 <Plus className="h-4 w-4" />
                 Add area
-              </button>
+              </Button>
             </div>
             <TableSearchInput value={areasSearchQuery} onChange={setAreasSearchQuery} placeholder="Search areas…" className="mb-4" onRefresh={() => void refetchAreas()} isRefreshing={isAreasFetching} />
             <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -546,15 +528,13 @@ export function AdminTablesPage() {
                           {area.name}
                         </td>
                         <td className="px-4 py-2 sm:px-6 sm:py-2.5">
-                          <button
-                            type="button"
+                          <IconButton
                             onClick={() => openAreaEdit(area)}
-                            className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-300"
                             title={`Edit ${area.name}`}
                             aria-label={`Edit ${area.name}`}
                           >
                             <Pencil className="h-4 w-4" />
-                          </button>
+                          </IconButton>
                         </td>
                       </tr>
                     ))}
@@ -570,25 +550,16 @@ export function AdminTablesPage() {
               <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
                 Tables
               </h2>
-              <button
-                type="button"
-                onClick={openTableCreate}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500"
-              >
+              <Button onClick={openTableCreate}>
                 <Plus className="h-4 w-4" />
                 Add table
-              </button>
+              </Button>
             </div>
-            <TableSearchInput value={tablesSearchQuery} onChange={setTablesSearchQuery} placeholder="Search tables…" className="mb-4" onRefresh={() => void refetchTables()} isRefreshing={isTablesFetching} />
+            <TableSearchInput value={tablesSearchQuery} onChange={setTablesSearchQuery} placeholder="Search tables…" className="mb-4" onRefresh={() => void refetchTables()} isRefreshing={isTablesRefreshing} />
             <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-              {filteredTables.length === 0 ? (
-                <p className="p-8 text-center text-slate-500 dark:text-slate-400">
-                  {tables.length === 0 ? "No tables. Add tables for dine-in service." : "No results match your search."}
-                </p>
-              ) : (
-                <div className="relative overflow-auto">
-                  <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
+              <div className="relative overflow-auto">
+                <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
                 <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "500px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
@@ -641,7 +612,25 @@ export function AdminTablesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredTables.map((table: TableEntity) => (
+                    {isInitialLoad ? (
+                      <TableSkeleton columns={5} />
+                    ) : filteredTables.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={
+                            3 +
+                            (showTableAreaCol ? 1 : 0) +
+                            (showTableCapacityCol ? 1 : 0)
+                          }
+                          className="px-4 py-8 text-center text-slate-500 dark:text-slate-400"
+                        >
+                          {tables.length === 0
+                            ? "No tables. Add tables for dine-in service."
+                            : "No results match your search."}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredTables.map((table: TableEntity) => (
                       <tr
                         key={table.id}
                         className="border-t border-slate-200 dark:border-slate-700"
@@ -663,35 +652,23 @@ export function AdminTablesPage() {
                           </td>
                         )}
                         <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
-                          <span
-                            className={`inline-flex justify-start rounded-full px-2 py-0.5 text-left text-xs font-medium ${
-                              table.status === "ACTIVE" ||
-                              table.status === "FREE" ||
-                              table.status === "AVAILABLE"
-                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400"
-                                : "bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-300"
-                            }`}
-                          >
-                            {table.status}
-                          </span>
+                          <Badge status={table.status}>{table.status}</Badge>
                         </td>
                         <td className="px-4 py-2 sm:px-6 sm:py-2.5">
-                          <button
-                            type="button"
+                          <IconButton
                             onClick={() => openTableEdit(table)}
-                            className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-300"
                             title={`Edit ${table.name}`}
                             aria-label={`Edit ${table.name}`}
                           >
                             <Pencil className="h-4 w-4" />
-                          </button>
+                          </IconButton>
                         </td>
                       </tr>
-                    ))}
+                    ))
+                    )}
                   </tbody>
                 </table>
-                </div>
-              )}
+              </div>
               {totalElements > size && (
                 <div className="border-t border-slate-200 px-4 py-2 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   Showing {tables.length} of {totalElements} tables.
@@ -709,12 +686,9 @@ export function AdminTablesPage() {
       >
         <form onSubmit={handleAreaSubmit} className="flex flex-col gap-4">
           <div>
-            <label
-              htmlFor="area-name"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
+            <FormLabel htmlFor="area-name">
               Name
-            </label>
+            </FormLabel>
             <input
               id="area-name"
               type="text"
@@ -730,20 +704,12 @@ export function AdminTablesPage() {
             )}
           </div>
           <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setAreaSlideOpen(false)}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-            >
+            <Button type="button" variant="secondary" size="md" onClick={() => setAreaSlideOpen(false)}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={areaSubmitLoading}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-white hover:bg-primary-500 disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" size="md" disabled={areaSubmitLoading}>
               {areaSubmitLoading ? "Saving…" : editingArea ? "Save" : "Create"}
-            </button>
+            </Button>
           </div>
         </form>
       </SlideOver>
@@ -755,12 +721,9 @@ export function AdminTablesPage() {
       >
         <form onSubmit={handleTableSubmit} className="flex flex-col gap-4">
           <div>
-            <label
-              htmlFor="table-name"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
+            <FormLabel htmlFor="table-name">
               Name
-            </label>
+            </FormLabel>
             <input
               id="table-name"
               type="text"
@@ -771,12 +734,9 @@ export function AdminTablesPage() {
             />
           </div>
           <div>
-            <label
-              htmlFor="table-area"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
+            <FormLabel htmlFor="table-area">
               Area
-            </label>
+            </FormLabel>
             <SearchableSelect
               id="table-area"
               options={tableAreaOptions}
@@ -788,12 +748,9 @@ export function AdminTablesPage() {
             />
           </div>
           <div>
-            <label
-              htmlFor="table-capacity"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
+            <FormLabel htmlFor="table-capacity">
               Capacity
-            </label>
+            </FormLabel>
             <input
               id="table-capacity"
               type="number"
@@ -806,12 +763,9 @@ export function AdminTablesPage() {
           </div>
           {editingTable && (
             <div>
-              <label
-                htmlFor="table-status"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
+              <FormLabel htmlFor="table-status">
                 Status
-              </label>
+              </FormLabel>
               <SearchableSelect
                 id="table-status"
                 options={tableStatusOptions}
@@ -829,20 +783,12 @@ export function AdminTablesPage() {
             </p>
           )}
           <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setTableSlideOpen(false)}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-            >
+            <Button type="button" variant="secondary" size="md" onClick={() => setTableSlideOpen(false)}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={tableSubmitLoading}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-white hover:bg-primary-500 disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" size="md" disabled={tableSubmitLoading}>
               {tableSubmitLoading ? "Saving…" : editingTable ? "Save" : "Create"}
-            </button>
+            </Button>
           </div>
         </form>
       </SlideOver>

@@ -13,6 +13,8 @@ export interface UseTableSearchOptions<T> {
   setSearchQuery?: (value: string) => void;
   /** Build searchable text from a row (nested / computed columns). */
   getSearchableText?: (row: T) => string;
+  /** When set, all sortable column values are included in default search haystack. */
+  sortAccessors?: Record<string, (row: T) => unknown>;
   /** Client-side page index when slicing filtered results. */
   page?: number;
   /** Client-side page size when slicing filtered results. */
@@ -34,11 +36,12 @@ function applySearchAndSort<T>(
   rows: T[],
   searchQuery: string,
   getText: ((row: T) => string) | undefined,
+  sortAccessors: Record<string, (row: T) => unknown> | undefined,
   sortColumn: string | null | undefined,
   sortDirection: SortDirection | undefined,
   getSortValue: SortValueGetter<T> | undefined
 ): T[] {
-  const filtered = filterRowsBySearch(rows, searchQuery, getText);
+  const filtered = filterRowsBySearch(rows, searchQuery, getText, sortAccessors);
   if (!sortColumn || !getSortValue) {
     return filtered;
   }
@@ -72,6 +75,7 @@ export function useTableSearch<T>(
 
   const { filteredRows, totalElements, allFilteredRows } = useMemo(() => {
     const getText = options?.getSearchableText;
+    const sortAccessors = options?.sortAccessors;
     const page = options?.page;
     const size = options?.size;
     const hasClientPaging = page != null && size != null && size > 0;
@@ -89,6 +93,7 @@ export function useTableSearch<T>(
           options.allRows,
           searchQuery,
           getText,
+          sortAccessors,
           sortColumn,
           sortDirection,
           getSortValue
@@ -108,6 +113,7 @@ export function useTableSearch<T>(
             rows,
             searchQuery,
             getText,
+            sortAccessors,
             sortColumn,
             sortDirection,
             getSortValue
@@ -131,6 +137,7 @@ export function useTableSearch<T>(
         rows,
         searchQuery,
         getText,
+        sortAccessors,
         sortColumn,
         sortDirection,
         getSortValue
@@ -147,6 +154,7 @@ export function useTableSearch<T>(
       rows,
       searchQuery,
       getText,
+      sortAccessors,
       sortColumn,
       sortDirection,
       getSortValue

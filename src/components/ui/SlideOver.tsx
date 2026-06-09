@@ -1,5 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { IconButton } from "./IconButton";
+import { modalOverlay } from "./styles";
 
 export interface SlideOverProps {
   open: boolean;
@@ -39,7 +41,7 @@ export function SlideOver({
   return (
     <>
       <div
-        className="fixed inset-0 z-40 bg-slate-900/50 dark:bg-slate-950/60"
+        className={modalOverlay}
         aria-hidden
         onClick={onClose}
       />
@@ -53,14 +55,9 @@ export function SlideOver({
           <h2 id="slideover-title" className="text-base font-semibold text-slate-900 sm:text-lg dark:text-white">
             {title}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
-            aria-label="Close"
-          >
+          <IconButton onClick={onClose} aria-label="Close">
             <X className="h-5 w-5" />
-          </button>
+          </IconButton>
         </div>
         <div className="flex-1 overflow-auto p-4 sm:p-6">{children}</div>
       </div>

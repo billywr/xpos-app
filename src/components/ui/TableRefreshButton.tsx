@@ -1,4 +1,6 @@
 import { RefreshCw } from "lucide-react";
+import { IconButton } from "./IconButton";
+import { cn } from "@/utils/cn";
 
 export interface TableRefreshButtonProps {
   onRefresh: () => void;
@@ -15,18 +17,17 @@ export function TableRefreshButton({
   "aria-label": ariaLabel = "Refresh table data",
 }: TableRefreshButtonProps) {
   return (
-    <button
-      type="button"
+    <IconButton
       onClick={onRefresh}
       disabled={isRefreshing}
       aria-label={ariaLabel}
       title="Refresh"
-      className={`shrink-0 rounded-lg border border-slate-300 bg-white p-1.5 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 sm:p-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 ${className}`}
+      className={cn("shrink-0", className)}
     >
       <RefreshCw
-        className={`h-4 w-4 sm:h-5 sm:w-5 ${isRefreshing ? "animate-spin" : ""}`}
+        className={cn("h-4 w-4 sm:h-5 sm:w-5", isRefreshing && "animate-spin")}
         aria-hidden
       />
-    </button>
+    </IconButton>
   );
 }

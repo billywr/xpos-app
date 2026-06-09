@@ -15,11 +15,16 @@ import type { Business } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
 import {
   SlideOver,
+  Button,
+  IconButton,
   ConfirmDialog,
   Pagination,
   SortableTableHead,
   TableSearchInput,
+  TableSkeleton,
+  FormLabel,
 } from "@/components/ui";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -62,11 +67,13 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
     enabled: Boolean(token),
   });
 
-  const { data: businessesData, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const businessesQuery = useQuery({
     queryKey: ["admin-businesses", token, selectedOrgId, page, size],
     queryFn: () => fetchBusinesses(token, selectedOrgId, { page, size }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
+  const { data: businessesData, isError, error, refetch } = businessesQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(businessesQuery);
 
   const createMutation = useMutation({
     mutationFn: (body: {
@@ -255,48 +262,6 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
     setPage(0);
   };
 
-  if (isLoading && selectedOrgId) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Businesses"
-          subtitle="Loading…"
-          fallbackTo="/admin"
-        />
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
-      </div>
-    );
-  }
-
-  if (isError && selectedOrgId) {
-    const message = getApiErrorMessage(error);
-    const requestId = getApiErrorRequestId(error);
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <PageHeader
-          title="Businesses"
-          fallbackTo="/admin"
-        />
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{message}</p>
-          {requestId && (
-            <p className="mt-2 text-sm opacity-90">
-              Reference:{" "}
-              <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
-                {requestId}
-              </code>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <PageHeader
@@ -327,14 +292,10 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
           />
         </div>
         {selectedOrgId && (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-500 dark:hover:bg-primary-600 dark:focus:ring-offset-slate-800"
-          >
+          <Button onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Add business
-          </button>
+          </Button>
         )}
       </div>
 
@@ -344,6 +305,22 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
         </div>
       ) : (
         <>
+          {isError && (
+            <div
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              role="alert"
+            >
+              <p>{getApiErrorMessage(error)}</p>
+              {getApiErrorRequestId(error) && (
+                <p className="mt-2 text-sm opacity-90">
+                  Reference:{" "}
+                  <code className="rounded bg-red-100 px-1 dark:bg-red-900/50">
+                    {getApiErrorRequestId(error)}
+                  </code>
+                </p>
+              )}
+            </div>
+          )}
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search businesses…" className="mb-4" />
 
           {totalElements > 0 && (
@@ -356,7 +333,7 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
               onSizeChange={handleSizeChange}
               sizeOptions={[10, 25, 50, 100]}
               onRefresh={() => void refetch()}
-              isRefreshing={isFetching}
+              isRefreshing={isRefreshing}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
@@ -396,7 +373,9 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {filteredBusinesses.length === 0 ? (
+                  {isInitialLoad ? (
+                    <TableSkeleton columns={4} />
+                  ) : filteredBusinesses.length === 0 ? (
                     <tr>
                       <td
                         colSpan={2 + (showKraPinCol ? 1 : 0)}
@@ -421,24 +400,21 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                         )}
                         <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
                           <div className="flex justify-start gap-2">
-                            <button
-                              type="button"
+                            <IconButton
                               onClick={() => openEdit(business)}
-                              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-white"
                               title={`Edit ${business.legalName}`}
                               aria-label={`Edit ${business.legalName}`}
                             >
                               <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
+                            </IconButton>
+                            <IconButton
+                              variant="danger"
                               onClick={() => setConfirmDelete(business)}
-                              className="rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
                               title={`Delete ${business.legalName}`}
                               aria-label={`Delete ${business.legalName}`}
                             >
                               <Trash2 className="h-4 w-4" />
-                            </button>
+                            </IconButton>
                           </div>
                         </td>
                       </tr>
@@ -464,12 +440,9 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                 </p>
               )}
               <div>
-                <label
-                  htmlFor="business-legal-name"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="business-legal-name" className="mb-1">
                   Legal name
-                </label>
+                </FormLabel>
                 <input
                   id="business-legal-name"
                   type="text"
@@ -481,12 +454,9 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                 />
               </div>
               <div>
-                <label
-                  htmlFor="business-kra-pin"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="business-kra-pin" className="mb-1">
                   KRA PIN (optional)
-                </label>
+                </FormLabel>
                 <input
                   id="business-kra-pin"
                   type="text"
@@ -497,12 +467,9 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                 />
               </div>
               <div>
-                <label
-                  htmlFor="business-logo-url"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="business-logo-url" className="mb-1">
                   Logo URL (optional)
-                </label>
+                </FormLabel>
                 <input
                   id="business-logo-url"
                   type="url"
@@ -513,12 +480,9 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                 />
               </div>
               <div>
-                <label
-                  htmlFor="business-receipt-footer"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
+                <FormLabel htmlFor="business-receipt-footer" className="mb-1">
                   Receipt footer (optional)
-                </label>
+                </FormLabel>
                 <textarea
                   id="business-receipt-footer"
                   rows={3}
@@ -529,24 +493,16 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                 />
               </div>
               <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setSlideOpen(false)}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                >
+                <Button type="button" variant="secondary" size="md" onClick={() => setSlideOpen(false)}>
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitLoading}
-                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
-                >
+                </Button>
+                <Button type="submit" size="md" disabled={submitLoading}>
                   {submitLoading
                     ? "Saving…"
                     : editingBusiness
                       ? "Save"
                       : "Create"}
-                </button>
+                </Button>
               </div>
             </form>
           </SlideOver>

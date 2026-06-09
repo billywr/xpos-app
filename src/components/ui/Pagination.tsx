@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { IconButton } from "./IconButton";
 import { TableRefreshButton } from "./TableRefreshButton";
 
 export interface PaginationProps {
@@ -44,7 +45,7 @@ export function Pagination({
       : "border-t border-slate-200 dark:border-slate-700";
 
   return (
-    <div className={`flex items-center justify-between gap-2 bg-slate-50 px-3 py-2 sm:gap-4 sm:px-4 sm:py-3 dark:bg-slate-800/50 ${borderClass}`}>
+    <div className={`flex items-center justify-between gap-2 bg-slate-50 px-3 py-2 sm:gap-4 sm:px-4 sm:py-3 dark:bg-slate-800 ${borderClass}`}>
       <div className="flex items-center gap-2 sm:gap-4">
         <p className="whitespace-nowrap text-sm font-semibold text-slate-700 sm:text-base dark:text-slate-300">
           <span className="font-bold">{first}</span>–
@@ -73,24 +74,20 @@ export function Pagination({
           <span className="font-bold">{page + 1}</span>/
           <span className="font-bold">{totalPages}</span>
         </span>
-        <button
-          type="button"
+        <IconButton
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 0}
-          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-200 disabled:opacity-40 sm:p-2 dark:text-slate-400 dark:hover:bg-slate-700 dark:disabled:hover:bg-transparent"
           aria-label="Previous page"
         >
           <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-        </button>
-        <button
-          type="button"
+        </IconButton>
+        <IconButton
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages - 1}
-          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-200 disabled:opacity-40 sm:p-2 dark:text-slate-400 dark:hover:bg-slate-700 dark:disabled:hover:bg-transparent"
           aria-label="Next page"
         >
           <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
-        </button>
+        </IconButton>
       </div>
     </div>
   );

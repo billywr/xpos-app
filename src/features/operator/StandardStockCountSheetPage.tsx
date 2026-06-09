@@ -37,18 +37,23 @@ import {
   Loader2,
   FileSpreadsheet,
   Download,
-  X,
   ShoppingBag,
 } from "lucide-react";
 import { downloadStdStockCountPdf } from "@/utils/stdStockCountPdf";
 import {
+  Button,
+  Modal,
   Pagination,
   SortableTableHead,
+  StatChip,
   TableSearchInput,
+  TableSkeleton,
   ConfirmDialog,
+  tableHeadCell,
 } from "@/components/ui";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { useDataTable } from "@/hooks/useDataTable";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 
 /** YYYY-MM-DD in the browser's local calendar (not UTC). toISOString().slice(0,10) is wrong for TZ ahead of UTC. */
 function toDateStr(d: Date): string {
@@ -201,13 +206,15 @@ export function StandardStockCountSheetPage({
   const isYesterday = dateStr === yesterdayStr();
   const canEdit = isToday || isYesterday;
 
-  const { data: sheet, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const sheetQuery = useQuery({
     queryKey: ["std-stock-count", token, orgId, branchId, dateStr],
     queryFn: () => fetchStdStockCountSheet(token, orgId, branchId, dateStr),
     enabled: Boolean(token && orgId && branchId),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
   });
+  const { data: sheet, isError, error, refetch } = sheetQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(sheetQuery);
 
   const salesPreviewQueryEnabled = Boolean(
     token && orgId && branchId && terminalId && canEdit && sheet
@@ -636,7 +643,7 @@ export function StandardStockCountSheetPage({
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
         {sheet ? (
           <div className="flex min-w-0 items-center gap-2">
-            <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Filter by name or SKU" />
+            <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search all columns…" />
             {latestSavedAt && (
               <span className="hidden shrink-0 text-xs text-slate-500 md:inline dark:text-slate-400">
                 Saved: {new Date(latestSavedAt).toLocaleString()}
@@ -674,21 +681,22 @@ export function StandardStockCountSheetPage({
             <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
           <span className="mx-0.5 hidden h-4 w-px bg-slate-300 sm:mx-1 sm:block dark:bg-slate-600" aria-hidden />
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="md"
             onClick={handleDownloadPdf}
             disabled={!sheet}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 sm:gap-2 sm:px-4 sm:py-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             aria-label="Download PDF"
+            className="px-2.5 py-1.5 sm:px-4 sm:py-2"
           >
             <Download className="h-4 w-4" />
             <span className="hidden xs:inline">PDF</span>
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            size="md"
             onClick={handleSave}
             disabled={saveMutation.isPending || hasErrors || !canEdit || !hasChanges}
-            className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 sm:gap-2 sm:px-4 sm:py-2"
+            className="px-2.5 py-1.5 sm:px-4 sm:py-2"
           >
             {saveMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -696,9 +704,10 @@ export function StandardStockCountSheetPage({
               <Save className="h-4 w-4" />
             )}
             <span className="hidden xs:inline">Save</span>
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="success"
+            size="md"
             onClick={() => void handleRecordSalesClick()}
             disabled={
               !sheet ||
@@ -722,8 +731,8 @@ export function StandardStockCountSheetPage({
                       ? "Checking sales to record…"
                       : "Record sales from Sold column"
             }
-            className="flex items-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-50 px-2.5 py-1.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-400 disabled:hover:bg-slate-100 sm:gap-2 sm:px-4 sm:py-2 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-900/50 dark:disabled:border-slate-600 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 dark:disabled:hover:bg-slate-800"
             aria-label="Record sales"
+            className="px-2.5 py-1.5 sm:px-4 sm:py-2"
           >
             {previewLoading || recordSalesMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -731,16 +740,17 @@ export function StandardStockCountSheetPage({
               <ShoppingBag className="h-4 w-4" />
             )}
             <span className="hidden xs:inline">Record sales</span>
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="secondary"
+            size="md"
             onClick={() => setTableExpanded((v) => !v)}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 sm:gap-2 sm:px-4 sm:py-2 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             title={tableExpanded ? "Exit full screen" : "Expand table"}
+            className="px-2.5 py-1.5 sm:px-4 sm:py-2"
             aria-label={tableExpanded ? "Exit full screen" : "Expand table"}
           >
             {tableExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -749,12 +759,6 @@ export function StandardStockCountSheetPage({
           Viewing past date. Edits are disabled; only today and yesterday are
           editable (yesterday for testing).
         </p>
-      )}
-
-      {isLoading && (
-        <div className="flex flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-          Loading…
-        </div>
       )}
 
       {isError && (
@@ -766,7 +770,7 @@ export function StandardStockCountSheetPage({
         </div>
       )}
 
-      {!isLoading && !isError && sheet && (
+      {!isError && (isInitialLoad || sheet) && (
         <div className="flex min-h-0 flex-1 flex-col">
           {/* Swipe hint — visible only on small screens */}
           {computedRows.length > 0 && (
@@ -782,7 +786,7 @@ export function StandardStockCountSheetPage({
               }}
               sizeOptions={[10, 15, 25, 50, 100]}
               onRefresh={() => void refetch()}
-              isRefreshing={isFetching}
+              isRefreshing={isRefreshing}
             />
           )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">
@@ -801,7 +805,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="sticky left-0 z-20 bg-slate-50 px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:bg-slate-700 dark:text-slate-300"
+                    className={`sticky left-0 z-20 bg-slate-50 dark:bg-slate-700 ${tableHeadCell}`}
                     title="Product name"
                   />
                   <SortableTableHead
@@ -810,7 +814,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    className={`${tableHeadCell} text-right`}
                     title="Latest saved closing before this date (from your last stock count save)"
                   />
                   <SortableTableHead
@@ -819,7 +823,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    className={`${tableHeadCell} text-right`}
                     title="GRN receipts since your last saved count through this date"
                   />
                   <SortableTableHead
@@ -828,7 +832,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    className={`${tableHeadCell} text-right`}
                     title="Opening + Added + stock-take adds; equals System when counts align with the ledger"
                   />
                   <SortableTableHead
@@ -837,7 +841,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    className={`${tableHeadCell} text-right`}
                     title="Physical count at end of day"
                   />
                   <SortableTableHead
@@ -846,7 +850,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="px-4 py-3 text-right text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    className={`${tableHeadCell} text-right`}
                     title="Total Stock − Closing (units sold)"
                   />
                   <SortableTableHead
@@ -855,7 +859,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    className={tableHeadCell}
                     title="Selling price per unit from price list"
                   />
                   <SortableTableHead
@@ -864,13 +868,15 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                    className={tableHeadCell}
                     title="Units Sold × Selling Price (revenue value)"
                   />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
-                {paginatedRows.map((r) => (
+                {isInitialLoad ? (
+                  <TableSkeleton columns={8} rows={12} />
+                ) : paginatedRows.map((r) => (
                   <tr
                     key={r.itemId}
                     className="group hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -937,54 +943,28 @@ export function StandardStockCountSheetPage({
           </div>
 
           <div className={`mt-4 flex flex-wrap justify-end gap-1.5 sm:gap-3 ${tableExpanded ? "hidden" : ""}`}>
-            {/* Today's Debts badge */}
-            <button
-              type="button"
-              onClick={() => dayDebts.length > 0 && setDebtModal("day")}
-              className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 px-1.5 py-1 shadow ring-2 ring-amber-100/50 transition hover:shadow-xl active:scale-[0.98] sm:gap-3 sm:rounded-xl sm:px-6 sm:py-4 dark:border-amber-800 dark:from-amber-950/50 dark:to-orange-950/50 dark:ring-amber-900/30"
-            >
-              <span className="text-[8px] font-medium uppercase tracking-wide text-amber-700 sm:text-base dark:text-amber-400">
-                Today Debts
-              </span>
-              <span className="text-xs font-bold tabular-nums text-amber-900 sm:text-2xl dark:text-amber-100">
-                {formatCurrency(dayDebtsTotal)}
-              </span>
-            </button>
-            {/* Total Debts badge */}
-            <button
-              type="button"
-              onClick={() => allDebts.length > 0 && setDebtModal("all")}
-              className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 px-1.5 py-1 shadow ring-2 ring-orange-100/50 transition hover:shadow-xl active:scale-[0.98] sm:gap-3 sm:rounded-xl sm:px-6 sm:py-4 dark:border-orange-800 dark:from-orange-950/50 dark:to-amber-950/50 dark:ring-orange-900/30"
-            >
-              <span className="text-[8px] font-medium uppercase tracking-wide text-orange-700 sm:text-base dark:text-orange-400">
-                Total Debts
-              </span>
-              <span className="text-xs font-bold tabular-nums text-orange-900 sm:text-2xl dark:text-orange-100">
-                {formatCurrency(allDebtsTotal)}
-              </span>
-            </button>
-            <div
-              className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-gradient-to-br from-red-50 to-rose-50 px-1.5 py-1 shadow ring-2 ring-red-100/50 sm:gap-3 sm:rounded-xl sm:px-6 sm:py-4 dark:border-red-800 dark:from-red-950/50 dark:to-rose-950/50 dark:ring-red-900/30"
-              role="status"
-            >
-              <span className="text-[8px] font-medium uppercase tracking-wide text-red-700 sm:text-base dark:text-red-400">
-                Expenses
-              </span>
-              <span className="text-xs font-bold tabular-nums text-red-900 sm:text-2xl dark:text-red-100">
-                {formatCurrency(analytics?.expenseIntelligence?.todayTotal ?? 0)}
-              </span>
-            </div>
-            <div
-              className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 px-1.5 py-1 shadow ring-2 ring-emerald-100/50 sm:gap-3 sm:rounded-xl sm:px-6 sm:py-4 dark:border-emerald-800 dark:from-emerald-950/50 dark:to-teal-950/50 dark:ring-emerald-900/30"
-              role="status"
-            >
-              <span className="text-[8px] font-medium uppercase tracking-wide text-emerald-700 sm:text-base dark:text-emerald-400">
-                Total Sales
-              </span>
-              <span className="text-xs font-bold tabular-nums text-emerald-900 sm:text-2xl dark:text-emerald-100">
-                {formatCurrency(totals.amount)}
-              </span>
-            </div>
+            <StatChip
+              label="Today Debts"
+              value={formatCurrency(dayDebtsTotal)}
+              tone="debt"
+              onClick={dayDebts.length > 0 ? () => setDebtModal("day") : undefined}
+            />
+            <StatChip
+              label="Total Debts"
+              value={formatCurrency(allDebtsTotal)}
+              tone="debt"
+              onClick={allDebts.length > 0 ? () => setDebtModal("all") : undefined}
+            />
+            <StatChip
+              label="Expenses"
+              value={formatCurrency(analytics?.expenseIntelligence?.todayTotal ?? 0)}
+              tone="expense"
+            />
+            <StatChip
+              label="Total Sales"
+              value={formatCurrency(totals.amount)}
+              tone="sales"
+            />
           </div>
 
           {computedRows.length === 0 && (
@@ -996,59 +976,48 @@ export function StandardStockCountSheetPage({
         </div>
       )}
 
-      {/* Debtors modal */}
-      {debtModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
-          onClick={() => setDebtModal(null)}
-        >
-          <div
-            className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-600 dark:bg-slate-800"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                {debtModal === "day" ? `Debtors — ${dateStr}` : "All Outstanding Debtors"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setDebtModal(null)}
-                className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="max-h-[60vh] overflow-y-auto p-4">
-              {(debtModal === "day" ? dayDebts : allDebts).length === 0 ? (
-                <p className="py-6 text-center text-slate-500 dark:text-slate-400">No debtors</p>
-              ) : (
-                <div className="space-y-2">
-                  {(debtModal === "day" ? dayDebts : allDebts).map((d) => (
-                    <div key={d.id} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-700/50">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-slate-900 dark:text-white">{d.customerName}</p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                          {d.customerPhone ?? "—"} · Due: {d.dueDate ?? "—"}
-                          {debtModal === "all" ? ` · Recorded: ${d.createdAt?.slice(0, 10) ?? "—"}` : ""}
-                        </p>
-                      </div>
-                      <span className={`shrink-0 text-lg font-bold tabular-nums ${debtModal === "day" ? "text-amber-600 dark:text-amber-400" : "text-orange-600 dark:text-orange-400"}`}>
-                        {formatCurrency(d.outstanding)}
-                      </span>
+      <Modal
+        open={debtModal !== null}
+        onClose={() => setDebtModal(null)}
+        title={
+          debtModal === "day"
+            ? `Debtors — ${dateStr}`
+            : debtModal === "all"
+              ? "All Outstanding Debtors"
+              : undefined
+        }
+        className="p-0"
+      >
+        <div className="-m-5 flex flex-col">
+          <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+            {(debtModal === "day" ? dayDebts : allDebts).length === 0 ? (
+              <p className="py-6 text-center text-slate-500 dark:text-slate-400">No debtors</p>
+            ) : (
+              <div className="space-y-2">
+                {(debtModal === "day" ? dayDebts : allDebts).map((d) => (
+                  <div key={d.id} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-700/50">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-900 dark:text-white">{d.customerName}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {d.customerPhone ?? "—"} · Due: {d.dueDate ?? "—"}
+                        {debtModal === "all" ? ` · Recorded: ${d.createdAt?.slice(0, 10) ?? "—"}` : ""}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="border-t border-slate-200 px-5 py-3 text-right dark:border-slate-700">
-              <span className="text-sm font-bold text-slate-900 dark:text-white">
-                Total: {formatCurrency(debtModal === "day" ? dayDebtsTotal : allDebtsTotal)}
-              </span>
-            </div>
+                    <span className="shrink-0 text-lg font-bold tabular-nums text-amber-600 dark:text-amber-400">
+                      {formatCurrency(d.outstanding)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="border-t border-slate-200 px-5 py-3 text-right dark:border-slate-700">
+            <span className="text-sm font-bold text-slate-900 dark:text-white">
+              Total: {formatCurrency(debtModal === "day" ? dayDebtsTotal : allDebtsTotal)}
+            </span>
           </div>
         </div>
-      )}
+      </Modal>
 
       <ConfirmDialog
         open={saveBeforeRecordOpen}

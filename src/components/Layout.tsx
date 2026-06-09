@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from "react";
-import { Outlet, Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { PageTransition } from "@/components/ui/PageTransition";
 import { Store, LayoutDashboard, LogOut, Sun, Moon, Menu, X } from "lucide-react";
 import { ContextSelectDropdowns } from "@/components/ContextSelectDropdowns";
 import { useAppSelector } from "@/hooks/useAppSelector";
@@ -128,7 +129,7 @@ export function Layout() {
                   className={({ isActive }) =>
                     `flex items-center gap-1.5 rounded-lg px-2 py-1.5 ${
                       isActive
-                        ? "bg-primary-100 font-semibold text-primary-700 dark:bg-white/15 dark:text-white"
+                        ? "bg-primary-600 font-semibold text-white dark:bg-primary-500"
                         : "text-slate-600 hover:bg-slate-100 hover:text-primary-600 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
                     }`
                   }
@@ -195,7 +196,7 @@ export function Layout() {
                   className={({ isActive }) =>
                     `flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium ${
                       isActive
-                        ? "bg-primary-100 font-semibold text-primary-700 dark:bg-white/15 dark:text-white"
+                        ? "bg-primary-600 font-semibold text-white dark:bg-primary-500"
                         : "text-slate-600 hover:bg-slate-100 hover:text-primary-600 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
                     }`
                   }
@@ -224,7 +225,7 @@ export function Layout() {
         )}
       </header>
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <Outlet />
+        <PageTransition />
       </main>
     </div>
   );

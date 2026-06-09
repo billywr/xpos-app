@@ -35,6 +35,7 @@ import {
   Pagination,
   ConfirmDialog,
   SortableTableHead,
+  StatChip,
   TableSearchInput,
 } from "@/components/ui";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
@@ -62,8 +63,6 @@ import {
 import { PageHeader } from "@/components/PageHeader";
 import { AdminTabList, AdminTabPanel } from "@/components/ui/AdminTabs";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { motion, AnimatePresence } from "framer-motion";
-
 // ---------------------------------------------------------------------------
 // Shared date helpers (same as StandardStockCountSheetPage)
 // ---------------------------------------------------------------------------
@@ -219,43 +218,14 @@ function DebtPendingTotalDisplay(props: {
   onClick?: () => void;
 }) {
   const { totalPending, loading, onClick } = props;
-  const clickable = !!onClick;
   return (
-    <motion.button
-      type="button"
+    <StatChip
+      label="Total pending"
+      value={loading ? "…" : formatCurrency(totalPending)}
+      tone="debt"
       onClick={onClick}
-      disabled={!clickable}
-      title={clickable ? "Click to see per-customer breakdown" : undefined}
-      className={`flex min-w-[min(100%,17rem)] max-w-full shrink-0 items-center justify-between gap-4 rounded-2xl border-2 border-emerald-500 bg-slate-900 px-5 py-3.5 shadow-md shadow-emerald-950/40 transition dark:border-emerald-400 dark:shadow-emerald-950/60 ${
-        clickable
-          ? "cursor-pointer hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          : "cursor-default"
-      }`}
-      whileHover={
-        clickable
-          ? {
-              y: [0, -6, 0, -4, 0],
-              transition: { duration: 0.55, ease: "easeInOut" },
-            }
-          : undefined
-      }
-    >
-      <span className="text-xs font-bold uppercase tracking-widest text-emerald-500 dark:text-emerald-400">
-        Total pending
-      </span>
-      <AnimatePresence mode="wait">
-        <motion.span
-          key={loading ? "loading" : String(totalPending)}
-          initial={{ opacity: 0, x: 6 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -6 }}
-          transition={{ type: "spring", stiffness: 400, damping: 32 }}
-          className="text-right text-lg font-bold tabular-nums tracking-tight text-emerald-50"
-        >
-          {loading ? "…" : formatCurrency(totalPending)}
-        </motion.span>
-      </AnimatePresence>
-    </motion.button>
+      className="min-w-[min(100%,17rem)] max-w-full shrink-0"
+    />
   );
 }
 
@@ -280,26 +250,14 @@ function MiscExpensesTotalBadge(props: {
   onClick?: () => void;
 }) {
   const { totalAmount, onClick } = props;
-  const clickable = !!onClick;
   return (
-    <button
-      type="button"
+    <StatChip
+      label="Total"
+      value={formatCurrency(totalAmount)}
+      tone="expense"
       onClick={onClick}
-      disabled={!clickable}
-      title={clickable ? "Click to see per-category breakdown" : undefined}
-      className={`inline-flex max-w-full items-center justify-between gap-4 rounded-full border-2 border-emerald-500 bg-slate-900 px-6 py-3 shadow-md shadow-emerald-950/40 transition dark:border-emerald-400 dark:shadow-emerald-950/60 ${
-        clickable
-          ? "cursor-pointer hover:bg-slate-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          : "cursor-default"
-      }`}
-    >
-      <span className="text-xs font-bold uppercase tracking-widest text-emerald-500 dark:text-emerald-400">
-        Total
-      </span>
-      <span className="text-right text-lg font-bold tabular-nums text-white dark:text-white">
-        {formatCurrency(totalAmount)}
-      </span>
-    </button>
+      className="max-w-full"
+    />
   );
 }
 
@@ -756,7 +714,7 @@ export function DebtsAndExpensesPage() {
   const filteredDebts = useMemo(
     () =>
       debtSearchActive
-        ? filterRowsBySearch(baseDebts, debtSearchQuery)
+        ? filterRowsBySearch(baseDebts, debtSearchQuery, undefined, DEBT_SORT)
         : baseDebts,
     [baseDebts, debtSearchActive, debtSearchQuery]
   );
@@ -1046,7 +1004,7 @@ export function DebtsAndExpensesPage() {
   const filteredExpenses = useMemo(
     () =>
       expSearchActive
-        ? filterRowsBySearch(baseExpenses, expSearchQuery)
+        ? filterRowsBySearch(baseExpenses, expSearchQuery, undefined, EXPENSE_SORT)
         : baseExpenses,
     [baseExpenses, expSearchActive, expSearchQuery]
   );
@@ -2352,7 +2310,7 @@ export function DebtsAndExpensesPage() {
             aria-hidden
             onClick={() => setDebtBreakdownOpen(false)}
           />
-          <div className="relative flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl dark:border-slate-700 dark:bg-darkSurface">
+          <div className="relative flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5 dark:border-slate-700">
               <div>
                 <h3
@@ -2402,7 +2360,7 @@ export function DebtsAndExpensesPage() {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="sticky bottom-0 border-t-2 border-slate-200 bg-white dark:border-slate-600 dark:bg-darkSurface">
+                <tfoot className="sticky bottom-0 border-t-2 border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800">
                   <tr>
                     <td className="px-6 py-4 text-left text-xl font-bold text-slate-900 dark:text-white">
                       Total pending
@@ -2433,7 +2391,7 @@ export function DebtsAndExpensesPage() {
             aria-hidden
             onClick={() => setExpBreakdownOpen(false)}
           />
-          <div className="relative flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl dark:border-slate-700 dark:bg-darkSurface">
+          <div className="relative flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5 dark:border-slate-700">
               <div>
                 <h3
@@ -2483,7 +2441,7 @@ export function DebtsAndExpensesPage() {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="sticky bottom-0 border-t-2 border-slate-200 bg-white dark:border-slate-600 dark:bg-darkSurface">
+                <tfoot className="sticky bottom-0 border-t-2 border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800">
                   <tr>
                     <td className="px-6 py-4 text-left text-xl font-bold text-slate-900 dark:text-white">
                       Total

@@ -33,21 +33,17 @@ import { useToast } from "@/contexts/ToastContext";
 import { Receipt, Plus, Loader2, Pencil, XCircle, FileDown } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { StatChip } from "@/components/ui";
 
 function MiscExpensesTotalBadge(props: { totalAmount: number }) {
   const { totalAmount } = props;
   return (
-    <div
-      className="inline-flex max-w-full items-center justify-between gap-4 rounded-full border-2 border-emerald-500 bg-slate-900 px-6 py-3 shadow-md shadow-emerald-950/40 dark:border-emerald-400 dark:shadow-emerald-950/60"
-      role="status"
-    >
-      <span className="text-xs font-bold uppercase tracking-widest text-emerald-500 dark:text-emerald-400">
-        Total
-      </span>
-      <span className="text-right text-lg font-bold tabular-nums text-white dark:text-white">
-        {formatCurrency(totalAmount)}
-      </span>
-    </div>
+    <StatChip
+      label="Total"
+      value={formatCurrency(totalAmount)}
+      tone="expense"
+      className="max-w-full"
+    />
   );
 }
 

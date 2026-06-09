@@ -15,6 +15,8 @@ import {
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import {
+  Badge,
+  Button,
   Pagination,
   ConfirmDialog,
   SortableTableHead,
@@ -252,15 +254,13 @@ export function StockCountSessionsPage() {
             className="w-full sm:w-auto min-w-[12rem]"
             controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
           />
-          <button
-            type="button"
+          <Button
             onClick={() => startMutation.mutate()}
             disabled={
               !selectedOrgId ||
               !selectedBranchId ||
               startMutation.isPending
             }
-            className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
           >
             {startMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -268,7 +268,7 @@ export function StockCountSessionsPage() {
               <Plus className="h-4 w-4" />
             )}
             Start count
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -378,15 +378,7 @@ export function StockCountSessionsPage() {
                           {s.lines?.length ?? 0}
                         </td>
                         <td className="px-4 py-2 text-base sm:px-6 sm:py-2.5 sm:text-2xl">
-                          <span
-                            className={`inline-flex justify-start rounded-full px-2 py-1 text-left text-xs font-medium ${
-                              s.status === "OPEN"
-                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
-                                : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
-                            }`}
-                          >
-                            {s.status}
-                          </span>
+                          <Badge status={s.status}>{s.status}</Badge>
                         </td>
                         <td className="px-4 py-2 text-left text-base sm:px-6 sm:py-2.5 sm:text-2xl">
                           <div className="flex flex-wrap items-center gap-2">

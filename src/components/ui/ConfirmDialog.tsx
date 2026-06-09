@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { Button } from "./Button";
+import { modalOverlay } from "./styles";
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -39,12 +41,8 @@ export function ConfirmDialog({
   const anyLoading =
     loading || Boolean(trailingDangerAction?.loading);
 
-  const confirmButtonClass =
-    variant === "danger"
-      ? "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 dark:bg-red-600 dark:hover:bg-red-700"
-      : variant === "primary"
-        ? "bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 dark:bg-primary-500 dark:hover:bg-primary-600"
-        : "bg-slate-600 text-white hover:bg-slate-700 focus:ring-slate-500 dark:bg-slate-600 dark:hover:bg-slate-700";
+  const confirmVariant =
+    variant === "danger" ? "danger" : variant === "primary" ? "primary" : "neutral";
 
   return (
     <div
@@ -55,7 +53,7 @@ export function ConfirmDialog({
       aria-describedby="confirm-dialog-desc"
     >
       <div
-        className="fixed inset-0 bg-slate-900/50 dark:bg-slate-950/60"
+        className={modalOverlay}
         aria-hidden
         onClick={onClose}
       />
@@ -73,31 +71,26 @@ export function ConfirmDialog({
           {message}
         </p>
         <div className="mt-4 flex flex-wrap justify-end gap-2 sm:mt-6 sm:gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={anyLoading}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-          >
+          <Button variant="secondary" size="md" onClick={onClose} disabled={anyLoading}>
             {cancelLabel}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant={confirmVariant}
+            size="md"
             onClick={onConfirm}
             disabled={anyLoading}
-            className={`rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-slate-800 ${confirmButtonClass}`}
           >
             {loading ? "…" : confirmLabel}
-          </button>
+          </Button>
           {trailingDangerAction ? (
-            <button
-              type="button"
+            <Button
+              variant="danger"
+              size="md"
               onClick={trailingDangerAction.onClick}
               disabled={anyLoading}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-offset-slate-800"
             >
               {trailingDangerAction.loading ? "…" : trailingDangerAction.label}
-            </button>
+            </Button>
           ) : null}
         </div>
       </div>

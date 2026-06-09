@@ -27,6 +27,7 @@ import {
   Pagination,
   ConfirmDialog,
   SortableTableHead,
+  StatChip,
   TableSearchInput,
 } from "@/components/ui";
 import { useDataTable } from "@/hooks/useDataTable";
@@ -47,8 +48,6 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { motion, AnimatePresence } from "framer-motion";
-
 const PAGE_SIZE = 20;
 
 interface BorrowedLineDraft {
@@ -110,29 +109,12 @@ const DEBT_SORT = {
 function DebtPendingTotalDisplay(props: { totalPending: number; loading: boolean }) {
   const { totalPending, loading } = props;
   return (
-    <motion.div
-      className="flex min-w-[min(100%,17rem)] max-w-full shrink-0 items-center justify-between gap-4 rounded-2xl border-2 border-emerald-500 bg-slate-900 px-5 py-3.5 shadow-md shadow-emerald-950/40 dark:border-emerald-400 dark:shadow-emerald-950/60"
-      whileHover={{
-        y: [0, -6, 0, -4, 0],
-        transition: { duration: 0.55, ease: "easeInOut" },
-      }}
-    >
-      <span className="text-xs font-bold uppercase tracking-widest text-emerald-500 dark:text-emerald-400">
-        Total pending
-      </span>
-      <AnimatePresence mode="wait">
-        <motion.span
-          key={loading ? "loading" : String(totalPending)}
-          initial={{ opacity: 0, x: 6 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -6 }}
-          transition={{ type: "spring", stiffness: 400, damping: 32 }}
-          className="text-right text-lg font-bold tabular-nums tracking-tight text-emerald-50"
-        >
-          {loading ? "…" : formatCurrency(totalPending)}
-        </motion.span>
-      </AnimatePresence>
-    </motion.div>
+    <StatChip
+      label="Total pending"
+      value={loading ? "…" : formatCurrency(totalPending)}
+      tone="debt"
+      className="min-w-[min(100%,17rem)] max-w-full shrink-0"
+    />
   );
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildDefaultSearchableText,
   filterRowsBySearch,
   matchesSearchQuery,
   normalizeSearchText,
@@ -43,6 +44,35 @@ describe("tableSearchMatch", () => {
 
     it("searches numeric columns", () => {
       expect(filterRowsBySearch(rows, "4.5")).toHaveLength(1);
+    });
+
+    it("searches nested object fields", () => {
+      const nested = [
+        { orgId: "uuid-1", branch: { name: "Stone Pub" } },
+        { orgId: "uuid-2", branch: { name: "Downtown" } },
+      ];
+      expect(filterRowsBySearch(nested, "stone")).toHaveLength(1);
+      expect(filterRowsBySearch(nested, "uuid-1")).toHaveLength(0);
+    });
+  });
+
+  describe("buildDefaultSearchableText", () => {
+    it("includes sort accessor values not present as top-level primitives", () => {
+      const row = { id: "x", amount: 100 };
+      const accessors = {
+        label: () => "Outstanding KES",
+        displayAmount: () => "KES 1,400.00",
+      };
+      const haystack = buildDefaultSearchableText(row, accessors);
+      expect(haystack).toContain("Outstanding KES");
+      expect(haystack).toContain("KES 1,400.00");
+      expect(haystack).toContain("100");
+    });
+
+    it("matches query via accessor-only display text", () => {
+      const row = { id: "abc" };
+      const accessors = { customer: () => "Jane Doe" };
+      expect(rowMatchesSearch(row, "jane", undefined, accessors)).toBe(true);
     });
   });
 
