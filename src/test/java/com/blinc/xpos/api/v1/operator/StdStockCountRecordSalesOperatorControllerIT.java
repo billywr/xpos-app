@@ -478,8 +478,8 @@ class StdStockCountRecordSalesOperatorControllerIT extends AbstractIntegrationTe
         orgId, branchId, supplierId, itemId, 5, LocalDate.now(), ZoneId.of("Africa/Nairobi"));
   }
 
-  private void createGrnForItems(
-      UUID orgId, UUID branchId, UUID supplierId, UUID itemA, UUID itemB) throws Exception {
+  private void createGrnForItems(UUID orgId, UUID branchId, UUID supplierId, UUID itemA, UUID itemB)
+      throws Exception {
     LocalDate receivedDate = LocalDate.now();
     ZoneId zone = ZoneId.of("Africa/Nairobi");
     String body =

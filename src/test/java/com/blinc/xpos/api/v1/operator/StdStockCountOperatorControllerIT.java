@@ -315,7 +315,7 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
-  void getSheetIncludesGrnReceiptsFromSkippedDaysInAdded() throws Exception {
+  void getSheetAddedReflectsSameDayGrnOnlyWhenDaysSkipped() throws Exception {
     ZoneId zone = ZoneId.of("Africa/Nairobi");
     LocalDate today = LocalDate.now(zone);
     LocalDate threeDaysAgo = today.minusDays(3);
@@ -346,6 +346,19 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
     createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 5, twoDaysAgo, zone);
     createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 3, today, zone);
 
+    String urlTwoDaysAgo =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + twoDaysAgo;
+    mockMvc
+        .perform(get(urlTwoDaysAgo).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(10))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(5));
+
     String urlToday =
         "/api/v1/operator/orgs/"
             + orgId
@@ -357,7 +370,7 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         .perform(get(urlToday).with(operatorJwt()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.rows[0].openingStock").value(10))
-        .andExpect(jsonPath("$.rows[0].addedStock").value(8));
+        .andExpect(jsonPath("$.rows[0].addedStock").value(3));
   }
 
   @Test

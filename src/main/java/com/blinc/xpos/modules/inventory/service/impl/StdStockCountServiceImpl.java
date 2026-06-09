@@ -47,8 +47,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Standard Stock Count Sheet service. Bar-style: {@code openingStock} is the latest saved physical
  * closing before the sheet date when a snapshot exists; otherwise {@code 0} (no ledger-derived
  * fallback — operators must save a closing to seed the chain). {@code addedStock} and {@code
- * addedTodayStock} cover receipts from the day after that last save through the sheet date. Units
- * Sold = Total − Closing.
+ * addedTodayStock} cover GRN receipts and stock-take positive adjustments on the sheet date only
+ * (not accumulated from skipped days). Units Sold = Total − Closing.
  */
 @Service
 public class StdStockCountServiceImpl implements StdStockCountService {
@@ -157,11 +157,9 @@ public class StdStockCountServiceImpl implements StdStockCountService {
         resolveLatestMeaningfulPriorByItem(priorSnapshots, blankSaveDates);
 
     Map<UUID, BigDecimal> addedGrnByItem =
-        loadReceiptQtyByItemForRanges(
-            orgId, branchId, zone, businessDate, dayEnd, items, latestPriorByItem);
+        loadReceiptQtyByItemForSheetDate(orgId, branchId, zone, businessDate, dayEnd);
     Map<UUID, BigDecimal> stockTakeAddedByItem =
-        loadStockTakeAddedByItemForRanges(
-            orgId, branchId, zone, businessDate, dayEnd, items, latestPriorByItem);
+        loadStockTakeAddedByItemForSheetDate(orgId, branchId, zone, businessDate, dayEnd);
 
     List<StdStockCountRowDto> rows = new ArrayList<>();
     for (Item item : items) {
@@ -232,59 +230,20 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     return latestPriorByItem;
   }
 
-  private static LocalDate addedRangeStartForItem(
-      LocalDate businessDate, UUID itemId, Map<UUID, StdStockCountSnapshot> latestPriorByItem) {
-    StdStockCountSnapshot prior = latestPriorByItem.get(itemId);
-    return prior != null ? prior.getBusinessDate().plusDays(1) : businessDate;
+  private Map<UUID, BigDecimal> loadReceiptQtyByItemForSheetDate(
+      UUID orgId, UUID branchId, ZoneId zone, LocalDate businessDate, Instant dayEnd) {
+    Instant rangeStartInstant = businessDate.atStartOfDay(zone).toInstant();
+    return qtyByItemFromSumRows(
+        grnLineRepository.sumLineQtyByItemIdForBranchAndGrnReceivedAtRange(
+            orgId, branchId, rangeStartInstant, dayEnd));
   }
 
-  private static Set<LocalDate> distinctAddedRangeStarts(
-      LocalDate businessDate,
-      List<Item> items,
-      Map<UUID, StdStockCountSnapshot> latestPriorByItem) {
-    Set<LocalDate> rangeStarts = new HashSet<>();
-    for (Item item : items) {
-      rangeStarts.add(addedRangeStartForItem(businessDate, item.getId(), latestPriorByItem));
-    }
-    return rangeStarts;
-  }
-
-  private Map<UUID, BigDecimal> loadReceiptQtyByItemForRanges(
-      UUID orgId,
-      UUID branchId,
-      ZoneId zone,
-      LocalDate businessDate,
-      Instant dayEnd,
-      List<Item> items,
-      Map<UUID, StdStockCountSnapshot> latestPriorByItem) {
-    Map<UUID, BigDecimal> addedGrnByItem = new HashMap<>();
-    for (LocalDate rangeStart : distinctAddedRangeStarts(businessDate, items, latestPriorByItem)) {
-      Instant rangeStartInstant = rangeStart.atStartOfDay(zone).toInstant();
-      addedGrnByItem.putAll(
-          qtyByItemFromSumRows(
-              grnLineRepository.sumLineQtyByItemIdForBranchAndGrnReceivedAtRange(
-                  orgId, branchId, rangeStartInstant, dayEnd)));
-    }
-    return addedGrnByItem;
-  }
-
-  private Map<UUID, BigDecimal> loadStockTakeAddedByItemForRanges(
-      UUID orgId,
-      UUID branchId,
-      ZoneId zone,
-      LocalDate businessDate,
-      Instant dayEnd,
-      List<Item> items,
-      Map<UUID, StdStockCountSnapshot> latestPriorByItem) {
-    Map<UUID, BigDecimal> stockTakeAddedByItem = new HashMap<>();
-    for (LocalDate rangeStart : distinctAddedRangeStarts(businessDate, items, latestPriorByItem)) {
-      Instant rangeStartInstant = rangeStart.atStartOfDay(zone).toInstant();
-      stockTakeAddedByItem.putAll(
-          qtyByItemFromSumRows(
-              stockMovementRepository.sumStockTakePositiveAdjustQtyByItemIdForBranchAndDateRange(
-                  orgId, branchId, rangeStartInstant, dayEnd)));
-    }
-    return stockTakeAddedByItem;
+  private Map<UUID, BigDecimal> loadStockTakeAddedByItemForSheetDate(
+      UUID orgId, UUID branchId, ZoneId zone, LocalDate businessDate, Instant dayEnd) {
+    Instant rangeStartInstant = businessDate.atStartOfDay(zone).toInstant();
+    return qtyByItemFromSumRows(
+        stockMovementRepository.sumStockTakePositiveAdjustQtyByItemIdForBranchAndDateRange(
+            orgId, branchId, rangeStartInstant, dayEnd));
   }
 
   @Override
