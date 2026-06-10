@@ -13,6 +13,13 @@ import {
   Trash2,
 } from "lucide-react";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import {
+  formatQty,
+  formatQtyVariance,
+  isValidQtyInput,
+  parseQty,
+  roundQty,
+} from "@/utils/formatQuantity";
 import { PageHeader } from "@/components/PageHeader";
 import {
   ConfirmDialog,
@@ -70,11 +77,6 @@ export interface StockCountSessionDetailPageProps {
   ) => Promise<{ content: Item[] }>;
   backHref: string;
   queryKey: string[];
-}
-
-function formatVariance(v: number): string {
-  const sign = v >= 0 ? "+" : "";
-  return `${sign}${v}`;
 }
 
 const STOCK_COUNT_LINE_SORT = {
@@ -165,16 +167,16 @@ export function StockCountSessionDetailPage({
 
   async function handleAddLine() {
     if (!session || !addLineItemId || !addLineQty || !sessionId) return;
-    const qty = parseFloat(addLineQty);
-    if (isNaN(qty) || qty < 0) {
-      toast.error("Enter a valid non-negative quantity.", {
+    const qty = parseQty(addLineQty);
+    if (qty === null) {
+      toast.error("Enter a valid non-negative quantity (max 2 decimal places).", {
         title: "Validation",
       });
       return;
     }
     setAddLineSubmitting(true);
     try {
-      await addLine(sessionId, { itemId: addLineItemId, countedQty: qty });
+      await addLine(sessionId, { itemId: addLineItemId, countedQty: roundQty(qty) });
       setAddLineItemId("");
       setAddLineQty("");
       queryClient.invalidateQueries({ queryKey: [...queryKey, "session"] });
@@ -193,13 +195,15 @@ export function StockCountSessionDetailPage({
 
   async function handleUpdateLine(lineId: string) {
     if (!sessionId) return;
-    const qty = parseFloat(editingQty);
-    if (isNaN(qty) || qty < 0) {
-      toast.error("Enter a valid non-negative quantity.", { title: "Validation" });
+    const qty = parseQty(editingQty);
+    if (qty === null) {
+      toast.error("Enter a valid non-negative quantity (max 2 decimal places).", {
+        title: "Validation",
+      });
       return;
     }
     try {
-      await updateLine(sessionId, lineId, { countedQty: qty });
+      await updateLine(sessionId, lineId, { countedQty: roundQty(qty) });
       setEditingLineId(null);
       setEditingQty("");
       queryClient.invalidateQueries({ queryKey: [...queryKey, "session"] });
@@ -510,10 +514,10 @@ export function StockCountSessionDetailPage({
                       {l.itemName}
                     </td>
                     <td className={tableBodyCellNum}>
-                      {l.systemQty}
+                      {formatQty(l.systemQty)}
                     </td>
                     <td className={`${tableBodyCellNum} font-semibold text-slate-700 dark:text-slate-300`}>
-                      {l.countedQty}
+                      {formatQty(l.countedQty)}
                     </td>
                     <td
                       className={`${tableBodyCellNum} font-semibold ${
@@ -524,7 +528,7 @@ export function StockCountSessionDetailPage({
                             : "text-slate-500 dark:text-slate-400"
                       }`}
                     >
-                      {formatVariance(l.varianceQty)}
+                      {formatQtyVariance(l.varianceQty)}
                     </td>
                     {showUnitCostCol && (
                       <td className={tableBodyCellNum}>
@@ -532,7 +536,7 @@ export function StockCountSessionDetailPage({
                       </td>
                     )}
                     <td className={tableBodyCellNum}>
-                      {l.qtySold ?? 0}
+                      {formatQty(l.qtySold ?? 0)}
                     </td>
                     {showSellPriceCol && (
                       <td className={tableBodyCellNum}>
@@ -546,9 +550,12 @@ export function StockCountSessionDetailPage({
                             <input
                               type="number"
                               min={0}
-                              step="0.001"
+                              step="0.01"
                               value={editingQty}
-                              onChange={(e) => setEditingQty(e.target.value)}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (isValidQtyInput(v)) setEditingQty(v);
+                              }}
                               className="w-20 rounded border border-slate-300 px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                             />
                             <button
@@ -575,7 +582,7 @@ export function StockCountSessionDetailPage({
                               type="button"
                               onClick={() => {
                                 setEditingLineId(l.id);
-                                setEditingQty(String(l.countedQty));
+                                setEditingQty(formatQty(l.countedQty));
                               }}
                               className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
                               title="Edit"
@@ -686,10 +693,13 @@ export function StockCountSessionDetailPage({
             <input
               type="number"
               min={0}
-              step="0.001"
+              step="0.01"
               placeholder="Qty"
               value={addLineQty}
-              onChange={(e) => setAddLineQty(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (isValidQtyInput(v)) setAddLineQty(v);
+              }}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 sm:w-28 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
             <button

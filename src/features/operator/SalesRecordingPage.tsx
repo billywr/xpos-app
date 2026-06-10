@@ -47,8 +47,10 @@ import {
   tableHeadCell,
   tableStickyFirstBody,
   tableStickyHeadCell,
+  DateInput,
 } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import { formatQty, parseQty } from "@/utils/formatQuantity";
 import { rowMatchesSearch } from "@/utils/tableSearchMatch";
 import { sortTableRows } from "@/utils/tableSort";
 import { useToast } from "@/contexts/ToastContext";
@@ -95,25 +97,6 @@ function shiftIsoDate(iso: string, days: number): string {
 
 function roundTo2dp(n: number): number {
   return Math.round(n * 100) / 100;
-}
-
-// Sales Recording shows a lot of whole-number quantities and round prices. Rendering them as
-// "9.00" / "1,500.00" is noisy — this formatter drops the fractional part when it's all zeros
-// and strips trailing zeros otherwise (9.00 → "9", 2.50 → "2.5", 8.25 → "8.25").
-function formatQty(n: number): string {
-  if (!Number.isFinite(n)) return "0";
-  return new Intl.NumberFormat("en-KE", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(n);
-}
-
-function parseQty(raw: string): number | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return 0;
-  if (!/^\d+(?:\.\d{1,2})?$/.test(trimmed)) return null;
-  const n = Number(trimmed);
-  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 interface Row {
@@ -539,8 +522,7 @@ export function SalesRecordingPage() {
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <input
-                type="date"
+              <DateInput
                 value={saleDate}
                 min={minDateIso()}
                 max={todayIso()}

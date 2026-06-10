@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Wallet, Lock, Unlock } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { InlineCopilot } from "@/components/InlineCopilot";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import {
@@ -121,6 +122,12 @@ export function OperatorDashboard() {
   return (
     <div className="p-6">
       <PageHeader title="Operator Dashboard" fallbackTo="/" />
+      <InlineCopilot
+        screen="shift"
+        label="Why is my drawer off?"
+        defaultQuestion="Shift variance"
+        className="mb-4"
+      />
 
       {/* Shift panel */}
       {orgId && branchId && terminalId && (

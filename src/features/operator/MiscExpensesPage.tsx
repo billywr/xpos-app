@@ -31,6 +31,7 @@ import {
   tableBodyCell,
   tableStickyFirstBody,
   tableBodyCellNum,
+  DateInput,
 } from "@/components/ui";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
@@ -553,9 +554,8 @@ export function MiscExpensesPage() {
             >
               Date recorded *
             </label>
-            <input
+            <DateInput
               id="recordedOn"
-              type="date"
               required
               max={todayInputValue()}
               value={formRecordedOn}

@@ -4,6 +4,7 @@ import type { QueryClient } from "@tanstack/react-query";
 export function invalidateInventoryQueries(queryClient: QueryClient): Promise<void[]> {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ["std-stock-count"] }),
+    queryClient.invalidateQueries({ queryKey: ["std-stock-count-reconcile-preview"] }),
     queryClient.invalidateQueries({ queryKey: ["admin-inventory-report"] }),
     queryClient.invalidateQueries({ queryKey: ["stockLevels"] }),
     queryClient.invalidateQueries({ queryKey: ["sales-recording-stock"] }),

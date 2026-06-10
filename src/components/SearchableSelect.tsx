@@ -95,6 +95,7 @@ export function SearchableSelect({
     width: number;
   } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const listboxRef = useRef<HTMLUListElement>(null);
   const emptySuggestionsRef = useRef<HTMLDivElement>(null);
   const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -196,6 +197,22 @@ export function SearchableSelect({
     setOpen(true);
   }, [disabled]);
 
+  const handleControlMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (disabled) {
+      return;
+    }
+    if ((e.target as HTMLElement).closest("button")) {
+      return;
+    }
+    if (blurTimeout.current) {
+      clearTimeout(blurTimeout.current);
+    }
+    if (!open) {
+      openMenu();
+    }
+    inputRef.current?.focus();
+  };
+
   const pick = useCallback(
     (opt: SearchableSelectOption) => {
       onChange(opt.value);
@@ -240,8 +257,12 @@ export function SearchableSelect({
 
   return (
     <div ref={containerRef} className={`relative w-full min-w-0 ${className}`}>
-      <div className={`${defaultControl} ${controlClassName}`}>
+      <div
+        className={`${defaultControl} ${controlClassName}`}
+        onMouseDown={handleControlMouseDown}
+      >
         <input
+          ref={inputRef}
           id={inputId}
           type="text"
           role="combobox"
@@ -262,6 +283,17 @@ export function SearchableSelect({
               clearTimeout(blurTimeout.current);
             }
             openMenu();
+          }}
+          onClick={() => {
+            if (disabled) {
+              return;
+            }
+            if (blurTimeout.current) {
+              clearTimeout(blurTimeout.current);
+            }
+            if (!open) {
+              openMenu();
+            }
           }}
           onBlur={() => {
             blurTimeout.current = setTimeout(() => {

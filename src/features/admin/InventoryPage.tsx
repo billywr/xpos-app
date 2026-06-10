@@ -8,6 +8,7 @@ import { fetchInventoryReport, type InventoryReportLineResponse } from "@/api/in
 import { fetchAllOrgItems } from "@/api/items";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
+import { InlineCopilot } from "@/components/InlineCopilot";
 import {
   Pagination,
   SortableTableHead,
@@ -29,6 +30,7 @@ import { useDataTable } from "@/hooks/useDataTable";
 import { TABLE_SEARCH_FETCH_SIZE } from "@/constants/tableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatAmount } from "@/utils/formatCurrency";
+import { formatQty } from "@/utils/formatQuantity";
 import {
   AlertCircle,
   AlertTriangle,
@@ -55,10 +57,6 @@ const INVENTORY_SORT = {
   onHandQty: (row: InventoryReportLineResponse) => row.onHandQty,
   soldQty: (row: InventoryReportLineResponse) => row.soldQty,
 };
-
-function formatQty(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(2);
-}
 
 export interface InventoryPageProps {
   initialOrgId?: string;
@@ -238,6 +236,15 @@ export function InventoryPage({
         icon={Package}
         fallbackTo="/admin"
       />
+
+      {selectedOrgId && selectedBranchId && (
+        <InlineCopilot
+          screen="inventory"
+          label="Ask about inventory"
+          placeholder="Low stock, stock variance…"
+          className="mb-4 px-6"
+        />
+      )}
 
       {!selectedOrgId || !selectedBranchId ? (
         <div className="rounded-xl border border-sky-200/70 bg-white/90 p-8 text-center text-slate-500 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400">

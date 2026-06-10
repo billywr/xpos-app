@@ -130,3 +130,56 @@ export async function recordStdStockCountSales(
     { token, method: "POST", body }
   );
 }
+
+export interface StdStockCountReconcileLineResponse {
+  itemId: string;
+  name: string;
+  closingStock: number;
+  onHandQty: number;
+  variance: number;
+}
+
+export interface StdStockCountReconcilePreviewResponse {
+  date: string;
+  branchId: string;
+  lines: StdStockCountReconcileLineResponse[];
+  itemsAdjusted: number;
+  itemsAlreadyMatched: number;
+}
+
+export interface StdStockCountReconcileRequest {
+  date: string;
+  outletId: string;
+}
+
+export interface StdStockCountReconcileResponse {
+  date: string;
+  branchId: string;
+  lines: StdStockCountReconcileLineResponse[];
+  adjustedCount: number;
+  itemsAlreadyMatched: number;
+}
+
+export async function fetchStdStockCountReconcilePreview(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  date: string
+): Promise<StdStockCountReconcilePreviewResponse> {
+  return apiFetch<StdStockCountReconcilePreviewResponse>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/std-stock-count/reconcile-preview?date=${encodeURIComponent(date)}`,
+    { token }
+  );
+}
+
+export async function reconcileStdStockCountInventory(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  body: StdStockCountReconcileRequest
+): Promise<StdStockCountReconcileResponse> {
+  return apiFetch<StdStockCountReconcileResponse>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/std-stock-count/reconcile-inventory`,
+    { token, method: "POST", body }
+  );
+}

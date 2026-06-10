@@ -8,6 +8,8 @@ export { StatChip } from "./StatChip";
 export type { StatChipProps, StatChipTone } from "./StatChip";
 export { Modal } from "./Modal";
 export type { ModalProps } from "./Modal";
+export { DateInput } from "./DateInput";
+export type { DateInputProps } from "./DateInput";
 export { FormLabel } from "./FormLabel";
 export { PageTransition } from "./PageTransition";
 export { PageLoadingShell } from "./PageLoadingShell";

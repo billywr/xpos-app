@@ -43,6 +43,7 @@ import { fetchTenderTypes } from "@/api/tenderTypes";
 import { getCurrentShift } from "@/api/shifts";
 import { fetchStockLevels } from "@/api/stockLevels";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import { formatQty } from "@/utils/formatQuantity";
 import { getItemImageUrl } from "@/utils/itemImage";
 import { MenuItemCard } from "@/components/MenuItemCard";
 import { PageHeader } from "@/components/PageHeader";
@@ -56,6 +57,7 @@ import {
   tableBodyCell,
   tableRowNoHead,
   TableRowNumberCell,
+  DateInput,
 } from "@/components/ui";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { BarcodeCaptureInput } from "@/components/BarcodeCaptureInput";
@@ -97,7 +99,7 @@ function isItemOutOfStock(item: Item, stockMap: Map<string, number>): boolean {
     return false;
   }
   const onHand = stockMap.get(item.id) ?? 0;
-  return Math.max(0, Math.floor(onHand)) <= 0;
+  return onHand <= 0;
 }
 
 function filterOutOfStockItems(
@@ -514,7 +516,9 @@ export function MenuOrderPage() {
         .filter((l) => l.itemId === line.itemId)
         .reduce((s, l) => s + l.qty, 0);
       if (onHand < qtyInCartForItem) {
-        msgs.push(`${item.name}: ${onHand} in stock, ${qtyInCartForItem} needed`);
+        msgs.push(
+          `${item.name}: ${formatQty(onHand)} in stock, ${formatQty(qtyInCartForItem)} needed`
+        );
       }
     }
     return {
@@ -863,7 +867,7 @@ export function MenuOrderPage() {
                             {item.trackInventory && (
                               <span className="shrink-0 text-lg leading-none text-slate-500 dark:text-slate-300">
                                 {onHand > 0
-                                  ? `${Math.floor(onHand)} in stock`
+                                  ? `${formatQty(onHand)} in stock`
                                   : "Out"}
                               </span>
                             )}
@@ -1624,8 +1628,7 @@ function PaymentModal({
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   aria-label="Customer phone"
                 />
-                <input
-                  type="date"
+                <DateInput
                   value={debtDueDate}
                   onChange={(e) => setDebtDueDate(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
@@ -1693,7 +1696,7 @@ function OrderLineRow({
 
   const maxQty =
     trackInventory && typeof stockOnHand === "number"
-      ? Math.max(0, Math.floor(stockOnHand))
+      ? Math.max(0, stockOnHand)
       : undefined;
   const canAddMore = maxQty === undefined || line.qty < maxQty;
 
@@ -1754,7 +1757,7 @@ function OrderLineRow({
             className="min-w-[2.5rem] px-2 text-center text-lg font-semibold tabular-nums text-slate-900 dark:text-white"
             aria-live="polite"
           >
-            {line.qty}
+            {formatQty(line.qty)}
           </span>
           <button
             type="button"
@@ -1762,14 +1765,14 @@ function OrderLineRow({
             disabled={!canAddMore}
             title={
               !canAddMore && maxQty !== undefined
-                ? `Only ${maxQty} in stock`
+                ? `Only ${formatQty(maxQty)} in stock`
                 : undefined
             }
             className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-r-xl text-slate-700 transition hover:bg-slate-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-600"
             aria-label={
               canAddMore
                 ? `Increase quantity of ${line.itemName}`
-                : `Cannot add more; ${maxQty ?? 0} in stock`
+                : `Cannot add more; ${formatQty(maxQty ?? 0)} in stock`
             }
           >
             <Plus className="h-6 w-6" />

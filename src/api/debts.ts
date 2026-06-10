@@ -14,6 +14,7 @@ export interface CustomerDebtResponse {
   dueDate: string | null;
   status: string;
   notes: string | null;
+  issuedBy: string | null;
   createdByStaffUserId: string;
   createdAt: string;
 }
@@ -38,6 +39,7 @@ export interface CustomerDebtCreateRequest {
   amount: number;
   dueDate?: string;
   notes?: string;
+  issuedBy?: string;
   /** ISO 8601 instant. Set to backdate when recording an old debt. */
   createdAt?: string;
 }
@@ -51,6 +53,7 @@ export interface CustomerDebtUpdateRequest {
   outstanding?: number;
   dueDate?: string;
   notes?: string;
+  issuedBy?: string;
 }
 
 export async function fetchDebts(

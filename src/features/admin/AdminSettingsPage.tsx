@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavVisibilityContext } from "@/contexts/NavVisibilityContext";
+import { useAppSelector } from "@/hooks/useAppSelector";
+import { selectToken } from "@/store/selectors/authSelectors";
+import { selectOrgId } from "@/store/selectors/orgContextSelectors";
+import { fetchAssistantSettings, fetchAssistantUsage } from "@/api/assistant";
 import { isNavItemVisible } from "@/hooks/useAdminNavVisibility";
 import { isOperatorNavItemVisible } from "@/hooks/useOperatorNavVisibility";
 import { isHeaderNavItemVisible } from "@/hooks/useHeaderNavVisibility";
@@ -18,6 +23,17 @@ import {
   BARCODE_MENU_ORDER,
   isBarcodeVisible,
 } from "@/config/barcodeVisibility";
+import {
+  STD_STOCK_COUNT_SHOW_PDF,
+  STD_STOCK_COUNT_SHOW_SAVE,
+  STD_STOCK_COUNT_SHOW_RECONCILE,
+  STD_STOCK_COUNT_SHOW_RECORD_SALES,
+  isStdStockCountButtonVisible,
+} from "@/config/stdStockCountVisibility";
+import {
+  ASSISTANT_SHOW_WIDGET,
+  isAssistantWidgetVisible,
+} from "@/config/assistantVisibility";
 import { Settings, Upload, Trash2, Store } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { resizeImageForLogo } from "@/utils/logoResize";
@@ -262,6 +278,108 @@ function MenuOrderVisibilityRow({
         </span>
       </label>
     </div>
+  );
+}
+
+function AssistantUsageSection() {
+  const token = useAppSelector(selectToken);
+  const orgId = useAppSelector(selectOrgId);
+
+  const usageQuery = useQuery({
+    queryKey: ["assistant-usage", token, orgId],
+    queryFn: () => fetchAssistantUsage(token, orgId!, 7),
+    enabled: Boolean(token && orgId),
+  });
+
+  const settingsQuery = useQuery({
+    queryKey: ["assistant-settings", token, orgId],
+    queryFn: () => fetchAssistantSettings(token, orgId!),
+    enabled: Boolean(token && orgId),
+  });
+
+  if (!orgId) {
+    return (
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+          AI usage & governance
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Select an organization context to view assistant usage metrics.
+        </p>
+      </section>
+    );
+  }
+
+  const usage = usageQuery.data;
+  const settings = settingsQuery.data;
+
+  return (
+    <section>
+      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+        AI usage & governance
+      </h2>
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+        Branch-scoped assistant queries are logged with tool name, latency, and optional LLM routing.
+        LLM model and token budget are configured on the server.
+      </p>
+      <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        {usageQuery.isLoading && (
+          <p className="text-sm text-slate-500 dark:text-slate-400">Loading usage…</p>
+        )}
+        {usageQuery.isError && (
+          <p className="text-sm text-red-700 dark:text-red-300">Could not load usage data.</p>
+        )}
+        {usage && (
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-slate-500 dark:text-slate-400">Queries (7 days)</dt>
+              <dd className="font-semibold text-slate-900 dark:text-white">
+                {usage.totalQueries}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500 dark:text-slate-400">LLM tokens (7 days)</dt>
+              <dd className="font-semibold text-slate-900 dark:text-white">
+                {usage.llmTokensUsed}
+              </dd>
+            </div>
+            {settings && (
+              <>
+                <div>
+                  <dt className="text-slate-500 dark:text-slate-400">LLM routing</dt>
+                  <dd className="font-semibold text-slate-900 dark:text-white">
+                    {settings.llmConfigured && settings.llmEnabled ? settings.model : "Disabled"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500 dark:text-slate-400">Daily token cap / org</dt>
+                  <dd className="font-semibold text-slate-900 dark:text-white">
+                    {settings.maxTokensPerDayPerOrg > 0
+                      ? settings.maxTokensPerDayPerOrg.toLocaleString()
+                      : "Unlimited"}
+                  </dd>
+                </div>
+              </>
+            )}
+          </dl>
+        )}
+        {usage?.topIntents && usage.topIntents.length > 0 && (
+          <div className="mt-4 border-t border-slate-200 pt-3 dark:border-slate-600">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              Top intents
+            </p>
+            <ul className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
+              {usage.topIntents.slice(0, 5).map((row) => (
+                <li key={row.intent} className="flex justify-between gap-2">
+                  <span>{row.intent}</span>
+                  <span className="font-medium">{row.count}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -515,6 +633,70 @@ export function AdminSettingsPage() {
                   MENU_ORDER_SHOW_ITEM_LIST
                 )}
                 onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_ITEM_LIST, v)}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+            XPOS Assistant
+          </h2>
+          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+            Show or hide the branch insights assistant button (bottom-right) in admin and
+            operator layouts. Hidden by default until enabled for this organization.
+          </p>
+          <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+            <MenuOrderVisibilityRow
+              label="Assistant button"
+              visible={isAssistantWidgetVisible(opVisibilityState)}
+              onToggle={(v) => opSetVisible(ASSISTANT_SHOW_WIDGET, v)}
+            />
+          </div>
+        </section>
+
+        <AssistantUsageSection />
+
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+            Standard stock count
+          </h2>
+          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+            Show or hide toolbar buttons on the operator Standard Stock Taking page.
+          </p>
+          <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+            <div className="space-y-4">
+              <MenuOrderVisibilityRow
+                label="Download PDF"
+                visible={isStdStockCountButtonVisible(
+                  opVisibilityState,
+                  STD_STOCK_COUNT_SHOW_PDF
+                )}
+                onToggle={(v) => opSetVisible(STD_STOCK_COUNT_SHOW_PDF, v)}
+              />
+              <MenuOrderVisibilityRow
+                label="Save"
+                visible={isStdStockCountButtonVisible(
+                  opVisibilityState,
+                  STD_STOCK_COUNT_SHOW_SAVE
+                )}
+                onToggle={(v) => opSetVisible(STD_STOCK_COUNT_SHOW_SAVE, v)}
+              />
+              <MenuOrderVisibilityRow
+                label="Reconcile inventory"
+                visible={isStdStockCountButtonVisible(
+                  opVisibilityState,
+                  STD_STOCK_COUNT_SHOW_RECONCILE
+                )}
+                onToggle={(v) => opSetVisible(STD_STOCK_COUNT_SHOW_RECONCILE, v)}
+              />
+              <MenuOrderVisibilityRow
+                label="Record sales"
+                visible={isStdStockCountButtonVisible(
+                  opVisibilityState,
+                  STD_STOCK_COUNT_SHOW_RECORD_SALES
+                )}
+                onToggle={(v) => opSetVisible(STD_STOCK_COUNT_SHOW_RECORD_SALES, v)}
               />
             </div>
           </div>

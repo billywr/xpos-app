@@ -1,5 +1,6 @@
 import { Plus, Minus } from "lucide-react";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { formatQty } from "@/utils/formatQuantity";
 import { getItemImageUrl } from "@/utils/itemImage";
 import { FLOATING_CARD } from "@/utils/floatingCardClasses";
 
@@ -53,7 +54,7 @@ export function MenuItemCard({
 
   const stockLabel = trackInventory
     ? available
-      ? `${Math.floor(stockOnHand)} in stock`
+      ? `${formatQty(stockOnHand)} in stock`
       : "Out of stock"
     : available
       ? "Available"

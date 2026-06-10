@@ -43,9 +43,11 @@ import {
 import { formatCurrency } from "@/utils/formatCurrency";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import { DateInput } from "@/components/ui";
 import { AnalyticsOrgBranchFilter } from "@/components/AnalyticsOrgBranchFilter";
 import { FLOATING_CARD } from "@/utils/floatingCardClasses";
 import { PageHeader } from "@/components/PageHeader";
+import { InlineCopilot } from "@/components/InlineCopilot";
 
 const AUTO_REFRESH_MS = 15 * 60 * 1000;
 
@@ -222,16 +224,14 @@ export function AnalyticsPage() {
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-slate-500 dark:text-slate-400" aria-hidden />
               <div className="flex items-center gap-2">
-                <input
-                  type="date"
+                <DateInput
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
                   aria-label="From date"
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-primary-400 dark:focus:ring-primary-400"
                 />
                 <span className="text-slate-500 dark:text-slate-400">–</span>
-                <input
-                  type="date"
+                <DateInput
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
                   aria-label="To date"
@@ -252,6 +252,13 @@ export function AnalyticsPage() {
             </div>
           </div>
         </PageHeader>
+        <InlineCopilot
+          screen="analytics"
+          label="Ask about this chart"
+          placeholder="Compare periods, payment mix…"
+          filters={{ fromDate, toDate }}
+          className="w-full sm:w-auto"
+        />
         <div className="flex items-center gap-3">
           <span className="text-xs text-slate-500 dark:text-slate-400">
             Updated {lastUpdated} · Auto-refresh 5 mins

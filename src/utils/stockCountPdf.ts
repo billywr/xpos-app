@@ -1,11 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { StockCountSessionResponse, StockCountLineResponse } from "@/api/stockTaking";
-
-function formatVariance(v: number): string {
-  const sign = v >= 0 ? "+" : "";
-  return `${sign}${v}`;
-}
+import { formatQty, formatQtyVariance } from "@/utils/formatQuantity";
 
 function formatKsh(amount: number): string {
   return `Ksh ${amount.toLocaleString("en-KE", {
@@ -50,11 +46,11 @@ export function generateStockCountPdf(
   if (lines.length > 0) {
     const tableData: string[][] = lines.map((l: StockCountLineResponse) => [
       l.itemName,
-      String(l.systemQty),
-      String(l.countedQty),
-      formatVariance(l.varianceQty),
+      formatQty(l.systemQty),
+      formatQty(l.countedQty),
+      formatQtyVariance(l.varianceQty),
       l.unitCost != null ? l.unitCost.toFixed(2) : "—",
-      String(l.qtySold ?? 0),
+      formatQty(l.qtySold ?? 0),
       l.sellingPrice != null ? l.sellingPrice.toFixed(2) : "—",
     ]);
 

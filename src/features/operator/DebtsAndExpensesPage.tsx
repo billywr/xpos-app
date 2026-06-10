@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
-import { selectToken } from "@/store/selectors/authSelectors";
+import { selectToken, selectUsername } from "@/store/selectors/authSelectors";
 import {
   selectOrgId,
   selectBranchId,
@@ -18,6 +18,7 @@ import {
   type CustomerDebtUpdateRequest,
 } from "@/api/debts";
 import { createCustomer } from "@/api/customers";
+import { fetchMe } from "@/api/me";
 import { fetchAllOrgItems } from "@/api/items";
 import type { Item } from "@/types/catalog";
 import {
@@ -39,6 +40,7 @@ import {
   TableRowNumberCell,
   StatChip,
   TableSearchInput,
+  DateInput,
   tableBodyRow,
   tableStickyFirstCell,
   tableStickyHeadCell,
@@ -51,6 +53,11 @@ import { sortTableRows } from "@/utils/tableSort";
 import { downloadDebtsPdf } from "@/utils/debtsPdf";
 import { downloadExpensesPdf } from "@/utils/expensesPdf";
 import { recordedAtToCreatedAt, todayInputValue } from "@/utils/recordedAt";
+import {
+  addSavedIssuedByName,
+  buildIssuedBySelectOptions,
+  readSavedIssuedByNames,
+} from "@/utils/issuedByStorage";
 import { useToast } from "@/contexts/ToastContext";
 import {
   HandCoins,
@@ -174,6 +181,7 @@ const DEBT_SORT: Record<string, (row: CustomerDebtResponse) => unknown> = {
   outstanding: (row: CustomerDebtResponse) => row.outstanding,
   status: (row: CustomerDebtResponse) => row.status,
   due: (row: CustomerDebtResponse) => row.dueDate ?? "",
+  issuedBy: (row: CustomerDebtResponse) => row.issuedBy ?? "",
   created: (row: CustomerDebtResponse) => row.createdAt,
   notes: (row: CustomerDebtResponse) => row.notes ?? "",
 };
@@ -266,6 +274,65 @@ function MiscExpensesTotalBadge(props: {
   );
 }
 
+function RecordedDateFilters(props: {
+  fromDate: string | null;
+  toDate: string;
+  onRecordedDate: string;
+  onFromDateChange: (value: string) => void;
+  onToDateChange: (value: string) => void;
+  onOnRecordedDateChange: (value: string) => void;
+  onClearOnRecordedDate: () => void;
+}) {
+  const {
+    fromDate,
+    toDate,
+    onRecordedDate,
+    onFromDateChange,
+    onToDateChange,
+    onOnRecordedDateChange,
+    onClearOnRecordedDate,
+  } = props;
+  const dateInputClassName =
+    "w-[8.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white";
+
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-1">
+      <DateInput
+        value={fromDate ?? ""}
+        onChange={(e) => onFromDateChange(e.target.value || todayStr())}
+        className={dateInputClassName}
+        aria-label="From date"
+      />
+      <span className="text-xs text-slate-400">to</span>
+      <DateInput
+        value={toDate}
+        onChange={(e) => onToDateChange(e.target.value || todayStr())}
+        className={dateInputClassName}
+        aria-label="To date"
+      />
+      <span className="text-xs text-slate-400">|</span>
+      <span className="text-xs text-slate-400">On</span>
+      <DateInput
+        value={onRecordedDate}
+        onChange={(e) => onOnRecordedDateChange(e.target.value)}
+        className={dateInputClassName}
+        aria-label="On date recorded"
+      />
+      {onRecordedDate ? (
+        <button
+          type="button"
+          onClick={onClearOnRecordedDate}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-500 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+          aria-label="Clear on date filter"
+          title="Clear on date filter"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Tab type
 // ---------------------------------------------------------------------------
@@ -278,23 +345,43 @@ type TabId = "debts" | "expenses";
 
 export function DebtsAndExpensesPage() {
   const token = useAppSelector(selectToken);
+  const keycloakUsername = useAppSelector(selectUsername);
   const orgId = useAppSelector(selectOrgId);
   const branchId = useAppSelector(selectBranchId);
   const branchName = useAppSelector(selectBranchName);
   const queryClient = useQueryClient();
   const toast = useToast();
 
+  const { data: meData } = useQuery({
+    queryKey: ["me", token, orgId],
+    queryFn: () => fetchMe(token, orgId!),
+    enabled: Boolean(token && orgId),
+  });
+
+  const defaultIssuedByName =
+    meData?.profile?.displayName?.trim() ||
+    keycloakUsername ||
+    meData?.username ||
+    "";
+
   // Shared state
   const [tab, setTab] = useState<TabId>("debts");
   const [fromDate, setFromDate] = useState<string | null>(null);
   const [toDate, setToDate] = useState(todayStr);
+  const [onRecordedDate, setOnRecordedDate] = useState("");
   const fromDateBootstrappedRef = useRef(false);
 
   const dateRangeReady = fromDate !== null;
+  const effectiveFromDate = onRecordedDate || fromDate!;
+  const effectiveToDate = onRecordedDate || toDate;
+  const dateRangeLabel = onRecordedDate
+    ? onRecordedDate
+    : `${fromDate ?? ""} to ${toDate}`;
 
   useEffect(() => {
     fromDateBootstrappedRef.current = false;
     setFromDate(null);
+    setOnRecordedDate("");
   }, [orgId, branchId]);
 
   const { data: activeDebtsBootstrapPage, isLoading: activeDebtsBootstrapLoading } = useQuery({
@@ -328,6 +415,8 @@ export function DebtsAndExpensesPage() {
   const [debtFormOpen, setDebtFormOpen] = useState(false);
   const [debtFormCustomerName, setDebtFormCustomerName] = useState("");
   const [debtFormCustomerPhone, setDebtFormCustomerPhone] = useState("");
+  const [debtFormIssuedBy, setDebtFormIssuedBy] = useState("");
+  const [issuedByNamesRevision, setIssuedByNamesRevision] = useState(0);
   const [debtFormAmount, setDebtFormAmount] = useState("");
   const [debtFormRecordedOn, setDebtFormRecordedOn] = useState(todayInputValue());
   const [debtFormDueDate, setDebtFormDueDate] = useState("");
@@ -339,6 +428,7 @@ export function DebtsAndExpensesPage() {
   const [editingDebt, setEditingDebt] = useState<CustomerDebtResponse | null>(null);
   const [editDebtCustomerName, setEditDebtCustomerName] = useState("");
   const [editDebtCustomerPhone, setEditDebtCustomerPhone] = useState("");
+  const [editDebtIssuedBy, setEditDebtIssuedBy] = useState("");
   const [editDebtAmount, setEditDebtAmount] = useState("");
   const [editDebtDueDate, setEditDebtDueDate] = useState("");
   const [editDebtNotes, setEditDebtNotes] = useState("");
@@ -394,6 +484,18 @@ export function DebtsAndExpensesPage() {
     toggleSort: toggleExpSort,
   } = useTableSort("expenses");
 
+  const handleOnRecordedDateChange = (value: string) => {
+    setOnRecordedDate(value);
+    setDebtsPage(0);
+    setExpensesPage(0);
+  };
+
+  const clearOnRecordedDate = () => {
+    setOnRecordedDate("");
+    setDebtsPage(0);
+    setExpensesPage(0);
+  };
+
   const { data: categoriesFromApi } = useQuery({
     queryKey: ["expense-categories", token, orgId],
     queryFn: () => fetchExpenseCategories(token, orgId!, branchId!),
@@ -414,30 +516,64 @@ export function DebtsAndExpensesPage() {
   // Debts queries
   // -----------------------------------------------------------------------
   const { data: debtsData, isLoading: debtsLoading, isError: debtsIsError, error: debtsError, refetch: refetchDebts, isFetching: isDebtsFetching } = useQuery({
-    queryKey: ["operator-debts", token, orgId, branchId, debtsPage, statusFilter, fromDate, toDate],
+    queryKey: ["operator-debts", token, orgId, branchId, debtsPage, statusFilter, fromDate, toDate, onRecordedDate],
     queryFn: () =>
       fetchDebts(token, orgId!, branchId!, {
         page: debtsPage,
         size: DEBTS_PAGE_SIZE,
         status: statusQueryForFilter(statusFilter),
-        fromDate: fromDate!,
-        toDate,
+        fromDate: effectiveFromDate,
+        toDate: effectiveToDate,
       }),
     enabled: Boolean(token && orgId && branchId && dateRangeReady),
   });
 
   const { data: debtsTotalPage, isLoading: pendingTotalLoading } = useQuery({
-    queryKey: [PENDING_TOTAL_QUERY_KEY, token, orgId, branchId, fromDate, toDate, statusFilter],
+    queryKey: [PENDING_TOTAL_QUERY_KEY, token, orgId, branchId, fromDate, toDate, onRecordedDate, statusFilter],
     queryFn: () =>
       fetchDebts(token, orgId!, branchId!, {
         page: 0,
         size: 2000,
         status: statusQueryForFilter(statusFilter),
-        fromDate: fromDate!,
-        toDate,
+        fromDate: effectiveFromDate,
+        toDate: effectiveToDate,
       }),
     enabled: Boolean(token && orgId && branchId && dateRangeReady),
   });
+
+  const { data: issuedByDebtsPage } = useQuery({
+    queryKey: ["operator-debts-issued-by-names", token, orgId, branchId],
+    queryFn: () =>
+      fetchDebts(token, orgId!, branchId!, {
+        page: 0,
+        size: 2000,
+      }),
+    enabled: Boolean(token && orgId && branchId),
+    staleTime: 60_000,
+  });
+
+  const issuedBySelectOptions = useMemo(() => {
+    if (!orgId || !branchId) {
+      return [];
+    }
+    const fromDebts = (issuedByDebtsPage?.content ?? [])
+      .map((d) => d.issuedBy)
+      .filter((name): name is string => !!name && name.trim() !== "");
+    const fromStorage = readSavedIssuedByNames(orgId, branchId);
+    return buildIssuedBySelectOptions([...fromDebts, ...fromStorage]);
+  }, [issuedByDebtsPage, orgId, branchId, issuedByNamesRevision]);
+
+  const registerIssuedByName = (name: string | undefined) => {
+    const trimmed = name?.trim();
+    if (!orgId || !branchId || !trimmed) {
+      return;
+    }
+    addSavedIssuedByName(orgId, branchId, trimmed);
+    setIssuedByNamesRevision((r) => r + 1);
+    void queryClient.invalidateQueries({
+      queryKey: ["operator-debts-issued-by-names"],
+    });
+  };
 
   // Per-customer outstanding totals, sorted max → min, for the "Total pending"
   // breakdown modal. Cancelled debts are excluded to match the pending total.
@@ -490,26 +626,26 @@ export function DebtsAndExpensesPage() {
   // Expenses queries
   // -----------------------------------------------------------------------
   const { data: expensesData, isLoading: expensesLoading, isError: expensesIsError, error: expensesError, refetch: refetchExpenses, isFetching: isExpensesFetching } = useQuery({
-    queryKey: ["operator-misc-expenses", token, orgId, branchId, expensesPage, fromDate, toDate],
+    queryKey: ["operator-misc-expenses", token, orgId, branchId, expensesPage, fromDate, toDate, onRecordedDate],
     queryFn: () =>
       fetchMiscExpenses(token, orgId!, branchId!, {
         page: expensesPage,
         size: EXPENSES_PAGE_SIZE,
-        fromDate: fromDate!,
-        toDate,
+        fromDate: effectiveFromDate,
+        toDate: effectiveToDate,
       }),
     enabled: Boolean(token && orgId && branchId && dateRangeReady),
   });
 
   // Full dataset for the current date range — powers cross-page search.
   const { data: expensesTotalPage } = useQuery({
-    queryKey: ["operator-misc-expenses-all", token, orgId, branchId, fromDate, toDate],
+    queryKey: ["operator-misc-expenses-all", token, orgId, branchId, fromDate, toDate, onRecordedDate],
     queryFn: () =>
       fetchMiscExpenses(token, orgId!, branchId!, {
         page: 0,
         size: 2000,
-        fromDate: fromDate!,
-        toDate,
+        fromDate: effectiveFromDate,
+        toDate: effectiveToDate,
       }),
     enabled: Boolean(token && orgId && branchId && dateRangeReady),
   });
@@ -559,15 +695,22 @@ export function DebtsAndExpensesPage() {
     setDebtFormBorrowedLines((prev) => prev.filter((l) => l.itemId !== itemId));
   };
 
+  const openDebtRecordForm = () => {
+    setDebtFormIssuedBy(defaultIssuedByName);
+    setDebtFormOpen(true);
+  };
+
   const createDebtMutation = useMutation({
     mutationFn: (body: CustomerDebtCreateRequest) =>
       createDebt(token, orgId!, branchId!, body),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      registerIssuedByName(variables.issuedBy);
       queryClient.invalidateQueries({ queryKey: ["operator-debts"] });
       queryClient.invalidateQueries({ queryKey: [PENDING_TOTAL_QUERY_KEY] });
       setDebtFormOpen(false);
       setDebtFormCustomerName("");
       setDebtFormCustomerPhone("");
+      setDebtFormIssuedBy("");
       setDebtFormAmount("");
       setDebtFormRecordedOn(todayInputValue());
       setDebtFormDueDate("");
@@ -587,7 +730,8 @@ export function DebtsAndExpensesPage() {
   const updateDebtMutation = useMutation({
     mutationFn: ({ debtId, body }: { debtId: string; body: CustomerDebtUpdateRequest }) =>
       updateDebt(token, orgId!, branchId!, debtId, body),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      registerIssuedByName(variables.body.issuedBy);
       queryClient.invalidateQueries({ queryKey: ["operator-debts"] });
       queryClient.invalidateQueries({ queryKey: [PENDING_TOTAL_QUERY_KEY] });
       setDebtEditFormOpen(false);
@@ -754,6 +898,14 @@ export function DebtsAndExpensesPage() {
       ),
     [filteredDebts]
   );
+  const showDebtIssuedByCol = useMemo(
+    () =>
+      filteredDebts.some(
+        (d: CustomerDebtResponse) =>
+          !!d.issuedBy && d.issuedBy.trim() !== "" && d.issuedBy !== "—"
+      ),
+    [filteredDebts]
+  );
   const showDebtNotesCol = useMemo(
     () =>
       filteredDebts.some(
@@ -796,6 +948,7 @@ export function DebtsAndExpensesPage() {
     setEditingDebt(d);
     setEditDebtCustomerName(d.customerName);
     setEditDebtCustomerPhone(d.customerPhone ?? "");
+    setEditDebtIssuedBy(d.issuedBy ?? "");
     setEditDebtAmount(String(d.amount));
     setEditDebtDueDate(d.dueDate ?? "");
     setEditDebtNotes(d.notes ?? "");
@@ -828,6 +981,7 @@ export function DebtsAndExpensesPage() {
           amount,
           dueDate: editDebtDueDate || undefined,
           notes: editDebtNotes.trim() === "" ? "" : editDebtNotes.trim(),
+          issuedBy: editDebtIssuedBy.trim() || undefined,
         },
       });
     } finally {
@@ -976,6 +1130,7 @@ export function DebtsAndExpensesPage() {
         amount,
         dueDate: debtFormDueDate || undefined,
         notes: combinedNotes,
+        issuedBy: debtFormIssuedBy.trim() || undefined,
         createdAt: recordedAtToCreatedAt(debtFormRecordedOn),
       });
     } catch (err) {
@@ -1137,18 +1292,17 @@ export function DebtsAndExpensesPage() {
   // -----------------------------------------------------------------------
   const [debtsPdfLoading, setDebtsPdfLoading] = useState(false);
   const [expensesPdfLoading, setExpensesPdfLoading] = useState(false);
-  const dateRangeLabel = `${fromDate ?? ""} to ${toDate}`;
 
   const handleDownloadDebtsPdf = async () => {
-    if (!orgId || !branchId || !fromDate) return;
+    if (!orgId || !branchId || !dateRangeReady) return;
     setDebtsPdfLoading(true);
     try {
       const resp = await fetchDebts(token, orgId, branchId, {
         page: 0,
         size: 2000,
         status: statusQueryForFilter(statusFilter),
-        fromDate,
-        toDate,
+        fromDate: effectiveFromDate,
+        toDate: effectiveToDate,
       });
       const rows = [...(resp.content ?? [])].sort(debtByNameAsc);
       if (rows.length === 0) {
@@ -1174,14 +1328,14 @@ export function DebtsAndExpensesPage() {
   };
 
   const handleDownloadExpensesPdf = async () => {
-    if (!orgId || !branchId || !fromDate) return;
+    if (!orgId || !branchId || !dateRangeReady) return;
     setExpensesPdfLoading(true);
     try {
       const resp = await fetchMiscExpenses(token, orgId, branchId, {
         page: 0,
         size: 2000,
-        fromDate,
-        toDate,
+        fromDate: effectiveFromDate,
+        toDate: effectiveToDate,
       });
       const rows = [...(resp.content ?? [])].sort(expenseByNameAsc);
       if (rows.length === 0) {
@@ -1280,7 +1434,7 @@ export function DebtsAndExpensesPage() {
                   onClick={handleDownloadDebtsPdf}
                   disabled={debtsPdfLoading}
                   className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                  title={`Download debts from ${fromDate} to ${toDate} (status: ${
+                  title={`Download debts from ${dateRangeLabel} (status: ${
                     STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "All"
                   })`}
                 >
@@ -1294,7 +1448,7 @@ export function DebtsAndExpensesPage() {
               )}
               <button
                 type="button"
-                onClick={() => setDebtFormOpen(true)}
+                onClick={openDebtRecordForm}
                 className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
               >
                 <Plus className="h-5 w-5" />
@@ -1319,13 +1473,24 @@ export function DebtsAndExpensesPage() {
 
           {!debtsLoading && !activeDebtsBootstrapLoading && dateRangeReady && !debtsIsError && (
             <>
-              <div className="mb-4 flex items-center gap-2">
-                <TableSearchInput value={debtSearchQuery} onChange={setDebtSearchQuery} placeholder="Search debts…" />
-                <div className="flex shrink-0 items-center gap-1">
-                  <input type="date" value={fromDate ?? ""} onChange={(e) => setFromDate(e.target.value || todayStr())} className="w-[8.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" aria-label="From date" />
-                  <span className="text-xs text-slate-400">to</span>
-                  <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value || todayStr())} className="w-[8.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" aria-label="To date" />
+              <div className="mb-4 flex flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <TableSearchInput value={debtSearchQuery} onChange={setDebtSearchQuery} placeholder="Search debts…" />
+                  <RecordedDateFilters
+                    fromDate={fromDate}
+                    toDate={toDate}
+                    onRecordedDate={onRecordedDate}
+                    onFromDateChange={setFromDate}
+                    onToDateChange={setToDate}
+                    onOnRecordedDateChange={handleOnRecordedDateChange}
+                    onClearOnRecordedDate={clearOnRecordedDate}
+                  />
                 </div>
+                {onRecordedDate ? (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Showing debts recorded on {onRecordedDate}
+                  </p>
+                ) : null}
               </div>
               <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
                 {filteredDebts.length === 0 ? (
@@ -1337,7 +1502,7 @@ export function DebtsAndExpensesPage() {
                     {!debtSearchActive && (
                       <button
                         type="button"
-                        onClick={() => setDebtFormOpen(true)}
+                        onClick={openDebtRecordForm}
                         className="mt-4 inline-flex items-center gap-2 rounded-lg border border-primary-500 bg-transparent px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30"
                       >
                         <Plus className="h-4 w-4" />
@@ -1424,6 +1589,16 @@ export function DebtsAndExpensesPage() {
                               <SortableTableHead
                                 columnKey="due"
                                 label="Due"
+                                sortColumn={debtSortColumn}
+                                sortDirection={debtSortDirection}
+                                onSort={toggleDebtSort}
+                                className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              />
+                            )}
+                            {showDebtIssuedByCol && (
+                              <SortableTableHead
+                                columnKey="issuedBy"
+                                label="Issued by"
                                 sortColumn={debtSortColumn}
                                 sortDirection={debtSortDirection}
                                 onSort={toggleDebtSort}
@@ -1668,6 +1843,9 @@ export function DebtsAndExpensesPage() {
                               {showDebtDueCol && (
                                 <td className="px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{d.dueDate ?? "—"}</td>
                               )}
+                              {showDebtIssuedByCol && (
+                                <td className="px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{d.issuedBy ?? "—"}</td>
+                              )}
                               <td className="px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{new Date(d.createdAt).toLocaleString()}</td>
                               {showDebtNotesCol && (
                                 <td className="max-w-[14rem] px-4 py-2 align-top text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">
@@ -1742,7 +1920,7 @@ export function DebtsAndExpensesPage() {
                   onClick={handleDownloadExpensesPdf}
                   disabled={expensesPdfLoading}
                   className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                  title={`Download all expenses from ${fromDate} to ${toDate}`}
+                  title={`Download all expenses from ${dateRangeLabel}`}
                 >
                   {expensesPdfLoading ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -1779,13 +1957,24 @@ export function DebtsAndExpensesPage() {
 
           {!expensesLoading && !activeDebtsBootstrapLoading && dateRangeReady && !expensesIsError && (
             <>
-              <div className="mb-4 flex items-center gap-2">
-                <TableSearchInput value={expSearchQuery} onChange={setExpSearchQuery} placeholder="Search expenses…" />
-                <div className="flex shrink-0 items-center gap-1">
-                  <input type="date" value={fromDate ?? ""} onChange={(e) => setFromDate(e.target.value || todayStr())} className="w-[8.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" aria-label="From date" />
-                  <span className="text-xs text-slate-400">to</span>
-                  <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value || todayStr())} className="w-[8.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white" aria-label="To date" />
+              <div className="mb-4 flex flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <TableSearchInput value={expSearchQuery} onChange={setExpSearchQuery} placeholder="Search expenses…" />
+                  <RecordedDateFilters
+                    fromDate={fromDate}
+                    toDate={toDate}
+                    onRecordedDate={onRecordedDate}
+                    onFromDateChange={setFromDate}
+                    onToDateChange={setToDate}
+                    onOnRecordedDateChange={handleOnRecordedDateChange}
+                    onClearOnRecordedDate={clearOnRecordedDate}
+                  />
                 </div>
+                {onRecordedDate ? (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Showing expenses recorded on {onRecordedDate}
+                  </p>
+                ) : null}
               </div>
               <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
                 {filteredExpenses.length === 0 ? (
@@ -1960,6 +2149,7 @@ export function DebtsAndExpensesPage() {
           if (!debtSubmitting) {
             setDebtFormCustomerName("");
             setDebtFormCustomerPhone("");
+            setDebtFormIssuedBy("");
             setDebtFormAmount("");
             setDebtFormRecordedOn(todayInputValue());
             setDebtFormDueDate("");
@@ -1978,6 +2168,20 @@ export function DebtsAndExpensesPage() {
           <div>
             <label htmlFor="customerPhone" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Customer phone</label>
             <input id="customerPhone" type="tel" value={debtFormCustomerPhone} onChange={(e) => setDebtFormCustomerPhone(e.target.value)} placeholder="e.g. +254 700 123 456" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+          </div>
+          <div>
+            <label htmlFor="debtIssuedBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Issued by</label>
+            <SearchableSelect
+              id="debtIssuedBy"
+              aria-label="Issued by"
+              options={issuedBySelectOptions}
+              value={debtFormIssuedBy}
+              onChange={setDebtFormIssuedBy}
+              allowCustomValue
+              placeholder="Search or type a name…"
+              className="mt-1 block w-full"
+              controlClassName="border-slate-300 shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus-within:border-primary-400 dark:focus-within:ring-primary-400"
+            />
           </div>
           <div>
             <span id="borrowed-items-label" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Items borrowed</span>
@@ -2048,12 +2252,12 @@ export function DebtsAndExpensesPage() {
           </div>
           <div>
             <label htmlFor="debtRecordedOn" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Date recorded *</label>
-            <input id="debtRecordedOn" type="date" required max={todayInputValue()} value={debtFormRecordedOn} onChange={(e) => setDebtFormRecordedOn(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+            <DateInput id="debtRecordedOn" required max={todayInputValue()} value={debtFormRecordedOn} onChange={(e) => setDebtFormRecordedOn(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Defaults to today. Pick a past date when entering an old debt.</p>
           </div>
           <div>
             <label htmlFor="dueDate" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Due date</label>
-            <input id="dueDate" type="date" value={debtFormDueDate} onChange={(e) => setDebtFormDueDate(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+            <DateInput id="dueDate" value={debtFormDueDate} onChange={(e) => setDebtFormDueDate(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
           </div>
           <div>
             <label htmlFor="notes" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
@@ -2077,6 +2281,7 @@ export function DebtsAndExpensesPage() {
           if (!editDebtSubmitting) {
             setEditDebtCustomerName("");
             setEditDebtCustomerPhone("");
+            setEditDebtIssuedBy("");
             setEditDebtAmount("");
             setEditDebtDueDate("");
             setEditDebtNotes("");
@@ -2099,12 +2304,26 @@ export function DebtsAndExpensesPage() {
               <input id="editCustomerPhone" type="tel" value={editDebtCustomerPhone} onChange={(e) => setEditDebtCustomerPhone(e.target.value)} placeholder="e.g. +254 700 123 456" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             </div>
             <div>
+              <label htmlFor="editDebtIssuedBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Issued by</label>
+              <SearchableSelect
+                id="editDebtIssuedBy"
+                aria-label="Issued by"
+                options={issuedBySelectOptions}
+                value={editDebtIssuedBy}
+                onChange={setEditDebtIssuedBy}
+                allowCustomValue
+                placeholder="Search or type a name…"
+                className="mt-1 block w-full"
+                controlClassName="border-slate-300 shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus-within:border-primary-400 dark:focus-within:ring-primary-400"
+              />
+            </div>
+            <div>
               <label htmlFor="editDebtAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Amount (KES) *</label>
               <input id="editDebtAmount" type="number" step="0.01" min="0.01" required value={editDebtAmount} onChange={(e) => setEditDebtAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             </div>
             <div>
               <label htmlFor="editDebtDueDate" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Due date</label>
-              <input id="editDebtDueDate" type="date" value={editDebtDueDate} onChange={(e) => setEditDebtDueDate(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+              <DateInput id="editDebtDueDate" value={editDebtDueDate} onChange={(e) => setEditDebtDueDate(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             </div>
             <div>
               <label htmlFor="editDebtNotes" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
@@ -2190,7 +2409,7 @@ export function DebtsAndExpensesPage() {
         <form onSubmit={handleExpSubmit} className="space-y-4">
           <div>
             <label htmlFor="expRecordedOn" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Date recorded *</label>
-            <input id="expRecordedOn" type="date" required max={todayInputValue()} value={expFormRecordedOn} onChange={(e) => setExpFormRecordedOn(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+            <DateInput id="expRecordedOn" required max={todayInputValue()} value={expFormRecordedOn} onChange={(e) => setExpFormRecordedOn(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Defaults to today. Pick a past date when entering an old expense.</p>
           </div>
           <div>
@@ -2329,7 +2548,7 @@ export function DebtsAndExpensesPage() {
                   Pending debts by customer
                 </h3>
                 <p className="mt-1 text-base font-medium text-slate-500 dark:text-slate-400">
-                  {fromDate} to {toDate} · {debtsByCustomer.rows.length} customer
+                  {dateRangeLabel} · {debtsByCustomer.rows.length} customer
                   {debtsByCustomer.rows.length === 1 ? "" : "s"}
                 </p>
               </div>
@@ -2410,7 +2629,7 @@ export function DebtsAndExpensesPage() {
                   Expenses by category
                 </h3>
                 <p className="mt-1 text-base font-medium text-slate-500 dark:text-slate-400">
-                  {fromDate} to {toDate} · {expensesByCategory.rows.length} categor
+                  {dateRangeLabel} · {expensesByCategory.rows.length} categor
                   {expensesByCategory.rows.length === 1 ? "y" : "ies"}
                 </p>
               </div>

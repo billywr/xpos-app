@@ -38,6 +38,8 @@ import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { isOperatorNavItemVisible } from "@/hooks/useOperatorNavVisibility";
 import { OPERATOR_NAV_ITEMS } from "@/config/operatorNavItems";
 import { APP_NAME_KEY } from "@/config/headerNavItems";
+import { AssistantWidget } from "@/components/AssistantWidget";
+import { InsightAlertBell } from "@/components/InsightAlertBell";
 
 const MANAGE_TABLE_SUB_ITEMS = [
   { to: "/operator/tables/booked", label: "Booked" },
@@ -303,6 +305,7 @@ export function OperatorLayout() {
           </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
+          <InsightAlertBell />
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
             <NavLink
               to="/operator/menu-order"
@@ -451,6 +454,7 @@ export function OperatorLayout() {
           <PageTransition />
         </main>
       </div>
+      <AssistantWidget />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -16,6 +16,11 @@ import * as analyticsApi from "@/api/operatorAnalytics";
 vi.mock("@/api/stdStockCount");
 vi.mock("@/api/debts");
 vi.mock("@/api/operatorAnalytics");
+
+afterEach(() => {
+  cleanup();
+  sessionStorage.clear();
+});
 
 function localTodayStr(): string {
   const d = new Date();
@@ -73,7 +78,7 @@ describe("StandardStockCountSheetPage filter", () => {
       itemId: `item-${i + 1}`,
       sku: `SKU${String(i + 1).padStart(3, "0")}`,
       name: `Product ${i + 1}`,
-      openingStock: 10,
+      openingStock: 0,
       addedStock: 0,
       addedTodayStock: 0,
       sellingPrice: 100,
@@ -81,6 +86,13 @@ describe("StandardStockCountSheetPage filter", () => {
       lastSavedAt: null,
       comments: null,
     }));
+    vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
+      date: "2026-04-18",
+      branchId: "branch-1",
+      itemsAdjusted: 0,
+      itemsAlreadyMatched: 0,
+      lines: [],
+    });
     vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
       date: "2026-04-18",
       outletId: "branch-1",
@@ -117,7 +129,7 @@ describe("StandardStockCountSheetPage filter", () => {
     expect(screen.queryByText("Product 50")).not.toBeInTheDocument();
 
     // Type a search that only matches a row on page 2
-    const input = screen.getByPlaceholderText(/filter by name or sku/i);
+    const input = screen.getByPlaceholderText(/search all columns/i);
     fireEvent.change(input, { target: { value: "Product 50" } });
 
     // After filtering, the match should appear even though it was on page 2
@@ -133,7 +145,7 @@ describe("StandardStockCountSheetPage filter", () => {
       expect(screen.getByText("Product 1")).toBeInTheDocument();
     });
 
-    const input = screen.getByPlaceholderText(/filter by name or sku/i);
+    const input = screen.getByPlaceholderText(/search all columns/i);
     fireEvent.change(input, { target: { value: "SKU072" } });
 
     await waitFor(() => {
@@ -431,7 +443,7 @@ describe("StandardStockCountSheetPage filter", () => {
       expect(screen.getByText("Product 1")).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByPlaceholderText(/filter by name or sku/i), {
+    fireEvent.change(screen.getByPlaceholderText(/search all columns/i), {
       target: { value: "Product 1" },
     });
 
@@ -525,7 +537,7 @@ describe("StandardStockCountSheetPage save button", () => {
           itemId: "item-1",
           sku: "SKU001",
           name: "Product 1",
-          openingStock: 10,
+          openingStock: 0,
           addedStock: 0,
           addedTodayStock: 0,
           sellingPrice: 100,
@@ -818,8 +830,8 @@ describe("StandardStockCountSheetPage save button", () => {
         addedStock: 0,
         addedTodayStock: 0,
         sellingPrice: 100,
-        closingStock: null as number | null,
-        lastSavedAt: null as string | null,
+        closingStock: 1,
+        lastSavedAt: "2026-06-09T10:00:00.000Z",
         comments: null as string | null,
       };
       vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
@@ -865,10 +877,6 @@ describe("StandardStockCountSheetPage save button", () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
-      });
-
-      await waitFor(() => {
         expect(stdApi.saveStdStockCount).toHaveBeenCalledWith(
           "t",
           "org-1",
@@ -887,4 +895,253 @@ describe("StandardStockCountSheetPage save button", () => {
     },
     10000
   );
+});
+
+describe("StandardStockCountSheetPage new day carry-forward", () => {
+  beforeEach(() => {
+    vi.mocked(stdApi.saveStdStockCount).mockReset();
+    vi.mocked(debtsApi.fetchDebts).mockResolvedValue([] as never);
+    vi.mocked(analyticsApi.fetchOperatorAnalyticsSnapshot).mockResolvedValue({
+      expenseIntelligence: { todayTotal: 0 },
+    } as never);
+    vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+      date: localTodayStr(),
+      branchId: "branch-1",
+      totalQtyToRecord: 0,
+      totalValueToRecord: 0,
+      lines: [],
+    });
+    vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
+      date: localTodayStr(),
+      branchId: "branch-1",
+      itemsAdjusted: 0,
+      itemsAlreadyMatched: 0,
+      lines: [],
+    });
+  });
+
+  it("auto-saves carried opening as closing on new day and disables Save after", async () => {
+    const today = localTodayStr();
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 5,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: null,
+          lastSavedAt: null,
+          comments: null,
+        },
+      ],
+    });
+    vi.mocked(stdApi.saveStdStockCount).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 5,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 5,
+          lastSavedAt: "2026-06-10T08:00:00.000Z",
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("5")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(stdApi.saveStdStockCount).toHaveBeenCalledTimes(1);
+      expect(stdApi.saveStdStockCount).toHaveBeenCalledWith(
+        "t",
+        "org-1",
+        "branch-1",
+        expect.objectContaining({
+          date: today,
+          counts: [
+            expect.objectContaining({
+              itemId: "item-1",
+              closingStock: 5,
+            }),
+          ],
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+    });
+  });
+});
+
+describe("StandardStockCountSheetPage reconcile inventory", () => {
+  beforeEach(() => {
+    vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockReset();
+    vi.mocked(stdApi.reconcileStdStockCountInventory).mockReset();
+    vi.mocked(stdApi.saveStdStockCount).mockReset();
+    vi.mocked(debtsApi.fetchDebts).mockResolvedValue([] as never);
+    vi.mocked(analyticsApi.fetchOperatorAnalyticsSnapshot).mockResolvedValue({
+      expenseIntelligence: { todayTotal: 0 },
+    } as never);
+    vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+      date: localTodayStr(),
+      branchId: "branch-1",
+      totalQtyToRecord: 0,
+      totalValueToRecord: 0,
+      lines: [],
+    });
+  });
+
+  it("hides reconcile button when preview has no mismatches", async () => {
+    const today = localTodayStr();
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 5,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 5,
+          lastSavedAt: "2026-06-09T12:00:00.000Z",
+          comments: null,
+        },
+      ],
+    });
+    vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      itemsAdjusted: 0,
+      itemsAlreadyMatched: 1,
+      lines: [],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(stdApi.fetchStdStockCountReconcilePreview).toHaveBeenCalled();
+    });
+
+    expect(screen.queryByRole("button", { name: /reconcile inventory/i })).not.toBeInTheDocument();
+  });
+
+  it("preview mismatch opens modal, confirm reconcile, and show success", async () => {
+    const today = localTodayStr();
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 5,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 5,
+          lastSavedAt: "2026-06-09T12:00:00.000Z",
+          comments: null,
+        },
+      ],
+    });
+    vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      itemsAdjusted: 1,
+      itemsAlreadyMatched: 0,
+      lines: [
+        {
+          itemId: "item-1",
+          name: "Product 1",
+          closingStock: 5,
+          onHandQty: 3,
+          variance: 2,
+        },
+      ],
+    });
+    vi.mocked(stdApi.reconcileStdStockCountInventory).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      adjustedCount: 1,
+      itemsAlreadyMatched: 0,
+      lines: [
+        {
+          itemId: "item-1",
+          name: "Product 1",
+          closingStock: 5,
+          onHandQty: 3,
+          variance: 2,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /reconcile inventory/i })).toBeEnabled();
+    });
+
+    await waitFor(() => {
+      expect(stdApi.fetchStdStockCountReconcilePreview).toHaveBeenCalledWith(
+        "t",
+        "org-1",
+        "branch-1",
+        today
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /reconcile inventory/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/pos on-hand will be set to today/i)
+      ).toBeInTheDocument();
+    });
+
+    const reconcileButtons = screen.getAllByRole("button", { name: /reconcile inventory/i });
+    fireEvent.click(reconcileButtons[reconcileButtons.length - 1]!);
+
+    await waitFor(() => {
+      expect(screen.getByText(/reconcile inventory to closings\?/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^reconcile$/i }));
+
+    await waitFor(() => {
+      expect(stdApi.reconcileStdStockCountInventory).toHaveBeenCalledWith(
+        "t",
+        "org-1",
+        "branch-1",
+        { date: today, outletId: "branch-1" }
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/adjusted on-hand for 1 item/i)).toBeInTheDocument();
+    });
+  });
 });

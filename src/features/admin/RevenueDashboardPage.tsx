@@ -23,6 +23,7 @@ import { getApiErrorMessage } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { TrendingUp, DollarSign, Receipt, Percent, Package, CircleDollarSign } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { DateInput } from "@/components/ui";
 
 function useDateRange(days = 30) {
   const end = new Date();
@@ -299,8 +300,7 @@ export function RevenueDashboardPage() {
           <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Start date
           </label>
-          <input
-            type="date"
+          <DateInput
             value={startDate}
             onChange={(e) => {
               setStartDate(e.target.value);
@@ -313,8 +313,7 @@ export function RevenueDashboardPage() {
           <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
             End date
           </label>
-          <input
-            type="date"
+          <DateInput
             value={endDate}
             onChange={(e) => {
               setEndDate(e.target.value);

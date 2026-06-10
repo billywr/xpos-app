@@ -80,6 +80,7 @@ export function generateDebtsPdf(
     const tableData = debts.map((d) => [
       d.customerName,
       d.customerPhone ?? "—",
+      d.issuedBy ?? "—",
       formatAmount(d.amount),
       formatAmount(d.amountSettled ?? 0),
       formatAmount(d.outstanding),
@@ -94,6 +95,7 @@ export function generateDebtsPdf(
         [
           "Customer",
           "Phone",
+          "Issued by",
           "Original (KSH)",
           "Repaid (KSH)",
           "Balance (KSH)",
@@ -111,13 +113,13 @@ export function generateDebtsPdf(
       headStyles: { fillColor: [17, 50, 100], halign: "left", fontSize: 11 },
       columnStyles: {
         0: { fontStyle: "bold", textColor: [17, 24, 39] },
-        2: { halign: "left" },
-        3: {
+        3: { halign: "left" },
+        4: {
           halign: "left",
           fontStyle: "bold",
           textColor: [5, 150, 105],
         },
-        4: {
+        5: {
           halign: "left",
           fontStyle: "bold",
           textColor: [220, 38, 38],

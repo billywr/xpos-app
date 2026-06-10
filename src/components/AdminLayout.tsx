@@ -6,6 +6,7 @@ import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
 import { useNavVisibilityContext } from "@/contexts/NavVisibilityContext";
 import { isNavItemVisible } from "@/hooks/useAdminNavVisibility";
 import { ADMIN_NAV_ITEMS, ADMIN_GROUP_ORDER } from "@/config/adminNavItems";
+import { AssistantWidget } from "@/components/AssistantWidget";
 
 function groupNavItems(items: typeof ADMIN_NAV_ITEMS) {
   const byGroup = new Map<string, typeof ADMIN_NAV_ITEMS>();
@@ -225,6 +226,7 @@ export function AdminLayout() {
       >
         <PageTransition />
       </main>
+      <AssistantWidget />
     </div>
   );
 }

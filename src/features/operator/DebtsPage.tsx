@@ -31,6 +31,7 @@ import {
   TableRowNumberCell,
   StatChip,
   TableSearchInput,
+  DateInput,
   tableBodyRow,
   tableStickyFirstCell,
   tableStickyHeadCell,
@@ -1018,9 +1019,8 @@ export function DebtsPage() {
             >
               Date recorded *
             </label>
-            <input
+            <DateInput
               id="recordedOn"
-              type="date"
               required
               max={todayInputValue()}
               value={formRecordedOn}
@@ -1038,9 +1038,8 @@ export function DebtsPage() {
             >
               Due date
             </label>
-            <input
+            <DateInput
               id="dueDate"
-              type="date"
               value={formDueDate}
               onChange={(e) => setFormDueDate(e.target.value)}
               className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
@@ -1164,9 +1163,8 @@ export function DebtsPage() {
               >
                 Due date
               </label>
-              <input
+              <DateInput
                 id="editDueDate"
-                type="date"
                 value={editDueDate}
                 onChange={(e) => setEditDueDate(e.target.value)}
                 className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"

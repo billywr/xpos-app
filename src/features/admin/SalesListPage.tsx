@@ -26,6 +26,7 @@ import {
   tableBodyCell,
   tableBodyCellNum,
   tableEmptyCell,
+  DateInput,
 } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
@@ -319,9 +320,8 @@ export function SalesListPage() {
             >
               From
             </label>
-            <input
+            <DateInput
               id="sales-from-date"
-              type="date"
               value={fromDate}
               onChange={(e) => {
                 setFromDate(e.target.value);
@@ -337,9 +337,8 @@ export function SalesListPage() {
             >
               To
             </label>
-            <input
+            <DateInput
               id="sales-to-date"
-              type="date"
               value={toDate}
               onChange={(e) => {
                 setToDate(e.target.value);

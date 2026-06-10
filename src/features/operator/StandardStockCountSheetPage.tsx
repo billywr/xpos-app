@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { PageHeader } from "@/components/PageHeader";
+import { InlineCopilot } from "@/components/InlineCopilot";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import {
@@ -17,17 +18,31 @@ import {
   saveStdStockCount,
   fetchStdStockCountSalesPreview,
   recordStdStockCountSales,
+  fetchStdStockCountReconcilePreview,
+  reconcileStdStockCountInventory,
   type StdStockCountRowResponse,
   type StdStockCountSalesPreviewResponse,
 } from "@/api/stdStockCount";
 import { fetchOperatorAnalyticsSnapshot } from "@/api/operatorAnalytics";
 import { fetchDebts } from "@/api/debts";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
-import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import { formatQty, formatQtyVariance, isValidQtyInput, roundQty } from "@/utils/formatQuantity";
+import {
+  getApiErrorMessage,
+  getApiErrorRequestId,
+  isApiFetchError,
+} from "@/utils/apiError";
 import { invalidateInventoryQueries } from "@/utils/invalidateInventoryQueries";
 import { useToast } from "@/contexts/ToastContext";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { APP_NAME_KEY } from "@/config/headerNavItems";
+import {
+  STD_STOCK_COUNT_SHOW_PDF,
+  STD_STOCK_COUNT_SHOW_SAVE,
+  STD_STOCK_COUNT_SHOW_RECONCILE,
+  STD_STOCK_COUNT_SHOW_RECORD_SALES,
+  isStdStockCountButtonVisible,
+} from "@/config/stdStockCountVisibility";
 import {
   ChevronLeft,
   ChevronRight,
@@ -38,6 +53,7 @@ import {
   FileSpreadsheet,
   Download,
   ShoppingBag,
+  GitCompare,
 } from "lucide-react";
 import { downloadStdStockCountPdf } from "@/utils/stdStockCountPdf";
 import {
@@ -134,6 +150,10 @@ function shouldAutoSyncClosing(
   ctx: AutoSyncClosingContext
 ): boolean {
   if (isStaleSavedClosing(row)) {
+    return true;
+  }
+  // New day: carry-forward opening with no snapshot yet — persist closing = total.
+  if (row.closingStock == null && row.openingStock > 0) {
     return true;
   }
   if (!ctx.addedIncreased) {
@@ -251,6 +271,23 @@ export function StandardStockCountSheetPage({
   const appName = navVisibility
     ? navVisibility.getHeaderLabel(APP_NAME_KEY, "XPOS")
     : "XPOS";
+  const operatorVisibility = navVisibility?.operatorVisibility ?? {};
+  const showPdfButton = isStdStockCountButtonVisible(
+    operatorVisibility,
+    STD_STOCK_COUNT_SHOW_PDF
+  );
+  const showSaveButton = isStdStockCountButtonVisible(
+    operatorVisibility,
+    STD_STOCK_COUNT_SHOW_SAVE
+  );
+  const showReconcileSetting = isStdStockCountButtonVisible(
+    operatorVisibility,
+    STD_STOCK_COUNT_SHOW_RECONCILE
+  );
+  const showRecordSalesButton = isStdStockCountButtonVisible(
+    operatorVisibility,
+    STD_STOCK_COUNT_SHOW_RECORD_SALES
+  );
 
   const [dateStr, setDateStr] = useState(todayStr);
   const [localClosings, setLocalClosings] = useState<Record<string, string>>({});
@@ -262,9 +299,14 @@ export function StandardStockCountSheetPage({
   const [recordPreview, setRecordPreview] = useState<StdStockCountSalesPreviewResponse | null>(
     null
   );
+  const [reconcileModalOpen, setReconcileModalOpen] = useState(false);
+  const [reconcileConfirmOpen, setReconcileConfirmOpen] = useState(false);
   const [saveBeforeRecordOpen, setSaveBeforeRecordOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const priorAddedStockSignatureRef = useRef("");
+  const skipAutoSaveDebounceRef = useRef(false);
+  const systemSyncPendingRef = useRef(false);
+  const suppressAutoSyncUntilRefetchRef = useRef(false);
 
   const isToday = dateStr === todayStr();
   const isYesterday = dateStr === yesterdayStr();
@@ -339,7 +381,7 @@ export function StandardStockCountSheetPage({
     if (s === "" || s === ".") return 0;
     const n = parseFloat(s);
     if (Number.isNaN(n)) return 0;
-    return Math.round(n * 1000) / 1000;
+    return roundQty(n);
   }
 
   function parseCommentForSave(itemId: string, row: StdStockCountRowResponse): string {
@@ -387,9 +429,56 @@ export function StandardStockCountSheetPage({
       void queryClient.invalidateQueries({
         queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
       });
+      void queryClient.invalidateQueries({
+        queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
+      });
       setLocalClosings({});
       setLocalComments({});
       toast.success("Stock count saved.", { title: "Saved" });
+    },
+    onError: (err) => {
+      const isDuplicateSnapshot =
+        isApiFetchError(err) &&
+        err.status === 409 &&
+        getApiErrorMessage(err).includes("uq_std_stock_count");
+      if (isDuplicateSnapshot) {
+        setLocalClosings({});
+        setLocalComments({});
+        void refetch();
+        return;
+      }
+      toast.error(getApiErrorMessage(err), {
+        detail: getApiErrorRequestId(err)
+          ? `Reference: ${getApiErrorRequestId(err)}`
+          : undefined,
+      });
+    },
+  });
+
+  const reconcileMutation = useMutation({
+    mutationFn: async () =>
+      reconcileStdStockCountInventory(token, orgId, branchId, {
+        date: dateStr,
+        outletId: branchId,
+      }),
+    onSuccess: (result) => {
+      suppressAutoSyncUntilRefetchRef.current = true;
+      void invalidateInventoryQueries(queryClient);
+      void queryClient.invalidateQueries({
+        queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
+      });
+      setReconcileModalOpen(false);
+      setReconcileConfirmOpen(false);
+      if (result.adjustedCount === 0) {
+        toast.success("Inventory already matches saved closings.", {
+          title: "Reconcile inventory",
+        });
+      } else {
+        toast.success(
+          `Adjusted on-hand for ${result.adjustedCount} item(s) to match saved closings.`,
+          { title: "Inventory reconciled" }
+        );
+      }
     },
     onError: (err) => {
       toast.error(getApiErrorMessage(err), {
@@ -477,7 +566,13 @@ export function StandardStockCountSheetPage({
   // After stock receipt (or cross-tab refetch), bump closing to total so auto-save persists carry-forward.
   useEffect(() => {
     const rows = sheet?.rows;
-    if (!rows || !canEdit) return;
+    if (!rows || !canEdit || saveMutation.isPending) return;
+
+    if (suppressAutoSyncUntilRefetchRef.current) {
+      priorAddedStockSignatureRef.current = addedStockSignature;
+      suppressAutoSyncUntilRefetchRef.current = false;
+      return;
+    }
 
     const priorAddedByItem = new Map<string, number>();
     if (priorAddedStockSignatureRef.current) {
@@ -503,11 +598,14 @@ export function StandardStockCountSheetPage({
           next[row.itemId] = String(totalStockFromRow(row));
         }
       }
+      if (next !== null) {
+        systemSyncPendingRef.current = true;
+      }
       return next ?? prev;
     });
 
     priorAddedStockSignatureRef.current = addedStockSignature;
-  }, [sheet, addedStockSignature, canEdit, dateStr]);
+  }, [sheet, addedStockSignature, canEdit, dateStr, saveMutation.isPending]);
 
   useEffect(() => {
     setPage(0);
@@ -560,9 +658,37 @@ export function StandardStockCountSheetPage({
 
   const hasChanges = changedItemIds.size > 0;
 
+  useEffect(() => {
+    if (!systemSyncPendingRef.current || !hasChanges || hasErrors || !canEdit) {
+      return;
+    }
+    systemSyncPendingRef.current = false;
+    skipAutoSaveDebounceRef.current = true;
+    if (!saveMutation.isPending) {
+      saveMutation.mutate();
+    }
+  }, [localClosings, hasChanges, hasErrors, canEdit, saveMutation]);
+
   const hasSalesToRecord = (cachedSalesPreview?.totalQtyToRecord ?? 0) > 0;
   const noSalesToRecord =
     !hasChanges && salesPreviewFetched && salesPreviewQueryEnabled && !hasSalesToRecord;
+
+  const reconcilePreviewQueryEnabled = Boolean(
+    token && orgId && branchId && isToday && sheet && !hasChanges && !hasErrors
+  );
+
+  const { data: cachedReconcilePreview } = useQuery({
+    queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
+    queryFn: () => fetchStdStockCountReconcilePreview(token, orgId, branchId, dateStr),
+    enabled: reconcilePreviewQueryEnabled,
+    staleTime: 30_000,
+  });
+
+  const showReconcileButton =
+    isToday &&
+    !hasChanges &&
+    !hasErrors &&
+    (cachedReconcilePreview?.itemsAdjusted ?? 0) > 0;
 
   const latestSavedAt = useMemo(() => {
     const times = (sheet?.rows ?? [])
@@ -605,6 +731,15 @@ export function StandardStockCountSheetPage({
     } finally {
       setPreviewLoading(false);
     }
+  }
+
+  function handleReconcileClick() {
+    setReconcileModalOpen(true);
+  }
+
+  function handleReconcileProceed() {
+    setReconcileModalOpen(false);
+    setReconcileConfirmOpen(true);
   }
 
   async function handleRecordSalesClick() {
@@ -662,6 +797,7 @@ export function StandardStockCountSheetPage({
         dayDebts: dayDebts.map((d) => ({
           customerName: d.customerName,
           customerPhone: d.customerPhone,
+          issuedBy: d.issuedBy,
           outstanding: d.outstanding,
           dueDate: d.dueDate,
           createdAt: d.createdAt,
@@ -670,6 +806,7 @@ export function StandardStockCountSheetPage({
         allDebts: allDebts.map((d) => ({
           customerName: d.customerName,
           customerPhone: d.customerPhone,
+          issuedBy: d.issuedBy,
           outstanding: d.outstanding,
           dueDate: d.dueDate,
           createdAt: d.createdAt,
@@ -701,7 +838,7 @@ export function StandardStockCountSheetPage({
 
   function handleClosingChange(itemId: string, value: string) {
     // Allow empty, an in-progress decimal point, and up to 3 fractional digits.
-    if (value === "" || /^\d*(\.\d{0,3})?$/.test(value)) {
+    if (isValidQtyInput(value)) {
       setLocalClosings((prev) => ({ ...prev, [itemId]: value }));
     }
   }
@@ -716,12 +853,16 @@ export function StandardStockCountSheetPage({
 
   useEffect(() => {
     if (!hasChanges || hasErrors || !canEdit) return;
+    if (skipAutoSaveDebounceRef.current) {
+      skipAutoSaveDebounceRef.current = false;
+      return;
+    }
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(doAutoSave, 1500);
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [localClosings, localComments, hasChanges, hasErrors, canEdit, doAutoSave]);
+  }, [localClosings, localComments, hasChanges, hasErrors, canEdit, doAutoSave, saveMutation]);
 
   function handleSave() {
     if (hasErrors) {
@@ -750,6 +891,15 @@ export function StandardStockCountSheetPage({
           subtitleRevealOnTitleHover
           icon={FileSpreadsheet}
           fallbackTo="/operator"
+        />
+      )}
+
+      {!tableExpanded && (
+        <InlineCopilot
+          screen="stock-count"
+          label="Explain variance"
+          defaultQuestion="Stock variance"
+          className="mb-3"
         />
       )}
 
@@ -794,6 +944,7 @@ export function StandardStockCountSheetPage({
             <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
           <span className="mx-0.5 hidden h-4 w-px bg-slate-300 sm:mx-1 sm:block dark:bg-slate-600" aria-hidden />
+          {showPdfButton && (
           <Button
             variant="secondary"
             size="md"
@@ -805,6 +956,8 @@ export function StandardStockCountSheetPage({
             <Download className="h-4 w-4" />
             <span className="hidden xs:inline">PDF</span>
           </Button>
+          )}
+          {showSaveButton && (
           <Button
             size="md"
             onClick={handleSave}
@@ -818,6 +971,26 @@ export function StandardStockCountSheetPage({
             )}
             <span className="hidden xs:inline">Save</span>
           </Button>
+          )}
+          {showReconcileButton && showReconcileSetting && (
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={handleReconcileClick}
+              disabled={reconcileMutation.isPending || saveMutation.isPending}
+              title="Set POS on-hand to match saved closings"
+              aria-label="Reconcile inventory"
+              className="px-2.5 py-1.5 sm:px-4 sm:py-2"
+            >
+              {reconcileMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <GitCompare className="h-4 w-4" />
+              )}
+              <span className="hidden xs:inline">Reconcile inventory</span>
+            </Button>
+          )}
+          {showRecordSalesButton && (
           <Button
             variant="success"
             size="md"
@@ -854,6 +1027,7 @@ export function StandardStockCountSheetPage({
             )}
             <span className="hidden xs:inline">Record sales</span>
           </Button>
+          )}
           <Button
             variant="secondary"
             size="md"
@@ -999,20 +1173,20 @@ export function StandardStockCountSheetPage({
                     <td className={tableStickyFirstBody}>
                       {r.name || "—"}
                     </td>
-                    <td className={tableBodyCellNumDebts}>{r.openingStock}</td>
-                    <td className={tableBodyCellNumDebts}>{r.addedStock}</td>
-                    <td className={tableBodyCellNumDebts}>{r.totalStock}</td>
+                    <td className={tableBodyCellNumDebts}>{formatQty(r.openingStock)}</td>
+                    <td className={tableBodyCellNumDebts}>{formatQty(r.addedStock)}</td>
+                    <td className={tableBodyCellNumDebts}>{formatQty(r.totalStock)}</td>
                     <td className={canEdit ? tableBodyCell : tableBodyCellNumDebts}>
                       {canEdit ? (
                         <div className="flex flex-col">
                           <input
                             type="text"
                             inputMode="decimal"
-                            pattern="[0-9]*\.?[0-9]{0,3}"
+                            pattern="[0-9]*\.?[0-9]{0,2}"
                             value={
                               r.itemId in localClosings
                                 ? localClosings[r.itemId]
-                                : String(r.closingStock ?? "")
+                                : String(r.closingStock)
                             }
                             onChange={(e) =>
                               handleClosingChange(r.itemId, e.target.value)
@@ -1035,7 +1209,7 @@ export function StandardStockCountSheetPage({
                         r.closingStock
                       )}
                     </td>
-                    <td className={tableBodyCellNumDebts}>{r.unitsSold}</td>
+                    <td className={tableBodyCellNumDebts}>{formatQty(r.unitsSold)}</td>
                     <td className={tableBodyCellNumDebts}>{formatAmount(r.sellingPrice)}</td>
                     <td className={`${tableBodyCellNumDebts} font-bold text-slate-700 dark:text-slate-300`}>
                       {formatAmount(r.amount)}
@@ -1104,7 +1278,7 @@ export function StandardStockCountSheetPage({
                     <div className="min-w-0">
                       <p className="font-semibold text-slate-900 dark:text-white">{d.customerName}</p>
                       <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {d.customerPhone ?? "—"} · Due: {d.dueDate ?? "—"}
+                        {d.customerPhone ?? "—"} · Issued by: {d.issuedBy ?? "—"} · Due: {d.dueDate ?? "—"}
                         {debtModal === "all" ? ` · Recorded: ${d.createdAt?.slice(0, 10) ?? "—"}` : ""}
                       </p>
                     </div>
@@ -1134,6 +1308,117 @@ export function StandardStockCountSheetPage({
         variant="primary"
         loading={saveMutation.isPending || previewLoading}
       />
+
+      <ConfirmDialog
+        open={reconcileConfirmOpen}
+        onClose={() => setReconcileConfirmOpen(false)}
+        onConfirm={() => reconcileMutation.mutate()}
+        title="Reconcile inventory to closings?"
+        message={`POS on-hand will be updated for ${cachedReconcilePreview?.itemsAdjusted ?? 0} item(s) to match today's saved closing counts. This creates stock adjustments in the ledger.`}
+        confirmLabel="Reconcile"
+        variant="primary"
+        maxWidth="max-w-4xl"
+        loading={reconcileMutation.isPending}
+      />
+
+      <Modal
+        open={reconcileModalOpen}
+        onClose={() => setReconcileModalOpen(false)}
+        title="Reconcile inventory to closings"
+        maxWidth="max-w-4xl"
+        scrollMaxHeight="max-h-[90vh]"
+        scrollable
+      >
+        {cachedReconcilePreview && (
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <p className="shrink-0 text-sm text-slate-600 dark:text-slate-300">
+              POS on-hand will be set to today&apos;s saved{" "}
+              <span className="font-semibold text-slate-900 dark:text-white">Closing</span> for{" "}
+              <span className="font-semibold text-slate-900 dark:text-white">
+                {cachedReconcilePreview.itemsAdjusted} item(s)
+              </span>{" "}
+              on {dateStr}.
+            </p>
+            {searchQuery.trim().length > 0 && (
+              <p className="shrink-0 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-200">
+                Table filter is active — reconcile still uses the full sheet.
+              </p>
+            )}
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-600">
+              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
+                <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                      Item
+                    </th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                      On hand (now)
+                    </th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                      Reconcile to (Closing)
+                    </th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                      Adjustment
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
+                  {cachedReconcilePreview.lines.map((line) => (
+                    <tr key={line.itemId}>
+                      <td className="px-3 py-2 text-sm text-slate-900 dark:text-white">
+                        {line.name}
+                      </td>
+                      <td className="px-3 py-2 text-right text-sm tabular-nums text-slate-700 dark:text-slate-300">
+                        {formatQty(line.onHandQty)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-emerald-700 dark:text-emerald-400">
+                        {formatQty(line.closingStock)}
+                      </td>
+                      <td
+                        className={`px-3 py-2 text-right text-sm tabular-nums font-semibold ${
+                          line.variance > 0
+                            ? "text-emerald-700 dark:text-emerald-400"
+                            : "text-red-700 dark:text-red-400"
+                        }`}
+                      >
+                        {formatQtyVariance(line.variance)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {cachedReconcilePreview.itemsAlreadyMatched > 0 && (
+              <p className="shrink-0 text-sm text-slate-500 dark:text-slate-400">
+                {cachedReconcilePreview.itemsAlreadyMatched} other item(s) already match and will
+                not be changed.
+              </p>
+            )}
+            <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-600">
+              <button
+                type="button"
+                onClick={() => setReconcileModalOpen(false)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleReconcileProceed}
+                disabled={reconcileMutation.isPending}
+                className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+              >
+                {reconcileMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <GitCompare className="h-4 w-4" />
+                )}
+                Reconcile inventory
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <SlideOver
         open={recordPreview !== null}
@@ -1201,13 +1486,13 @@ export function StandardStockCountSheetPage({
                           )}
                         </td>
                         <td className="px-3 py-2 text-right text-sm tabular-nums text-slate-700 dark:text-slate-300">
-                          {line.impliedSold}
+                          {formatQty(line.impliedSold)}
                         </td>
                         <td className="px-3 py-2 text-right text-sm tabular-nums text-slate-700 dark:text-slate-300">
-                          {line.alreadyRecorded}
+                          {formatQty(line.alreadyRecorded)}
                         </td>
                         <td className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-emerald-700 dark:text-emerald-400">
-                          {line.qtyToRecord}
+                          {formatQty(line.qtyToRecord)}
                         </td>
                         <td className="px-3 py-2 text-left text-sm tabular-nums text-slate-700 dark:text-slate-300">
                           {formatAmount(line.lineValue)}
@@ -1225,7 +1510,7 @@ export function StandardStockCountSheetPage({
                 </span>
                 {" · "}
                 <span className="font-semibold text-slate-900 dark:text-white">
-                  {recordPreview.totalQtyToRecord} units
+                  {formatQty(recordPreview.totalQtyToRecord)} units
                 </span>
                 {" · "}
                 <span className="font-semibold text-slate-900 dark:text-white">

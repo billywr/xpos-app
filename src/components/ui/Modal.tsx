@@ -10,7 +10,18 @@ export interface ModalProps {
   title?: string;
   children: ReactNode;
   /** Max width class (default max-w-lg) */
-  maxWidth?: "max-w-md" | "max-w-lg" | "max-w-xl" | "max-w-2xl";
+  maxWidth?:
+    | "max-w-md"
+    | "max-w-lg"
+    | "max-w-xl"
+    | "max-w-2xl"
+    | "max-w-3xl"
+    | "max-w-4xl"
+    | "max-w-5xl";
+  /** Cap height and let body content manage internal scroll (e.g. long tables). */
+  scrollable?: boolean;
+  /** Max height when scrollable (default max-h-[min(90vh,48rem)]). */
+  scrollMaxHeight?: string;
   className?: string;
 }
 
@@ -24,6 +35,8 @@ export function Modal({
   title,
   children,
   maxWidth = "max-w-lg",
+  scrollable = false,
+  scrollMaxHeight = "max-h-[min(90vh,48rem)]",
   className,
 }: ModalProps) {
   useEffect(() => {
@@ -49,8 +62,15 @@ export function Modal({
       aria-labelledby={title ? "modal-title" : undefined}
     >
       <div className={modalOverlay} aria-hidden onClick={onClose} />
-      <div className={cn(modalPanel, maxWidth, className)}>
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+      <div
+        className={cn(
+          modalPanel,
+          maxWidth,
+          scrollable && cn("flex flex-col overflow-hidden", scrollMaxHeight),
+          className
+        )}
+      >
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
           {title ? (
             <h3
               id="modal-title"
@@ -65,7 +85,14 @@ export function Modal({
             <X className="h-5 w-5" />
           </IconButton>
         </div>
-        <div className="p-5">{children}</div>
+        <div
+          className={cn(
+            "p-5",
+            scrollable && "flex min-h-0 flex-1 flex-col overflow-hidden"
+          )}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

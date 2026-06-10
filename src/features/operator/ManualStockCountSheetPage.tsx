@@ -17,6 +17,13 @@ import {
 } from "@/api/manualStockCount";
 import { fetchAllOrgItems } from "@/api/items";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import {
+  formatQty,
+  formatQtyVariance,
+  isValidQtyInput,
+  parseQty,
+  roundQty,
+} from "@/utils/formatQuantity";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { generateUuid } from "@/utils/uuid";
@@ -82,11 +89,11 @@ interface LocalRow {
 
 const MANUAL_STOCK_SORT = {
   item: (row: LocalRow) => row.itemName,
-  open: (row: LocalRow) => parseNonNegInt(row.opening, 0),
-  added: (row: LocalRow) => parseNonNegInt(row.added, 0),
+  open: (row: LocalRow) => parseNonNegQtyField(row.opening, 0),
+  added: (row: LocalRow) => parseNonNegQtyField(row.added, 0),
   total: (row: LocalRow) => computePreview(row).total,
-  close: (row: LocalRow) => parseOptionalNonNegInt(row.closing) ?? Number.NEGATIVE_INFINITY,
-  sys: (row: LocalRow) => parseOptionalNonNegInt(row.system) ?? Number.NEGATIVE_INFINITY,
+  close: (row: LocalRow) => parseOptionalQtyField(row.closing) ?? Number.NEGATIVE_INFINITY,
+  sys: (row: LocalRow) => parseOptionalQtyField(row.system) ?? Number.NEGATIVE_INFINITY,
   var: (row: LocalRow) => computePreview(row).variance ?? Number.NEGATIVE_INFINITY,
   sold: (row: LocalRow) => computePreview(row).unitsSold,
   price: (row: LocalRow) => parsePrice(row.sellingPrice),
@@ -101,30 +108,28 @@ function serverRowToLocal(r: import("@/api/manualStockCount").ManualStockCountLi
     itemId: r.itemId,
     itemName: r.itemName,
     sku: r.sku ?? "",
-    opening: String(r.openingQty),
-    added: String(combinedAdded),
-    closing: r.closingQty != null ? String(r.closingQty) : "",
-    system: r.systemQty != null ? String(r.systemQty) : "",
+    opening: r.openingQty != null ? formatQty(r.openingQty) : "",
+    added: formatQty(combinedAdded),
+    closing: r.closingQty != null ? formatQty(r.closingQty) : "",
+    system: r.systemQty != null ? formatQty(r.systemQty) : "",
     sellingPrice: String(r.sellingPrice),
     comments: r.comments ?? "",
     lineOrder: r.lineOrder,
   };
 }
 
-function parseOptionalNonNegInt(s: string): number | null {
+function parseOptionalQtyField(s: string): number | null {
   const t = s.trim();
   if (t === "") return null;
-  const n = parseInt(t, 10);
-  if (Number.isNaN(n) || n < 0) return null;
-  return n;
+  const q = parseQty(t);
+  return q === null ? null : roundQty(q);
 }
 
-function parseNonNegInt(s: string, fallback: number): number {
+function parseNonNegQtyField(s: string, fallback: number): number {
   const t = s.trim();
   if (t === "") return fallback;
-  const n = parseInt(t, 10);
-  if (Number.isNaN(n) || n < 0) return fallback;
-  return n;
+  const q = parseQty(t);
+  return q === null ? fallback : roundQty(q);
 }
 
 function parsePrice(s: string): number {
@@ -135,37 +140,36 @@ function parsePrice(s: string): number {
 }
 
 function computePreview(r: LocalRow) {
-  const opening = parseNonNegInt(r.opening, 0);
-  const added = parseNonNegInt(r.added, 0);
-  const total = opening + added;
-  const closing = parseOptionalNonNegInt(r.closing);
+  const opening = parseNonNegQtyField(r.opening, 0);
+  const added = parseNonNegQtyField(r.added, 0);
+  const total = roundQty(opening + added);
+  const closing = parseOptionalQtyField(r.closing);
   const closingN = closing ?? 0;
   let closingError: string | undefined;
   if (closing != null && closing > total) {
     closingError = "Cannot exceed total stock";
   }
-  const unitsSold = Math.max(0, total - closingN);
+  const unitsSold = roundQty(Math.max(0, total - closingN));
   const price = parsePrice(r.sellingPrice);
   const amount = Math.round(unitsSold * price * 100) / 100;
-  const system = parseOptionalNonNegInt(r.system);
+  const system = parseOptionalQtyField(r.system);
   const variance =
-    closing != null && system != null ? closing - system : null;
+    closing != null && system != null ? roundQty(closing - system) : null;
   return { total, unitsSold, amount, variance, closingError };
 }
 
 function buildSaveRow(r: LocalRow, index: number): ManualStockCountLineSaveRequest {
   const openingTrim = r.opening.trim();
-  const openingQty =
-    openingTrim === "" ? null : Math.max(0, parseInt(openingTrim, 10) || 0);
+  const openingQty = openingTrim === "" ? null : parseNonNegQtyField(openingTrim, 0);
   return {
     itemId: r.itemId,
     itemName: r.itemName.trim() || "—",
     sku: r.sku.trim() || null,
     openingQty,
-    addedQty: parseNonNegInt(r.added, 0),
+    addedQty: parseNonNegQtyField(r.added, 0),
     addedTodayQty: 0,
-    closingQty: parseOptionalNonNegInt(r.closing),
-    systemQty: parseOptionalNonNegInt(r.system),
+    closingQty: parseOptionalQtyField(r.closing),
+    systemQty: parseOptionalQtyField(r.system),
     sellingPrice: parsePrice(r.sellingPrice),
     comments: r.comments.trim() || null,
     lineOrder: index,
@@ -362,12 +366,12 @@ export function ManualStockCountSheetPage() {
     );
   }
 
-  function handleIntField(
+  function handleQtyField(
     clientId: string,
     key: keyof Pick<LocalRow, "opening" | "added" | "closing" | "system">,
     value: string
   ) {
-    if (value === "" || /^\d*$/.test(value)) {
+    if (isValidQtyInput(value)) {
       updateRow(clientId, { [key]: value } as Partial<LocalRow>);
     }
   }
@@ -650,11 +654,10 @@ export function ManualStockCountSheetPage() {
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
+                                inputMode="decimal"
                                 value={r.opening}
                                 onChange={(e) =>
-                                  handleIntField(r.clientId, "opening", e.target.value)
+                                  handleQtyField(r.clientId, "opening", e.target.value)
                                 }
                                 title="Leave blank on save to carry yesterday’s closing"
                                 className={`${inputBase} border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800`}
@@ -665,28 +668,26 @@ export function ManualStockCountSheetPage() {
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
+                                inputMode="decimal"
                                 value={r.added}
                                 onChange={(e) =>
-                                  handleIntField(r.clientId, "added", e.target.value)
+                                  handleQtyField(r.clientId, "added", e.target.value)
                                 }
                                 className={`${inputBase} border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800`}
                               />
                             </div>
                           </td>
                           <td className={tableBodyCellNum}>
-                            {p.total}
+                            {formatQty(p.total)}
                           </td>
                           <td className={tableBodyCell}>
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
+                                inputMode="decimal"
                                 value={r.closing}
                                 onChange={(e) =>
-                                  handleIntField(r.clientId, "closing", e.target.value)
+                                  handleQtyField(r.clientId, "closing", e.target.value)
                                 }
                                 className={`${inputBase} ${
                                   p.closingError
@@ -705,11 +706,10 @@ export function ManualStockCountSheetPage() {
                             <div className="flex flex-col items-end">
                               <input
                                 type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
+                                inputMode="decimal"
                                 value={r.system}
                                 onChange={(e) =>
-                                  handleIntField(r.clientId, "system", e.target.value)
+                                  handleQtyField(r.clientId, "system", e.target.value)
                                 }
                                 className={`${inputBase} border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800`}
                               />
@@ -725,18 +725,11 @@ export function ManualStockCountSheetPage() {
                                     : "text-slate-600 dark:text-slate-400"
                               }`}
                             >
-                              {p.variance == null ? (
-                                "—"
-                              ) : (
-                                <>
-                                  {p.variance > 0 ? "+" : ""}
-                                  {p.variance}
-                                </>
-                              )}
+                              {p.variance == null ? "—" : formatQtyVariance(p.variance)}
                             </td>
                           )}
                           <td className={tableBodyCellNum}>
-                            {p.unitsSold}
+                            {formatQty(p.unitsSold)}
                           </td>
                           <td className={tableBodyCell}>
                             <div className="flex flex-col items-end">

@@ -11,6 +11,7 @@ import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { FileText } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { DateInput } from "@/components/ui";
 
 export function ZReportPage() {
   const token = useAppSelector(selectToken);
@@ -160,9 +161,8 @@ export function ZReportPage() {
           >
             Business date
           </label>
-          <input
+          <DateInput
             id="zreport-date"
-            type="date"
             value={businessDate}
             onChange={(e) => setBusinessDate(e.target.value)}
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"

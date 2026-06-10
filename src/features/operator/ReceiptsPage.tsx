@@ -29,6 +29,7 @@ import {
   tableStickyFirstBody,
   tableEmptyCell,
   tableBodyCellNum,
+  DateInput,
 } from "@/components/ui";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { formatAmount } from "@/utils/formatCurrency";
@@ -228,8 +229,7 @@ export function ReceiptsPage() {
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
             From
           </span>
-          <input
-            type="date"
+          <DateInput
             value={fromDate}
             onChange={(e) => {
               setFromDate(e.target.value);
@@ -242,8 +242,7 @@ export function ReceiptsPage() {
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
             To
           </span>
-          <input
-            type="date"
+          <DateInput
             value={toDate}
             onChange={(e) => {
               setToDate(e.target.value);
