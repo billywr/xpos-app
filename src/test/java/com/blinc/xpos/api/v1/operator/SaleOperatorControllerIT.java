@@ -630,7 +630,8 @@ class SaleOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].customerName").value("John Kamau"))
         .andExpect(jsonPath("$.content[0].amount").value(99.0))
-        .andExpect(jsonPath("$.content[0].saleId").value(saleId.toString()));
+        .andExpect(jsonPath("$.content[0].saleId").value(saleId.toString()))
+        .andExpect(jsonPath("$.content[0].issuedBy").value("operator"));
   }
 
   private void createLedgerAccount(UUID orgId, String code, String name, String accountType)

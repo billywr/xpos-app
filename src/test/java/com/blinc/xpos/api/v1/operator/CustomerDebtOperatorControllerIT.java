@@ -58,6 +58,7 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.outstanding").value(1500.50))
         .andExpect(jsonPath("$.status").value("OPEN"))
         .andExpect(jsonPath("$.notes").value("Credit sale"))
+        .andExpect(jsonPath("$.issuedBy").doesNotExist())
         .andExpect(jsonPath("$.createdByStaffUserId").exists())
         .andExpect(jsonPath("$.createdAt").exists());
 
@@ -69,6 +70,49 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].amount").value(1500.50))
         .andExpect(jsonPath("$.content[0].status").value("OPEN"));
+  }
+
+  @Test
+  void createDebtWithIssuedByThenUpdateIssuedBy() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    String createBody =
+        """
+        {"customerId":"%s","amount":200,"issuedBy":"Jane Doe"}
+        """
+            .formatted(customerId);
+
+    MvcResult createResult =
+        mockMvc
+            .perform(
+                post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
+                    .with(operatorJwt())
+                    .contentType(APPLICATION_JSON)
+                    .content(createBody))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.issuedBy").value("Jane Doe"))
+            .andReturn();
+
+    UUID debtId =
+        UUID.fromString(
+            objectMapper
+                .readTree(createResult.getResponse().getContentAsString())
+                .get("id")
+                .asText());
+
+    mockMvc
+        .perform(
+            patch("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts/" + debtId)
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content("{\"issuedBy\":\"John Kamau\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.issuedBy").value("John Kamau"));
   }
 
   @Test

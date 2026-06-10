@@ -4,6 +4,7 @@ import com.blinc.xpos.modules.inventory.domain.StockCountLine;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -25,4 +26,17 @@ public interface StockCountLineRepository extends JpaRepository<StockCountLine, 
       order by l.createdAt
       """)
   List<StockCountLine> findBySessionIdOrderByCreatedAt(@Param("sessionId") UUID sessionId);
+
+  @Query(
+      """
+      select l from StockCountLine l
+      join fetch l.item
+      join fetch l.session s
+      where l.org.id = :orgId and s.branch.id = :branchId
+      and s.deletedAt is null
+      and l.varianceQty <> 0
+      order by s.startedAt desc, l.varianceQty desc
+      """)
+  List<StockCountLine> findTopVarianceByOrgAndBranch(
+      @Param("orgId") UUID orgId, @Param("branchId") UUID branchId, Pageable pageable);
 }

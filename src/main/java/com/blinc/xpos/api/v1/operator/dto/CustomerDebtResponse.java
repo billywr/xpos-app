@@ -18,5 +18,6 @@ public record CustomerDebtResponse(
     LocalDate dueDate,
     String status,
     String notes,
+    String issuedBy,
     UUID createdByStaffUserId,
     Instant createdAt) {}

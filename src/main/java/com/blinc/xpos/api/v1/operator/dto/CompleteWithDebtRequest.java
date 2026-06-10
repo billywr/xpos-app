@@ -1,6 +1,7 @@
 package com.blinc.xpos.api.v1.operator.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
 /**
@@ -10,4 +11,5 @@ import java.time.LocalDate;
 public record CompleteWithDebtRequest(
     @NotBlank(message = "Customer name is required") String customerName,
     String customerPhone,
-    LocalDate dueDate) {}
+    LocalDate dueDate,
+    @Size(max = 255, message = "Issued by is too long") String issuedBy) {}

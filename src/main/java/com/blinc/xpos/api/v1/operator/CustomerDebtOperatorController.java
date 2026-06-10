@@ -76,7 +76,8 @@ public class CustomerDebtOperatorController {
             request.terminalId(),
             request.shiftId(),
             staffUser.getId(),
-            request.createdAt());
+            request.createdAt(),
+            request.issuedBy());
     return toResponse(debt);
   }
 
@@ -100,7 +101,8 @@ public class CustomerDebtOperatorController {
                 request.amount(),
                 request.outstanding(),
                 request.dueDate(),
-                request.notes()),
+                request.notes(),
+                request.issuedBy()),
             staffUser.getId());
     return toResponse(debt);
   }
@@ -217,6 +219,7 @@ public class CustomerDebtOperatorController {
         d.getDueDate(),
         statusToApi(d.getStatus()),
         d.getNotes(),
+        d.getIssuedBy(),
         d.getCreatedBy().getId(),
         d.getCreatedAt());
   }

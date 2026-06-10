@@ -31,6 +31,26 @@ public interface SaleLineRepository extends JpaRepository<SaleLine, UUID> {
 
   @Query(
       """
+      select new com.blinc.xpos.modules.sales.dto.TopItemProjection(
+        l.item.id, l.item.name, coalesce(sum(l.qty), 0), coalesce(sum(l.lineTotal), 0))
+      from SaleLine l join l.sale s join l.item it
+      left join it.category cat
+      where s.org.id = :orgId and s.branch.id = :branchId and s.status = 'COMPLETED'
+      and s.completedAt >= :start and s.completedAt < :end
+      and lower(cat.name) like lower(concat('%', :categoryPattern, '%'))
+      group by l.item.id, l.item.name
+      order by sum(l.qty) desc
+      """)
+  List<TopItemProjection> findTopItemsByBranchCategoryPatternAndDateRange(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("start") Instant start,
+      @Param("end") Instant end,
+      @Param("categoryPattern") String categoryPattern,
+      Pageable pageable);
+
+  @Query(
+      """
       select l from SaleLine l
       where l.sale.id = :saleId
       order by l.createdAt

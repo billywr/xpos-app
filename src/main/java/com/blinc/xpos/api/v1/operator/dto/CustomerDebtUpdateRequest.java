@@ -13,4 +13,5 @@ public record CustomerDebtUpdateRequest(
     BigDecimal amount,
     @DecimalMin(value = "0", message = "Balance cannot be negative") BigDecimal outstanding,
     LocalDate dueDate,
-    String notes) {}
+    String notes,
+    @Size(max = 255, message = "Issued by is too long") String issuedBy) {}

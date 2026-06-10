@@ -76,7 +76,8 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
       UUID terminalId,
       UUID shiftId,
       UUID createdByStaffUserId,
-      Instant recordedAt) {
+      Instant recordedAt,
+      String issuedBy) {
     branchService.require(orgId, branchId);
     Customer customer = customerService.require(orgId, customerId);
     var createdBy = staffUserService.require(orgId, createdByStaffUserId);
@@ -101,6 +102,7 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
     debt.setDueDate(dueDate);
     debt.setStatus(CustomerDebtStatus.OPEN);
     debt.setNotes(notes != null ? notes.trim() : null);
+    debt.setIssuedBy(normalizeIssuedBy(issuedBy));
     debt.setCreatedBy(createdBy);
     debt.setCreatedAt(effectiveCreatedAt);
 
@@ -165,6 +167,10 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
         phone = phone.trim();
       }
       customerService.update(orgId, debt.getCustomer().getId(), name, phone, null, null);
+    }
+
+    if (input.issuedBy() != null) {
+      debt.setIssuedBy(normalizeIssuedBy(input.issuedBy()));
     }
 
     boolean touchesFinancials =
@@ -232,6 +238,14 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
       debt.setNotes(n.isEmpty() ? null : n);
     }
     return customerDebtRepository.save(debt);
+  }
+
+  private static String normalizeIssuedBy(String issuedBy) {
+    if (issuedBy == null) {
+      return null;
+    }
+    String trimmed = issuedBy.trim();
+    return trimmed.isEmpty() ? null : trimmed;
   }
 
   @Override

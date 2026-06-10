@@ -1,6 +1,9 @@
 package com.blinc.xpos.api.v1.operator;
 
 import com.blinc.xpos.common.security.CurrentPrincipalResolver;
+import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcilePreviewDto;
+import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcileRequest;
+import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcileResponse;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountRecordSalesRequest;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountRecordSalesResponse;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountSalesPreviewDto;
@@ -91,5 +94,27 @@ public class StdStockCountOperatorController {
             ? HttpStatus.CREATED
             : HttpStatus.OK;
     return ResponseEntity.status(status).body(result);
+  }
+
+  @GetMapping("/reconcile-preview")
+  public StdStockCountReconcilePreviewDto previewReconcileInventory(
+      @PathVariable UUID orgId, @PathVariable UUID branchId, @RequestParam LocalDate date) {
+    staffAuthorizationService.requireStaffUserForBranch(
+        orgId, branchId, principalResolver.require().iamUserId());
+    return stdStockCountService.previewReconcileInventory(orgId, branchId, date);
+  }
+
+  @PostMapping("/reconcile-inventory")
+  public ResponseEntity<StdStockCountReconcileResponse> reconcileInventory(
+      @PathVariable UUID orgId,
+      @PathVariable UUID branchId,
+      @Valid @RequestBody StdStockCountReconcileRequest request) {
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
+    StdStockCountReconcileResponse result =
+        stdStockCountService.reconcileInventoryToClosing(
+            orgId, branchId, staffUser.getId(), request.date());
+    return ResponseEntity.ok(result);
   }
 }

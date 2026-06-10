@@ -15,6 +15,7 @@ import com.blinc.xpos.modules.cash.service.ShiftService;
 import com.blinc.xpos.modules.debt.service.CustomerDebtService;
 import com.blinc.xpos.modules.organization.domain.Customer;
 import com.blinc.xpos.modules.organization.domain.StaffUser;
+import com.blinc.xpos.modules.organization.repository.StaffProfileRepository;
 import com.blinc.xpos.modules.organization.service.CustomerService;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
 import com.blinc.xpos.modules.sales.domain.Receipt;
@@ -55,6 +56,7 @@ public class SaleOperatorController {
   private final CustomerService customerService;
   private final CustomerDebtService customerDebtService;
   private final ShiftService shiftService;
+  private final StaffProfileRepository staffProfileRepository;
 
   public SaleOperatorController(
       SaleService saleService,
@@ -65,7 +67,8 @@ public class SaleOperatorController {
       StaffAuthorizationService staffAuthorizationService,
       CustomerService customerService,
       CustomerDebtService customerDebtService,
-      ShiftService shiftService) {
+      ShiftService shiftService,
+      StaffProfileRepository staffProfileRepository) {
     this.saleService = Objects.requireNonNull(saleService, "saleService");
     this.tenderService = Objects.requireNonNull(tenderService, "tenderService");
     this.receiptService = Objects.requireNonNull(receiptService, "receiptService");
@@ -77,6 +80,8 @@ public class SaleOperatorController {
     this.customerService = Objects.requireNonNull(customerService, "customerService");
     this.customerDebtService = Objects.requireNonNull(customerDebtService, "customerDebtService");
     this.shiftService = Objects.requireNonNull(shiftService, "shiftService");
+    this.staffProfileRepository =
+        Objects.requireNonNull(staffProfileRepository, "staffProfileRepository");
   }
 
   @PostMapping
@@ -232,7 +237,8 @@ public class SaleOperatorController {
         terminalId,
         shift.getId(),
         staffUser.getId(),
-        null);
+        null,
+        resolveIssuedBy(orgId, staffUser, request.issuedBy()));
 
     Sale completed = saleService.completeAllowingPartialWithDebt(orgId, saleId);
     return toSaleResponse(completed);
@@ -312,6 +318,17 @@ public class SaleOperatorController {
         sale.getCompletedAt(),
         lineResponses,
         tenderResponses);
+  }
+
+  private String resolveIssuedBy(UUID orgId, StaffUser staffUser, String requestedIssuedBy) {
+    if (requestedIssuedBy != null && !requestedIssuedBy.isBlank()) {
+      return requestedIssuedBy.trim();
+    }
+    return staffProfileRepository
+        .findByOrgIdAndStaffUserId(orgId, staffUser.getId())
+        .map(profile -> profile.getDisplayName())
+        .filter(name -> name != null && !name.isBlank())
+        .orElse(staffUser.getUsername());
   }
 
   private SaleLineResponse toSaleLineResponse(SaleLine line) {

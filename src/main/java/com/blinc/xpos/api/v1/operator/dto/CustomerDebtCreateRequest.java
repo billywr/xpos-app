@@ -2,6 +2,7 @@ package com.blinc.xpos.api.v1.operator.dto;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -17,4 +18,5 @@ public record CustomerDebtCreateRequest(
     UUID saleId,
     UUID terminalId,
     UUID shiftId,
-    Instant createdAt) {}
+    Instant createdAt,
+    @Size(max = 255, message = "Issued by is too long") String issuedBy) {}

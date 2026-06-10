@@ -1,6 +1,7 @@
 package com.blinc.xpos.modules.debt.repository;
 
 import com.blinc.xpos.modules.debt.domain.CustomerDebt;
+import com.blinc.xpos.modules.debt.dto.TopDebtorProjection;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -169,4 +170,37 @@ public interface CustomerDebtRepository
       @Param("orgId") UUID orgId,
       @Param("branchId") UUID branchId,
       @Param("statusNames") List<String> statusNames);
+
+  @Query(
+      """
+      select new com.blinc.xpos.modules.debt.dto.TopDebtorProjection(
+          c.id, c.name, sum(d.amount - d.amountSettled))
+      from CustomerDebt d
+      join d.customer c
+      where d.org.id = :orgId and d.branch.id = :branchId
+      and d.status in (
+          com.blinc.xpos.common.constants.enums.CustomerDebtStatus.OPEN,
+          com.blinc.xpos.common.constants.enums.CustomerDebtStatus.PARTIAL)
+      group by c.id, c.name
+      order by sum(d.amount - d.amountSettled) desc
+      """)
+  List<TopDebtorProjection> findTopDebtorsByOrgAndBranch(
+      @Param("orgId") UUID orgId, @Param("branchId") UUID branchId, Pageable pageable);
+
+  @Query(
+      """
+      select d from CustomerDebt d
+      join fetch d.customer
+      where d.org.id = :orgId and d.branch.id = :branchId
+      and d.status in (
+          com.blinc.xpos.common.constants.enums.CustomerDebtStatus.OPEN,
+          com.blinc.xpos.common.constants.enums.CustomerDebtStatus.PARTIAL)
+      and d.dueDate is not null and d.dueDate < :asOfDate
+      order by d.dueDate asc
+      """)
+  List<com.blinc.xpos.modules.debt.domain.CustomerDebt> findOverdueByOrgAndBranch(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("asOfDate") java.time.LocalDate asOfDate,
+      Pageable pageable);
 }

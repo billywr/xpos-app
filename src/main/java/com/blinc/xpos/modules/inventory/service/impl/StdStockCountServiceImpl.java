@@ -1,13 +1,19 @@
 package com.blinc.xpos.modules.inventory.service.impl;
 
 import com.blinc.xpos.api.v1.operator.dto.SalesRecordingResponse;
+import com.blinc.xpos.common.constants.enums.MovementType;
+import com.blinc.xpos.common.constants.enums.SourceType;
 import com.blinc.xpos.common.error.BadRequestException;
 import com.blinc.xpos.common.error.ConflictException;
 import com.blinc.xpos.modules.auditvault.service.AuditLogService;
 import com.blinc.xpos.modules.catalog.domain.Item;
 import com.blinc.xpos.modules.catalog.repository.ItemRepository;
 import com.blinc.xpos.modules.inventory.domain.StdStockCountSnapshot;
+import com.blinc.xpos.modules.inventory.domain.StockMovement;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountCountDto;
+import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcileLineDto;
+import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcilePreviewDto;
+import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcileResponse;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountRecordSalesResponse;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountRowDto;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountSalesLineDto;
@@ -18,11 +24,15 @@ import com.blinc.xpos.modules.inventory.dto.StdStockCountSheetDto;
 import com.blinc.xpos.modules.inventory.repository.GrnLineRepository;
 import com.blinc.xpos.modules.inventory.repository.StdStockCountSnapshotRepository;
 import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
+import com.blinc.xpos.modules.inventory.service.InventoryItemService;
 import com.blinc.xpos.modules.inventory.service.StdStockCountService;
 import com.blinc.xpos.modules.organization.domain.Branch;
+import com.blinc.xpos.modules.organization.domain.StaffUser;
 import com.blinc.xpos.modules.organization.service.BranchService;
+import com.blinc.xpos.modules.organization.service.StaffUserService;
 import com.blinc.xpos.modules.sales.repository.SaleLineRepository;
 import com.blinc.xpos.modules.sales.service.SalesRecordingService;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -40,6 +50,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,8 +78,11 @@ public class StdStockCountServiceImpl implements StdStockCountService {
   private final BranchService branchService;
   private final SalesRecordingService salesRecordingService;
   private final SaleLineRepository saleLineRepository;
+  private final InventoryItemService inventoryItemService;
+  private final StaffUserService staffUserService;
   private final AuditLogService auditLogService;
   private final Clock clock;
+  private final EntityManager entityManager;
 
   @SuppressWarnings("checkstyle:ParameterNumber")
   public StdStockCountServiceImpl(
@@ -79,8 +93,11 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       BranchService branchService,
       SalesRecordingService salesRecordingService,
       SaleLineRepository saleLineRepository,
+      InventoryItemService inventoryItemService,
+      StaffUserService staffUserService,
       AuditLogService auditLogService,
-      Clock clock) {
+      Clock clock,
+      EntityManager entityManager) {
     this.snapshotRepository = Objects.requireNonNull(snapshotRepository, "snapshotRepository");
     this.grnLineRepository = Objects.requireNonNull(grnLineRepository, "grnLineRepository");
     this.stockMovementRepository =
@@ -90,8 +107,12 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     this.salesRecordingService =
         Objects.requireNonNull(salesRecordingService, "salesRecordingService");
     this.saleLineRepository = Objects.requireNonNull(saleLineRepository, "saleLineRepository");
+    this.inventoryItemService =
+        Objects.requireNonNull(inventoryItemService, "inventoryItemService");
+    this.staffUserService = Objects.requireNonNull(staffUserService, "staffUserService");
     this.auditLogService = Objects.requireNonNull(auditLogService, "auditLogService");
     this.clock = Objects.requireNonNull(clock, "clock");
+    this.entityManager = Objects.requireNonNull(entityManager, "entityManager");
   }
 
   private static void applyCommentsIfPresent(
@@ -298,19 +319,24 @@ public class StdStockCountServiceImpl implements StdStockCountService {
 
       BigDecimal openingOnDay = openingAtStartOfSnapDay(itemId, snapDate);
       BigDecimal addedOnDay = addedOnSnapDay(itemId, snapDate);
+      BigDecimal dayTotal = openingOnDay.add(addedOnDay).setScale(SCALE, ROUNDING);
       BigDecimal saved = snap.getClosingQty().setScale(SCALE, ROUNDING);
+
+      PriorDayLateAddedCache cache = lateCacheByDate.get(snapDate);
+      BigDecimal lateGrn =
+          cache != null ? cache.lateGrnQtyAfter(itemId, snap.getLastSavedAt()) : BigDecimal.ZERO;
+      BigDecimal lateStockTake =
+          cache != null
+              ? cache.lateStockTakeQtyAfter(itemId, snap.getLastSavedAt())
+              : BigDecimal.ZERO;
 
       BigDecimal effective;
       if (saved.compareTo(openingOnDay) == 0 && addedOnDay.signum() > 0) {
-        effective = openingOnDay.add(addedOnDay).setScale(SCALE, ROUNDING);
+        effective = dayTotal;
+      } else if (saved.compareTo(dayTotal) >= 0) {
+        // Saved closing already reflects same-day receipts; only post-save stock-take adjusts.
+        effective = saved.add(lateStockTake).setScale(SCALE, ROUNDING);
       } else {
-        PriorDayLateAddedCache cache = lateCacheByDate.get(snapDate);
-        BigDecimal lateGrn =
-            cache != null ? cache.lateGrnQtyAfter(itemId, snap.getLastSavedAt()) : BigDecimal.ZERO;
-        BigDecimal lateStockTake =
-            cache != null
-                ? cache.lateStockTakeQtyAfter(itemId, snap.getLastSavedAt())
-                : BigDecimal.ZERO;
         effective = saved.add(lateGrn).add(lateStockTake).setScale(SCALE, ROUNDING);
       }
 
@@ -402,39 +428,66 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     Branch branch = branchService.require(orgId, branchId);
 
     for (StdStockCountCountDto dto : request.counts()) {
-      Optional<StdStockCountSnapshot> existingOpt =
-          snapshotRepository.findByBranchAndItemAndDate(branchId, dto.itemId(), request.date());
-
-      StdStockCountSnapshot snap;
-      if (existingOpt.isPresent()) {
-        snap = existingOpt.get();
-      } else {
-        var itemOpt = itemRepository.findByIdAndOrgId(dto.itemId(), orgId);
-        if (itemOpt.isEmpty()) {
-          continue;
-        }
-        snap = new StdStockCountSnapshot();
-        snap.setOrg(branch.getOrg());
-        snap.setBranch(branch);
-        snap.setItem(itemOpt.get());
-        snap.setBusinessDate(request.date());
-        snap.setCreatedAt(now);
-      }
-
-      BigDecimal qty =
-          dto.closingStock() != null
-              ? dto.closingStock().setScale(SCALE, ROUNDING)
-              : BigDecimal.ZERO;
-      if (qty.compareTo(BigDecimal.ZERO) < 0) {
-        qty = BigDecimal.ZERO;
-      }
-      snap.setClosingQty(qty);
-      snap.setLastSavedAt(now);
-      applyCommentsIfPresent(dto, snap);
-      snapshotRepository.save(snap);
+      upsertSnapshot(orgId, branch, branchId, request.date(), dto, now);
     }
 
     return getSheet(orgId, branchId, request.date());
+  }
+
+  private void upsertSnapshot(
+      UUID orgId,
+      Branch branch,
+      UUID branchId,
+      LocalDate businessDate,
+      StdStockCountCountDto dto,
+      Instant now) {
+    var itemOpt = itemRepository.findByIdAndOrgId(dto.itemId(), orgId);
+    if (itemOpt.isEmpty()) {
+      return;
+    }
+    BigDecimal qty = normalizeClosingQty(dto.closingStock());
+    Optional<StdStockCountSnapshot> existingOpt =
+        snapshotRepository.findByBranchAndItemAndDate(branchId, dto.itemId(), businessDate);
+
+    StdStockCountSnapshot snap;
+    if (existingOpt.isPresent()) {
+      snap = existingOpt.get();
+    } else {
+      snap = new StdStockCountSnapshot();
+      snap.setOrg(branch.getOrg());
+      snap.setBranch(branch);
+      snap.setItem(itemOpt.get());
+      snap.setBusinessDate(businessDate);
+      snap.setCreatedAt(now);
+    }
+    applySnapshotValues(snap, qty, now, dto);
+    try {
+      snapshotRepository.saveAndFlush(snap);
+    } catch (DataIntegrityViolationException ex) {
+      entityManager.clear();
+      StdStockCountSnapshot existing =
+          snapshotRepository
+              .findByBranchAndItemAndDate(branchId, dto.itemId(), businessDate)
+              .orElseThrow(() -> ex);
+      applySnapshotValues(existing, qty, now, dto);
+      snapshotRepository.save(existing);
+    }
+  }
+
+  private static BigDecimal normalizeClosingQty(BigDecimal closingStock) {
+    BigDecimal qty =
+        closingStock != null ? closingStock.setScale(SCALE, ROUNDING) : BigDecimal.ZERO;
+    if (qty.compareTo(BigDecimal.ZERO) < 0) {
+      qty = BigDecimal.ZERO;
+    }
+    return qty;
+  }
+
+  private static void applySnapshotValues(
+      StdStockCountSnapshot snap, BigDecimal qty, Instant now, StdStockCountCountDto dto) {
+    snap.setClosingQty(qty);
+    snap.setLastSavedAt(now);
+    applyCommentsIfPresent(dto, snap);
   }
 
   @Override
@@ -645,5 +698,131 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       }
     }
     return out;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public StdStockCountReconcilePreviewDto previewReconcileInventory(
+      UUID orgId, UUID branchId, LocalDate businessDate) {
+    validateReconcileDate(businessDate);
+    branchService.require(orgId, branchId);
+    ReconcileBuildResult built = buildReconcileLines(orgId, branchId, businessDate);
+    return new StdStockCountReconcilePreviewDto(
+        businessDate,
+        branchId,
+        built.linesToAdjust(),
+        built.linesToAdjust().size(),
+        built.itemsAlreadyMatched());
+  }
+
+  @Override
+  @Transactional
+  public StdStockCountReconcileResponse reconcileInventoryToClosing(
+      UUID orgId, UUID branchId, UUID staffUserId, LocalDate businessDate) {
+    validateReconcileDate(businessDate);
+    Branch branch = branchService.require(orgId, branchId);
+    StaffUser staffUser = staffUserService.require(orgId, staffUserId);
+    StdStockCountSheetDto sheet = getSheet(orgId, branchId, businessDate);
+    Map<UUID, Item> itemsById =
+        itemRepository.findActiveWithSellingPriceByOrgId(orgId).stream()
+            .collect(Collectors.toMap(Item::getId, i -> i, (a, b) -> a));
+    Instant now = Instant.now(clock);
+    List<StdStockCountReconcileLineDto> adjusted = new ArrayList<>();
+    int matched = 0;
+    for (StdStockCountRowDto row : sheet.rows()) {
+      if (row.closingStock() == null) {
+        continue;
+      }
+      Item item = itemsById.get(row.itemId());
+      if (item == null || !item.requiresOnHandForSellableListing()) {
+        continue;
+      }
+      BigDecimal onHand =
+          inventoryItemService
+              .getOnHandQty(orgId, branchId, row.itemId())
+              .setScale(SCALE, ROUNDING);
+      BigDecimal closing = row.closingStock().setScale(SCALE, ROUNDING);
+      BigDecimal variance = closing.subtract(onHand).setScale(SCALE, ROUNDING);
+      if (variance.compareTo(BigDecimal.ZERO) == 0) {
+        matched++;
+        continue;
+      }
+      StockMovement mov = new StockMovement();
+      mov.setOrg(branch.getOrg());
+      mov.setBranch(branch);
+      mov.setItem(item);
+      mov.setMovementType(MovementType.ADJUST);
+      mov.setQty(variance);
+      mov.setSourceType(SourceType.STD_STOCK_COUNT_RECONCILE);
+      mov.setSourceId(branchId);
+      mov.setCreatedBy(staffUser);
+      mov.setCreatedAt(now);
+      stockMovementRepository.save(mov);
+      inventoryItemService.applyStockTakeVariance(orgId, branchId, row.itemId(), variance);
+      entityManager.flush();
+      adjusted.add(
+          new StdStockCountReconcileLineDto(row.itemId(), row.name(), closing, onHand, variance));
+    }
+    if (!adjusted.isEmpty()) {
+      auditLogService.append(
+          orgId,
+          branchId,
+          null,
+          staffUserId,
+          "RECONCILE_STD_STOCK_TO_INVENTORY",
+          "StdStockCountSheet",
+          branchId,
+          null,
+          null);
+    }
+    return new StdStockCountReconcileResponse(
+        businessDate, branchId, adjusted, adjusted.size(), matched);
+  }
+
+  private void validateReconcileDate(LocalDate businessDate) {
+    if (businessDate == null) {
+      throw new BadRequestException("SALE_DATE_REQUIRED", "Business date is required.");
+    }
+    LocalDate today = LocalDate.now(clock);
+    if (!businessDate.equals(today)) {
+      throw new BadRequestException(
+          "RECONCILE_DATE_NOT_TODAY",
+          "Inventory reconcile is only allowed for today (" + today + ").");
+    }
+  }
+
+  private record ReconcileBuildResult(
+      List<StdStockCountReconcileLineDto> linesToAdjust, int itemsAlreadyMatched) {}
+
+  private ReconcileBuildResult buildReconcileLines(
+      UUID orgId, UUID branchId, LocalDate businessDate) {
+    StdStockCountSheetDto sheet = getSheet(orgId, branchId, businessDate);
+    Map<UUID, Item> itemsById =
+        itemRepository.findActiveWithSellingPriceByOrgId(orgId).stream()
+            .collect(Collectors.toMap(Item::getId, i -> i, (a, b) -> a));
+    List<StdStockCountReconcileLineDto> toAdjust = new ArrayList<>();
+    int matched = 0;
+    for (StdStockCountRowDto row : sheet.rows()) {
+      if (row.closingStock() == null) {
+        continue;
+      }
+      Item item = itemsById.get(row.itemId());
+      if (item == null || !item.requiresOnHandForSellableListing()) {
+        continue;
+      }
+      BigDecimal onHand =
+          inventoryItemService
+              .getOnHandQty(orgId, branchId, row.itemId())
+              .setScale(SCALE, ROUNDING);
+      BigDecimal closing = row.closingStock().setScale(SCALE, ROUNDING);
+      BigDecimal variance = closing.subtract(onHand).setScale(SCALE, ROUNDING);
+      if (variance.compareTo(BigDecimal.ZERO) == 0) {
+        matched++;
+        continue;
+      }
+      toAdjust.add(
+          new StdStockCountReconcileLineDto(row.itemId(), row.name(), closing, onHand, variance));
+    }
+    return new ReconcileBuildResult(toAdjust, matched);
   }
 }

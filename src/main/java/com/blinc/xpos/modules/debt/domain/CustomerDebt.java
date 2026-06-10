@@ -82,6 +82,9 @@ public class CustomerDebt {
   @Column(name = "notes")
   private String notes;
 
+  @Column(name = "issued_by", length = 255)
+  private String issuedBy;
+
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "created_by", nullable = false)
   private StaffUser createdBy;

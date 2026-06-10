@@ -1,5 +1,7 @@
 package com.blinc.xpos.modules.inventory.service;
 
+import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcilePreviewDto;
+import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcileResponse;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountRecordSalesResponse;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountSalesPreviewDto;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountSaveRequest;
@@ -28,4 +30,12 @@ public interface StdStockCountService {
    */
   StdStockCountRecordSalesResponse recordSalesFromSheet(
       UUID orgId, UUID branchId, UUID terminalId, UUID staffUserId, LocalDate businessDate);
+
+  /** Compare saved closings to branch on-hand for inventory-tracked sellable items. */
+  StdStockCountReconcilePreviewDto previewReconcileInventory(
+      UUID orgId, UUID branchId, LocalDate businessDate);
+
+  /** Set on-hand qty to saved closing (today only); creates ADJUST stock movements for variance. */
+  StdStockCountReconcileResponse reconcileInventoryToClosing(
+      UUID orgId, UUID branchId, UUID staffUserId, LocalDate businessDate);
 }

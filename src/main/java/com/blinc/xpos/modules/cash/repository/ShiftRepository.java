@@ -59,4 +59,17 @@ public interface ShiftRepository extends JpaRepository<Shift, UUID> {
       """)
   Page<Shift> findAllByOrgIdAndStatus(
       @Param("orgId") UUID orgId, @Param("status") ShiftStatus status, Pageable pageable);
+
+  @Query(
+      """
+      select s from Shift s
+      left join fetch s.terminal
+      left join fetch s.staffUser
+      where s.org.id = :orgId and s.branch.id = :branchId
+      and s.status = com.blinc.xpos.common.constants.enums.ShiftStatus.CLOSED
+      and s.varianceAmount is not null
+      order by s.closedAt desc
+      """)
+  java.util.List<Shift> findRecentClosedWithVariance(
+      @Param("orgId") UUID orgId, @Param("branchId") UUID branchId, Pageable pageable);
 }

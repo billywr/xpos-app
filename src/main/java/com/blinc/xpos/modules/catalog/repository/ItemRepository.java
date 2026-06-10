@@ -69,4 +69,11 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
       order by i.name
       """)
   List<Item> findActiveWithSellingPriceByOrgId(@Param("orgId") UUID orgId);
+
+  @Query(
+      """
+      select count(i) from Item i
+      where i.org.id = :orgId and i.active = true
+      """)
+  long countActiveByOrgId(@Param("orgId") UUID orgId);
 }

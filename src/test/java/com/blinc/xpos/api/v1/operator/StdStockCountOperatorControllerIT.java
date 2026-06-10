@@ -2,6 +2,7 @@ package com.blinc.xpos.api.v1.operator;
 
 import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static com.blinc.xpos.TestJwtFactory.operatorJwt;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -14,6 +15,7 @@ import com.blinc.xpos.AbstractIntegrationTest;
 import com.blinc.xpos.api.v1.admin.organization.dto.OrgCreateRequest;
 import com.blinc.xpos.api.v1.admin.organization.dto.OrgResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -192,6 +194,54 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.rows[0].openingStock").value(0))
         .andExpect(jsonPath("$.rows[0].addedStock").value(2));
+  }
+
+  @Test
+  void saveCountsSecondPutUpdatesClosingWhenSnapshotAlreadyExists() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
+
+    String date = LocalDate.now().toString();
+    String firstSave =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":5}]}
+        """
+            .formatted(date, branchId, itemId);
+    String secondSave =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":7}]}
+        """
+            .formatted(date, branchId, itemId);
+    String url = "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count";
+
+    mockMvc
+        .perform(put(url).with(operatorJwt()).contentType(APPLICATION_JSON).content(firstSave))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].closingStock").value(5));
+
+    mockMvc
+        .perform(put(url).with(operatorJwt()).contentType(APPLICATION_JSON).content(secondSave))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].closingStock").value(7));
+
+    Integer rowCount =
+        jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*) FROM std_stock_count_snapshot
+            WHERE branch_id = ? AND item_id = ? AND business_date = ?
+            """,
+            Integer.class,
+            branchId,
+            itemId,
+            LocalDate.parse(date));
+    assertEquals(1, rowCount);
   }
 
   @Test
@@ -507,6 +557,53 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(status().isOk());
 
     createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 1, priorDay, zone);
+    backdateSnapshotLastSavedAt(branchId, itemId, priorDay, priorMorning);
+
+    String urlToday =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + today;
+    mockMvc
+        .perform(get(urlToday).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(1))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(0));
+  }
+
+  @Test
+  void getSheetOpeningDoesNotDoubleCountGrnWhenSavedClosingEqualsDayTotal() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate priorDay = today.minusDays(1);
+    Instant priorMorning = priorDay.atTime(8, 0).atZone(zone).toInstant();
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId, "Bond 7 - 750ml");
+
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 1, priorDay, zone);
+
+    String savePrior =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":1}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(savePrior))
+        .andExpect(status().isOk());
+
     backdateSnapshotLastSavedAt(branchId, itemId, priorDay, priorMorning);
 
     String urlToday =
@@ -926,6 +1023,314 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
             .andReturn();
     return UUID.fromString(
         objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  @Test
+  void reconcilePreviewShowsVarianceAndPostUpdatesOnHand() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
+
+    String date = LocalDate.now().toString();
+    String saveBody =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":5}]}
+        """
+            .formatted(date, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(saveBody))
+        .andExpect(status().isOk());
+
+    setOnHandQty(orgId, branchId, itemId, new BigDecimal("3.000"));
+
+    String previewUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count/reconcile-preview?date="
+            + date;
+    mockMvc
+        .perform(get(previewUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.itemsAdjusted").value(1))
+        .andExpect(jsonPath("$.lines.length()").value(1))
+        .andExpect(jsonPath("$.lines[0].closingStock").value(5))
+        .andExpect(jsonPath("$.lines[0].onHandQty").value(3))
+        .andExpect(jsonPath("$.lines[0].variance").value(2));
+
+    String reconcileBody =
+        """
+        {"date":"%s","outletId":"%s"}
+        """.formatted(date, branchId);
+    mockMvc
+        .perform(
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/std-stock-count/reconcile-inventory")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(reconcileBody))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.adjustedCount").value(1));
+
+    mockMvc
+        .perform(
+            get("/api/v1/admin/orgs/" + orgId + "/inventory-report?branchId=" + branchId)
+                .with(adminJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].onHandQty").value(5));
+
+    Integer adjustCount =
+        jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*) FROM stock_movement
+            WHERE org_id = ? AND branch_id = ? AND item_id = ?
+              AND movement_type = 'ADJUST' AND source_type = 'STD_STOCK_COUNT_RECONCILE'
+            """,
+            Integer.class,
+            orgId,
+            branchId,
+            itemId);
+    assertEquals(1, adjustCount);
+  }
+
+  @Test
+  void reconcileOnceClearsPreviewWithoutInflatingAddedToday() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
+
+    String date = LocalDate.now().toString();
+    String saveBody =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":5}]}
+        """
+            .formatted(date, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(saveBody))
+        .andExpect(status().isOk());
+
+    setOnHandQty(orgId, branchId, itemId, new BigDecimal("3.000"));
+
+    String sheetUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + date;
+    mockMvc
+        .perform(get(sheetUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].addedTodayStock").value(0));
+
+    String reconcileBody =
+        """
+        {"date":"%s","outletId":"%s"}
+        """.formatted(date, branchId);
+    mockMvc
+        .perform(
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/std-stock-count/reconcile-inventory")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(reconcileBody))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.adjustedCount").value(1));
+
+    mockMvc
+        .perform(get(sheetUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].addedTodayStock").value(0))
+        .andExpect(jsonPath("$.rows[0].closingStock").value(5));
+
+    String previewUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count/reconcile-preview?date="
+            + date;
+    mockMvc
+        .perform(get(previewUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.itemsAdjusted").value(0))
+        .andExpect(jsonPath("$.lines.length()").value(0));
+
+    assertReconcileMovementUsesDedicatedSourceType(orgId, branchId, itemId);
+  }
+
+  @Test
+  void reconcilePreviewReturnsZeroWhenAlreadyMatched() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
+
+    String date = LocalDate.now().toString();
+    String saveBody =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":5}]}
+        """
+            .formatted(date, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(saveBody))
+        .andExpect(status().isOk());
+
+    String previewUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count/reconcile-preview?date="
+            + date;
+    mockMvc
+        .perform(get(previewUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.itemsAdjusted").value(0))
+        .andExpect(jsonPath("$.itemsAlreadyMatched").value(1))
+        .andExpect(jsonPath("$.lines.length()").value(0));
+
+    String reconcileBody =
+        """
+        {"date":"%s","outletId":"%s"}
+        """.formatted(date, branchId);
+    mockMvc
+        .perform(
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/std-stock-count/reconcile-inventory")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(reconcileBody))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.adjustedCount").value(0));
+  }
+
+  @Test
+  void reconcileRejectsNonTodayDate() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    LocalDate yesterday = LocalDate.now().minusDays(1);
+    String previewUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count/reconcile-preview?date="
+            + yesterday;
+    mockMvc
+        .perform(get(previewUrl).with(operatorJwt()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("RECONCILE_DATE_NOT_TODAY"));
+  }
+
+  @Test
+  void reconcilePreviewExcludesUnsavedClosing() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
+
+    setOnHandQty(orgId, branchId, itemId, new BigDecimal("3.000"));
+
+    String date = LocalDate.now().toString();
+    String previewUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count/reconcile-preview?date="
+            + date;
+    mockMvc
+        .perform(get(previewUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.itemsAdjusted").value(0))
+        .andExpect(jsonPath("$.lines.length()").value(0));
+  }
+
+  private void setOnHandQty(UUID orgId, UUID branchId, UUID itemId, BigDecimal qty) {
+    jdbcTemplate.update(
+        "UPDATE inventory_item SET on_hand_qty = ? WHERE org_id = ? AND branch_id = ? AND item_id = ?",
+        qty,
+        orgId,
+        branchId,
+        itemId);
+  }
+
+  private void assertReconcileMovementUsesDedicatedSourceType(
+      UUID orgId, UUID branchId, UUID itemId) {
+    Integer reconcileMovementCount =
+        jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*) FROM stock_movement
+            WHERE org_id = ? AND branch_id = ? AND item_id = ?
+              AND movement_type = 'ADJUST' AND source_type = 'STD_STOCK_COUNT_RECONCILE'
+            """,
+            Integer.class,
+            orgId,
+            branchId,
+            itemId);
+    assertEquals(1, reconcileMovementCount);
+
+    Integer stocktakeAddedTodayCount =
+        jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*) FROM stock_movement
+            WHERE org_id = ? AND branch_id = ? AND item_id = ?
+              AND movement_type = 'ADJUST' AND source_type = 'STOCKTAKE' AND qty > 0
+            """,
+            Integer.class,
+            orgId,
+            branchId,
+            itemId);
+    assertEquals(0, stocktakeAddedTodayCount);
   }
 
   private void backdateSnapshotLastSavedAt(

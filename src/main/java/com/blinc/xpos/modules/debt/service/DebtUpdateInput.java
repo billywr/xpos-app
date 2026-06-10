@@ -15,4 +15,5 @@ public record DebtUpdateInput(
     BigDecimal amount,
     BigDecimal outstanding,
     LocalDate dueDate,
-    String notes) {}
+    String notes,
+    String issuedBy) {}

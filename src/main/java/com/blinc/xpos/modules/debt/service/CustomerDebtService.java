@@ -19,7 +19,8 @@ public interface CustomerDebtService {
       UUID terminalId,
       UUID shiftId,
       UUID createdByStaffUserId,
-      Instant recordedAt);
+      Instant recordedAt,
+      String issuedBy);
 
   CustomerDebt require(UUID orgId, UUID debtId);
 
