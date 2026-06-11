@@ -15,6 +15,7 @@ import {
   MENU_ORDER_SHOW_ORDER_TYPE,
   MENU_ORDER_SHOW_TABLE_SELECT,
   MENU_ORDER_SHOW_ITEM_LIST,
+  MENU_ORDER_SHOW_HIDE_OOS,
   isMenuOrderOptionVisible,
 } from "@/config/menuOrderVisibility";
 import {
@@ -36,6 +37,7 @@ import {
 } from "@/config/assistantVisibility";
 import { Settings, Upload, Trash2, Store } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { MpesaSettingsSection } from "@/features/admin/MpesaSettingsSection";
 import { resizeImageForLogo } from "@/utils/logoResize";
 
 function groupAdminNavItems() {
@@ -605,8 +607,8 @@ export function AdminSettingsPage() {
           </h2>
           <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
             Show or hide elements on the operator POS screen: order type
-            (Dine-in / Takeaway / Delivery), table selector, and the item list
-            (categories and search).
+            (Dine-in / Takeaway / Delivery), table selector, the item list
+            (categories and search), and the Hide OOS toggle.
           </p>
           <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
             <div className="space-y-4">
@@ -633,6 +635,14 @@ export function AdminSettingsPage() {
                   MENU_ORDER_SHOW_ITEM_LIST
                 )}
                 onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_ITEM_LIST, v)}
+              />
+              <MenuOrderVisibilityRow
+                label="Hide OOS toggle (out-of-stock filter)"
+                visible={isMenuOrderOptionVisible(
+                  opVisibilityState,
+                  MENU_ORDER_SHOW_HIDE_OOS
+                )}
+                onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_HIDE_OOS, v)}
               />
             </div>
           </div>
@@ -748,6 +758,8 @@ export function AdminSettingsPage() {
             </div>
           </div>
         </section>
+
+        <MpesaSettingsSection />
 
         {/* Dark Mode Theme */}
         <section>

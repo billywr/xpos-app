@@ -21,10 +21,10 @@ export const buttonVariants = {
 } as const;
 
 export const buttonSizes = {
-  sm: "px-3 py-1.5 text-xs",
-  md: "px-4 py-2 text-sm",
-  lg: "px-4 py-2.5 text-sm",
-  icon: "p-2",
+  sm: "px-3 py-2 text-sm",
+  md: "px-4 py-2.5 text-base",
+  lg: "px-5 py-3 text-base",
+  icon: "p-2.5",
 } as const;
 
 export const iconButtonVariants = {

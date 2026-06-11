@@ -30,6 +30,12 @@ import { fetchCategories } from "@/api/categories";
 import { fetchItems, fetchItemByBarcode, fetchItemModifierGroups } from "@/api/items";
 import { fetchOperatorTables } from "@/api/tables";
 import {
+  fetchMpesaStkStatus,
+  fetchMpesaOperatorSettings,
+  initiateMpesaStk,
+  type MpesaStkStatus,
+} from "@/api/mpesa";
+import {
   createSale,
   addSaleLine,
   addTender,
@@ -43,20 +49,18 @@ import { fetchTenderTypes } from "@/api/tenderTypes";
 import { getCurrentShift } from "@/api/shifts";
 import { fetchStockLevels } from "@/api/stockLevels";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import {
+  getLastMpesaStkPhone,
+  rememberMpesaStkPhone,
+} from "@/utils/mpesaPhoneHistory";
+import { MpesaStkPhoneInput } from "@/components/MpesaStkPhoneInput";
 import { formatQty } from "@/utils/formatQuantity";
 import { getItemImageUrl } from "@/utils/itemImage";
 import { MenuItemCard } from "@/components/MenuItemCard";
 import { PageHeader } from "@/components/PageHeader";
 import {
   tableBodyRow,
-  tableStickyHeadCell,
-  tableHeadCell,
   tableHeadRow,
-  tableBodyCellNum,
-  tableStickyFirstBody,
-  tableBodyCell,
-  tableRowNoHead,
-  TableRowNumberCell,
   DateInput,
 } from "@/components/ui";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -69,6 +73,7 @@ import {
   MENU_ORDER_SHOW_ORDER_TYPE,
   MENU_ORDER_SHOW_TABLE_SELECT,
   MENU_ORDER_SHOW_ITEM_LIST,
+  MENU_ORDER_SHOW_HIDE_OOS,
   isMenuOrderOptionVisible,
 } from "@/config/menuOrderVisibility";
 import { BARCODE_MENU_ORDER, isBarcodeVisible } from "@/config/barcodeVisibility";
@@ -90,7 +95,16 @@ import {
   Maximize2,
   Minimize2,
   ShoppingCart,
+  Smartphone,
+  Loader2,
 } from "lucide-react";
+
+const TERMINAL_STK_STATUSES: MpesaStkStatus[] = [
+  "SUCCESS",
+  "FAILED",
+  "CANCELLED",
+  "TIMEOUT",
+];
 
 const GRID_PAGE_SIZE = 20;
 
@@ -124,7 +138,7 @@ export function MenuOrderPage() {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [hideOutOfStock, setHideOutOfStock] = useState(false);
+  const [hideOutOfStock, setHideOutOfStock] = useState(true);
   const [gridPage, setGridPage] = useState(0);
   const [posExpanded, setPosExpanded] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
@@ -151,6 +165,10 @@ export function MenuOrderPage() {
     operatorVisibility,
     MENU_ORDER_SHOW_ITEM_LIST
   );
+  const showHideOosToggle = isMenuOrderOptionVisible(
+    operatorVisibility,
+    MENU_ORDER_SHOW_HIDE_OOS
+  );
   const showBarcode = isBarcodeVisible(operatorVisibility, BARCODE_MENU_ORDER);
 
   const cartLines = useAppSelector((s) => s.cart.lines);
@@ -168,6 +186,13 @@ export function MenuOrderPage() {
     queryFn: () => fetchTenderTypes(token, orgId!),
     enabled: Boolean(orgId && token),
   });
+
+  const { data: mpesaOperatorSettings } = useQuery({
+    queryKey: ["mpesa-operator-settings", orgId],
+    queryFn: () => fetchMpesaOperatorSettings(token, orgId!),
+    enabled: Boolean(orgId && token),
+  });
+  const mpesaStkEnabled = mpesaOperatorSettings?.stkOperatorEnabled ?? false;
   const cashTenderTypeId = tenderTypes.find((t) => t.code === "CASH")?.id ?? tenderTypes[0]?.id;
 
   const orderTypeSelectOptions = useMemo(
@@ -362,6 +387,30 @@ export function MenuOrderPage() {
       queryClient.invalidateQueries({ queryKey: ["operator-debts-pending-total"] });
     },
   });
+
+  const handleStkAutoCompleted = async () => {
+    if (!token || !orgId || !branchId || !terminalId || !saleForPayment) {
+      return;
+    }
+    try {
+      const details = await fetchReceiptDetails(
+        token,
+        orgId,
+        branchId,
+        terminalId,
+        saleForPayment.id
+      );
+      dispatch(clearCart());
+      setSaleForPayment(null);
+      setReceiptDetails(details);
+      queryClient.invalidateQueries({ queryKey: ["openOrHeldSales"] });
+      queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
+      queryClient.invalidateQueries({ queryKey: ["operator-debts"] });
+      queryClient.invalidateQueries({ queryKey: ["operator-debts-pending-total"] });
+    } catch {
+      // Sale may still be open if auto-complete disabled; user can complete manually
+    }
+  };
 
   const handleCompletePayment = async () => {
     try {
@@ -740,6 +789,7 @@ export function MenuOrderPage() {
                   {cat.name} ({visibleCountForCategory(cat.id)})
                 </button>
               ))}
+          {showHideOosToggle && (
           <button
             type="button"
             role="switch"
@@ -770,6 +820,7 @@ export function MenuOrderPage() {
               {hideOutOfStock ? "Show OOS" : "Hide OOS"}
             </span>
           </button>
+          )}
           </div>
           <div ref={itemSearchRef} className="relative z-30 shrink-0">
             <button
@@ -1079,10 +1130,15 @@ export function MenuOrderPage() {
         </div>
       )}
 
-      {saleForPayment && (
+      {saleForPayment && orgId && branchId && terminalId && (
         <PaymentModal
           sale={saleForPayment}
+          token={token}
+          orgId={orgId}
+          branchId={branchId}
+          terminalId={terminalId}
           tenderTypes={tenderTypes}
+          mpesaStkEnabled={mpesaStkEnabled}
           totalTendered={totalTendered}
           canComplete={canComplete}
           addTenderAmount={addTenderAmount}
@@ -1098,6 +1154,17 @@ export function MenuOrderPage() {
           onRemoveTender={(tenderId) => removeTenderMutation.mutate(tenderId)}
           onComplete={handleCompletePayment}
           onCompleteWithDebt={handleCompleteWithDebt}
+          onSaleUpdated={(sale) => {
+            setSaleForPayment(sale);
+            const tendered = (sale.tenders ?? []).reduce(
+              (s, t) => s + (Number(t.amount) || 0),
+              0
+            );
+            const total = Number(sale.total) || 0;
+            const remainder = total - tendered;
+            setAddTenderAmount(remainder > 0 ? String(remainder) : "");
+          }}
+          onStkAutoCompleted={handleStkAutoCompleted}
           onClose={() => setSaleForPayment(null)}
           isAddingTender={addTenderMutation.isPending}
           isRemovingTender={removeTenderMutation.isPending}
@@ -1331,7 +1398,12 @@ function CartSidebarContent({
 
 function PaymentModal({
   sale,
+  token,
+  orgId,
+  branchId,
+  terminalId,
   tenderTypes,
+  mpesaStkEnabled,
   totalTendered,
   canComplete,
   addTenderAmount,
@@ -1342,6 +1414,8 @@ function PaymentModal({
   onRemoveTender,
   onComplete,
   onCompleteWithDebt,
+  onSaleUpdated,
+  onStkAutoCompleted,
   onClose,
   isAddingTender,
   isRemovingTender,
@@ -1353,7 +1427,12 @@ function PaymentModal({
   completeWithDebtError,
 }: {
   sale: Sale;
+  token: string | null;
+  orgId: string;
+  branchId: string;
+  terminalId: string;
   tenderTypes: { id: string; code: string; name: string }[];
+  mpesaStkEnabled: boolean;
   totalTendered: number;
   canComplete: boolean;
   addTenderAmount: string;
@@ -1368,6 +1447,8 @@ function PaymentModal({
     customerPhone?: string;
     dueDate?: string;
   }) => void;
+  onSaleUpdated: (sale: Sale) => void;
+  onStkAutoCompleted: () => void;
   onClose: () => void;
   isAddingTender: boolean;
   isRemovingTender: boolean;
@@ -1383,6 +1464,132 @@ function PaymentModal({
   const [debtCustomerName, setDebtCustomerName] = useState("");
   const [debtCustomerPhone, setDebtCustomerPhone] = useState("");
   const [debtDueDate, setDebtDueDate] = useState("");
+  const [paymentMode, setPaymentMode] = useState<"manual" | "stk">("manual");
+  const [stkPhone, setStkPhone] = useState("");
+  const [stkRequestId, setStkRequestId] = useState<string | null>(null);
+  const [stkStatus, setStkStatus] = useState<MpesaStkStatus | null>(null);
+  const [stkMessage, setStkMessage] = useState<string | null>(null);
+  const [stkError, setStkError] = useState<string | null>(null);
+  const [isSendingStk, setIsSendingStk] = useState(false);
+  const stkPolling = stkRequestId != null && stkStatus === "PENDING";
+
+  useEffect(() => {
+    const last = getLastMpesaStkPhone(orgId, branchId);
+    if (last) {
+      setStkPhone(last);
+    }
+  }, [orgId, branchId]);
+
+  useEffect(() => {
+    if (!mpesaStkEnabled && paymentMode === "stk") {
+      setPaymentMode("manual");
+    }
+  }, [mpesaStkEnabled, paymentMode]);
+
+  const cashTenderTypeId =
+    tenderTypes.find((t) => t.code === "CASH")?.id ?? tenderTypes[0]?.id ?? "";
+  const cashPaymentMode = mpesaStkEnabled && paymentMode === "manual";
+
+  useEffect(() => {
+    if (cashPaymentMode && cashTenderTypeId) {
+      setAddTenderTypeId(cashTenderTypeId);
+    }
+  }, [cashPaymentMode, cashTenderTypeId, setAddTenderTypeId]);
+
+  useEffect(() => {
+    if (!stkPolling || !token) {
+      return;
+    }
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const status = await fetchMpesaStkStatus(
+          token,
+          orgId,
+          branchId,
+          terminalId,
+          sale.id,
+          stkRequestId
+        );
+        if (cancelled) {
+          return;
+        }
+        setStkStatus(status.status);
+        setStkMessage(status.resultDesc);
+        if (status.status === "SUCCESS") {
+          const refreshed = await fetchSale(
+            token,
+            orgId,
+            branchId,
+            terminalId,
+            sale.id
+          );
+          if (!cancelled) {
+            onSaleUpdated(refreshed);
+            const tendered = (refreshed.tenders ?? []).reduce(
+              (sum, t) => sum + (Number(t.amount) || 0),
+              0
+            );
+            const saleTotal = Number(refreshed.total) || 0;
+            if (tendered >= saleTotal) {
+              setStkMessage("M-PESA payment received. Tap Complete sale below.");
+              setPaymentMode("manual");
+            }
+            if (status.saleCompleted) {
+              onStkAutoCompleted();
+            }
+          }
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setStkError(getApiErrorMessage(err));
+        }
+      }
+    };
+    poll();
+    const id = window.setInterval(poll, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [
+    stkPolling,
+    token,
+    orgId,
+    branchId,
+    terminalId,
+    sale.id,
+    stkRequestId,
+    onSaleUpdated,
+    onStkAutoCompleted,
+  ]);
+
+  const handleSendStk = async () => {
+    if (!token || remainder <= 0) {
+      return;
+    }
+    setIsSendingStk(true);
+    setStkError(null);
+    setStkMessage(null);
+    try {
+      const res = await initiateMpesaStk(
+        token,
+        orgId,
+        branchId,
+        terminalId,
+        sale.id,
+        { phoneNumber: stkPhone.trim(), amount: remainder }
+      );
+      setStkRequestId(res.id);
+      setStkStatus(res.status);
+      setStkMessage("M-PESA request sent. Customer should enter PIN on phone…");
+      rememberMpesaStkPhone(orgId, branchId, stkPhone.trim());
+    } catch (err) {
+      setStkError(getApiErrorMessage(err));
+    } finally {
+      setIsSendingStk(false);
+    }
+  };
 
   const paymentTenderTypeOptions = useMemo(
     () =>
@@ -1393,6 +1600,15 @@ function PaymentModal({
     [tenderTypes]
   );
 
+  const showDebtSection =
+    remainder > 0 && totalTendered > 0 && onCompleteWithDebt != null;
+  const showCompleteSale = canComplete || isCompleting;
+  const showPaymentFooter =
+    showDebtSection ||
+    showCompleteSale ||
+    Boolean(completeError) ||
+    Boolean(completeWithDebtError);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
@@ -1400,64 +1616,81 @@ function PaymentModal({
       aria-modal="true"
       aria-labelledby="payment-modal-title"
     >
-      <div className="flex max-h-[95vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:max-h-[90vh] dark:border-slate-600 dark:bg-slate-800">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-600">
+      <div className="flex min-h-[78vh] max-h-[96vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl sm:max-h-[94vh] dark:border-slate-600 dark:bg-slate-800">
+        <div className="flex items-center justify-between border-b border-slate-200 px-8 py-5 dark:border-slate-600">
           <h2
             id="payment-modal-title"
-            className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white"
+            className="flex items-center gap-3 text-3xl font-bold text-slate-900 sm:text-4xl dark:text-white"
           >
-            <CreditCard className="h-5 w-5" />
+            <CreditCard className="h-8 w-8 sm:h-10 sm:w-10" />
             Manage payments
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-white"
+            className="rounded-xl p-3 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-white"
             aria-label="Close"
           >
-            <X className="h-5 w-5" />
+            <X className="h-7 w-7 sm:h-8 sm:w-8" />
           </button>
         </div>
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        <div className="flex min-h-0 flex-1 flex-col space-y-8 overflow-y-auto p-8 sm:p-10">
           {(sale.lines?.length ?? 0) > 0 && (
             <div>
-              <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+              <h3 className="mb-4 text-2xl font-bold text-slate-700 sm:text-3xl dark:text-slate-300">
                 Items to pay
               </h3>
-              <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
               <div
-                className="relative overflow-auto rounded-xl border border-slate-200 dark:border-slate-600"
+                className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600"
                 role="region"
                 aria-label="Sale line items and subtotals"
               >
-                <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-                <table className="w-full text-left text-lg sm:text-xl" style={{ minWidth: "420px" }}>
+                <table className="w-full table-fixed text-left text-xl sm:text-2xl">
+                  <colgroup>
+                    <col style={{ width: "3.5rem" }} />
+                    <col />
+                    <col style={{ width: "4.5rem" }} />
+                    <col style={{ width: "9rem" }} />
+                    <col style={{ width: "10rem" }} />
+                  </colgroup>
                   <thead className={`border-b border-slate-200 bg-slate-50 dark:border-slate-600 ${tableHeadRow}`}>
                     <tr>
-                      <th className={tableRowNoHead}>No.</th>
-                      <th className={`${tableStickyHeadCell} ${tableHeadCell}`}>Item</th>
-                      <th className={`${tableHeadCell} text-right`}>Qty</th>
-                      <th className={`${tableHeadCell} text-right`}>Unit (KSH)</th>
-                      <th className={`${tableHeadCell} text-right`}>Subtotal (KSH)</th>
+                      <th className="px-2 py-3 text-center text-lg font-bold uppercase tracking-wide text-slate-700 sm:text-xl dark:text-slate-300">
+                        No.
+                      </th>
+                      <th className="px-3 py-3 text-left text-lg font-bold uppercase tracking-wide text-slate-700 sm:text-xl dark:text-slate-300">
+                        Item
+                      </th>
+                      <th className="px-2 py-3 text-right text-lg font-bold uppercase tracking-wide text-slate-700 sm:text-xl dark:text-slate-300">
+                        Qty
+                      </th>
+                      <th className="px-2 py-3 text-right text-lg font-bold uppercase tracking-wide text-slate-700 sm:text-xl dark:text-slate-300">
+                        Unit (KSH)
+                      </th>
+                      <th className="px-2 py-3 text-right text-lg font-bold uppercase tracking-wide text-slate-700 sm:px-4 sm:text-xl dark:text-slate-300">
+                        Subtotal (KSH)
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                     {(sale.lines ?? []).map((line, index) => (
                       <Fragment key={line.id}>
                         <tr className={`${tableBodyRow} text-slate-800 dark:text-white`}>
-                          <TableRowNumberCell
-                            page={0}
-                            pageSize={(sale.lines ?? []).length || 1}
-                            indexInPage={index}
-                          />
-                          <td className={`${tableStickyFirstBody} max-w-[7rem] sm:max-w-[10rem] align-top`}>
-                            <span className="font-semibold text-slate-700 leading-snug dark:text-slate-300">{line.itemName}</span>
+                          <td className="px-2 py-3 text-center text-xl font-semibold tabular-nums text-slate-600 sm:text-2xl dark:text-slate-400">
+                            {index + 1}
                           </td>
-                          <td className={tableBodyCellNum}>{line.qty}</td>
-                          <td className={tableBodyCellNum}>
+                          <td className="px-3 py-3 align-top">
+                            <span className="block truncate font-bold text-slate-700 dark:text-slate-300">
+                              {line.itemName}
+                            </span>
+                          </td>
+                          <td className="px-2 py-3 text-right text-xl font-semibold tabular-nums text-slate-600 sm:text-2xl dark:text-slate-400">
+                            {line.qty}
+                          </td>
+                          <td className="px-2 py-3 text-right text-xl font-semibold tabular-nums text-slate-600 sm:text-2xl dark:text-slate-400">
                             {formatAmount(line.unitPrice)}
                           </td>
-                          <td className={tableBodyCellNum}>
+                          <td className="px-2 py-3 text-right text-xl font-semibold tabular-nums text-slate-600 sm:px-4 sm:text-2xl dark:text-slate-400">
                             {formatAmount(line.lineTotal)}
                           </td>
                         </tr>
@@ -1466,16 +1699,16 @@ function PaymentModal({
                           return (
                             <tr
                               key={`${line.id}-mod-${m.id}`}
-                              className="bg-slate-50/80 text-xs text-slate-600 dark:bg-slate-800/40 dark:text-slate-400"
+                              className="bg-slate-50/80 text-lg font-semibold text-slate-600 dark:bg-slate-800/40 dark:text-slate-400 sm:text-xl"
                             >
-                              <td className={`${tableBodyCell} pl-6`} colSpan={3}>
+                              <td className="px-3 py-2 pl-5" colSpan={3}>
                                 + {m.modifierOptionName}
                                 {m.qty > 1 ? ` × ${m.qty}` : ""}
                               </td>
-                              <td className={tableBodyCellNum}>
+                              <td className="px-2 py-2 text-right tabular-nums">
                                 {modAmt !== 0 ? formatAmount(m.unitPriceDelta) : "—"}
                               </td>
-                              <td className={tableBodyCellNum}>
+                              <td className="px-2 py-2 text-right tabular-nums sm:px-4">
                                 {modAmt !== 0 ? formatAmount(modAmt) : "—"}
                               </td>
                             </tr>
@@ -1489,82 +1722,184 @@ function PaymentModal({
             </div>
           )}
 
-          <div className="rounded-xl bg-slate-100 p-4 dark:bg-slate-700/50">
-            <div className="flex justify-between text-slate-600 dark:text-slate-300">
+          <div className="rounded-xl bg-slate-100 p-6 sm:p-8 dark:bg-slate-700/50">
+            <div className="flex justify-between text-2xl font-bold text-slate-600 sm:text-3xl dark:text-slate-300">
               <span>Total due</span>
-              <span className="tabular-nums font-semibold">{formatCurrency(total)}</span>
+              <span className="tabular-nums">{formatCurrency(total)}</span>
             </div>
-            <div className="mt-1 flex justify-between text-slate-600 dark:text-slate-300">
+            <div className="mt-3 flex justify-between text-2xl font-bold text-slate-600 sm:text-3xl dark:text-slate-300">
               <span>Tendered</span>
-              <span className="tabular-nums font-semibold">{formatCurrency(totalTendered)}</span>
+              <span className="tabular-nums">{formatCurrency(totalTendered)}</span>
             </div>
             {remainder > 0 && (
-              <div className="mt-1 flex justify-between text-amber-600 dark:text-amber-400">
+              <div className="mt-3 flex justify-between text-2xl font-bold text-amber-600 sm:text-3xl dark:text-amber-400">
                 <span>Remaining</span>
-                <span className="tabular-nums font-semibold">{formatCurrency(remainder)}</span>
+                <span className="tabular-nums">{formatCurrency(remainder)}</span>
               </div>
             )}
             {remainder <= 0 && totalTendered > 0 && (
-              <div className="mt-1 flex justify-between text-emerald-600 dark:text-emerald-400">
+              <div className="mt-3 flex justify-between text-2xl font-bold text-emerald-600 sm:text-3xl dark:text-emerald-400">
                 <span>Change</span>
-                <span className="tabular-nums font-semibold">
+                <span className="tabular-nums">
                   {formatCurrency(-remainder)}
                 </span>
               </div>
             )}
           </div>
 
+          {mpesaStkEnabled && (
+            <div className="flex gap-3 rounded-xl border border-slate-200 p-2 dark:border-slate-600 sm:gap-4">
+              <button
+                type="button"
+                onClick={() => setPaymentMode("manual")}
+                className={`min-h-[56px] flex-1 rounded-xl px-4 py-3 text-xl font-bold transition sm:min-h-[60px] sm:text-2xl ${
+                  paymentMode === "manual"
+                    ? "bg-primary-600 text-white shadow-sm"
+                    : "bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-600 dark:text-white dark:hover:bg-slate-500"
+                }`}
+              >
+                CASH
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMode("stk")}
+                className={`min-h-[56px] flex-1 rounded-xl px-4 py-3 text-xl font-bold text-white transition sm:min-h-[60px] sm:text-2xl ${
+                  paymentMode === "stk"
+                    ? "bg-[#009E52] shadow-sm ring-2 ring-[#00CC66]/60 hover:bg-[#008A47] dark:ring-white/30"
+                    : "bg-[#00CC66] opacity-95 hover:bg-[#00B85C] hover:opacity-100"
+                }`}
+              >
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Smartphone className="h-6 w-6 sm:h-7 sm:w-7" />
+                  M-PESA
+                </span>
+              </button>
+            </div>
+          )}
+
           {sale.tenders && sale.tenders.length > 0 && (
             <div>
-              <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+              <h3 className="mb-4 text-2xl font-bold text-slate-700 sm:text-3xl dark:text-slate-300">
                 Payment added
               </h3>
-              <ul className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-600 dark:bg-slate-700/30">
+              <ul className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-600 dark:bg-slate-700/30">
                 {sale.tenders.map((t: Tender) => (
                   <li
                     key={t.id}
-                    className="flex items-center justify-between gap-2 text-sm text-slate-800 dark:text-white"
+                    className="flex items-center justify-between gap-3 text-xl font-bold text-slate-800 sm:text-2xl dark:text-white"
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="font-medium">{t.tenderTypeCode ?? "—"}</span>
-                      <span className="ml-2 tabular-nums">{formatCurrency(t.amount)}</span>
+                      <span>{t.tenderTypeCode ?? "—"}</span>
+                      <span className="ml-3 tabular-nums">{formatCurrency(t.amount)}</span>
                     </span>
                     <button
                       type="button"
                       disabled={isRemovingTender}
                       onClick={() => onRemoveTender(t.id)}
-                      className="shrink-0 rounded-lg p-2 text-slate-500 transition hover:bg-red-100 hover:text-red-700 disabled:opacity-50 dark:hover:bg-red-600/30 dark:hover:text-red-300"
+                      className="shrink-0 rounded-xl p-3 text-slate-500 transition hover:bg-red-100 hover:text-red-700 disabled:opacity-50 dark:hover:bg-red-600/30 dark:hover:text-red-300"
                       aria-label={`Remove ${t.tenderTypeCode ?? "payment"} ${formatCurrency(t.amount)}`}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-6 w-6 sm:h-7 sm:w-7" />
                     </button>
                   </li>
                 ))}
               </ul>
               {removeTenderError && (
-                <p className="mt-2 text-sm text-red-400" role="alert">
+                <p className="mt-3 text-xl font-semibold text-red-400 sm:text-2xl" role="alert">
                   {removeTenderError}
                 </p>
               )}
             </div>
           )}
 
-          {(!sale.tenders || sale.tenders.length === 0) ? (
+          {mpesaStkEnabled && paymentMode === "stk" ? (
             <div>
-              <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                Add payment
+              <h3 className="mb-4 text-2xl font-bold text-slate-700 sm:text-3xl dark:text-slate-300">
+                Pay with M-PESA
               </h3>
-              <div className="flex flex-wrap gap-2 sm:flex-nowrap">
-                <SearchableSelect
-                  options={paymentTenderTypeOptions}
-                  value={addTenderTypeId}
-                  onChange={setAddTenderTypeId}
-                  placeholder="Search payment type…"
-                  matchOptionValue
-                  className="min-h-[48px] min-w-0 flex-1 basis-full sm:basis-auto"
-                  controlClassName="min-h-[48px] rounded-xl border-slate-300 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500 dark:border-slate-600"
-                  aria-label="Payment type"
-                />
+              {remainder <= 0 ? (
+                <p className="text-xl font-bold text-slate-500 sm:text-2xl dark:text-slate-400">
+                  Nothing left to pay via M-PESA.
+                </p>
+              ) : (
+                <>
+                  <p className="mb-3 text-base font-bold text-slate-600 sm:text-lg dark:text-slate-400">
+                    Amount: {formatCurrency(remainder)} (remaining balance)
+                  </p>
+                  <MpesaStkPhoneInput
+                    orgId={orgId}
+                    branchId={branchId}
+                    value={stkPhone}
+                    onChange={setStkPhone}
+                    disabled={stkPolling || isSendingStk}
+                    size="large"
+                  />
+                  <button
+                    type="button"
+                    disabled={
+                      stkPolling ||
+                      isSendingStk ||
+                      !stkPhone.trim() ||
+                      remainder <= 0
+                    }
+                    onClick={handleSendStk}
+                    className="min-h-[56px] w-full rounded-xl bg-[#00CC66] py-3 text-xl font-bold text-white transition hover:bg-[#00B85C] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[60px] sm:text-2xl"
+                  >
+                    {isSendingStk ? "Sending…" : "Send M-PESA request"}
+                  </button>
+                  {stkPolling && (
+                    <p className="mt-4 flex items-center gap-3 text-xl font-bold text-primary-600 sm:text-2xl dark:text-primary-400">
+                      <Loader2 className="h-7 w-7 animate-spin sm:h-8 sm:w-8" />
+                      Waiting for customer to enter PIN…
+                    </p>
+                  )}
+                  {stkStatus && TERMINAL_STK_STATUSES.includes(stkStatus) && (
+                    <p
+                      className={`mt-4 text-xl font-bold sm:text-2xl ${
+                        stkStatus === "SUCCESS"
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-red-500"
+                      }`}
+                      role="alert"
+                    >
+                      {stkStatus === "SUCCESS"
+                        ? "M-PESA payment received."
+                        : stkMessage ?? `M-PESA ${stkStatus.toLowerCase()}`}
+                    </p>
+                  )}
+                  {stkError && (
+                    <p className="mt-3 text-lg font-semibold text-red-500 sm:text-xl" role="alert">
+                      {stkError}
+                      {stkError.includes("not configured") && (
+                        <span className="mt-2 block text-base font-semibold text-slate-500 sm:text-lg dark:text-slate-400">
+                          Ask an admin to configure M-PESA in Admin → Settings.
+                        </span>
+                      )}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (!sale.tenders || sale.tenders.length === 0) ? (
+            <div>
+              <h3 className="mb-4 text-2xl font-bold text-slate-700 sm:text-3xl dark:text-slate-300">
+                {cashPaymentMode ? "Add cash payment" : "Add payment"}
+              </h3>
+              <div
+                className={`flex gap-4 ${cashPaymentMode ? "w-full flex-nowrap" : "flex-wrap sm:flex-nowrap"}`}
+              >
+                {!cashPaymentMode && (
+                  <SearchableSelect
+                    options={paymentTenderTypeOptions}
+                    value={addTenderTypeId}
+                    onChange={setAddTenderTypeId}
+                    placeholder="Search payment type…"
+                    matchOptionValue
+                    className="min-h-[72px] min-w-0 flex-1 basis-full sm:basis-auto sm:min-h-[80px]"
+                    controlClassName="min-h-[72px] rounded-xl border-slate-300 text-2xl font-bold focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500 dark:border-slate-600 sm:min-h-[80px] sm:text-3xl"
+                    aria-label="Payment type"
+                  />
+                )}
                 <input
                   type="number"
                   min="0"
@@ -1572,7 +1907,11 @@ function PaymentModal({
                   value={addTenderAmount}
                   onChange={(e) => setAddTenderAmount(e.target.value)}
                   placeholder="Amount"
-                  className="min-h-[48px] min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-right tabular-nums text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:w-28 sm:flex-none dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  className={
+                    cashPaymentMode
+                      ? "min-h-[56px] min-w-0 flex-[2] rounded-xl border border-slate-300 bg-white px-5 py-3 text-right text-xl font-bold tabular-nums text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:min-h-[60px] sm:text-2xl dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                      : "min-h-[72px] min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-5 py-3 text-right text-2xl font-bold tabular-nums text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:min-h-[80px] sm:w-44 sm:flex-none sm:text-3xl dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  }
                   aria-label="Amount"
                 />
                 <button
@@ -1584,40 +1923,45 @@ function PaymentModal({
                     parseFloat(addTenderAmount) <= 0
                   }
                   onClick={onAddTender}
-                  className="min-h-[48px] shrink-0 rounded-xl bg-primary-600 px-4 py-2 font-medium text-white transition hover:bg-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className={
+                    cashPaymentMode
+                      ? "min-h-[56px] min-w-[8rem] flex-1 rounded-xl bg-primary-600 px-6 py-2.5 text-xl font-bold text-white transition hover:bg-primary-500 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[60px] sm:max-w-[14rem] sm:text-2xl"
+                      : "min-h-[56px] shrink-0 rounded-xl bg-primary-600 px-5 py-2.5 text-xl font-bold text-white transition hover:bg-primary-500 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[60px] sm:px-6 sm:text-2xl"
+                  }
                 >
                   {isAddingTender ? "…" : "Add"}
                 </button>
               </div>
               {addTenderError && (
-                <p className="mt-2 text-sm text-red-400" role="alert">
+                <p className="mt-3 text-xl font-semibold text-red-400 sm:text-2xl" role="alert">
                   {addTenderError}
                 </p>
               )}
             </div>
           ) : (
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-xl font-bold text-slate-500 sm:text-2xl dark:text-slate-400">
               Only one payment at a time. Remove the payment above to add a different one.
             </p>
           )}
         </div>
-        <div className="border-t border-slate-200 p-4 dark:border-slate-600">
-          {remainder > 0 && totalTendered > 0 && onCompleteWithDebt ? (
+        {showPaymentFooter && (
+        <div className="border-t border-slate-200 p-8 sm:p-10 dark:border-slate-600">
+          {showDebtSection ? (
             <>
-              <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+              <h3 className="mb-4 text-2xl font-bold text-slate-700 sm:text-3xl dark:text-slate-300">
                 Record balance as debt
               </h3>
-              <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mb-4 text-xl font-bold text-slate-600 sm:text-2xl dark:text-slate-400">
                 Capture customer details to record {formatCurrency(remainder)} as debt.
               </p>
-              <div className="mb-3 space-y-2">
+              <div className="mb-4 space-y-3">
                 <input
                   type="text"
                   required
                   value={debtCustomerName}
                   onChange={(e) => setDebtCustomerName(e.target.value)}
                   placeholder="Customer name *"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  className="min-h-[72px] w-full rounded-xl border border-slate-300 bg-white px-5 py-3 text-2xl font-semibold text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:min-h-[80px] sm:text-3xl dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   aria-label="Customer name"
                 />
                 <input
@@ -1625,13 +1969,13 @@ function PaymentModal({
                   value={debtCustomerPhone}
                   onChange={(e) => setDebtCustomerPhone(e.target.value)}
                   placeholder="Phone (optional)"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  className="min-h-[72px] w-full rounded-xl border border-slate-300 bg-white px-5 py-3 text-2xl font-semibold text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:min-h-[80px] sm:text-3xl dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   aria-label="Customer phone"
                 />
                 <DateInput
                   value={debtDueDate}
                   onChange={(e) => setDebtDueDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  className="min-h-[72px] w-full rounded-xl border border-slate-300 bg-white px-5 py-3 text-2xl font-semibold text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:min-h-[80px] sm:text-3xl dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   aria-label="Due date"
                 />
               </div>
@@ -1647,34 +1991,39 @@ function PaymentModal({
                     dueDate: debtDueDate || undefined,
                   })
                 }
-                className="min-h-[48px] w-full rounded-xl bg-amber-600 py-3 text-lg font-semibold text-white transition hover:bg-amber-500 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-amber-500"
+                className="min-h-[56px] w-full rounded-xl bg-amber-600 py-3 text-xl font-bold text-white transition hover:bg-amber-500 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[60px] sm:text-2xl dark:hover:bg-amber-500"
               >
                 {isCompletingWithDebt ? "Processing…" : "Complete with balance as debt"}
               </button>
               {completeWithDebtError && (
-                <p className="mt-2 text-sm text-red-400" role="alert">
+                <p className="mt-3 text-xl font-semibold text-red-400 sm:text-2xl" role="alert">
                   {completeWithDebtError}
                 </p>
               )}
             </>
-          ) : (
+          ) : showCompleteSale ? (
             <>
               <button
                 type="button"
-                disabled={!canComplete || isCompleting}
+                disabled={isCompleting}
                 onClick={onComplete}
-                className="min-h-[48px] w-full rounded-xl bg-emerald-600 py-3 text-lg font-semibold text-white transition hover:bg-emerald-500 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-emerald-500"
+                className="min-h-[56px] w-full rounded-xl bg-emerald-600 py-3 text-xl font-bold text-white transition hover:bg-emerald-500 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[60px] sm:text-2xl dark:hover:bg-emerald-500"
               >
                 {isCompleting ? "Completing…" : "Complete sale"}
               </button>
               {completeError && (
-                <p className="mt-2 text-sm text-red-400" role="alert">
+                <p className="mt-3 text-xl font-semibold text-red-400 sm:text-2xl" role="alert">
                   {completeError}
                 </p>
               )}
             </>
-          )}
+          ) : completeError ? (
+            <p className="text-xl font-semibold text-red-400 sm:text-2xl" role="alert">
+              {completeError}
+            </p>
+          ) : null}
         </div>
+        )}
       </div>
     </div>
   );

@@ -624,3 +624,30 @@ input[type="number"] {
     animation: sales-total-hover-pulse 0.5s ease-out 1;
   }
 }
+
+/*
+ * Button label scale — bump text one Tailwind step app-wide (xs→sm, sm→base).
+ * Higher specificity than lone .text-sm / .text-xs utilities on <button>.
+ */
+button.text-xs,
+[role="button"].text-xs {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+button.text-sm,
+[role="button"].text-sm {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+button:not([class*="text-"]),
+[role="button"]:not([class*="text-"]) {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+@media (min-width: 640px) {
+  button.sm\:text-sm,
+  [role="button"].sm\:text-sm {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+}

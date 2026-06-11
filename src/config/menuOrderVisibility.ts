@@ -5,6 +5,7 @@
 export const MENU_ORDER_SHOW_ORDER_TYPE = "menuOrder.showOrderType";
 export const MENU_ORDER_SHOW_TABLE_SELECT = "menuOrder.showTableSelect";
 export const MENU_ORDER_SHOW_ITEM_LIST = "menuOrder.showItemList";
+export const MENU_ORDER_SHOW_HIDE_OOS = "menuOrder.showHideOos";
 
 export function isMenuOrderOptionVisible(
   visibilityState: Record<string, boolean>,
