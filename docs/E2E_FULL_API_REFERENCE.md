@@ -392,6 +392,33 @@ Branch-scoped. Staff must be assigned to branch. Industry standard: floor staff 
 
 ---
 
+## M-Pesa STK Push
+
+Public callback (no JWT): `POST /api/v1/integrations/mpesa/stk/callback` — Safaricom Daraja STK result JSON (`Body.stkCallback`).
+
+Admin config (org-scoped):
+
+| Method | Path | Body |
+|--------|------|------|
+| GET | /api/v1/admin/orgs/{orgId}/mpesa/configs | — |
+| POST | /api/v1/admin/orgs/{orgId}/mpesa/configs | `{"environment":"SANDBOX","consumerKey":"…","consumerSecret":"…","passkey":"…","shortcode":"174379","tillNumber":null,"stkAutoComplete":true,"callbackBaseUrl":null}` |
+| POST | /api/v1/admin/orgs/{orgId}/mpesa/configs/branches/{branchId} | Same body (branch override) |
+| PATCH | /api/v1/admin/orgs/{orgId}/mpesa/configs/{configId} | Partial update; secrets masked on GET (`****1234`) |
+| DELETE | /api/v1/admin/orgs/{orgId}/mpesa/configs/{configId} | Soft-deactivate |
+
+Operator STK (JWT):
+
+| Method | Path | Body |
+|--------|------|------|
+| POST | .../sales/{saleId}/mpesa/stk | `{"phoneNumber":"0712345678","amount":99.50}` |
+| GET | .../sales/{saleId}/mpesa/stk/{stkRequestId} | Poll status (`PENDING` → `SUCCESS` / `FAILED` / `TIMEOUT`) |
+
+Config resolution: active branch override, else org-default (`branch_id` null). `stkAutoComplete`: when true and STK tender ≥ sale total, callback completes the sale.
+
+Application config (`xpos.mpesa.*`): `callback-url`, `stk-timeout-seconds` (default 120), `oauth-token-cache-seconds`, Daraja sandbox/production base URLs.
+
+---
+
 ## Sales (admin) – List completed sales
 
 | Method | Path | Body / query |

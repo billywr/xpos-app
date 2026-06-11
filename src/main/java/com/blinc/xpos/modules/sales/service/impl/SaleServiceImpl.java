@@ -448,13 +448,10 @@ public class SaleServiceImpl implements SaleService {
   }
 
   private Sale requireOpenSale(UUID orgId, UUID saleId) {
-    Sale sale =
-        saleRepository
-            .findByIdAndOrgId(saleId, orgId)
-            .orElseThrow(
-                () -> new NotFoundException("SALE_NOT_FOUND", "Sale not found: " + saleId));
+    Sale sale = loadSaleWithAssociations(orgId, saleId);
     if (sale.getStatus() != SaleStatus.OPEN) {
-      throw new IllegalStateException("Sale is not open. Status: " + sale.getStatus());
+      throw new BadRequestException(
+          "SALE_NOT_OPEN", "Sale is not open. Status: " + sale.getStatus());
     }
     return sale;
   }

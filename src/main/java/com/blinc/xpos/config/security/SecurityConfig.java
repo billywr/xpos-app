@@ -40,6 +40,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/uploads/**")
                     .permitAll()
+                    .requestMatchers("/api/v1/integrations/mpesa/stk/callback")
+                    .permitAll()
                     .requestMatchers("/api/v1/admin/**")
                     .hasAnyRole(adminRole, operatorRole)
                     .requestMatchers("/api/v1/operator/**")

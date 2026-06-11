@@ -21,6 +21,8 @@ public class OrgServiceImpl implements OrgService {
 
   private static final String CASH_TENDER_CODE = "CASH";
   private static final String CASH_TENDER_NAME = "Cash";
+  private static final String MPESA_STK_CODE = "MPESA_STK";
+  private static final String MPESA_STK_NAME = "M-Pesa STK";
 
   private final OrgRepository orgRepository;
   private final TenderTypeService tenderTypeService;
@@ -44,6 +46,7 @@ public class OrgServiceImpl implements OrgService {
     org.setUpdatedAt(now);
     Org saved = orgRepository.save(org);
     tenderTypeService.create(saved.getId(), CASH_TENDER_CODE, CASH_TENDER_NAME);
+    tenderTypeService.create(saved.getId(), MPESA_STK_CODE, MPESA_STK_NAME);
     return saved;
   }
 

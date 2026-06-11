@@ -1,6 +1,8 @@
 spring:
   application:
     name: xpos
+  config:
+    import: optional:classpath:application-mpesa-secrets.yml
 
   datasource:
     url: jdbc:postgresql://localhost:5432/xpos_dev

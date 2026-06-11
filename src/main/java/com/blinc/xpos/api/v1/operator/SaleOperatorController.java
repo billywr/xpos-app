@@ -11,12 +11,7 @@ import com.blinc.xpos.api.v1.operator.dto.SaleResponse;
 import com.blinc.xpos.api.v1.operator.dto.TenderAddRequest;
 import com.blinc.xpos.api.v1.operator.dto.TenderResponse;
 import com.blinc.xpos.common.security.CurrentPrincipalResolver;
-import com.blinc.xpos.modules.cash.service.ShiftService;
-import com.blinc.xpos.modules.debt.service.CustomerDebtService;
-import com.blinc.xpos.modules.organization.domain.Customer;
 import com.blinc.xpos.modules.organization.domain.StaffUser;
-import com.blinc.xpos.modules.organization.repository.StaffProfileRepository;
-import com.blinc.xpos.modules.organization.service.CustomerService;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
 import com.blinc.xpos.modules.sales.domain.Receipt;
 import com.blinc.xpos.modules.sales.domain.Sale;
@@ -24,11 +19,11 @@ import com.blinc.xpos.modules.sales.domain.SaleLine;
 import com.blinc.xpos.modules.sales.domain.SaleLineModifier;
 import com.blinc.xpos.modules.sales.domain.Tender;
 import com.blinc.xpos.modules.sales.repository.SaleLineModifierRepository;
+import com.blinc.xpos.modules.sales.service.CompleteWithDebtService;
 import com.blinc.xpos.modules.sales.service.ReceiptService;
 import com.blinc.xpos.modules.sales.service.SaleService;
 import com.blinc.xpos.modules.sales.service.TenderService;
 import jakarta.validation.Valid;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -50,38 +45,29 @@ public class SaleOperatorController {
   private final SaleService saleService;
   private final TenderService tenderService;
   private final ReceiptService receiptService;
+  private final CompleteWithDebtService completeWithDebtService;
   private final SaleLineModifierRepository saleLineModifierRepository;
   private final CurrentPrincipalResolver principalResolver;
   private final StaffAuthorizationService staffAuthorizationService;
-  private final CustomerService customerService;
-  private final CustomerDebtService customerDebtService;
-  private final ShiftService shiftService;
-  private final StaffProfileRepository staffProfileRepository;
 
   public SaleOperatorController(
       SaleService saleService,
       TenderService tenderService,
       ReceiptService receiptService,
+      CompleteWithDebtService completeWithDebtService,
       SaleLineModifierRepository saleLineModifierRepository,
       CurrentPrincipalResolver principalResolver,
-      StaffAuthorizationService staffAuthorizationService,
-      CustomerService customerService,
-      CustomerDebtService customerDebtService,
-      ShiftService shiftService,
-      StaffProfileRepository staffProfileRepository) {
+      StaffAuthorizationService staffAuthorizationService) {
     this.saleService = Objects.requireNonNull(saleService, "saleService");
     this.tenderService = Objects.requireNonNull(tenderService, "tenderService");
     this.receiptService = Objects.requireNonNull(receiptService, "receiptService");
+    this.completeWithDebtService =
+        Objects.requireNonNull(completeWithDebtService, "completeWithDebtService");
     this.saleLineModifierRepository =
         Objects.requireNonNull(saleLineModifierRepository, "saleLineModifierRepository");
     this.principalResolver = Objects.requireNonNull(principalResolver, "principalResolver");
     this.staffAuthorizationService =
         Objects.requireNonNull(staffAuthorizationService, "staffAuthorizationService");
-    this.customerService = Objects.requireNonNull(customerService, "customerService");
-    this.customerDebtService = Objects.requireNonNull(customerDebtService, "customerDebtService");
-    this.shiftService = Objects.requireNonNull(shiftService, "shiftService");
-    this.staffProfileRepository =
-        Objects.requireNonNull(staffProfileRepository, "staffProfileRepository");
   }
 
   @PostMapping
@@ -194,53 +180,9 @@ public class SaleOperatorController {
     var staffUser =
         staffAuthorizationService.requireStaffUserForBranch(
             orgId, branchId, principalResolver.require().iamUserId());
-    var shift =
-        shiftService
-            .getCurrentOpenShift(orgId, branchId, terminalId)
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "No open shift for terminal. Open a shift before completing with debt."));
-
-    BigDecimal tenderTotal =
-        tenderService.listBySale(orgId, saleId).stream()
-            .map(Tender::getAmount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-    Sale sale =
-        saleService
-            .getByIdAndOrg(orgId, saleId)
-            .orElseThrow(
-                () ->
-                    new com.blinc.xpos.common.error.NotFoundException(
-                        "SALE_NOT_FOUND", "Sale not found"));
-    BigDecimal remainder = sale.getTotal().subtract(tenderTotal);
-    if (remainder.compareTo(BigDecimal.ZERO) <= 0) {
-      throw new IllegalStateException(
-          "No balance to record as debt. Use Complete sale when fully paid.");
-    }
-
-    Customer customer =
-        customerService.create(
-            orgId,
-            request.customerName().trim(),
-            request.customerPhone() != null ? request.customerPhone().trim() : null,
-            null);
-
-    customerDebtService.create(
-        orgId,
-        branchId,
-        customer.getId(),
-        remainder,
-        request.dueDate(),
-        "Balance from sale " + saleId,
-        saleId,
-        terminalId,
-        shift.getId(),
-        staffUser.getId(),
-        null,
-        resolveIssuedBy(orgId, staffUser, request.issuedBy()));
-
-    Sale completed = saleService.completeAllowingPartialWithDebt(orgId, saleId);
+    Sale completed =
+        completeWithDebtService.completeWithDebt(
+            orgId, branchId, terminalId, saleId, staffUser.getId(), request);
     return toSaleResponse(completed);
   }
 
@@ -318,17 +260,6 @@ public class SaleOperatorController {
         sale.getCompletedAt(),
         lineResponses,
         tenderResponses);
-  }
-
-  private String resolveIssuedBy(UUID orgId, StaffUser staffUser, String requestedIssuedBy) {
-    if (requestedIssuedBy != null && !requestedIssuedBy.isBlank()) {
-      return requestedIssuedBy.trim();
-    }
-    return staffProfileRepository
-        .findByOrgIdAndStaffUserId(orgId, staffUser.getId())
-        .map(profile -> profile.getDisplayName())
-        .filter(name -> name != null && !name.isBlank())
-        .orElse(staffUser.getUsername());
   }
 
   private SaleLineResponse toSaleLineResponse(SaleLine line) {

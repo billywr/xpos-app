@@ -13,6 +13,14 @@ import org.springframework.data.repository.query.Param;
 
 public interface ShiftRepository extends JpaRepository<Shift, UUID> {
 
+  @Query(
+      """
+      select s from Shift s
+      left join fetch s.branch
+      where s.id = :id and s.org.id = :orgId
+      """)
+  Optional<Shift> findByIdAndOrgIdWithBranch(@Param("id") UUID id, @Param("orgId") UUID orgId);
+
   @Query("""
       select s from Shift s
       where s.id = :id and s.org.id = :orgId

@@ -32,4 +32,11 @@ public interface TenderTypeRepository extends JpaRepository<TenderType, UUID> {
       order by t.code
       """)
   List<TenderType> findAllByOrgIdOrderByCode(@Param("orgId") UUID orgId);
+
+  @Query(
+      """
+      select t from TenderType t
+      where t.org.id = :orgId and t.code = :code
+      """)
+  Optional<TenderType> findByOrgIdAndCode(@Param("orgId") UUID orgId, @Param("code") String code);
 }

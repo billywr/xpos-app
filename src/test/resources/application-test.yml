@@ -7,3 +7,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+
+xpos:
+  mpesa:
+    callback-url: https://example.com/api/v1/integrations/mpesa/stk/callback

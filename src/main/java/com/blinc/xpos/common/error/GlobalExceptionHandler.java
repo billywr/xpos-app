@@ -225,6 +225,16 @@ public class GlobalExceptionHandler {
     return build(HttpStatus.CONFLICT, "CONCURRENT_UPDATE", message, request, List.of());
   }
 
+  @ExceptionHandler(IllegalStateException.class)
+  public ResponseEntity<ApiError> handleIllegalState(
+      IllegalStateException ex, HttpServletRequest request) {
+    String message =
+        ex.getMessage() == null
+            ? "Request cannot be completed in the current state."
+            : safeMessage(ex.getMessage());
+    return build(HttpStatus.BAD_REQUEST, "INVALID_STATE", message, request, List.of());
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiError> handleGeneric(Exception ex, HttpServletRequest request) {
     String requestId = (String) request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE);

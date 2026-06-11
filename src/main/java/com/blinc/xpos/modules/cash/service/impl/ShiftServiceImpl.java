@@ -137,7 +137,7 @@ public class ShiftServiceImpl implements ShiftService {
   @Transactional(readOnly = true)
   public Shift require(UUID orgId, UUID shiftId) {
     return shiftRepository
-        .findByIdAndOrgId(shiftId, orgId)
+        .findByIdAndOrgIdWithBranch(shiftId, orgId)
         .orElseThrow(() -> new NotFoundException("SHIFT_NOT_FOUND", "Shift not found"));
   }
 

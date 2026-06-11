@@ -39,4 +39,8 @@ public class Org {
 
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
+
+  /** When true, operators see Pay by M-Pesa STK in the payment modal. Default false. */
+  @Column(name = "mpesa_stk_operator_enabled", nullable = false)
+  private boolean mpesaStkOperatorEnabled = false;
 }
