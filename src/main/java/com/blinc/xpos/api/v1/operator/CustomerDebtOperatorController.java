@@ -3,12 +3,17 @@ package com.blinc.xpos.api.v1.operator;
 import com.blinc.xpos.api.v1.operator.dto.CustomerDebtCreateRequest;
 import com.blinc.xpos.api.v1.operator.dto.CustomerDebtResponse;
 import com.blinc.xpos.api.v1.operator.dto.CustomerDebtUpdateRequest;
+import com.blinc.xpos.api.v1.operator.dto.DebtBulkSettleAllocationLineDto;
+import com.blinc.xpos.api.v1.operator.dto.DebtBulkSettleByNameRequest;
+import com.blinc.xpos.api.v1.operator.dto.DebtBulkSettleResponse;
 import com.blinc.xpos.api.v1.operator.dto.DebtPendingTotalResponse;
 import com.blinc.xpos.api.v1.operator.dto.DebtSettleRequest;
 import com.blinc.xpos.common.constants.enums.CustomerDebtStatus;
 import com.blinc.xpos.common.security.CurrentPrincipalResolver;
 import com.blinc.xpos.common.web.paging.PageRequestFactory;
 import com.blinc.xpos.modules.debt.domain.CustomerDebt;
+import com.blinc.xpos.modules.debt.dto.CustomerDebtBulkSettleAllocation;
+import com.blinc.xpos.modules.debt.dto.CustomerDebtBulkSettleResult;
 import com.blinc.xpos.modules.debt.service.CustomerDebtService;
 import com.blinc.xpos.modules.debt.service.DebtUpdateInput;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
@@ -131,6 +136,35 @@ public class CustomerDebtOperatorController {
     return toResponse(debt);
   }
 
+  @PostMapping("/customers/{customerId}/debts/settle-bulk")
+  public DebtBulkSettleResponse settleBulk(
+      @PathVariable UUID orgId,
+      @PathVariable UUID branchId,
+      @PathVariable UUID customerId,
+      @Valid @RequestBody DebtSettleRequest request) {
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
+    CustomerDebtBulkSettleResult result =
+        customerDebtService.settleCustomerDebts(
+            orgId, branchId, customerId, request.paymentAmount(), staffUser.getId());
+    return toBulkSettleResponse(result);
+  }
+
+  @PostMapping("/debts/settle-bulk-by-name")
+  public DebtBulkSettleResponse settleBulkByName(
+      @PathVariable UUID orgId,
+      @PathVariable UUID branchId,
+      @Valid @RequestBody DebtBulkSettleByNameRequest request) {
+    var staffUser =
+        staffAuthorizationService.requireStaffUserForBranch(
+            orgId, branchId, principalResolver.require().iamUserId());
+    CustomerDebtBulkSettleResult result =
+        customerDebtService.settleCustomerDebtsByName(
+            orgId, branchId, request.customerName(), request.paymentAmount(), staffUser.getId());
+    return toBulkSettleResponse(result);
+  }
+
   @GetMapping("/debts/pending-total")
   public DebtPendingTotalResponse pendingTotal(
       @PathVariable UUID orgId, @PathVariable UUID branchId) {
@@ -222,5 +256,24 @@ public class CustomerDebtOperatorController {
         d.getIssuedBy(),
         d.getCreatedBy().getId(),
         d.getCreatedAt());
+  }
+
+  private static DebtBulkSettleResponse toBulkSettleResponse(CustomerDebtBulkSettleResult result) {
+    List<DebtBulkSettleAllocationLineDto> lines =
+        result.allocations().stream()
+            .map(CustomerDebtOperatorController::toBulkAllocationLine)
+            .toList();
+    return new DebtBulkSettleResponse(
+        result.paymentAmount(), result.totalApplied(), result.unallocated(), lines);
+  }
+
+  private static DebtBulkSettleAllocationLineDto toBulkAllocationLine(
+      CustomerDebtBulkSettleAllocation allocation) {
+    return new DebtBulkSettleAllocationLineDto(
+        allocation.debtId(),
+        allocation.appliedAmount(),
+        allocation.outstandingBefore(),
+        allocation.outstandingAfter(),
+        statusToApi(allocation.status()));
   }
 }

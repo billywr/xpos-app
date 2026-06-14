@@ -34,3 +34,8 @@ xpos:
       base-url: https://sandbox.safaricom.co.ke
     production:
       base-url: https://api.safaricom.co.ke
+  std-stock-count:
+    auto-sync:
+      enabled: true
+      cron: "0 */15 * * * ?"
+      max-backfill-days: 90

@@ -1,6 +1,7 @@
 package com.blinc.xpos.api.v1.operator;
 
 import com.blinc.xpos.common.security.CurrentPrincipalResolver;
+import com.blinc.xpos.modules.inventory.dto.StdStockCountAutoSyncResponse;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcilePreviewDto;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcileRequest;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcileResponse;
@@ -68,6 +69,14 @@ public class StdStockCountOperatorController {
     StdStockCountSheetDto result =
         stdStockCountService.saveCounts(orgId, branchId, staffUser.getId(), request);
     return ResponseEntity.ok(result);
+  }
+
+  @PostMapping("/auto-sync")
+  public StdStockCountAutoSyncResponse autoSyncCarryForward(
+      @PathVariable UUID orgId, @PathVariable UUID branchId) {
+    staffAuthorizationService.requireStaffUserForBranch(
+        orgId, branchId, principalResolver.require().iamUserId());
+    return stdStockCountService.autoSyncCarryForward(orgId, branchId);
   }
 
   @GetMapping("/sales-preview")

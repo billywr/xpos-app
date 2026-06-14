@@ -10,6 +10,7 @@ import com.blinc.xpos.modules.catalog.domain.Item;
 import com.blinc.xpos.modules.catalog.repository.ItemRepository;
 import com.blinc.xpos.modules.inventory.domain.StdStockCountSnapshot;
 import com.blinc.xpos.modules.inventory.domain.StockMovement;
+import com.blinc.xpos.modules.inventory.dto.StdStockCountAutoSyncResponse;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountCountDto;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcileLineDto;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcilePreviewDto;
@@ -50,6 +51,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -83,6 +85,9 @@ public class StdStockCountServiceImpl implements StdStockCountService {
   private final AuditLogService auditLogService;
   private final Clock clock;
   private final EntityManager entityManager;
+
+  @Value("${xpos.std-stock-count.auto-sync.max-backfill-days:90}")
+  private int autoSyncMaxBackfillDays;
 
   @SuppressWarnings("checkstyle:ParameterNumber")
   public StdStockCountServiceImpl(
@@ -730,7 +735,8 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     List<StdStockCountReconcileLineDto> adjusted = new ArrayList<>();
     int matched = 0;
     for (StdStockCountRowDto row : sheet.rows()) {
-      if (row.closingStock() == null) {
+      Optional<BigDecimal> closingOpt = resolveClosingForReconcile(row);
+      if (closingOpt.isEmpty()) {
         continue;
       }
       Item item = itemsById.get(row.itemId());
@@ -741,7 +747,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
           inventoryItemService
               .getOnHandQty(orgId, branchId, row.itemId())
               .setScale(SCALE, ROUNDING);
-      BigDecimal closing = row.closingStock().setScale(SCALE, ROUNDING);
+      BigDecimal closing = closingOpt.get();
       BigDecimal variance = closing.subtract(onHand).setScale(SCALE, ROUNDING);
       if (variance.compareTo(BigDecimal.ZERO) == 0) {
         matched++;
@@ -794,6 +800,21 @@ public class StdStockCountServiceImpl implements StdStockCountService {
   private record ReconcileBuildResult(
       List<StdStockCountReconcileLineDto> linesToAdjust, int itemsAlreadyMatched) {}
 
+  /** Saved closing for reconcile, including explicit zero. Empty when no closing is available. */
+  private static Optional<BigDecimal> resolveClosingForReconcile(StdStockCountRowDto row) {
+    if (row.lastSavedAt() != null) {
+      BigDecimal saved =
+          row.closingStock() != null
+              ? row.closingStock().setScale(SCALE, ROUNDING)
+              : BigDecimal.ZERO.setScale(SCALE, ROUNDING);
+      return Optional.of(saved);
+    }
+    if (totalStockFromRow(row).signum() == 0) {
+      return Optional.of(BigDecimal.ZERO.setScale(SCALE, ROUNDING));
+    }
+    return Optional.empty();
+  }
+
   private ReconcileBuildResult buildReconcileLines(
       UUID orgId, UUID branchId, LocalDate businessDate) {
     StdStockCountSheetDto sheet = getSheet(orgId, branchId, businessDate);
@@ -803,7 +824,8 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     List<StdStockCountReconcileLineDto> toAdjust = new ArrayList<>();
     int matched = 0;
     for (StdStockCountRowDto row : sheet.rows()) {
-      if (row.closingStock() == null) {
+      Optional<BigDecimal> closingOpt = resolveClosingForReconcile(row);
+      if (closingOpt.isEmpty()) {
         continue;
       }
       Item item = itemsById.get(row.itemId());
@@ -814,7 +836,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
           inventoryItemService
               .getOnHandQty(orgId, branchId, row.itemId())
               .setScale(SCALE, ROUNDING);
-      BigDecimal closing = row.closingStock().setScale(SCALE, ROUNDING);
+      BigDecimal closing = closingOpt.get();
       BigDecimal variance = closing.subtract(onHand).setScale(SCALE, ROUNDING);
       if (variance.compareTo(BigDecimal.ZERO) == 0) {
         matched++;
@@ -824,5 +846,73 @@ public class StdStockCountServiceImpl implements StdStockCountService {
           new StdStockCountReconcileLineDto(row.itemId(), row.name(), closing, onHand, variance));
     }
     return new ReconcileBuildResult(toAdjust, matched);
+  }
+
+  @Override
+  @Transactional
+  public StdStockCountAutoSyncResponse autoSyncCarryForward(UUID orgId, UUID branchId) {
+    Branch branch = branchService.require(orgId, branchId);
+    ZoneId zone = ZoneId.of(branch.getTimezone());
+    LocalDate today = LocalDate.now(clock.withZone(zone));
+
+    Optional<LocalDate> maxDateOpt = snapshotRepository.findMaxBusinessDateByBranchId(branchId);
+    if (maxDateOpt.isEmpty()) {
+      return new StdStockCountAutoSyncResponse(today, 0);
+    }
+
+    LocalDate maxDate = maxDateOpt.get();
+    LocalDate startDate = maxDate.isBefore(today) ? maxDate.plusDays(1) : today;
+    LocalDate minStart = today.minusDays(autoSyncMaxBackfillDays);
+    if (startDate.isBefore(minStart)) {
+      startDate = minStart;
+    }
+
+    int rowsSynced = 0;
+    Instant now = clock.instant();
+    for (LocalDate date = startDate; !date.isAfter(today); date = date.plusDays(1)) {
+      rowsSynced += autoSyncSnapshotsForDate(orgId, branch, branchId, date, now);
+    }
+    return new StdStockCountAutoSyncResponse(today, rowsSynced);
+  }
+
+  private int autoSyncSnapshotsForDate(
+      UUID orgId, Branch branch, UUID branchId, LocalDate businessDate, Instant now) {
+    StdStockCountSheetDto sheet = getSheet(orgId, branchId, businessDate);
+    List<StdStockCountCountDto> counts = new ArrayList<>();
+    for (StdStockCountRowDto row : sheet.rows()) {
+      if (shouldAutoSyncClosingRow(row)) {
+        counts.add(
+            new StdStockCountCountDto(row.itemId(), totalStockFromRow(row), Optional.empty()));
+      }
+    }
+    if (counts.isEmpty()) {
+      return 0;
+    }
+    for (StdStockCountCountDto dto : counts) {
+      upsertSnapshot(orgId, branch, branchId, businessDate, dto, now);
+    }
+    return counts.size();
+  }
+
+  /** Mirrors frontend {@code shouldAutoSyncClosing} for carry-forward / stale-receipt cases. */
+  private static boolean shouldAutoSyncClosingRow(StdStockCountRowDto row) {
+    if (isStaleSavedClosingRow(row)) {
+      return true;
+    }
+    return row.closingStock() == null && row.openingStock().signum() > 0;
+  }
+
+  private static boolean isStaleSavedClosingRow(StdStockCountRowDto row) {
+    if (row.closingStock() == null || row.lastSavedAt() == null) {
+      return false;
+    }
+    BigDecimal total = totalStockFromRow(row);
+    return row.closingStock().compareTo(total) < 0
+        && row.closingStock().compareTo(row.openingStock()) == 0;
+  }
+
+  private static BigDecimal totalStockFromRow(StdStockCountRowDto row) {
+    BigDecimal addedToday = row.addedTodayStock() != null ? row.addedTodayStock() : BigDecimal.ZERO;
+    return row.openingStock().add(row.addedStock()).add(addedToday).setScale(SCALE, ROUNDING);
   }
 }

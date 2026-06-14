@@ -50,4 +50,20 @@ public interface StdStockCountSnapshotRepository
       """)
   List<StdStockCountSnapshot> findAllByBranchIdAndBusinessDateBefore(
       @Param("branchId") UUID branchId, @Param("businessDate") LocalDate businessDate);
+
+  @Query(
+      """
+      select max(s.businessDate) from StdStockCountSnapshot s
+      where s.branch.id = :branchId
+      """)
+  Optional<LocalDate> findMaxBusinessDateByBranchId(@Param("branchId") UUID branchId);
+
+  @Query(
+      """
+      select distinct s.org.id as orgId, s.branch.id as branchId
+      from StdStockCountSnapshot s
+      join s.branch b
+      where b.status = com.blinc.xpos.common.constants.enums.StatusCommon.ACTIVE
+      """)
+  List<BranchSnapshotTarget> findDistinctActiveBranchesWithSnapshots();
 }

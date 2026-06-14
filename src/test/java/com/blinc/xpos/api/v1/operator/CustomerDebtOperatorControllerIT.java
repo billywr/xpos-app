@@ -292,6 +292,186 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
+  void settleBulkAllocatesOldestFirstPartialOnLast() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    createDebt(orgId, branchId, customerId, 10, "2025-01-01T10:00:00Z");
+    createDebt(orgId, branchId, customerId, 50, "2025-01-02T10:00:00Z");
+    createDebt(orgId, branchId, customerId, 100, "2025-01-03T10:00:00Z");
+
+    mockMvc
+        .perform(
+            post(bulkSettleUrl(orgId, branchId, customerId))
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content("{\"paymentAmount\":90}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paymentAmount").value(90))
+        .andExpect(jsonPath("$.totalApplied").value(90))
+        .andExpect(jsonPath("$.unallocated").value(0))
+        .andExpect(jsonPath("$.allocations.length()").value(3))
+        .andExpect(jsonPath("$.allocations[0].appliedAmount").value(10))
+        .andExpect(jsonPath("$.allocations[0].outstandingAfter").value(0))
+        .andExpect(jsonPath("$.allocations[0].status").value("CLOSED"))
+        .andExpect(jsonPath("$.allocations[1].appliedAmount").value(50))
+        .andExpect(jsonPath("$.allocations[1].outstandingAfter").value(0))
+        .andExpect(jsonPath("$.allocations[1].status").value("CLOSED"))
+        .andExpect(jsonPath("$.allocations[2].appliedAmount").value(30))
+        .andExpect(jsonPath("$.allocations[2].outstandingAfter").value(70))
+        .andExpect(jsonPath("$.allocations[2].status").value("PARTIAL"));
+  }
+
+  @Test
+  void settleBulkClearsAllWhenExactTotal() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    createDebt(orgId, branchId, customerId, 10, "2025-01-01T10:00:00Z");
+    createDebt(orgId, branchId, customerId, 50, "2025-01-02T10:00:00Z");
+
+    mockMvc
+        .perform(
+            post(bulkSettleUrl(orgId, branchId, customerId))
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content("{\"paymentAmount\":60}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalApplied").value(60))
+        .andExpect(jsonPath("$.allocations.length()").value(2))
+        .andExpect(jsonPath("$.allocations[0].status").value("CLOSED"))
+        .andExpect(jsonPath("$.allocations[1].status").value("CLOSED"));
+  }
+
+  @Test
+  void settleBulkRejectsOverpayment() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    createDebt(orgId, branchId, customerId, 10, "2025-01-01T10:00:00Z");
+
+    mockMvc
+        .perform(
+            post(bulkSettleUrl(orgId, branchId, customerId))
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content("{\"paymentAmount\":11}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("PAYMENT_EXCEEDS_TOTAL"));
+  }
+
+  @Test
+  void settleBulkSingleDebtSameAsSettle() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    UUID debtId = createDebt(orgId, branchId, customerId, 100, "2025-01-01T10:00:00Z");
+
+    mockMvc
+        .perform(
+            post(bulkSettleUrl(orgId, branchId, customerId))
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content("{\"paymentAmount\":40}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.allocations.length()").value(1))
+        .andExpect(jsonPath("$.allocations[0].debtId").value(debtId.toString()))
+        .andExpect(jsonPath("$.allocations[0].appliedAmount").value(40))
+        .andExpect(jsonPath("$.allocations[0].outstandingAfter").value(60))
+        .andExpect(jsonPath("$.allocations[0].status").value("PARTIAL"));
+  }
+
+  @Test
+  void settleBulkIncludesPartialDebtOldestFirst() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID customerId = createCustomer(orgId);
+
+    UUID oldestDebtId = createDebt(orgId, branchId, customerId, 100, "2025-01-01T10:00:00Z");
+    mockMvc
+        .perform(
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts/"
+                    + oldestDebtId
+                    + "/settle")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content("{\"paymentAmount\":30}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("PARTIAL"))
+        .andExpect(jsonPath("$.outstanding").value(70));
+
+    createDebt(orgId, branchId, customerId, 50, "2025-01-02T10:00:00Z");
+
+    mockMvc
+        .perform(
+            post(bulkSettleUrl(orgId, branchId, customerId))
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content("{\"paymentAmount\":100}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.allocations.length()").value(2))
+        .andExpect(jsonPath("$.allocations[0].debtId").value(oldestDebtId.toString()))
+        .andExpect(jsonPath("$.allocations[0].appliedAmount").value(70))
+        .andExpect(jsonPath("$.allocations[0].outstandingAfter").value(0))
+        .andExpect(jsonPath("$.allocations[1].appliedAmount").value(30))
+        .andExpect(jsonPath("$.allocations[1].outstandingAfter").value(20))
+        .andExpect(jsonPath("$.allocations[1].status").value("PARTIAL"));
+  }
+
+  @Test
+  void settleBulkByNameAllocatesAcrossDuplicateCustomerRecords() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID customerA = createCustomerNamed(orgId, "Peter");
+    UUID customerB = createCustomerNamed(orgId, "Peter");
+    createDebtForCustomer(orgId, branchId, customerA, 10, "2025-01-01T10:00:00Z");
+    createDebtForCustomer(orgId, branchId, customerB, 50, "2025-01-02T10:00:00Z");
+    createDebtForCustomer(orgId, branchId, customerB, 100, "2025-01-03T10:00:00Z");
+
+    mockMvc
+        .perform(
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/debts/settle-bulk-by-name")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content("{\"customerName\":\"Peter\",\"paymentAmount\":90}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalApplied").value(90))
+        .andExpect(jsonPath("$.allocations.length()").value(3))
+        .andExpect(jsonPath("$.allocations[2].outstandingAfter").value(70));
+  }
+
+  @Test
   void updateDebtBalanceRecordsRepayment() throws Exception {
     UUID orgId = createOrg();
     UUID businessId = createBusiness(orgId);
@@ -885,6 +1065,57 @@ class CustomerDebtOperatorControllerIT extends AbstractIntegrationTest {
                     .with(adminJwt())
                     .contentType(APPLICATION_JSON)
                     .content("{\"name\":\"John Doe\",\"phone\":\"+254700000001\"}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private static String bulkSettleUrl(UUID orgId, UUID branchId, UUID customerId) {
+    return "/api/v1/operator/orgs/"
+        + orgId
+        + "/branches/"
+        + branchId
+        + "/customers/"
+        + customerId
+        + "/debts/settle-bulk";
+  }
+
+  private UUID createDebt(
+      UUID orgId, UUID branchId, UUID customerId, double amount, String createdAt)
+      throws Exception {
+    String createBody =
+        """
+        {"customerId":"%s","amount":%s,"createdAt":"%s"}
+        """
+            .formatted(customerId, amount, createdAt);
+    MvcResult createResult =
+        mockMvc
+            .perform(
+                post("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/debts")
+                    .with(operatorJwt())
+                    .contentType(APPLICATION_JSON)
+                    .content(createBody))
+            .andExpect(status().isCreated())
+            .andReturn();
+    return UUID.fromString(
+        objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText());
+  }
+
+  private UUID createDebtForCustomer(
+      UUID orgId, UUID branchId, UUID customerId, double amount, String createdAt)
+      throws Exception {
+    return createDebt(orgId, branchId, customerId, amount, createdAt);
+  }
+
+  private UUID createCustomerNamed(UUID orgId, String name) throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/customers")
+                    .with(adminJwt())
+                    .contentType(APPLICATION_JSON)
+                    .content("{\"name\":\"" + name + "\",\"phone\":\"+254700000001\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     return UUID.fromString(

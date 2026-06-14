@@ -887,6 +887,228 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
     mockMvc.perform(get(url).with(operatorJwt())).andExpect(status().isNotFound());
   }
 
+  @Test
+  void autoSyncCarryForwardPersistsTodayAfterPriorDaySave() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate priorDay = today.minusDays(1);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID itemId = createItem(orgId);
+
+    String savePrior =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":10}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put(stdStockCountBase(orgId, branchId))
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(savePrior))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(post(stdStockCountBase(orgId, branchId) + "/auto-sync").with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.date").value(today.toString()))
+        .andExpect(jsonPath("$.rowsSynced").value(1));
+
+    assertSnapshotClosingQty(branchId, itemId, today, new BigDecimal("10.000"));
+  }
+
+  @Test
+  void autoSyncCarryForwardBackfillsSkippedDays() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate threeDaysAgo = today.minusDays(3);
+    LocalDate twoDaysAgo = today.minusDays(2);
+    LocalDate yesterday = today.minusDays(1);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID itemId = createItem(orgId);
+
+    String saveThreeDaysAgo =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":10}]}
+        """
+            .formatted(threeDaysAgo, branchId, itemId);
+    mockMvc
+        .perform(
+            put(stdStockCountBase(orgId, branchId))
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(saveThreeDaysAgo))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(post(stdStockCountBase(orgId, branchId) + "/auto-sync").with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rowsSynced").value(3));
+
+    assertSnapshotClosingQty(branchId, itemId, twoDaysAgo, new BigDecimal("10.000"));
+    assertSnapshotClosingQty(branchId, itemId, yesterday, new BigDecimal("10.000"));
+    assertSnapshotClosingQty(branchId, itemId, today, new BigDecimal("10.000"));
+  }
+
+  @Test
+  void autoSyncCarryForwardIncludesGrnOnGapDay() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate threeDaysAgo = today.minusDays(3);
+    LocalDate twoDaysAgo = today.minusDays(2);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+
+    String saveThreeDaysAgo =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":10}]}
+        """
+            .formatted(threeDaysAgo, branchId, itemId);
+    mockMvc
+        .perform(
+            put(stdStockCountBase(orgId, branchId))
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(saveThreeDaysAgo))
+        .andExpect(status().isOk());
+
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 5, twoDaysAgo, zone);
+
+    mockMvc
+        .perform(post(stdStockCountBase(orgId, branchId) + "/auto-sync").with(operatorJwt()))
+        .andExpect(status().isOk());
+
+    assertSnapshotClosingQty(branchId, itemId, twoDaysAgo, new BigDecimal("15.000"));
+  }
+
+  @Test
+  void autoSyncCarryForwardDoesNotOverwriteIntentionalSalesClosing() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate priorDay = today.minusDays(1);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID itemId = createItem(orgId);
+
+    String savePrior =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":5}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put(stdStockCountBase(orgId, branchId))
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(savePrior))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(post(stdStockCountBase(orgId, branchId) + "/auto-sync").with(operatorJwt()))
+        .andExpect(status().isOk());
+
+    assertSnapshotClosingQty(branchId, itemId, priorDay, new BigDecimal("5.000"));
+    assertSnapshotCountForDate(branchId, priorDay, 1);
+  }
+
+  @Test
+  void autoSyncCarryForwardIsIdempotent() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate priorDay = today.minusDays(1);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID itemId = createItem(orgId);
+
+    String savePrior =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":8}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put(stdStockCountBase(orgId, branchId))
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(savePrior))
+        .andExpect(status().isOk());
+
+    String autoSyncUrl = stdStockCountBase(orgId, branchId) + "/auto-sync";
+    mockMvc
+        .perform(post(autoSyncUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rowsSynced").value(1));
+
+    mockMvc
+        .perform(post(autoSyncUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rowsSynced").value(0));
+
+    assertSnapshotCountForDate(branchId, today, 1);
+    assertSnapshotClosingQty(branchId, itemId, today, new BigDecimal("8.000"));
+  }
+
+  private static String stdStockCountBase(UUID orgId, UUID branchId) {
+    return "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count";
+  }
+
+  private void assertSnapshotClosingQty(
+      UUID branchId, UUID itemId, LocalDate businessDate, BigDecimal expected) {
+    BigDecimal closing =
+        jdbcTemplate.queryForObject(
+            """
+            SELECT closing_qty FROM std_stock_count_snapshot
+            WHERE branch_id = ? AND item_id = ? AND business_date = ?
+            """,
+            BigDecimal.class,
+            branchId,
+            itemId,
+            businessDate);
+    assertEquals(0, expected.compareTo(closing));
+  }
+
+  private void assertSnapshotCountForDate(UUID branchId, LocalDate businessDate, int expected) {
+    Integer count =
+        jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*) FROM std_stock_count_snapshot
+            WHERE branch_id = ? AND business_date = ?
+            """,
+            Integer.class,
+            branchId,
+            businessDate);
+    assertEquals(expected, count);
+  }
+
   private UUID createOrg() throws Exception {
     String body =
         objectMapper.writeValueAsString(
@@ -1264,6 +1486,151 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         .perform(get(previewUrl).with(operatorJwt()))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("RECONCILE_DATE_NOT_TODAY"));
+  }
+
+  @Test
+  void reconcilePreviewAdjustsWhenSavedClosingIsZeroAndOnHandPositive() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
+
+    String date = LocalDate.now().toString();
+    String saveBody =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":0}]}
+        """
+            .formatted(date, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(saveBody))
+        .andExpect(status().isOk());
+
+    String previewUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count/reconcile-preview?date="
+            + date;
+    mockMvc
+        .perform(get(previewUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.itemsAdjusted").value(1))
+        .andExpect(jsonPath("$.lines.length()").value(1))
+        .andExpect(jsonPath("$.lines[0].closingStock").value(0))
+        .andExpect(jsonPath("$.lines[0].onHandQty").value(5))
+        .andExpect(jsonPath("$.lines[0].variance").value(-5));
+
+    String reconcileBody =
+        """
+        {"date":"%s","outletId":"%s"}
+        """.formatted(date, branchId);
+    mockMvc
+        .perform(
+            post("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/std-stock-count/reconcile-inventory")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(reconcileBody))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.adjustedCount").value(1));
+
+    mockMvc
+        .perform(
+            get("/api/v1/admin/orgs/" + orgId + "/inventory-report?branchId=" + branchId)
+                .with(adminJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].onHandQty").value(0));
+  }
+
+  @Test
+  void reconcilePreviewAdjustsWhenEffectiveClosingZeroAndOnHandPositive() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID itemId = createItem(orgId);
+    jdbcTemplate.update(
+        """
+        INSERT INTO inventory_item (org_id, branch_id, item_id, on_hand_qty, reserved_qty, updated_at)
+        VALUES (?, ?, ?, ?, 0, now())
+        """,
+        orgId,
+        branchId,
+        itemId,
+        new BigDecimal("3.000"));
+
+    String previewUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count/reconcile-preview?date="
+            + LocalDate.now();
+    mockMvc
+        .perform(get(previewUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.itemsAdjusted").value(1))
+        .andExpect(jsonPath("$.lines.length()").value(1))
+        .andExpect(jsonPath("$.lines[0].closingStock").value(0))
+        .andExpect(jsonPath("$.lines[0].onHandQty").value(3))
+        .andExpect(jsonPath("$.lines[0].variance").value(-3));
+  }
+
+  @Test
+  void reconcilePreviewMatchedWhenSavedClosingZeroAndOnHandZero() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+    createGrnForItem(orgId, branchId, supplierId, itemId);
+    setOnHandQty(orgId, branchId, itemId, new BigDecimal("0.000"));
+
+    String date = LocalDate.now().toString();
+    String saveBody =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":0}]}
+        """
+            .formatted(date, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(saveBody))
+        .andExpect(status().isOk());
+
+    String previewUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count/reconcile-preview?date="
+            + date;
+    mockMvc
+        .perform(get(previewUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.itemsAdjusted").value(0))
+        .andExpect(jsonPath("$.lines.length()").value(0))
+        .andExpect(jsonPath("$.itemsAlreadyMatched").value(1));
   }
 
   @Test

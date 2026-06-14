@@ -1,6 +1,7 @@
 package com.blinc.xpos.modules.debt.service;
 
 import com.blinc.xpos.modules.debt.domain.CustomerDebt;
+import com.blinc.xpos.modules.debt.dto.CustomerDebtBulkSettleResult;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -36,6 +37,20 @@ public interface CustomerDebtService {
 
   CustomerDebt settle(
       UUID orgId, UUID debtId, java.math.BigDecimal paymentAmount, UUID settledByStaffUserId);
+
+  CustomerDebtBulkSettleResult settleCustomerDebts(
+      UUID orgId,
+      UUID branchId,
+      UUID customerId,
+      java.math.BigDecimal paymentAmount,
+      UUID settledByStaffUserId);
+
+  CustomerDebtBulkSettleResult settleCustomerDebtsByName(
+      UUID orgId,
+      UUID branchId,
+      String customerName,
+      java.math.BigDecimal paymentAmount,
+      UUID settledByStaffUserId);
 
   Page<CustomerDebt> listByBranch(UUID orgId, UUID branchId, Pageable pageable);
 

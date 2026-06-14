@@ -1,5 +1,6 @@
 package com.blinc.xpos.modules.inventory.service;
 
+import com.blinc.xpos.modules.inventory.dto.StdStockCountAutoSyncResponse;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcilePreviewDto;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountReconcileResponse;
 import com.blinc.xpos.modules.inventory.dto.StdStockCountRecordSalesResponse;
@@ -38,4 +39,10 @@ public interface StdStockCountService {
   /** Set on-hand qty to saved closing (today only); creates ADJUST stock movements for variance. */
   StdStockCountReconcileResponse reconcileInventoryToClosing(
       UUID orgId, UUID branchId, UUID staffUserId, LocalDate businessDate);
+
+  /**
+   * Persist carry-forward closings for missing/stale snapshot rows from the last saved date through
+   * today (branch timezone). Idempotent; safe to run on a schedule.
+   */
+  StdStockCountAutoSyncResponse autoSyncCarryForward(UUID orgId, UUID branchId);
 }

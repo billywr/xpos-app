@@ -6,6 +6,8 @@ import com.blinc.xpos.common.error.NotFoundException;
 import com.blinc.xpos.modules.cash.domain.Shift;
 import com.blinc.xpos.modules.cash.service.ShiftService;
 import com.blinc.xpos.modules.debt.domain.CustomerDebt;
+import com.blinc.xpos.modules.debt.dto.CustomerDebtBulkSettleAllocation;
+import com.blinc.xpos.modules.debt.dto.CustomerDebtBulkSettleResult;
 import com.blinc.xpos.modules.debt.repository.CustomerDebtRepository;
 import com.blinc.xpos.modules.debt.service.CustomerDebtService;
 import com.blinc.xpos.modules.debt.service.DebtUpdateInput;
@@ -21,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -294,28 +297,125 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
       UUID orgId, UUID debtId, BigDecimal paymentAmount, UUID settledByStaffUserId) {
     staffUserService.require(orgId, settledByStaffUserId);
     CustomerDebt debt = require(orgId, debtId);
+    validateDebtSettleable(debt);
+    validatePositivePayment(paymentAmount);
+    BigDecimal outstanding = outstandingOf(debt);
+    if (paymentAmount.compareTo(outstanding) > 0) {
+      throw new BadRequestException(
+          "PAYMENT_EXCEEDS_DEBT", "Payment exceeds the outstanding amount.");
+    }
+    applySettlement(debt, paymentAmount);
+    return customerDebtRepository.save(debt);
+  }
+
+  @Override
+  @Transactional
+  public CustomerDebtBulkSettleResult settleCustomerDebts(
+      UUID orgId,
+      UUID branchId,
+      UUID customerId,
+      BigDecimal paymentAmount,
+      UUID settledByStaffUserId) {
+    staffUserService.require(orgId, settledByStaffUserId);
+    branchService.require(orgId, branchId);
+    customerService.require(orgId, customerId);
+    validatePositivePayment(paymentAmount);
+
+    List<CustomerDebt> debts =
+        customerDebtRepository.findUnsettledByCustomerOrderByCreatedAtAsc(
+            orgId, branchId, customerId);
+    return allocatePaymentAcrossDebts(debts, paymentAmount);
+  }
+
+  @Override
+  @Transactional
+  public CustomerDebtBulkSettleResult settleCustomerDebtsByName(
+      UUID orgId,
+      UUID branchId,
+      String customerName,
+      BigDecimal paymentAmount,
+      UUID settledByStaffUserId) {
+    staffUserService.require(orgId, settledByStaffUserId);
+    branchService.require(orgId, branchId);
+    validatePositivePayment(paymentAmount);
+    if (customerName == null || customerName.trim().isEmpty()) {
+      throw new BadRequestException("CUSTOMER_NAME_REQUIRED", "Customer name is required.");
+    }
+
+    List<CustomerDebt> debts =
+        customerDebtRepository.findUnsettledByCustomerNameOrderByCreatedAtAsc(
+            orgId, branchId, customerName.trim());
+    return allocatePaymentAcrossDebts(debts, paymentAmount);
+  }
+
+  private CustomerDebtBulkSettleResult allocatePaymentAcrossDebts(
+      List<CustomerDebt> debts, BigDecimal paymentAmount) {
+    if (debts.isEmpty()) {
+      throw new BadRequestException(
+          "NO_OUTSTANDING_DEBT", "Customer has no outstanding debts at this branch.");
+    }
+
+    BigDecimal totalOutstanding =
+        debts.stream()
+            .map(CustomerDebtServiceImpl::outstandingOf)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    if (paymentAmount.compareTo(totalOutstanding) > 0) {
+      throw new BadRequestException(
+          "PAYMENT_EXCEEDS_TOTAL", "Payment exceeds the customer's total outstanding amount.");
+    }
+
+    BigDecimal remaining = paymentAmount;
+    List<CustomerDebtBulkSettleAllocation> allocations = new ArrayList<>();
+    for (CustomerDebt debt : debts) {
+      if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+        break;
+      }
+      BigDecimal outstandingBefore = outstandingOf(debt);
+      BigDecimal applied = remaining.min(outstandingBefore);
+      applySettlement(debt, applied);
+      customerDebtRepository.save(debt);
+      BigDecimal outstandingAfter = outstandingOf(debt);
+      allocations.add(
+          new CustomerDebtBulkSettleAllocation(
+              debt.getId(), applied, outstandingBefore, outstandingAfter, debt.getStatus()));
+      remaining = remaining.subtract(applied);
+    }
+
+    BigDecimal totalApplied = paymentAmount.subtract(remaining);
+    return new CustomerDebtBulkSettleResult(
+        paymentAmount, totalApplied, remaining, List.copyOf(allocations));
+  }
+
+  private static void validateDebtSettleable(CustomerDebt debt) {
     if (debt.getStatus() == CustomerDebtStatus.CANCELLED) {
       throw new BadRequestException("DEBT_CANCELLED", "Cannot settle a cancelled debt.");
     }
     if (debt.getStatus() == CustomerDebtStatus.SETTLED) {
       throw new BadRequestException("DEBT_ALREADY_SETTLED", "Debt is already fully settled.");
     }
+  }
+
+  private static void validatePositivePayment(BigDecimal paymentAmount) {
     if (paymentAmount == null || paymentAmount.compareTo(BigDecimal.ZERO) <= 0) {
       throw new BadRequestException("INVALID_PAYMENT", "Payment amount must be positive.");
     }
+  }
+
+  private static BigDecimal outstandingOf(CustomerDebt debt) {
+    BigDecimal settled =
+        debt.getAmountSettled() != null ? debt.getAmountSettled() : BigDecimal.ZERO;
+    return debt.getAmount().subtract(settled);
+  }
+
+  private static void applySettlement(CustomerDebt debt, BigDecimal paymentAmount) {
     BigDecimal newSettled =
         (debt.getAmountSettled() != null ? debt.getAmountSettled() : BigDecimal.ZERO)
             .add(paymentAmount);
-    if (newSettled.compareTo(debt.getAmount()) > 0) {
-      throw new BadRequestException(
-          "PAYMENT_EXCEEDS_DEBT", "Payment exceeds the outstanding amount.");
-    }
     debt.setAmountSettled(newSettled);
     debt.setStatus(
         newSettled.compareTo(debt.getAmount()) >= 0
             ? CustomerDebtStatus.SETTLED
             : CustomerDebtStatus.PARTIAL);
-    return customerDebtRepository.save(debt);
   }
 
   @Override

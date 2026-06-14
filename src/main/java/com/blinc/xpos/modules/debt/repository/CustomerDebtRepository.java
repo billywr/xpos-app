@@ -192,6 +192,38 @@ public interface CustomerDebtRepository
       select d from CustomerDebt d
       join fetch d.customer
       where d.org.id = :orgId and d.branch.id = :branchId
+      and d.customer.id = :customerId
+      and d.status in (
+          com.blinc.xpos.common.constants.enums.CustomerDebtStatus.OPEN,
+          com.blinc.xpos.common.constants.enums.CustomerDebtStatus.PARTIAL)
+      order by d.createdAt asc
+      """)
+  List<CustomerDebt> findUnsettledByCustomerOrderByCreatedAtAsc(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("customerId") UUID customerId);
+
+  @Query(
+      """
+      select d from CustomerDebt d
+      join fetch d.customer c
+      where d.org.id = :orgId and d.branch.id = :branchId
+      and lower(trim(c.name)) = lower(trim(:customerName))
+      and d.status in (
+          com.blinc.xpos.common.constants.enums.CustomerDebtStatus.OPEN,
+          com.blinc.xpos.common.constants.enums.CustomerDebtStatus.PARTIAL)
+      order by d.createdAt asc
+      """)
+  List<CustomerDebt> findUnsettledByCustomerNameOrderByCreatedAtAsc(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("customerName") String customerName);
+
+  @Query(
+      """
+      select d from CustomerDebt d
+      join fetch d.customer
+      where d.org.id = :orgId and d.branch.id = :branchId
       and d.status in (
           com.blinc.xpos.common.constants.enums.CustomerDebtStatus.OPEN,
           com.blinc.xpos.common.constants.enums.CustomerDebtStatus.PARTIAL)
