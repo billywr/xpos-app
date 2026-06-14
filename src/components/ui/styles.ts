@@ -75,7 +75,7 @@ export const statChipValueTones = {
 } as const;
 
 export const modalOverlay =
-  "fixed inset-0 bg-slate-900/50 backdrop-blur-sm dark:bg-slate-950/60";
+  "fixed inset-0 z-0 bg-slate-900/50 backdrop-blur-sm dark:bg-slate-950/60";
 
 export const modalPanel =
   "relative z-10 w-full rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800";

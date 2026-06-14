@@ -130,6 +130,47 @@ export async function settleDebt(
   );
 }
 
+export interface DebtBulkSettleAllocationLine {
+  debtId: string;
+  appliedAmount: number;
+  outstandingBefore: number;
+  outstandingAfter: number;
+  status: string;
+}
+
+export interface DebtBulkSettleResponse {
+  paymentAmount: number;
+  totalApplied: number;
+  unallocated: number;
+  allocations: DebtBulkSettleAllocationLine[];
+}
+
+export async function settleCustomerDebtsBulk(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  customerId: string,
+  paymentAmount: number
+): Promise<DebtBulkSettleResponse> {
+  return apiFetch<DebtBulkSettleResponse>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/customers/${customerId}/debts/settle-bulk`,
+    { token, body: { paymentAmount }, method: "POST" }
+  );
+}
+
+export async function settleCustomerDebtsBulkByName(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  customerName: string,
+  paymentAmount: number
+): Promise<DebtBulkSettleResponse> {
+  return apiFetch<DebtBulkSettleResponse>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/debts/settle-bulk-by-name`,
+    { token, body: { customerName, paymentAmount }, method: "POST" }
+  );
+}
+
 export async function cancelDebt(
   token: string | null,
   orgId: string,

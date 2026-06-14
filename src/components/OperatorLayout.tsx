@@ -14,18 +14,21 @@ import {
   UtensilsCrossed,
   X,
 } from "lucide-react";
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
 import {
   selectOrgId,
   selectOrgName,
+  selectBranchId,
   selectBranchName,
   selectTerminalName,
 } from "@/store/selectors/orgContextSelectors";
 import { selectToken, selectUsername } from "@/store/selectors/authSelectors";
 import { fetchMe } from "@/api/me";
+import { autoSyncStdStockCount } from "@/api/stdStockCount";
+import { invalidateInventoryQueries } from "@/utils/invalidateInventoryQueries";
 import { clearCredentials } from "@/store/slices/authSlice";
 import { clearContext } from "@/store/slices/orgContextSlice";
 import { clearStoredAuth } from "@/utils/authStorage";
@@ -68,16 +71,36 @@ export function OperatorLayout() {
   const token = useAppSelector(selectToken);
   const keycloakUsername = useAppSelector(selectUsername);
   const orgId = useAppSelector(selectOrgId);
+  const branchId = useAppSelector(selectBranchId);
   const orgName = useAppSelector(selectOrgName);
   const branchName = useAppSelector(selectBranchName);
   const terminalName = useAppSelector(selectTerminalName);
   const navVisibility = useNavVisibilityContextOrNull();
+  const queryClient = useQueryClient();
 
   const { data: meData } = useQuery({
     queryKey: [ME_QUERY_KEY, token, orgId],
     queryFn: () => fetchMe(token, orgId!),
     enabled: Boolean(token && orgId),
   });
+
+  const autoSyncRanRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!token || !orgId || !branchId) {
+      return;
+    }
+    const key = `${orgId}:${branchId}`;
+    if (autoSyncRanRef.current === key) {
+      return;
+    }
+    autoSyncRanRef.current = key;
+    void autoSyncStdStockCount(token, orgId, branchId)
+      .then(() => invalidateInventoryQueries(queryClient))
+      .catch(() => {
+        // Silent bootstrap — std stock page still has fallback auto-sync.
+      });
+  }, [token, orgId, branchId, queryClient]);
 
   const displayName = keycloakUsername ?? meData?.username ?? "User";
   const displayInitial = displayName.charAt(0).toUpperCase() || "U";

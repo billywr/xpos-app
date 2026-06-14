@@ -13,6 +13,7 @@ import {
   updateDebt,
   cancelDebt,
   settleDebt,
+  settleCustomerDebtsBulkByName,
   type CustomerDebtResponse,
   type CustomerDebtCreateRequest,
   type CustomerDebtUpdateRequest,
@@ -48,6 +49,11 @@ import {
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { filterRowsBySearch } from "@/utils/tableSearchMatch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import {
+  allocateCustomerDebtPayment,
+  customerTotalOutstanding,
+  normalizeCustomerName,
+} from "@/utils/allocateCustomerDebtPayment";
 import { useTableSort } from "@/hooks/useTableSort";
 import { sortTableRows } from "@/utils/tableSort";
 import { downloadDebtsPdf } from "@/utils/debtsPdf";
@@ -437,6 +443,8 @@ export function DebtsAndExpensesPage() {
   const [clearDebtSubmitting, setClearDebtSubmitting] = useState(false);
   const [settleFormOpen, setSettleFormOpen] = useState(false);
   const [settlingDebt, setSettlingDebt] = useState<CustomerDebtResponse | null>(null);
+  const [settlingCustomerName, setSettlingCustomerName] = useState("");
+  const [settleSingleDebtOnly, setSettleSingleDebtOnly] = useState(false);
   const [settleAmount, setSettleAmount] = useState("");
   const [settleSubmitting, setSettleSubmitting] = useState(false);
   const [inlinePayDebtId, setInlinePayDebtId] = useState<string | null>(null);
@@ -764,6 +772,38 @@ export function DebtsAndExpensesPage() {
     },
   });
 
+  const settleBulkMutation = useMutation({
+    mutationFn: ({
+      customerName,
+      paymentAmount,
+    }: {
+      customerName: string;
+      paymentAmount: number;
+    }) =>
+      settleCustomerDebtsBulkByName(token, orgId!, branchId!, customerName, paymentAmount),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["operator-debts"] });
+      queryClient.invalidateQueries({ queryKey: [PENDING_TOTAL_QUERY_KEY] });
+      setSettleFormOpen(false);
+      setSettlingDebt(null);
+      setSettlingCustomerName("");
+      setSettleAmount("");
+      setSettleSingleDebtOnly(false);
+      const count = result.allocations.length;
+      toast.success(
+        `${formatCurrency(result.totalApplied)} applied across ${count} debt${count === 1 ? "" : "s"} (oldest first).`,
+        { title: "Customer debt" }
+      );
+    },
+    onError: (err) => {
+      toast.error(getApiErrorMessage(err), {
+        detail: getApiErrorRequestId(err)
+          ? `Reference: ${getApiErrorRequestId(err)}`
+          : undefined,
+      });
+    },
+  });
+
   const settleMutation = useMutation({
     mutationFn: ({ debtId, paymentAmount }: { debtId: string; paymentAmount: number }) =>
       settleDebt(token, orgId!, branchId!, debtId, paymentAmount),
@@ -772,7 +812,9 @@ export function DebtsAndExpensesPage() {
       queryClient.invalidateQueries({ queryKey: [PENDING_TOTAL_QUERY_KEY] });
       setSettleFormOpen(false);
       setSettlingDebt(null);
+      setSettlingCustomerName("");
       setSettleAmount("");
+      setSettleSingleDebtOnly(false);
       toast.success("Payment recorded.", { title: "Customer debt" });
     },
     onError: (err) => {
@@ -924,25 +966,61 @@ export function DebtsAndExpensesPage() {
   );
 
   const debtsByCustomer = useMemo(() => {
-    const acc = new Map<string, number>();
+    const acc = new Map<string, { customerName: string; amount: number }>();
     for (const d of sortedDebts) {
       if (d.status === "CANCELLED") continue;
       const amt = Number(d.outstanding ?? 0);
       if (amt <= 0) continue;
-      acc.set(d.customerName, (acc.get(d.customerName) ?? 0) + amt);
+      const key = normalizeCustomerName(d.customerName);
+      const existing = acc.get(key);
+      if (existing) {
+        existing.amount += amt;
+      } else {
+        acc.set(key, { customerName: d.customerName, amount: amt });
+      }
     }
-    const total = [...acc.values()].reduce((s, a) => s + a, 0);
+    const total = [...acc.values()].reduce((s, row) => s + row.amount, 0);
     return {
-      rows: [...acc.entries()]
-        .map(([customerName, amount]) => ({
-          customerName,
-          amount,
-          pct: total > 0 ? (amount / total) * 100 : 0,
+      rows: [...acc.values()]
+        .map((row) => ({
+          ...row,
+          pct: total > 0 ? (row.amount / total) * 100 : 0,
         }))
         .sort((a, b) => b.amount - a.amount),
       total,
     };
   }, [sortedDebts]);
+
+  const settlingCustomerDebts = useMemo(() => {
+    if (!settlingCustomerName.trim()) return [];
+    const key = normalizeCustomerName(settlingCustomerName);
+    return baseDebts.filter(
+      (d) =>
+        normalizeCustomerName(d.customerName) === key &&
+        (d.status === "OPEN" || d.status === "PARTIAL") &&
+        (d.outstanding ?? 0) > 0
+    );
+  }, [baseDebts, settlingCustomerName]);
+
+  const settlingCustomerOutstanding = useMemo(
+    () => customerTotalOutstanding(settlingCustomerDebts),
+    [settlingCustomerDebts]
+  );
+
+  const settleUsesLumpSum =
+    !settleSingleDebtOnly && settlingCustomerDebts.length >= 2;
+
+  const settleMaxAmount = settleUsesLumpSum
+    ? settlingCustomerOutstanding
+    : settlingDebt?.outstanding ?? settlingCustomerDebts[0]?.outstanding ?? 0;
+
+  const allocationPreview = useMemo(() => {
+    const amount = Number.parseFloat(settleAmount);
+    if (!settleUsesLumpSum || !Number.isFinite(amount) || amount <= 0) {
+      return null;
+    }
+    return allocateCustomerDebtPayment(settlingCustomerDebts, amount);
+  }, [settleUsesLumpSum, settleAmount, settlingCustomerDebts]);
 
   const openDebtEditForm = (d: CustomerDebtResponse) => {
     setEditingDebt(d);
@@ -991,28 +1069,55 @@ export function DebtsAndExpensesPage() {
 
   const openSettleForm = (d: CustomerDebtResponse) => {
     setSettlingDebt(d);
+    setSettlingCustomerName(d.customerName);
+    setSettleSingleDebtOnly(false);
     setSettleAmount("");
     setSettleFormOpen(true);
   };
 
+  const openCustomerSettleForm = (customerName: string) => {
+    setSettlingDebt(null);
+    setSettlingCustomerName(customerName);
+    setSettleSingleDebtOnly(false);
+    setSettleAmount("");
+    setSettleFormOpen(true);
+    setDebtBreakdownOpen(false);
+  };
+
   const handleSettleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!settlingDebt) return;
+    if (!settlingCustomerName.trim()) return;
     const amount = parseFloat(settleAmount);
     if (isNaN(amount) || amount <= 0) {
       toast.error("Enter a valid payment amount.");
       return;
     }
-    if (amount > settlingDebt.outstanding) {
-      toast.error("Payment cannot exceed outstanding amount.");
+    if (amount > settleMaxAmount) {
+      toast.error(
+        settleUsesLumpSum
+          ? "Payment cannot exceed the customer's total outstanding amount."
+          : "Payment cannot exceed outstanding amount."
+      );
       return;
     }
     setSettleSubmitting(true);
     try {
-      await settleMutation.mutateAsync({
-        debtId: settlingDebt.id,
-        paymentAmount: amount,
-      });
+      if (settleUsesLumpSum) {
+        await settleBulkMutation.mutateAsync({
+          customerName: settlingCustomerName.trim(),
+          paymentAmount: amount,
+        });
+      } else {
+        const debtId = settlingDebt?.id ?? settlingCustomerDebts[0]?.id;
+        if (!debtId) {
+          toast.error("No open debt found for this customer.");
+          return;
+        }
+        await settleMutation.mutateAsync({
+          debtId,
+          paymentAmount: amount,
+        });
+      }
     } finally {
       setSettleSubmitting(false);
     }
@@ -2344,23 +2449,128 @@ export function DebtsAndExpensesPage() {
         onClose={() => {
           setSettleFormOpen(false);
           setSettlingDebt(null);
-          if (!settleSubmitting) setSettleAmount("");
+          setSettlingCustomerName("");
+          setSettleSingleDebtOnly(false);
+          if (!settleSubmitting && !settleBulkMutation.isPending) setSettleAmount("");
         }}
         title="Record payment"
+        maxWidth="max-w-xl"
       >
-        {settlingDebt && (
+        {settlingCustomerName.trim() && (
           <form onSubmit={handleSettleSubmit} className="space-y-4">
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              {settlingDebt.customerName} — outstanding {formatCurrency(settlingDebt.outstanding)}
+              {settlingCustomerName}
+              {settleUsesLumpSum
+                ? ` — total outstanding ${formatCurrency(settlingCustomerOutstanding)} across ${settlingCustomerDebts.length} debts`
+                : settlingDebt
+                  ? ` — outstanding ${formatCurrency(settlingDebt.outstanding)}`
+                  : settlingCustomerDebts[0]
+                    ? ` — outstanding ${formatCurrency(settlingCustomerDebts[0].outstanding)}`
+                    : ""}
             </p>
+            {settlingCustomerDebts.length >= 2 && (
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setSettleSingleDebtOnly(false)}
+                  className={`rounded-lg px-3 py-1.5 font-medium ${
+                    !settleSingleDebtOnly
+                      ? "bg-primary-600 text-white"
+                      : "border border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300"
+                  }`}
+                >
+                  Lump-sum (oldest first)
+                </button>
+                {settlingDebt && (
+                  <button
+                    type="button"
+                    onClick={() => setSettleSingleDebtOnly(true)}
+                    className={`rounded-lg px-3 py-1.5 font-medium ${
+                      settleSingleDebtOnly
+                        ? "bg-primary-600 text-white"
+                        : "border border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300"
+                    }`}
+                  >
+                    This debt only
+                  </button>
+                )}
+              </div>
+            )}
             <div>
-              <label htmlFor="settleAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Payment amount (KES) *</label>
-              <input id="settleAmount" type="number" step="0.01" min="0.01" max={settlingDebt.outstanding} required value={settleAmount} onChange={(e) => setSettleAmount(e.target.value)} placeholder={`Max ${formatCurrency(settlingDebt.outstanding)}`} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+              <label htmlFor="settleAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Payment amount (KES) *
+              </label>
+              <input
+                id="settleAmount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                max={settleMaxAmount}
+                required
+                value={settleAmount}
+                onChange={(e) => setSettleAmount(e.target.value)}
+                placeholder={`Max ${formatCurrency(settleMaxAmount)}`}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              />
             </div>
+            {allocationPreview && allocationPreview.allocations.length > 0 && (
+              <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-600">
+                <p className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200">
+                  Allocation preview (oldest first)
+                </p>
+                <div className="max-h-56 overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                      <tr>
+                        <th className="px-3 py-2">Recorded</th>
+                        <th className="px-3 py-2 text-left">Outstanding</th>
+                        <th className="px-3 py-2 text-left">Applied</th>
+                        <th className="px-3 py-2 text-left">After</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
+                      {allocationPreview.allocations.map((line) => (
+                        <tr key={line.debtId}>
+                          <td className="px-3 py-2 tabular-nums text-slate-600 dark:text-slate-400">
+                            {new Date(line.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-3 py-2 text-left tabular-nums">
+                            {formatAmount(line.outstandingBefore)}
+                          </td>
+                          <td className="px-3 py-2 text-left tabular-nums text-emerald-600 dark:text-emerald-400">
+                            {formatAmount(line.appliedAmount)}
+                          </td>
+                          <td className="px-3 py-2 text-left tabular-nums">
+                            {formatAmount(line.outstandingAfter)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             <div className="flex justify-end gap-3 pt-4">
-              <button type="button" onClick={() => setSettleFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
-              <button type="submit" disabled={settleSubmitting} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
-                {settleSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Banknote className="h-4 w-4" />Record payment</>}
+              <button
+                type="button"
+                onClick={() => setSettleFormOpen(false)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={settleSubmitting || settleBulkMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {settleSubmitting || settleBulkMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Banknote className="h-4 w-4" />
+                    Record payment
+                  </>
+                )}
               </button>
             </div>
           </form>
@@ -2568,12 +2778,13 @@ export function DebtsAndExpensesPage() {
                     <th className="px-6 py-3 text-left">Customer</th>
                     <th className="px-6 py-3 text-left">Outstanding (KSH)</th>
                     <th className="px-6 py-3 text-left">Share</th>
+                    <th className="px-6 py-3 text-left">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {debtsByCustomer.rows.map((r) => (
                     <tr
-                      key={r.customerName}
+                      key={normalizeCustomerName(r.customerName)}
                       className="hover:bg-slate-50 dark:hover:bg-slate-700/40"
                     >
                       <td className="px-6 py-2.5 text-left text-lg font-semibold text-slate-900 dark:text-white">
@@ -2584,6 +2795,16 @@ export function DebtsAndExpensesPage() {
                       </td>
                       <td className="px-6 py-2.5 text-left text-lg font-semibold tabular-nums text-slate-500 dark:text-slate-400">
                         {r.pct.toFixed(1)}%
+                      </td>
+                      <td className="px-6 py-2.5 text-left">
+                        <button
+                          type="button"
+                          onClick={() => openCustomerSettleForm(r.customerName)}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+                        >
+                          <Banknote className="h-4 w-4" />
+                          Pay
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -2599,6 +2820,7 @@ export function DebtsAndExpensesPage() {
                     <td className="px-6 py-4 text-left text-lg font-bold tabular-nums text-slate-600 dark:text-slate-300">
                       100%
                     </td>
+                    <td className="px-6 py-4" />
                   </tr>
                 </tfoot>
               </table>

@@ -16,6 +16,7 @@ import {
 import {
   fetchStdStockCountSheet,
   saveStdStockCount,
+  autoSyncStdStockCount,
   fetchStdStockCountSalesPreview,
   recordStdStockCountSales,
   fetchStdStockCountReconcilePreview,
@@ -407,36 +408,37 @@ export function StandardStockCountSheetPage({
   }
 
   // Save only rows the operator changed — avoids blank zero saves blocking carry-forward.
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const rows = sheet?.rows ?? [];
-      const changedRows = rows.filter((r) => isRowChanged(r));
-      if (changedRows.length === 0) {
-        return;
-      }
-      await saveStdStockCount(token, orgId, branchId, {
-        date: dateStr,
-        outletId: branchId,
-        counts: changedRows.map((r) => ({
-          itemId: r.itemId,
-          closingStock: parseClosing(r.itemId, r),
-          comments: parseCommentForSave(r.itemId, r),
-        })),
-      });
-    },
-    onSuccess: () => {
-      void invalidateInventoryQueries(queryClient);
-      void queryClient.invalidateQueries({
-        queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
-      });
-      void queryClient.invalidateQueries({
-        queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
-      });
-      setLocalClosings({});
-      setLocalComments({});
-      toast.success("Stock count saved.", { title: "Saved" });
-    },
-    onError: (err) => {
+  const saveChangedRows = useCallback(async () => {
+    const rows = sheet?.rows ?? [];
+    const changedRows = rows.filter((r) => isRowChanged(r));
+    if (changedRows.length === 0) {
+      return;
+    }
+    await saveStdStockCount(token, orgId, branchId, {
+      date: dateStr,
+      outletId: branchId,
+      counts: changedRows.map((r) => ({
+        itemId: r.itemId,
+        closingStock: parseClosing(r.itemId, r),
+        comments: parseCommentForSave(r.itemId, r),
+      })),
+    });
+  }, [sheet?.rows, token, orgId, branchId, dateStr, localClosings, localComments]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const invalidateAfterSheetSave = useCallback(() => {
+    void invalidateInventoryQueries(queryClient);
+    void queryClient.invalidateQueries({
+      queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
+    });
+    setLocalClosings({});
+    setLocalComments({});
+  }, [queryClient, token, orgId, branchId, dateStr]);
+
+  const handleSaveMutationError = useCallback(
+    (err: unknown, silent: boolean) => {
       const isDuplicateSnapshot =
         isApiFetchError(err) &&
         err.status === 409 &&
@@ -447,12 +449,33 @@ export function StandardStockCountSheetPage({
         void refetch();
         return;
       }
-      toast.error(getApiErrorMessage(err), {
-        detail: getApiErrorRequestId(err)
-          ? `Reference: ${getApiErrorRequestId(err)}`
-          : undefined,
-      });
+      if (!silent) {
+        toast.error(getApiErrorMessage(err), {
+          detail: getApiErrorRequestId(err)
+            ? `Reference: ${getApiErrorRequestId(err)}`
+            : undefined,
+        });
+      }
     },
+    [refetch, toast]
+  );
+
+  const saveMutation = useMutation({
+    mutationFn: saveChangedRows,
+    onSuccess: () => {
+      invalidateAfterSheetSave();
+      toast.success("Stock count saved.", { title: "Saved" });
+    },
+    onError: (err) => handleSaveMutationError(err, false),
+  });
+
+  /** Background carry-forward / stale-receipt sync — must not drive Save button loading state. */
+  const systemSyncMutation = useMutation({
+    mutationFn: saveChangedRows,
+    onSuccess: () => {
+      invalidateAfterSheetSave();
+    },
+    onError: (err) => handleSaveMutationError(err, true),
   });
 
   const reconcileMutation = useMutation({
@@ -566,7 +589,7 @@ export function StandardStockCountSheetPage({
   // After stock receipt (or cross-tab refetch), bump closing to total so auto-save persists carry-forward.
   useEffect(() => {
     const rows = sheet?.rows;
-    if (!rows || !canEdit || saveMutation.isPending) return;
+    if (!rows || !canEdit || saveMutation.isPending || systemSyncMutation.isPending) return;
 
     if (suppressAutoSyncUntilRefetchRef.current) {
       priorAddedStockSignatureRef.current = addedStockSignature;
@@ -605,7 +628,7 @@ export function StandardStockCountSheetPage({
     });
 
     priorAddedStockSignatureRef.current = addedStockSignature;
-  }, [sheet, addedStockSignature, canEdit, dateStr, saveMutation.isPending]);
+  }, [sheet, addedStockSignature, canEdit, dateStr, saveMutation.isPending, systemSyncMutation.isPending]);
 
   useEffect(() => {
     setPage(0);
@@ -664,14 +687,60 @@ export function StandardStockCountSheetPage({
     }
     systemSyncPendingRef.current = false;
     skipAutoSaveDebounceRef.current = true;
-    if (!saveMutation.isPending) {
-      saveMutation.mutate();
+
+    const rows = sheet?.rows ?? [];
+    const changedRows = rows.filter((r) => isRowChanged(r));
+    const onlyCarryForward =
+      changedRows.length > 0 &&
+      changedRows.every((r) => r.closingStock == null && r.openingStock > 0);
+
+    if (onlyCarryForward && token && orgId && branchId) {
+      void autoSyncStdStockCount(token, orgId, branchId)
+        .then(() => refetch())
+        .then(() => {
+          setLocalClosings({});
+          setLocalComments({});
+        })
+        .catch(() => {
+          if (!systemSyncMutation.isPending) {
+            systemSyncMutation.mutate();
+          }
+        });
+      return;
     }
-  }, [localClosings, hasChanges, hasErrors, canEdit, saveMutation]);
+
+    if (!systemSyncMutation.isPending) {
+      systemSyncMutation.mutate();
+    }
+  }, [
+    localClosings,
+    hasChanges,
+    hasErrors,
+    canEdit,
+    sheet,
+    token,
+    orgId,
+    branchId,
+    refetch,
+    systemSyncMutation,
+  ]);
 
   const hasSalesToRecord = (cachedSalesPreview?.totalQtyToRecord ?? 0) > 0;
   const noSalesToRecord =
     !hasChanges && salesPreviewFetched && salesPreviewQueryEnabled && !hasSalesToRecord;
+
+  const saveButtonActive =
+    canEdit && hasChanges && !hasErrors && !saveMutation.isPending;
+  const recordSalesButtonActive =
+    Boolean(sheet) &&
+    canEdit &&
+    Boolean(terminalId) &&
+    !hasErrors &&
+    !previewLoading &&
+    !recordSalesMutation.isPending &&
+    !saveMutation.isPending &&
+    !noSalesToRecord &&
+    !(salesPreviewLoading && !hasChanges);
 
   const reconcilePreviewQueryEnabled = Boolean(
     token && orgId && branchId && isToday && sheet && !hasChanges && !hasErrors
@@ -957,18 +1026,13 @@ export function StandardStockCountSheetPage({
             <span className="hidden xs:inline">PDF</span>
           </Button>
           )}
-          {showSaveButton && (
+          {showSaveButton && saveButtonActive && (
           <Button
             size="md"
             onClick={handleSave}
-            disabled={saveMutation.isPending || hasErrors || !canEdit || !hasChanges}
             className="px-2.5 py-1.5 sm:px-4 sm:py-2"
           >
-            {saveMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
+            <Save className="h-4 w-4" />
             <span className="hidden xs:inline">Save</span>
           </Button>
           )}
@@ -990,41 +1054,16 @@ export function StandardStockCountSheetPage({
               <span className="hidden xs:inline">Reconcile inventory</span>
             </Button>
           )}
-          {showRecordSalesButton && (
+          {showRecordSalesButton && recordSalesButtonActive && (
           <Button
             variant="success"
             size="md"
             onClick={() => void handleRecordSalesClick()}
-            disabled={
-              !sheet ||
-              !canEdit ||
-              !terminalId ||
-              hasErrors ||
-              previewLoading ||
-              recordSalesMutation.isPending ||
-              saveMutation.isPending ||
-              noSalesToRecord ||
-              (salesPreviewLoading && !hasChanges)
-            }
-            title={
-              !terminalId
-                ? "Select a terminal in context"
-                : noSalesToRecord
-                  ? "No sales to record for this date"
-                  : hasChanges
-                    ? "Save stock count first"
-                    : salesPreviewLoading
-                      ? "Checking sales to record…"
-                      : "Record sales from Sold column"
-            }
+            title="Record sales from Sold column"
             aria-label="Record sales"
             className="px-2.5 py-1.5 sm:px-4 sm:py-2"
           >
-            {previewLoading || recordSalesMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ShoppingBag className="h-4 w-4" />
-            )}
+            <ShoppingBag className="h-4 w-4" />
             <span className="hidden xs:inline">Record sales</span>
           </Button>
           )}

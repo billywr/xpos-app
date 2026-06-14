@@ -183,3 +183,20 @@ export async function reconcileStdStockCountInventory(
     { token, method: "POST", body }
   );
 }
+
+export interface StdStockCountAutoSyncResponse {
+  date: string;
+  rowsSynced: number;
+}
+
+/** Background carry-forward sync; silent — no UI toast expected. */
+export async function autoSyncStdStockCount(
+  token: string | null,
+  orgId: string,
+  branchId: string
+): Promise<StdStockCountAutoSyncResponse> {
+  return apiFetch<StdStockCountAutoSyncResponse>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/std-stock-count/auto-sync`,
+    { token, method: "POST" }
+  );
+}

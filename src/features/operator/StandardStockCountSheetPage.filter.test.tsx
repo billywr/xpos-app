@@ -156,7 +156,7 @@ describe("StandardStockCountSheetPage filter", () => {
   it("disables Record sales when terminal context is missing", async () => {
     wrap(<StandardStockCountSheetPage />);
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /record sales/i })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: /record sales/i })).not.toBeInTheDocument();
     });
   });
 
@@ -206,7 +206,7 @@ describe("StandardStockCountSheetPage filter", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /record sales/i })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: /record sales/i })).not.toBeInTheDocument();
     });
     expect(stdApi.fetchStdStockCountSalesPreview).toHaveBeenCalled();
   });
@@ -525,7 +525,7 @@ describe("StandardStockCountSheetPage save button", () => {
     await waitFor(() => {
       expect(screen.getByText("Product 1")).toBeInTheDocument();
     });
-    expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /save/i })).not.toBeInTheDocument();
   });
 
   it("disables Save when row 0 is unsaved but other rows are saved", async () => {
@@ -565,7 +565,7 @@ describe("StandardStockCountSheetPage save button", () => {
     await waitFor(() => {
       expect(screen.getByText("Product 1")).toBeInTheDocument();
     });
-    expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /save/i })).not.toBeInTheDocument();
     expect(screen.getByText(/saved:/i)).toBeInTheDocument();
   });
 
@@ -599,7 +599,7 @@ describe("StandardStockCountSheetPage save button", () => {
     fireEvent.change(closingInput, { target: { value: "6" } });
     fireEvent.blur(closingInput);
 
-    expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /save/i })).not.toBeInTheDocument();
   });
 
   it("enables Save after editing a saved closing", async () => {
@@ -922,41 +922,38 @@ describe("StandardStockCountSheetPage new day carry-forward", () => {
 
   it("auto-saves carried opening as closing on new day and disables Save after", async () => {
     const today = localTodayStr();
-    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+    const savedRow = {
+      itemId: "item-1",
+      sku: "SKU001",
+      name: "Product 1",
+      openingStock: 5,
+      addedStock: 0,
+      addedTodayStock: 0,
+      sellingPrice: 100,
+      closingStock: 5,
+      lastSavedAt: "2026-06-10T08:00:00.000Z",
+      comments: null,
+    };
+    vi.mocked(stdApi.fetchStdStockCountSheet)
+      .mockResolvedValueOnce({
+        date: today,
+        outletId: "branch-1",
+        rows: [
+          {
+            ...savedRow,
+            closingStock: null,
+            lastSavedAt: null,
+          },
+        ],
+      })
+      .mockResolvedValue({
+        date: today,
+        outletId: "branch-1",
+        rows: [savedRow],
+      });
+    vi.mocked(stdApi.autoSyncStdStockCount).mockResolvedValue({
       date: today,
-      outletId: "branch-1",
-      rows: [
-        {
-          itemId: "item-1",
-          sku: "SKU001",
-          name: "Product 1",
-          openingStock: 5,
-          addedStock: 0,
-          addedTodayStock: 0,
-          sellingPrice: 100,
-          closingStock: null,
-          lastSavedAt: null,
-          comments: null,
-        },
-      ],
-    });
-    vi.mocked(stdApi.saveStdStockCount).mockResolvedValue({
-      date: today,
-      outletId: "branch-1",
-      rows: [
-        {
-          itemId: "item-1",
-          sku: "SKU001",
-          name: "Product 1",
-          openingStock: 5,
-          addedStock: 0,
-          addedTodayStock: 0,
-          sellingPrice: 100,
-          closingStock: 5,
-          lastSavedAt: "2026-06-10T08:00:00.000Z",
-          comments: null,
-        },
-      ],
+      rowsSynced: 1,
     });
 
     wrap(<StandardStockCountSheetPage />);
@@ -966,25 +963,17 @@ describe("StandardStockCountSheetPage new day carry-forward", () => {
     });
 
     await waitFor(() => {
-      expect(stdApi.saveStdStockCount).toHaveBeenCalledTimes(1);
-      expect(stdApi.saveStdStockCount).toHaveBeenCalledWith(
+      expect(stdApi.autoSyncStdStockCount).toHaveBeenCalledTimes(1);
+      expect(stdApi.autoSyncStdStockCount).toHaveBeenCalledWith(
         "t",
         "org-1",
-        "branch-1",
-        expect.objectContaining({
-          date: today,
-          counts: [
-            expect.objectContaining({
-              itemId: "item-1",
-              closingStock: 5,
-            }),
-          ],
-        })
+        "branch-1"
       );
+      expect(stdApi.saveStdStockCount).not.toHaveBeenCalled();
     });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: /save/i })).not.toBeInTheDocument();
     });
   });
 });
