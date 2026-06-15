@@ -75,8 +75,8 @@ describe("StandardStockCountSheetPage filter", () => {
   beforeEach(() => {
     vi.mocked(stdApi.saveStdStockCount).mockReset();
     vi.mocked(stdApi.autoSyncStdStockCount).mockResolvedValue({
-      syncedDates: [],
-      syncedRowCount: 0,
+      date: localTodayStr(),
+      rowsSynced: 0,
     });
     const rows = Array.from({ length: 73 }, (_, i) => ({
       itemId: `item-${i + 1}`,
