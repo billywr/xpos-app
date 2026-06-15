@@ -78,6 +78,7 @@ import {
 } from "@/components/ui";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { useDataTable } from "@/hooks/useDataTable";
+import { usePersistedSearch } from "@/hooks/usePersistedSearch";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 
 /** YYYY-MM-DD in the browser's local calendar (not UTC). toISOString().slice(0,10) is wrong for TZ ahead of UTC. */
@@ -559,15 +560,22 @@ export function StandardStockCountSheetPage({
     );
   }, [sheet?.rows, localClosings, localComments]);
 
+  const [searchQuery, setSearchQuery] = usePersistedSearch();
+
+  const tableInputRows = useMemo(() => {
+    if (!searchQuery.trim()) return allComputedRows;
+    return allComputedRows.filter((r) => r.closingStock > 0 || r.unitsSold > 0);
+  }, [allComputedRows, searchQuery]);
+
   const {
-    searchQuery,
-    setSearchQuery,
     filteredRows: paginatedRows,
     allFilteredRows: computedRows,
     sortColumn,
     sortDirection,
     toggleSort,
-  } = useDataTable(allComputedRows, undefined, {
+  } = useDataTable(tableInputRows, undefined, {
+    searchQuery,
+    setSearchQuery,
     page,
     size: pageSize,
     setPage,

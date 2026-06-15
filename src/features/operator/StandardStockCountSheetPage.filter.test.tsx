@@ -74,6 +74,10 @@ function wrap(component: React.ReactElement) {
 describe("StandardStockCountSheetPage filter", () => {
   beforeEach(() => {
     vi.mocked(stdApi.saveStdStockCount).mockReset();
+    vi.mocked(stdApi.autoSyncStdStockCount).mockResolvedValue({
+      syncedDates: [],
+      syncedRowCount: 0,
+    });
     const rows = Array.from({ length: 73 }, (_, i) => ({
       itemId: `item-${i + 1}`,
       sku: `SKU${String(i + 1).padStart(3, "0")}`,
@@ -82,8 +86,8 @@ describe("StandardStockCountSheetPage filter", () => {
       addedStock: 0,
       addedTodayStock: 0,
       sellingPrice: 100,
-      closingStock: null,
-      lastSavedAt: null,
+      closingStock: 10,
+      lastSavedAt: "2026-06-15T08:00:00Z",
       comments: null,
     }));
     vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
@@ -150,6 +154,75 @@ describe("StandardStockCountSheetPage filter", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Product 72")).toBeInTheDocument();
+    });
+  });
+
+  it("when searching hides rows whose displayed closing and sold are both zero", async () => {
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: localTodayStr(),
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-a",
+          sku: "SKU-A",
+          name: "Balozi Zero",
+          openingStock: 0,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 0,
+          lastSavedAt: "2026-06-15T08:00:00Z",
+          comments: null,
+        },
+        {
+          itemId: "item-b",
+          sku: "SKU-B",
+          name: "Balozi Active",
+          openingStock: 0,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 5,
+          lastSavedAt: "2026-06-15T08:00:00Z",
+          comments: null,
+        },
+        {
+          itemId: "item-c",
+          sku: "SKU-C",
+          name: "Balozi Sold Out",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 0,
+          lastSavedAt: "2026-06-15T08:00:00Z",
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Balozi Zero")).toBeInTheDocument();
+      expect(screen.getByText("Balozi Active")).toBeInTheDocument();
+      expect(screen.getByText("Balozi Sold Out")).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText(/search all columns/i);
+    fireEvent.change(input, { target: { value: "Balozi" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("Balozi Active")).toBeInTheDocument();
+      expect(screen.getByText("Balozi Sold Out")).toBeInTheDocument();
+      expect(screen.queryByText("Balozi Zero")).not.toBeInTheDocument();
+    });
+
+    fireEvent.change(input, { target: { value: "" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("Balozi Zero")).toBeInTheDocument();
+      expect(screen.getByText("Balozi Active")).toBeInTheDocument();
+      expect(screen.getByText("Balozi Sold Out")).toBeInTheDocument();
     });
   });
 
