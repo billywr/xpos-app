@@ -867,6 +867,78 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
+  void getSheetOpeningReflectsClosingAfterSameDayGrnAndSales() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate priorDay = today.minusDays(1);
+    LocalDate twoDaysAgo = today.minusDays(2);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId, "K.C 250ml");
+
+    String seedOpening =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":24.25}]}
+        """
+            .formatted(twoDaysAgo, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(seedOpening))
+        .andExpect(status().isOk());
+
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 2, priorDay, zone);
+
+    String soldAfterGrnSave =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":24.75}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(soldAfterGrnSave))
+        .andExpect(status().isOk());
+
+    String urlPrior =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + priorDay;
+    mockMvc
+        .perform(get(urlPrior).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(24.25))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(2))
+        .andExpect(jsonPath("$.rows[0].closingStock").value(24.75));
+
+    String urlToday =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + today;
+    mockMvc
+        .perform(get(urlToday).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(24.75))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(0));
+  }
+
+  @Test
   void getSheetNotFoundWhenStaffNotInOrg() throws Exception {
     UUID orgId = createOrg();
     UUID otherOrgId = createOrg();

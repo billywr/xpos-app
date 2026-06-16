@@ -289,8 +289,9 @@ public class StdStockCountServiceImpl implements StdStockCountService {
 
   /**
    * Resolves effective carry-forward per item/date: when saved closing still equals opening but
-   * same-day receipts exist, uses day total (opening + added); otherwise saved closing plus
-   * receipts after {@code last_saved_at}.
+   * same-day receipts exist, uses day total (opening + added); when saved closing reflects sales
+   * after receipts (above opening, below total), uses saved closing; otherwise saved closing plus
+   * GRN lines created after {@code last_saved_at}.
    */
   private final class CarryForwardContext {
     private final UUID orgId;
@@ -373,6 +374,9 @@ public class StdStockCountServiceImpl implements StdStockCountService {
         effective = dayTotal;
       } else if (saved.compareTo(dayTotal) >= 0) {
         // Saved closing already reflects same-day receipts; only post-save stock-take adjusts.
+        effective = saved.add(lateStockTake).setScale(SCALE, ROUNDING);
+      } else if (saved.compareTo(openingOnDay) > 0) {
+        // Closing below day total after receipts (sales recorded); trust saved closing.
         effective = saved.add(lateStockTake).setScale(SCALE, ROUNDING);
       } else {
         effective = saved.add(lateGrn).add(lateStockTake).setScale(SCALE, ROUNDING);
