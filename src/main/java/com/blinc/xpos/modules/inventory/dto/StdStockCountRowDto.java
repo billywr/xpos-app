@@ -11,8 +11,10 @@ import java.util.UUID;
  * day total (opening + added); otherwise saved closing plus receipts after {@code last_saved_at}
  * (never negative). If no prior snapshot exists for the item, it is {@code 0}. {@code addedStock}
  * is the sum of {@code GrnLine} qty for active GRNs received on the sheet date only. {@code
- * addedTodayStock} is positive stock-take adjustments on the sheet date only. Frontend computes
- * totalStock (opening + addedStock + addedTodayStock), unitsSold, amount.
+ * addedTodayStock} is positive stock-take adjustments on the sheet date only. {@code
+ * firstStockAddedAt} is the earliest GRN receipt or positive stock-take adjust timestamp for the
+ * item on the sheet date (null when no stock was added). Frontend computes totalStock (opening +
+ * addedStock + addedTodayStock), unitsSold, amount.
  */
 public record StdStockCountRowDto(
     UUID itemId,
@@ -24,4 +26,5 @@ public record StdStockCountRowDto(
     BigDecimal sellingPrice,
     BigDecimal closingStock,
     Instant lastSavedAt,
+    Instant firstStockAddedAt,
     String comments) {}

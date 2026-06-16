@@ -185,6 +185,8 @@ public class StdStockCountServiceImpl implements StdStockCountService {
         loadReceiptQtyByItemForSheetDate(orgId, branchId, zone, businessDate, dayEnd);
     Map<UUID, BigDecimal> stockTakeAddedByItem =
         loadStockTakeAddedByItemForSheetDate(orgId, branchId, zone, businessDate, dayEnd);
+    Map<UUID, Instant> firstStockAddedAtByItem =
+        loadFirstStockAddedAtByItemForSheetDate(orgId, branchId, zone, businessDate, dayEnd);
 
     CarryForwardContext carryForward =
         new CarryForwardContext(orgId, branchId, zone, priorSnapshots, blankSaveDates);
@@ -213,6 +215,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
               price,
               compact(closing),
               lastSavedAt,
+              firstStockAddedAtByItem.get(itemId),
               rowComments));
     }
 
@@ -252,6 +255,36 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     return qtyByItemFromSumRows(
         stockMovementRepository.sumStockTakePositiveAdjustQtyByItemIdForBranchAndDateRange(
             orgId, branchId, rangeStartInstant, dayEnd));
+  }
+
+  /** Earliest GRN receipt or positive stock-take adjust per item on the sheet business day. */
+  private Map<UUID, Instant> loadFirstStockAddedAtByItemForSheetDate(
+      UUID orgId, UUID branchId, ZoneId zone, LocalDate businessDate, Instant dayEnd) {
+    Instant rangeStartInstant = businessDate.atStartOfDay(zone).toInstant();
+    Map<UUID, Instant> firstByItem = new HashMap<>();
+    mergeEarliestTimestampedQtyRows(
+        firstByItem,
+        grnLineRepository.findGrnLineQtyWithReceivedAtByBranchAndDayRange(
+            orgId, branchId, rangeStartInstant, dayEnd));
+    mergeEarliestTimestampedQtyRows(
+        firstByItem,
+        stockMovementRepository.findStockTakePositiveAdjustRowsByBranchAndDateRange(
+            orgId, branchId, rangeStartInstant, dayEnd));
+    return firstByItem;
+  }
+
+  private static void mergeEarliestTimestampedQtyRows(
+      Map<UUID, Instant> firstByItem, List<Object[]> rows) {
+    for (Object[] row : rows) {
+      UUID itemId = (UUID) row[0];
+      Instant at = (Instant) row[1];
+      BigDecimal qty = (BigDecimal) row[2];
+      if (qty.signum() <= 0) {
+        continue;
+      }
+      firstByItem.merge(
+          itemId, at, (existing, incoming) -> existing.isBefore(incoming) ? existing : incoming);
+    }
   }
 
   /**
@@ -903,12 +936,15 @@ public class StdStockCountServiceImpl implements StdStockCountService {
   }
 
   private static boolean isStaleSavedClosingRow(StdStockCountRowDto row) {
-    if (row.closingStock() == null || row.lastSavedAt() == null) {
+    if (row.closingStock() == null
+        || row.lastSavedAt() == null
+        || row.firstStockAddedAt() == null) {
       return false;
     }
     BigDecimal total = totalStockFromRow(row);
     return row.closingStock().compareTo(total) < 0
-        && row.closingStock().compareTo(row.openingStock()) == 0;
+        && row.closingStock().compareTo(row.openingStock()) == 0
+        && row.lastSavedAt().isBefore(row.firstStockAddedAt());
   }
 
   private static BigDecimal totalStockFromRow(StdStockCountRowDto row) {

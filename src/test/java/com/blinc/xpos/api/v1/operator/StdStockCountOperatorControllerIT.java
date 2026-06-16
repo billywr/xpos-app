@@ -1036,6 +1036,69 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
+  void autoSyncDoesNotOverwriteClosingAtOpeningAfterSameDayGrn() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate priorDay = today.minusDays(1);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId, "Kane xtra 250ml");
+
+    String seedPrior =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":6.25}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put(stdStockCountBase(orgId, branchId))
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(seedPrior))
+        .andExpect(status().isOk());
+
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 3, today, zone);
+
+    String saveToday =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":6.25}]}
+        """
+            .formatted(today, branchId, itemId);
+    mockMvc
+        .perform(
+            put(stdStockCountBase(orgId, branchId))
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(saveToday))
+        .andExpect(status().isOk());
+
+    backdateSnapshotLastSavedAt(
+        branchId, itemId, today, today.atTime(19, 0).atZone(zone).toInstant());
+
+    String urlToday = stdStockCountBase(orgId, branchId) + "?date=" + today;
+    mockMvc
+        .perform(get(urlToday).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(6.25))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(3))
+        .andExpect(jsonPath("$.rows[0].closingStock").value(6.25))
+        .andExpect(jsonPath("$.rows[0].firstStockAddedAt").exists());
+
+    mockMvc
+        .perform(post(stdStockCountBase(orgId, branchId) + "/auto-sync").with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rowsSynced").value(0));
+
+    assertSnapshotClosingQty(branchId, itemId, today, new BigDecimal("6.250"));
+  }
+
+  @Test
   void autoSyncCarryForwardIsIdempotent() throws Exception {
     ZoneId zone = ZoneId.of("Africa/Nairobi");
     LocalDate today = LocalDate.now(zone);
