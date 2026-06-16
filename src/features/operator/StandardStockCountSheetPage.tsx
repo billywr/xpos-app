@@ -121,6 +121,8 @@ interface ComputedRow {
   closingError?: string;
   /** Saved closing is below total after stock receipt; pending auto-sync save. */
   closingStale?: boolean;
+  /** Local closing differs from last saved snapshot for this row. */
+  closingUnsaved?: boolean;
 }
 
 const STANDARD_STOCK_SORT = {
@@ -223,6 +225,10 @@ function computeRow(
     isStaleSavedClosing(row) &&
     (localClosing === undefined || closing !== row.closingStock);
 
+  const closingUnsaved =
+    localClosing !== undefined &&
+    (row.closingStock == null || closing !== row.closingStock);
+
   return {
     itemId: row.itemId,
     sku: row.sku,
@@ -239,6 +245,7 @@ function computeRow(
     lastSavedAt: row.lastSavedAt,
     closingError,
     closingStale,
+    closingUnsaved,
   };
 }
 
@@ -985,11 +992,15 @@ export function StandardStockCountSheetPage({
         {sheet ? (
           <div className="flex min-w-0 items-center gap-2">
             <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search all columns…" />
-            {latestSavedAt && (
-              <span className="hidden shrink-0 text-xs text-slate-500 md:inline dark:text-slate-400">
-                Saved: {new Date(latestSavedAt).toLocaleString()}
+            {hasChanges ? (
+              <span className="hidden shrink-0 text-xs text-amber-600 md:inline dark:text-amber-400">
+                Unsaved changes
               </span>
-            )}
+            ) : latestSavedAt ? (
+              <span className="hidden shrink-0 text-xs text-slate-500 md:inline dark:text-slate-400">
+                Last saved: {new Date(latestSavedAt).toLocaleString()}
+              </span>
+            ) : null}
           </div>
         ) : (
           <div className="min-w-0 flex-1" />
@@ -1250,6 +1261,16 @@ export function StandardStockCountSheetPage({
                           {r.closingError && (
                             <span className="mt-0.5 text-xs text-red-600 dark:text-red-400">
                               {r.closingError}
+                            </span>
+                          )}
+                          {!r.closingError && r.closingStale && (
+                            <span className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
+                              Stock added — save to update
+                            </span>
+                          )}
+                          {!r.closingError && !r.closingStale && r.closingUnsaved && (
+                            <span className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
+                              Not saved
                             </span>
                           )}
                         </div>
