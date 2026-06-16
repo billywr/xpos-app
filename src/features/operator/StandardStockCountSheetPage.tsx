@@ -136,9 +136,13 @@ const STANDARD_STOCK_SORT = {
 
 /** Saved closing is stale when stock arrived after last save and closing still equals opening. */
 function isStaleSavedClosing(row: StdStockCountRowResponse): boolean {
-  if (row.closingStock == null || !row.lastSavedAt) return false;
+  if (row.closingStock == null || !row.lastSavedAt || !row.firstStockAddedAt) return false;
   const total = totalStockFromRow(row);
-  return row.closingStock < total && row.closingStock === row.openingStock;
+  return (
+    row.closingStock < total &&
+    row.closingStock === row.openingStock &&
+    row.lastSavedAt < row.firstStockAddedAt
+  );
 }
 
 interface AutoSyncClosingContext {
@@ -168,9 +172,6 @@ function shouldAutoSyncClosing(
   }
   if (saved >= total) {
     return false;
-  }
-  if (saved === row.openingStock) {
-    return true;
   }
   if (ctx.priorAdded !== undefined) {
     const priorTotal =

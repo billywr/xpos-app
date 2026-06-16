@@ -88,6 +88,7 @@ describe("StandardStockCountSheetPage filter", () => {
       sellingPrice: 100,
       closingStock: 10,
       lastSavedAt: "2026-06-15T08:00:00Z",
+      firstStockAddedAt: null,
       comments: null,
     }));
     vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
@@ -172,6 +173,7 @@ describe("StandardStockCountSheetPage filter", () => {
           sellingPrice: 100,
           closingStock: 0,
           lastSavedAt: "2026-06-15T08:00:00Z",
+          firstStockAddedAt: null,
           comments: null,
         },
         {
@@ -184,6 +186,7 @@ describe("StandardStockCountSheetPage filter", () => {
           sellingPrice: 100,
           closingStock: 5,
           lastSavedAt: "2026-06-15T08:00:00Z",
+          firstStockAddedAt: null,
           comments: null,
         },
         {
@@ -196,6 +199,7 @@ describe("StandardStockCountSheetPage filter", () => {
           sellingPrice: 100,
           closingStock: 0,
           lastSavedAt: "2026-06-15T08:00:00Z",
+          firstStockAddedAt: null,
           comments: null,
         },
       ],
@@ -576,6 +580,7 @@ describe("StandardStockCountSheetPage save button", () => {
           sellingPrice: 100,
           closingStock: 10,
           lastSavedAt: savedAt,
+          firstStockAddedAt: null,
           comments: null,
         },
         {
@@ -588,6 +593,7 @@ describe("StandardStockCountSheetPage save button", () => {
           sellingPrice: 50,
           closingStock: 5,
           lastSavedAt: savedAt,
+          firstStockAddedAt: null,
           comments: null,
         },
       ],
@@ -616,6 +622,7 @@ describe("StandardStockCountSheetPage save button", () => {
           sellingPrice: 100,
           closingStock: null,
           lastSavedAt: null,
+          firstStockAddedAt: null,
           comments: null,
         },
         {
@@ -628,6 +635,7 @@ describe("StandardStockCountSheetPage save button", () => {
           sellingPrice: 80,
           closingStock: 8,
           lastSavedAt: laterSavedAt,
+          firstStockAddedAt: null,
           comments: null,
         },
       ],
@@ -657,6 +665,7 @@ describe("StandardStockCountSheetPage save button", () => {
           sellingPrice: 100,
           closingStock: 6,
           lastSavedAt: savedAt,
+          firstStockAddedAt: null,
           comments: null,
         },
       ],
@@ -690,6 +699,7 @@ describe("StandardStockCountSheetPage save button", () => {
           sellingPrice: 100,
           closingStock: 10,
           lastSavedAt: savedAt,
+          firstStockAddedAt: null,
           comments: null,
         },
       ],
@@ -737,6 +747,7 @@ describe("StandardStockCountSheetPage save button", () => {
             sellingPrice: 100,
             closingStock: 0,
             lastSavedAt: "2026-06-08T10:00:00.000Z",
+            firstStockAddedAt: "2026-06-09T14:00:00.000Z",
             comments: null,
           },
         ],
@@ -755,6 +766,7 @@ describe("StandardStockCountSheetPage save button", () => {
             sellingPrice: 100,
             closingStock: 1,
             lastSavedAt: "2026-06-09T12:00:00.000Z",
+            firstStockAddedAt: null,
             comments: null,
           },
         ],
@@ -806,6 +818,7 @@ describe("StandardStockCountSheetPage save button", () => {
             sellingPrice: 100,
             closingStock: 1,
             lastSavedAt: "2026-06-08T10:00:00.000Z",
+            firstStockAddedAt: "2026-06-09T14:00:00.000Z",
             comments: null,
           },
         ],
@@ -824,6 +837,7 @@ describe("StandardStockCountSheetPage save button", () => {
             sellingPrice: 100,
             closingStock: 3,
             lastSavedAt: "2026-06-09T12:00:00.000Z",
+            firstStockAddedAt: null,
             comments: null,
           },
         ],
@@ -857,6 +871,43 @@ describe("StandardStockCountSheetPage save button", () => {
     10000
   );
 
+  it(
+    "does not auto-save closing at opening when save is after first stock receipt",
+    async () => {
+      const today = localTodayStr();
+      vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+        date: today,
+        outletId: "branch-1",
+        rows: [
+          {
+            itemId: "item-kane",
+            sku: "KANE250",
+            name: "Kane xtra 250ml",
+            openingStock: 6.25,
+            addedStock: 3,
+            addedTodayStock: 0,
+            sellingPrice: 280,
+            closingStock: 6.25,
+            lastSavedAt: "2026-06-15T19:00:00.000Z",
+            firstStockAddedAt: "2026-06-15T14:00:00.000Z",
+            comments: null,
+          },
+        ],
+      });
+
+      wrap(<StandardStockCountSheetPage />);
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue("6.25")).toBeInTheDocument();
+      });
+
+      await vi.advanceTimersByTimeAsync(2000);
+
+      expect(stdApi.saveStdStockCount).not.toHaveBeenCalled();
+    },
+    10000
+  );
+
   it("does not auto-save sold row when added unchanged", async () => {
     const today = localTodayStr();
     vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
@@ -873,6 +924,7 @@ describe("StandardStockCountSheetPage save button", () => {
           sellingPrice: 100,
           closingStock: 5,
           lastSavedAt: "2026-06-08T10:00:00.000Z",
+          firstStockAddedAt: null,
           comments: null,
         },
       ],
@@ -905,6 +957,7 @@ describe("StandardStockCountSheetPage save button", () => {
         sellingPrice: 100,
         closingStock: 1,
         lastSavedAt: "2026-06-09T10:00:00.000Z",
+        firstStockAddedAt: null,
         comments: null as string | null,
       };
       vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
@@ -941,7 +994,13 @@ describe("StandardStockCountSheetPage save button", () => {
         queryClient.setQueryData(sheetQuery!.queryKey, {
           date: today,
           outletId: "branch-1",
-          rows: [{ ...initialRow, addedStock: 2 }],
+          rows: [
+            {
+              ...initialRow,
+              addedStock: 2,
+              firstStockAddedAt: "2026-06-09T11:00:00.000Z",
+            },
+          ],
         });
       });
 
@@ -1005,6 +1064,7 @@ describe("StandardStockCountSheetPage new day carry-forward", () => {
       sellingPrice: 100,
       closingStock: 5,
       lastSavedAt: "2026-06-10T08:00:00.000Z",
+      firstStockAddedAt: null,
       comments: null,
     };
     vi.mocked(stdApi.fetchStdStockCountSheet)
@@ -1085,6 +1145,7 @@ describe("StandardStockCountSheetPage reconcile inventory", () => {
           sellingPrice: 100,
           closingStock: 5,
           lastSavedAt: "2026-06-09T12:00:00.000Z",
+          firstStockAddedAt: null,
           comments: null,
         },
       ],
@@ -1122,6 +1183,7 @@ describe("StandardStockCountSheetPage reconcile inventory", () => {
           sellingPrice: 100,
           closingStock: 5,
           lastSavedAt: "2026-06-09T12:00:00.000Z",
+          firstStockAddedAt: null,
           comments: null,
         },
       ],
