@@ -861,22 +861,6 @@ export function GoodsReceiptPage({
         </div>
       ) : (
         <>
-          {totalElements > 0 && (
-            <Pagination
-              position="top"
-              page={page}
-              size={size}
-              totalElements={totalElements}
-              onPageChange={setPage}
-              onSizeChange={(s) => {
-                setSize(s);
-                setPage(0);
-              }}
-              sizeOptions={[10, 15, 25, 50, 100]}
-              onRefresh={() => void refetch()}
-              isRefreshing={isFetching}
-            />
-          )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
           <div className={tableCard}>
             <div className="relative min-h-0 flex-1 overflow-auto">
@@ -1064,7 +1048,22 @@ export function GoodsReceiptPage({
                 </tbody>
               </table>
             </div>
-          </div>
+              {totalElements > 0 && (
+                <Pagination
+                  page={page}
+                  size={size}
+                  totalElements={totalElements}
+                  onPageChange={setPage}
+                  onSizeChange={(s) => {
+                    setSize(s);
+                    setPage(0);
+                  }}
+                  sizeOptions={[10, 15, 25, 50, 100]}
+                  onRefresh={() => void refetch()}
+                  isRefreshing={isFetching}
+                />
+              )}
+            </div>
 
           {grns.length > 0 && (
             <div

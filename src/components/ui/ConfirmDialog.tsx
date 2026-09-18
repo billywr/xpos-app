@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "./Button";
+import { ProgressBar } from "./ProgressBar";
 import { modalOverlay } from "./styles";
 import { cn } from "@/utils/cn";
+
 
 export type ConfirmDialogMaxWidth = "max-w-md" | "max-w-lg" | "max-w-xl" | "max-w-4xl";
 
@@ -68,7 +71,7 @@ export function ConfirmDialog({
       />
       <div
         className={cn(
-          "relative z-10 w-full rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800",
+          "relative z-10 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800",
           maxWidth,
           isExtraLarge
             ? "p-9 sm:p-12"
@@ -79,6 +82,12 @@ export function ConfirmDialog({
                 : "p-4 sm:p-6"
         )}
       >
+        {anyLoading && (
+          <div className="absolute top-0 left-0 right-0 h-1 overflow-hidden bg-slate-100 dark:bg-slate-700/80">
+            <div className="animate-indeterminate-1 rounded-full bg-primary-600 dark:bg-primary-500" />
+            <div className="animate-indeterminate-2 rounded-full bg-primary-400 dark:bg-primary-400" />
+          </div>
+        )}
         <h3
           id="confirm-dialog-title"
           className={cn(
@@ -105,6 +114,18 @@ export function ConfirmDialog({
         >
           {message}
         </p>
+
+        {anyLoading && (
+          <div className="mt-4 sm:mt-5">
+            <ProgressBar
+              indeterminate
+              size="sm"
+              label="Processing request…"
+              sublabel="Please wait"
+            />
+          </div>
+        )}
+
         <div
           className={cn(
             "flex flex-wrap justify-end gap-2 sm:gap-3",
@@ -120,7 +141,14 @@ export function ConfirmDialog({
             onClick={onConfirm}
             disabled={anyLoading}
           >
-            {loading ? "…" : confirmLabel}
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                <span>Processing…</span>
+              </span>
+            ) : (
+              confirmLabel
+            )}
           </Button>
           {trailingDangerAction ? (
             <Button
@@ -129,11 +157,19 @@ export function ConfirmDialog({
               onClick={trailingDangerAction.onClick}
               disabled={anyLoading}
             >
-              {trailingDangerAction.loading ? "…" : trailingDangerAction.label}
+              {trailingDangerAction.loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  <span>Processing…</span>
+                </span>
+              ) : (
+                trailingDangerAction.label
+              )}
             </Button>
           ) : null}
         </div>
       </div>
+
     </div>
   );
 }

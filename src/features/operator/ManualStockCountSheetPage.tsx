@@ -493,22 +493,6 @@ export function ManualStockCountSheetPage() {
 
       {!isLoading && !isError && (
         <>
-          {filteredRows.length > 0 && (
-            <Pagination
-              position="top"
-              page={page}
-              size={pageSize}
-              totalElements={filteredRows.length}
-              onPageChange={setPage}
-              onSizeChange={(s) => {
-                setPageSize(s);
-                setPage(0);
-              }}
-              sizeOptions={[10, 25, 50, 100]}
-              onRefresh={() => void refetch()}
-              isRefreshing={isFetching}
-            />
-          )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">
             ← swipe table to see all columns →
           </p>
@@ -774,10 +758,25 @@ export function ManualStockCountSheetPage() {
                       );
                     })
                   )}
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
+              {filteredRows.length > 0 && (
+                <Pagination
+                  page={page}
+                  size={pageSize}
+                  totalElements={filteredRows.length}
+                  onPageChange={setPage}
+                  onSizeChange={(s) => {
+                    setPageSize(s);
+                    setPage(0);
+                  }}
+                  sizeOptions={[10, 25, 50, 100]}
+                  onRefresh={() => void refetch()}
+                  isRefreshing={isFetching}
+                />
+              )}
             </div>
-          </div>
 
           <div className="mt-4 flex justify-end">
             <StatChip

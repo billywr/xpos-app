@@ -929,19 +929,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               )}
             </div>
           )}
-          {totalElements > 0 && (
-            <Pagination
-              position="top"
-              page={page}
-              size={size}
-              totalElements={totalElements}
-              onPageChange={setPage}
-              onSizeChange={handleSizeChange}
-              sizeOptions={[10, 15, 25, 50, 100]}
-              onRefresh={() => void refetch()}
-              isRefreshing={isRefreshing}
-            />
-          )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="relative min-h-0 flex-1 overflow-auto">
@@ -1169,6 +1156,18 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 </tbody>
               </table>
             </div>
+            {totalElements > 0 && (
+              <Pagination
+                page={page}
+                size={size}
+                totalElements={totalElements}
+                onPageChange={setPage}
+                onSizeChange={handleSizeChange}
+                sizeOptions={[10, 15, 25, 50, 100]}
+                onRefresh={() => void refetch()}
+                isRefreshing={isRefreshing}
+              />
+            )}
           </div>
 
           <SlideOver

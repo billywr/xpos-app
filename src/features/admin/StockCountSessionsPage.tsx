@@ -309,21 +309,11 @@ export function StockCountSessionsPage() {
             </div>
           ) : (
             <>
-              {totalElements > 0 && (
-                <Pagination
-                  position="top"
-                  page={page}
-                  size={PAGE_SIZE}
-                  totalElements={totalElements}
-                  onPageChange={setPage}
-                  onRefresh={() => void refetch()}
-                  isRefreshing={isFetching}
-                />
-              )}
               <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
-              <div className="relative min-h-0 flex-1 overflow-auto rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-                <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-                <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "600px" }}>
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div className="relative min-h-0 flex-1 overflow-auto">
+                  <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
+                  <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "600px" }}>
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr className="bg-slate-50 dark:bg-slate-700/50">
                       <TableRowNumberHead />
@@ -429,6 +419,17 @@ export function StockCountSessionsPage() {
                   </tbody>
                 </table>
               </div>
+              {totalElements > 0 && (
+                <Pagination
+                  page={page}
+                  size={PAGE_SIZE}
+                  totalElements={totalElements}
+                  onPageChange={setPage}
+                  onRefresh={() => void refetch()}
+                  isRefreshing={isFetching}
+                />
+              )}
+            </div>
               <ConfirmDialog
                 open={sessionToDelete !== null}
                 onClose={() => setSessionToDelete(null)}

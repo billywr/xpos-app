@@ -13,6 +13,11 @@ export default defineConfig({
   optimizeDeps: {
     include: ["jsbarcode"],
   },
+  build: {
+    rollupOptions: {
+      external: ["canvg", "html2canvas", "dompurify"],
+    },
+  },
   test: {
     environment: "jsdom",
     globals: true,

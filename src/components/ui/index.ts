@@ -70,3 +70,8 @@ export type {
   SearchableSelectOption,
   SearchableSelectProps,
 } from "../SearchableSelect";
+export { ProgressBar } from "./ProgressBar";
+export type { ProgressBarProps } from "./ProgressBar";
+export { TopProgressBar } from "./TopProgressBar";
+
+

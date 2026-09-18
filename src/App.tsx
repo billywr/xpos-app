@@ -9,7 +9,9 @@ import { clearStoredContext } from "@/utils/contextStorage";
 import { clearAllStoredTableSearch } from "@/utils/tableSearchStorage";
 import { Layout } from "@/components/Layout";
 import { AdminLayout } from "@/components/AdminLayout";
+import { TopProgressBar } from "@/components/ui/TopProgressBar";
 import { NavVisibilityProvider } from "@/components/NavVisibilityProvider";
+
 import { OperatorLayout } from "@/components/OperatorLayout";
 import { OperatorContextGuard } from "@/components/OperatorContextGuard";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -49,6 +51,7 @@ import { StandardStockCountSheetPage } from "@/features/operator/StandardStockCo
 import { ManualStockCountSheetPage } from "@/features/operator/ManualStockCountSheetPage";
 import { StockCountSessionDetailAdminPage } from "@/features/admin/StockCountSessionDetailAdminPage";
 import { StandardStockCountAdminPage } from "@/features/admin/StandardStockCountAdminPage";
+import { DebtsAndExpensesAdminPage } from "@/features/admin/DebtsAndExpensesAdminPage";
 import { AdminSettingsPage } from "@/features/admin/AdminSettingsPage";
 import { BarcodeScannerPage } from "@/features/admin/BarcodeScannerPage";
 import { MenuOrderPage } from "@/features/operator/MenuOrderPage";
@@ -75,8 +78,11 @@ function App() {
   }, [dispatch, navigate]);
 
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
+    <>
+      <TopProgressBar />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+
       <Route
         path="/"
         element={
@@ -114,6 +120,8 @@ function App() {
           <Route path="tables" element={<AdminTablesPage />} />
           <Route path="shifts" element={<ShiftsListPage />} />
           <Route path="z-report" element={<ZReportPage />} />
+          <Route path="debts" element={<DebtsAndExpensesAdminPage />} />
+          <Route path="misc-expenses" element={<Navigate to="/admin/debts" replace />} />
           <Route path="suppliers" element={<Navigate to="/admin/inventory?tab=suppliers" replace />} />
           <Route path="goods-receipt" element={<Navigate to="/admin/inventory?tab=stock" replace />} />
           <Route path="inventory" element={<InventoryReceivingPage />} />
@@ -170,7 +178,9 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+  </>
   );
 }
+
 
 export default App;

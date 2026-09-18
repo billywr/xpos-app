@@ -20,10 +20,10 @@ import {
   Smartphone,
   TrendingUp,
   Users,
-
   UtensilsCrossed,
   Wallet,
   CalendarClock,
+  HandCoins,
 } from "lucide-react";
 
 export interface AdminNavItemConfig {
@@ -67,6 +67,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItemConfig[] = [
   navItem("/operator/sales-recording", "Sales Recording", PencilLine, "Sales"),
   navItem("/admin/shifts", "Shifts", Wallet, "Sales"),
   navItem("/admin/z-report", "Z-Report", FileText, "Sales"),
+  navItem("/admin/debts", "Debts & Expenses", HandCoins, "Sales"),
   navItem("/admin/inventory", "Stock and Inventory", Package, "Inventory"),
   navItem("/admin/stock-taking-schedules", "Stock Taking", CalendarClock, "Inventory"),
   navItem("/admin/stock-count-sessions", "Manual Stock Taking", ClipboardList, "Inventory"),

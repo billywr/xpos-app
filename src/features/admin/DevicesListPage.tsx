@@ -347,20 +347,6 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
             </div>
           )}
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search devices…" className="mb-4" />
-
-          {totalElements > 0 && (
-            <Pagination
-              position="top"
-              page={page}
-              size={size}
-              totalElements={totalElements}
-              onPageChange={setPage}
-              onSizeChange={handleSizeChange}
-              sizeOptions={[10, 25, 50, 100]}
-              onRefresh={() => void refetch()}
-              isRefreshing={isRefreshing}
-            />
-          )}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="min-h-0 flex-1 overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -455,6 +441,18 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                 </tbody>
               </table>
             </div>
+            {totalElements > 0 && (
+              <Pagination
+                page={page}
+                size={size}
+                totalElements={totalElements}
+                onPageChange={setPage}
+                onSizeChange={handleSizeChange}
+                sizeOptions={[10, 25, 50, 100]}
+                onRefresh={() => void refetch()}
+                isRefreshing={isRefreshing}
+              />
+            )}
           </div>
 
           <SlideOver

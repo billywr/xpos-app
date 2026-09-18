@@ -22,8 +22,11 @@ export interface ModalProps {
   scrollable?: boolean;
   /** Max height when scrollable (default max-h-[min(90vh,48rem)]). */
   scrollMaxHeight?: string;
+  /** Shows an indeterminate progress bar along the header when an operation is pending */
+  loading?: boolean;
   className?: string;
 }
+
 
 /**
  * Centered modal dialog shell. Use for info/breakdown dialogs;
@@ -37,6 +40,7 @@ export function Modal({
   maxWidth = "max-w-lg",
   scrollable = false,
   scrollMaxHeight = "max-h-[min(90vh,48rem)]",
+  loading = false,
   className,
 }: ModalProps) {
   useEffect(() => {
@@ -65,6 +69,7 @@ export function Modal({
       <div
         className={cn(
           modalPanel,
+          "overflow-hidden",
           maxWidth,
           scrollable && cn("flex flex-col overflow-hidden", scrollMaxHeight),
           className
@@ -85,11 +90,18 @@ export function Modal({
             <X className="h-5 w-5" />
           </IconButton>
         </div>
+        {loading && (
+          <div className="relative h-1 w-full overflow-hidden bg-slate-100 dark:bg-slate-700/80">
+            <div className="animate-indeterminate-1 rounded-full bg-primary-600 dark:bg-primary-500" />
+            <div className="animate-indeterminate-2 rounded-full bg-primary-400 dark:bg-primary-400" />
+          </div>
+        )}
         <div
           className={cn(
             "p-5",
             scrollable && "flex min-h-0 flex-1 flex-col overflow-hidden"
           )}
+
         >
           {children}
         </div>

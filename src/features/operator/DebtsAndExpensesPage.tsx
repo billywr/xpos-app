@@ -347,14 +347,26 @@ type TabId = "debts" | "expenses";
 
 // ---------------------------------------------------------------------------
 // Main page component
-// ---------------------------------------------------------------------------
+export interface DebtsAndExpensesPageProps {
+  orgId?: string;
+  branchId?: string;
+  branchName?: string;
+}
 
-export function DebtsAndExpensesPage() {
+export function DebtsAndExpensesPage({
+  orgId: propOrgId,
+  branchId: propBranchId,
+  branchName: propBranchName,
+}: DebtsAndExpensesPageProps = {}) {
   const token = useAppSelector(selectToken);
   const keycloakUsername = useAppSelector(selectUsername);
-  const orgId = useAppSelector(selectOrgId);
-  const branchId = useAppSelector(selectBranchId);
-  const branchName = useAppSelector(selectBranchName);
+  const contextOrgId = useAppSelector(selectOrgId);
+  const contextBranchId = useAppSelector(selectBranchId);
+  const contextBranchName = useAppSelector(selectBranchName);
+
+  const orgId = propOrgId ?? contextOrgId;
+  const branchId = propBranchId ?? contextBranchId;
+  const branchName = propBranchName ?? contextBranchName;
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -1617,17 +1629,6 @@ export function DebtsAndExpensesPage() {
                   </div>
                 ) : (
                   <>
-                    {debtTotalElements > 0 && !debtSearchActive && (
-                      <Pagination
-                        position="top"
-                        page={debtsPage}
-                        size={DEBTS_PAGE_SIZE}
-                        totalElements={debtTotalElements}
-                        onPageChange={setDebtsPage}
-                        onRefresh={() => void refetchDebts()}
-                        isRefreshing={isDebtsFetching}
-                      />
-                    )}
                     {debtSearchActive && (
                       <p className="px-4 py-2 text-xs text-slate-500 dark:text-slate-400">
                         Showing {filteredDebts.length} match{filteredDebts.length === 1 ? "" : "es"} across all pages in the selected range.
@@ -1987,6 +1988,16 @@ export function DebtsAndExpensesPage() {
                         </tbody>
                       </table>
                     </div>
+                    {debtTotalElements > 0 && !debtSearchActive && (
+                      <Pagination
+                        page={debtsPage}
+                        size={DEBTS_PAGE_SIZE}
+                        totalElements={debtTotalElements}
+                        onPageChange={setDebtsPage}
+                        onRefresh={() => void refetchDebts()}
+                        isRefreshing={isDebtsFetching}
+                      />
+                    )}
                   </>
                 )}
               </div>
@@ -2101,17 +2112,6 @@ export function DebtsAndExpensesPage() {
                   </div>
                 ) : (
                   <>
-                    {expTotalElements > 0 && !expSearchActive && (
-                      <Pagination
-                        position="top"
-                        page={expensesPage}
-                        size={EXPENSES_PAGE_SIZE}
-                        totalElements={expTotalElements}
-                        onPageChange={setExpensesPage}
-                        onRefresh={() => void refetchExpenses()}
-                        isRefreshing={isExpensesFetching}
-                      />
-                    )}
                     {expSearchActive && (
                       <p className="px-4 py-2 text-xs text-slate-500 dark:text-slate-400">
                         Showing {filteredExpenses.length} match{filteredExpenses.length === 1 ? "" : "es"} across all pages in the selected range.
@@ -2218,6 +2218,16 @@ export function DebtsAndExpensesPage() {
                         </tbody>
                       </table>
                     </div>
+                    {expTotalElements > 0 && !expSearchActive && (
+                      <Pagination
+                        page={expensesPage}
+                        size={EXPENSES_PAGE_SIZE}
+                        totalElements={expTotalElements}
+                        onPageChange={setExpensesPage}
+                        onRefresh={() => void refetchExpenses()}
+                        isRefreshing={isExpensesFetching}
+                      />
+                    )}
                   </>
                 )}
               </div>

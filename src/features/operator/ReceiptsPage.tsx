@@ -263,22 +263,6 @@ export function ReceiptsPage() {
       ) : (
         <>
         <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search receipts…" className="mb-4" />
-        {totalElements > 0 && (
-          <Pagination
-            position="top"
-            page={page}
-            size={size}
-            totalElements={totalElements}
-            onPageChange={setPage}
-            onSizeChange={(s) => {
-              setSize(s);
-              setPage(0);
-            }}
-            sizeOptions={[10, 20, 50]}
-            onRefresh={() => void refetch()}
-            isRefreshing={isFetching}
-          />
-        )}
         <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="relative min-h-0 flex-1 overflow-auto">
@@ -389,6 +373,21 @@ export function ReceiptsPage() {
               </tbody>
             </table>
           </div>
+          {totalElements > 0 && (
+            <Pagination
+              page={page}
+              size={size}
+              totalElements={totalElements}
+              onPageChange={setPage}
+              onSizeChange={(s) => {
+                setSize(s);
+                setPage(0);
+              }}
+              sizeOptions={[10, 20, 50]}
+              onRefresh={() => void refetch()}
+              isRefreshing={isFetching}
+            />
+          )}
         </div>
         </>
       )}

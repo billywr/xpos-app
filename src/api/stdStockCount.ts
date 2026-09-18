@@ -60,11 +60,12 @@ export async function saveStdStockCount(
   token: string | null,
   orgId: string,
   branchId: string,
-  body: StdStockCountSaveRequest
+  body: StdStockCountSaveRequest,
+  options?: { signal?: AbortSignal }
 ): Promise<StdStockCountSheetResponse> {
   return apiFetch<StdStockCountSheetResponse>(
     `/api/v1/operator/orgs/${orgId}/branches/${branchId}/std-stock-count`,
-    { token, method: "PUT", body }
+    { token, method: "PUT", body, signal: options?.signal }
   );
 }
 

@@ -6,6 +6,7 @@ import { configureStore } from "@reduxjs/toolkit";
 import authReducer from "@/store/slices/authSlice";
 import orgContextReducer from "@/store/slices/orgContextSlice";
 import cartReducer from "@/store/slices/cartSlice";
+import { MemoryRouter } from "react-router-dom";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { OrgsListPage } from "./OrgsListPage";
 import * as orgsApi from "@/api/orgs";
@@ -40,7 +41,9 @@ function wrap(component: React.ReactElement) {
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          {component}
+          <MemoryRouter>
+            {component}
+          </MemoryRouter>
         </ToastProvider>
       </QueryClientProvider>
     </Provider>

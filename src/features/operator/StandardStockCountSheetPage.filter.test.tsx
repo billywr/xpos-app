@@ -30,7 +30,7 @@ function localTodayStr(): string {
   return `${y}-${m}-${day}`;
 }
 
-function wrap(component: React.ReactElement) {
+function wrap(component: React.ReactElement, terminalId: string | null = null) {
   const store = configureStore({
     reducer: {
       auth: authReducer,
@@ -51,8 +51,8 @@ function wrap(component: React.ReactElement) {
         orgName: "Acme",
         branchId: "branch-1",
         branchName: "Main",
-        terminalId: null,
-        terminalName: null,
+        terminalId,
+        terminalName: terminalId ? "Terminal 1" : null,
       },
     },
   });
@@ -1269,3 +1269,624 @@ describe("StandardStockCountSheetPage reconcile inventory", () => {
     });
   });
 });
+
+describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
+  const today = localTodayStr();
+
+  beforeEach(() => {
+    vi.mocked(stdApi.saveStdStockCount).mockReset();
+    vi.mocked(debtsApi.fetchDebts).mockResolvedValue([] as never);
+    vi.mocked(analyticsApi.fetchOperatorAnalyticsSnapshot).mockResolvedValue({
+      expenseIntelligence: { todayTotal: 0 },
+    } as never);
+    vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      totalQtyToRecord: 0,
+      totalValueToRecord: 0,
+      lines: [],
+    });
+    vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      itemsAdjusted: 0,
+      itemsAlreadyMatched: 0,
+      lines: [],
+    });
+  });
+
+  it("does not wipe out second edited cell when first save completes", async () => {
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 10,
+          lastSavedAt: "2026-06-06T10:00:00.000Z",
+          firstStockAddedAt: null,
+          comments: null,
+        },
+        {
+          itemId: "item-2",
+          sku: "SKU002",
+          name: "Product 2",
+          openingStock: 5,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 50,
+          closingStock: 5,
+          lastSavedAt: "2026-06-06T10:00:00.000Z",
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    let resolveFirstSave: (value: stdApi.StdStockCountSheetResponse) => void;
+    const savePromise = new Promise<stdApi.StdStockCountSheetResponse>((resolve) => {
+      resolveFirstSave = resolve;
+    });
+    vi.mocked(stdApi.saveStdStockCount).mockReturnValueOnce(savePromise);
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    const getClosingInputs = () =>
+      screen.getAllByRole("textbox").filter((el) => el.getAttribute("inputmode") === "decimal");
+
+    const inputs = getClosingInputs();
+    fireEvent.change(inputs[0]!, { target: { value: "8" } });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    // Wait for first cell to enter Saving... state
+    await waitFor(() => {
+      expect(inputs[0]!.closest("div")?.textContent).toContain("Saving…");
+    });
+
+    // While first save is in-flight, change second input to 3
+    fireEvent.change(inputs[1]!, { target: { value: "3" } });
+    expect(inputs[1]).toHaveValue("3");
+
+    // First cell shows Saving..., but second cell shows Not saved (NOT Saving...)
+    expect(inputs[0]!.closest("div")?.textContent).toContain("Saving…");
+    expect(inputs[1]!.closest("div")?.textContent).toContain("Not saved");
+    expect(inputs[1]!.closest("div")?.textContent).not.toContain("Saving…");
+
+    // Resolve first save
+    act(() => {
+      resolveFirstSave!({
+        date: today,
+        outletId: "branch-1",
+        rows: [
+          {
+            itemId: "item-1",
+            sku: "SKU001",
+            name: "Product 1",
+            openingStock: 10,
+            addedStock: 0,
+            addedTodayStock: 0,
+            sellingPrice: 100,
+            closingStock: 8,
+            lastSavedAt: new Date().toISOString(),
+            firstStockAddedAt: null,
+            comments: null,
+          },
+          {
+            itemId: "item-2",
+            sku: "SKU002",
+            name: "Product 2",
+            openingStock: 5,
+            addedStock: 0,
+            addedTodayStock: 0,
+            sellingPrice: 50,
+            closingStock: 5,
+            lastSavedAt: "2026-06-06T10:00:00.000Z",
+            firstStockAddedAt: null,
+            comments: null,
+          },
+        ],
+      });
+    });
+
+    // Verify second input was NOT erased or reverted
+    await waitFor(() => {
+      expect(inputs[1]).toHaveValue("3");
+    });
+  });
+
+  it("navigates down on Enter or ArrowDown key and up on ArrowUp", async () => {
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 10,
+          lastSavedAt: "2026-06-06T10:00:00.000Z",
+          firstStockAddedAt: null,
+          comments: null,
+        },
+        {
+          itemId: "item-2",
+          sku: "SKU002",
+          name: "Product 2",
+          openingStock: 5,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 50,
+          closingStock: 5,
+          lastSavedAt: "2026-06-06T10:00:00.000Z",
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    const inputs = screen
+      .getAllByRole("textbox")
+      .filter((el) => el.getAttribute("inputmode") === "decimal");
+    inputs[0]!.focus();
+    expect(document.activeElement).toBe(inputs[0]);
+
+    fireEvent.keyDown(inputs[0]!, { key: "Enter" });
+    expect(document.activeElement).toBe(inputs[1]);
+
+    fireEvent.keyDown(inputs[1]!, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(inputs[0]);
+  });
+
+  it("restores offline draft from localStorage and clears it once saved", async () => {
+    localStorage.setItem(
+      `xpos_stock_count_draft_org-1_branch-1_${today}`,
+      JSON.stringify({
+        closings: { "item-1": "7" },
+        comments: {},
+        updatedAt: Date.now(),
+      })
+    );
+
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 10,
+          lastSavedAt: "2026-06-06T10:00:00.000Z",
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    vi.mocked(stdApi.saveStdStockCount).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 7,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    // Verify value was restored from draft
+    const inputs = screen
+      .getAllByRole("textbox")
+      .filter((el) => el.getAttribute("inputmode") === "decimal");
+    expect(inputs[0]).toHaveValue("7");
+
+    // Click Save
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    // Verify localStorage draft is cleared after save succeeds
+    await waitFor(() => {
+      expect(
+        localStorage.getItem(`xpos_stock_count_draft_org-1_branch-1_${today}`)
+      ).toBeNull();
+    });
+  });
+
+  it("prevents beforeunload when unsaved changes exist", async () => {
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 10,
+          lastSavedAt: "2026-06-06T10:00:00.000Z",
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    const inputs = screen
+      .getAllByRole("textbox")
+      .filter((el) => el.getAttribute("inputmode") === "decimal");
+    fireEvent.change(inputs[0]!, { target: { value: "4" } });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /save/i })).toBeEnabled();
+    });
+
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("clicking closing cell places the cursor immediately on the right side of the digit", async () => {
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 15,
+          lastSavedAt: "2026-06-06T10:00:00.000Z",
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    const input = screen
+      .getAllByRole("textbox")
+      .find((el) => el.getAttribute("inputmode") === "decimal") as HTMLInputElement;
+
+    expect(input.value).toBe("15");
+
+    // Click on the closing cell
+    fireEvent.click(input);
+
+    expect(input.selectionStart).toBe(2);
+    expect(input.selectionEnd).toBe(2);
+  });
+
+  it("hides open, added, and price columns on mobile viewports while keeping amt, total, and sold visible", async () => {
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 5,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 15,
+          lastSavedAt: "2026-06-06T10:00:00.000Z",
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    // Check header columns
+    const openTh = screen.getByRole("columnheader", { name: /open/i });
+    expect(openTh.className).toContain("hidden xl:table-cell");
+
+    const addedTh = screen.getByRole("columnheader", { name: /added/i });
+    expect(addedTh.className).toContain("hidden xl:table-cell");
+
+    const priceTh = screen.getByRole("columnheader", { name: /price/i });
+    expect(priceTh.className).toContain("hidden xl:table-cell");
+
+    // Amt, Total and Sold remain visible across mobile
+    const amtTh = screen.getByRole("columnheader", { name: /amt/i });
+    expect(amtTh.className).not.toContain("hidden");
+
+    const totalTh = screen.getByRole("columnheader", { name: /total/i });
+    expect(totalTh.className).not.toContain("hidden");
+
+    const soldTh = screen.getByRole("columnheader", { name: /sold/i });
+    expect(soldTh.className).not.toContain("hidden");
+  });
+
+  it("shows 'Saving…' status indicator while save is in flight", async () => {
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 10,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    let resolveSave: (value: stdApi.StdStockCountSheetResponse) => void;
+    const savePromise = new Promise<stdApi.StdStockCountSheetResponse>((resolve) => {
+      resolveSave = resolve;
+    });
+    vi.mocked(stdApi.saveStdStockCount).mockReturnValueOnce(savePromise);
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    const input = screen
+      .getAllByRole("textbox")
+      .find((el) => el.getAttribute("inputmode") === "decimal") as HTMLInputElement;
+
+    // Change value to make it unsaved
+    fireEvent.change(input, { target: { value: "8" } });
+
+    // Initially shows "Not saved"
+    expect(screen.getByText("Not saved")).toBeInTheDocument();
+
+    // Trigger save (click save button)
+    const saveBtn = screen.getByRole("button", { name: /save/i });
+    fireEvent.click(saveBtn);
+
+    // While save is in-flight, it should show "Saving…"
+    await waitFor(() => {
+      expect(screen.getAllByText("Saving…").length).toBeGreaterThanOrEqual(1);
+    });
+
+    // Resolve save
+    act(() => {
+      resolveSave!({
+        date: today,
+        outletId: "branch-1",
+        rows: [
+          {
+            itemId: "item-1",
+            sku: "SKU001",
+            name: "Product 1",
+            openingStock: 10,
+            addedStock: 0,
+            addedTodayStock: 0,
+            sellingPrice: 100,
+            closingStock: 8,
+            lastSavedAt: new Date().toISOString(),
+            firstStockAddedAt: null,
+            comments: null,
+          },
+        ],
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryAllByText("Saving…")).toHaveLength(0);
+    });
+  });
+
+  it("shows Record sales and hides Reconcile when unrecorded sales exist, hiding text on small screens", async () => {
+    vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      itemsAdjusted: 1,
+      itemsAlreadyMatched: 0,
+      lines: [
+        {
+          itemId: "item-1",
+          name: "Product 1",
+          closingStock: 10,
+          onHandQty: 8,
+          variance: 2,
+        },
+      ],
+    });
+    vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      totalQtyToRecord: 2,
+      totalValueToRecord: 200,
+      lines: [
+        {
+          itemId: "item-1",
+          name: "Product 1",
+          impliedSold: 2,
+          alreadyRecorded: 0,
+          qtyToRecord: 2,
+          qtyRecorded: null,
+          unitPrice: 100,
+          lineValue: 200,
+          status: null,
+        },
+      ],
+    });
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 10,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />, "term-1");
+
+    await waitFor(() => {
+      expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    // Record sales is visible, Reconcile is strictly hidden
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /record sales/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /reconcile inventory/i })).not.toBeInTheDocument();
+
+    const recordSalesBtn = screen.getByRole("button", { name: /record sales/i });
+    const recordSalesText = recordSalesBtn.querySelector("span");
+    expect(recordSalesText?.className).toContain("hidden xl:inline");
+  });
+
+  it("shows Reconcile only after sales have been recorded and discrepancies exist", async () => {
+    vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      totalQtyToRecord: 0,
+      totalValueToRecord: 0,
+      lines: [
+        {
+          itemId: "item-1",
+          name: "Product 1",
+          impliedSold: 2,
+          alreadyRecorded: 2,
+          qtyToRecord: 0,
+          qtyRecorded: 2,
+          unitPrice: 100,
+          lineValue: 0,
+          status: null,
+        },
+      ],
+    });
+    vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      itemsAdjusted: 1,
+      itemsAlreadyMatched: 0,
+      lines: [
+        {
+          itemId: "item-1",
+          name: "Product 1",
+          closingStock: 10,
+          onHandQty: 8,
+          variance: 2,
+        },
+      ],
+    });
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 10,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />, "term-1");
+
+    await waitFor(() => {
+      expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    // Reconcile is visible, Record sales is strictly hidden
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /reconcile inventory/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /record sales/i })).not.toBeInTheDocument();
+
+    const reconcileText = screen.getByText("Reconcile inventory");
+    expect(reconcileText.className).toContain("hidden xl:inline");
+  });
+});
+

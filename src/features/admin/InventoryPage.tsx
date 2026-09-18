@@ -299,22 +299,6 @@ export function InventoryPage({
               isLoading={isAnalyticsLoading || isItemsLoading}
             />
           )}
-          {totalElements > 0 && (
-            <Pagination
-              position="top"
-              page={page}
-              size={size}
-              totalElements={totalElements}
-              onPageChange={setPage}
-              onSizeChange={(s) => {
-                setSize(s);
-                setPage(0);
-              }}
-              sizeOptions={[10, 20, 50]}
-              onRefresh={() => void refetch()}
-              isRefreshing={isRefreshing}
-            />
-          )}
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
           <div className={tableCard}>
             <div className="relative min-h-0 flex-1 overflow-auto">
@@ -425,6 +409,21 @@ export function InventoryPage({
                 </tbody>
               </table>
             </div>
+              {totalElements > 0 && (
+                <Pagination
+                  page={page}
+                  size={size}
+                  totalElements={totalElements}
+                  onPageChange={setPage}
+                  onSizeChange={(s) => {
+                    setSize(s);
+                    setPage(0);
+                  }}
+                  sizeOptions={[10, 20, 50]}
+                  onRefresh={() => void refetch()}
+                  isRefreshing={isRefreshing}
+                />
+              )}
           </div>
         </>
       )}

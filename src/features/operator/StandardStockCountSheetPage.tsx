@@ -23,6 +23,7 @@ import {
   reconcileStdStockCountInventory,
   type StdStockCountRowResponse,
   type StdStockCountSalesPreviewResponse,
+  type StdStockCountSheetResponse,
 } from "@/api/stdStockCount";
 import { fetchOperatorAnalyticsSnapshot } from "@/api/operatorAnalytics";
 import { fetchDebts } from "@/api/debts";
@@ -69,7 +70,6 @@ import {
   TableSkeleton,
   ConfirmDialog,
   tableHeadCell,
-  tableBodyCell,
   tableBodyCellNumDebts,
   tableBodyRow,
   tableStickyFirstBody,
@@ -249,6 +249,50 @@ function computeRow(
   };
 }
 
+function getDraftStorageKey(orgId: string, branchId: string, dateStr: string): string {
+  return `xpos_stock_count_draft_${orgId}_${branchId}_${dateStr}`;
+}
+
+function loadDraft(orgId: string, branchId: string, dateStr: string) {
+  try {
+    const raw = localStorage.getItem(getDraftStorageKey(orgId, branchId, dateStr));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      return {
+        closings:
+          parsed.closings && typeof parsed.closings === "object"
+            ? (parsed.closings as Record<string, string>)
+            : {},
+        comments:
+          parsed.comments && typeof parsed.comments === "object"
+            ? (parsed.comments as Record<string, string>)
+            : {},
+      };
+    }
+  } catch {}
+  return null;
+}
+
+function saveDraft(
+  orgId: string,
+  branchId: string,
+  dateStr: string,
+  closings: Record<string, string>,
+  comments: Record<string, string>
+) {
+  try {
+    if (Object.keys(closings).length === 0 && Object.keys(comments).length === 0) {
+      localStorage.removeItem(getDraftStorageKey(orgId, branchId, dateStr));
+    } else {
+      localStorage.setItem(
+        getDraftStorageKey(orgId, branchId, dateStr),
+        JSON.stringify({ closings, comments, updatedAt: Date.now() })
+      );
+    }
+  } catch {}
+}
+
 export interface StandardStockCountSheetPageProps {
   /** Override org context (for admin) */
   orgId?: string;
@@ -302,6 +346,8 @@ export function StandardStockCountSheetPage({
   const [dateStr, setDateStr] = useState(todayStr);
   const [localClosings, setLocalClosings] = useState<Record<string, string>>({});
   const [localComments, setLocalComments] = useState<Record<string, string>>({});
+  const [savingItemIds, setSavingItemIds] = useState<Set<string>>(new Set());
+  const lastKeystrokeAtRef = useRef<number>(0);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(15);
   const [debtModal, setDebtModal] = useState<"day" | "all" | null>(null);
@@ -317,6 +363,15 @@ export function StandardStockCountSheetPage({
   const skipAutoSaveDebounceRef = useRef(false);
   const systemSyncPendingRef = useRef(false);
   const suppressAutoSyncUntilRefetchRef = useRef(false);
+
+  const inFlightSnapshotRef = useRef<{
+    closings: Record<string, string>;
+    comments: Record<string, string>;
+    itemIds: Set<string>;
+  } | null>(null);
+  const pendingSaveScheduledRef = useRef(false);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const pendingFocusIndexRef = useRef<number | null>(null);
 
   const isToday = dateStr === todayStr();
   const isYesterday = dateStr === yesterdayStr();
@@ -421,9 +476,28 @@ export function StandardStockCountSheetPage({
     const rows = sheet?.rows ?? [];
     const changedRows = rows.filter((r) => isRowChanged(r));
     if (changedRows.length === 0) {
-      return;
+      return null;
     }
-    await saveStdStockCount(token, orgId, branchId, {
+
+    const itemIds = new Set(changedRows.map((r) => r.itemId));
+    setSavingItemIds(itemIds);
+    const closingsSnapshot: Record<string, string> = {};
+    const commentsSnapshot: Record<string, string> = {};
+    for (const r of changedRows) {
+      if (localClosings[r.itemId] !== undefined) {
+        closingsSnapshot[r.itemId] = localClosings[r.itemId];
+      }
+      if (localComments[r.itemId] !== undefined) {
+        commentsSnapshot[r.itemId] = localComments[r.itemId];
+      }
+    }
+    inFlightSnapshotRef.current = {
+      closings: closingsSnapshot,
+      comments: commentsSnapshot,
+      itemIds,
+    };
+
+    const response = await saveStdStockCount(token, orgId, branchId, {
       date: dateStr,
       outletId: branchId,
       counts: changedRows.map((r) => ({
@@ -432,19 +506,55 @@ export function StandardStockCountSheetPage({
         comments: parseCommentForSave(r.itemId, r),
       })),
     });
+    return response;
   }, [sheet?.rows, token, orgId, branchId, dateStr, localClosings, localComments]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const invalidateAfterSheetSave = useCallback(() => {
-    void invalidateInventoryQueries(queryClient);
-    void queryClient.invalidateQueries({
-      queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
-    });
-    setLocalClosings({});
-    setLocalComments({});
-  }, [queryClient, token, orgId, branchId, dateStr]);
+  const invalidateAfterSheetSave = useCallback(
+    (updatedSheet?: StdStockCountSheetResponse | null) => {
+      if (updatedSheet) {
+        queryClient.setQueryData(
+          ["std-stock-count", token, orgId, branchId, dateStr],
+          updatedSheet
+        );
+      } else {
+        void invalidateInventoryQueries(queryClient);
+      }
+
+      const inFlight = inFlightSnapshotRef.current;
+      if (inFlight) {
+        setLocalClosings((prev) => {
+          let hasRemaining = false;
+          const next: Record<string, string> = {};
+          for (const [id, val] of Object.entries(prev)) {
+            // Keep if not in this save, or if edited again while in-flight
+            if (inFlight.itemIds.has(id) && inFlight.closings[id] === val) {
+              continue;
+            }
+            next[id] = val;
+            hasRemaining = true;
+          }
+          return hasRemaining ? next : {};
+        });
+        setLocalComments((prev) => {
+          let hasRemaining = false;
+          const next: Record<string, string> = {};
+          for (const [id, val] of Object.entries(prev)) {
+            if (inFlight.itemIds.has(id) && inFlight.comments[id] === val) {
+              continue;
+            }
+            next[id] = val;
+            hasRemaining = true;
+          }
+          return hasRemaining ? next : {};
+        });
+        inFlightSnapshotRef.current = null;
+      } else {
+        setLocalClosings({});
+        setLocalComments({});
+      }
+    },
+    [queryClient, token, orgId, branchId, dateStr]
+  );
 
   const handleSaveMutationError = useCallback(
     (err: unknown, silent: boolean) => {
@@ -471,20 +581,66 @@ export function StandardStockCountSheetPage({
 
   const saveMutation = useMutation({
     mutationFn: saveChangedRows,
-    onSuccess: () => {
-      invalidateAfterSheetSave();
+    onSuccess: (result) => {
+      invalidateAfterSheetSave(result);
       toast.success("Stock count saved.", { title: "Saved" });
     },
-    onError: (err) => handleSaveMutationError(err, false),
+    onError: (err) => {
+      setSavingItemIds(new Set());
+      inFlightSnapshotRef.current = null;
+      handleSaveMutationError(err, false);
+    },
+    onSettled: () => {
+      setSavingItemIds(new Set());
+      if (pendingSaveScheduledRef.current) {
+        pendingSaveScheduledRef.current = false;
+        const elapsed = Date.now() - lastKeystrokeAtRef.current;
+        const remaining = Math.max(0, AUTO_SAVE_DEBOUNCE_MS - elapsed);
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = setTimeout(() => {
+          doAutoSave();
+        }, remaining);
+      } else {
+        void queryClient.invalidateQueries({
+          queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
+        });
+      }
+    },
   });
 
   /** Background carry-forward / stale-receipt sync — must not drive Save button loading state. */
   const systemSyncMutation = useMutation({
     mutationFn: saveChangedRows,
-    onSuccess: () => {
-      invalidateAfterSheetSave();
+    onSuccess: (result) => {
+      invalidateAfterSheetSave(result);
     },
-    onError: (err) => handleSaveMutationError(err, true),
+    onError: (err) => {
+      setSavingItemIds(new Set());
+      inFlightSnapshotRef.current = null;
+      handleSaveMutationError(err, true);
+    },
+    onSettled: () => {
+      setSavingItemIds(new Set());
+      if (pendingSaveScheduledRef.current) {
+        pendingSaveScheduledRef.current = false;
+        const elapsed = Date.now() - lastKeystrokeAtRef.current;
+        const remaining = Math.max(0, AUTO_SAVE_DEBOUNCE_MS - elapsed);
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = setTimeout(() => {
+          doAutoSave();
+        }, remaining);
+      } else {
+        void queryClient.invalidateQueries({
+          queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
+        });
+      }
+    },
   });
 
   const reconcileMutation = useMutation({
@@ -655,6 +811,16 @@ export function StandardStockCountSheetPage({
     setPage((p) => Math.min(p, maxPage));
   }, [computedRows.length, pageSize]);
 
+  useEffect(() => {
+    if (pendingFocusIndexRef.current !== null) {
+      const idx = pendingFocusIndexRef.current;
+      pendingFocusIndexRef.current = null;
+      requestAnimationFrame(() => {
+        inputRefs.current[idx]?.focus();
+      });
+    }
+  }, [page]);
+
   const totals = useMemo(() => {
     return computedRows.reduce(
       (acc, r) => ({
@@ -696,6 +862,46 @@ export function StandardStockCountSheetPage({
   );
 
   const hasChanges = changedItemIds.size > 0;
+
+  // Restore offline draft from localStorage if present
+  useEffect(() => {
+    if (!orgId || !branchId || !dateStr) return;
+    const draft = loadDraft(orgId, branchId, dateStr);
+    if (draft) {
+      if (Object.keys(draft.closings).length > 0) {
+        setLocalClosings((prev) =>
+          Object.keys(prev).length === 0 ? draft.closings : prev
+        );
+      }
+      if (Object.keys(draft.comments).length > 0) {
+        setLocalComments((prev) =>
+          Object.keys(prev).length === 0 ? draft.comments : prev
+        );
+      }
+    }
+  }, [orgId, branchId, dateStr]);
+
+  // Persist local edits to localStorage draft
+  useEffect(() => {
+    if (!orgId || !branchId || !dateStr) return;
+    saveDraft(orgId, branchId, dateStr, localClosings, localComments);
+  }, [orgId, branchId, dateStr, localClosings, localComments]);
+
+  // Warn user if navigating away while saves are in-flight or unsaved edits exist
+  useEffect(() => {
+    const isSaving = saveMutation.isPending || systemSyncMutation.isPending;
+    if (!hasChanges && !isSaving) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasChanges, saveMutation.isPending, systemSyncMutation.isPending]);
 
   useEffect(() => {
     if (!systemSyncPendingRef.current || !hasChanges || hasErrors || !canEdit) {
@@ -769,10 +975,14 @@ export function StandardStockCountSheetPage({
     staleTime: 30_000,
   });
 
+  const isRecordSalesVisible = Boolean(showRecordSalesButton && recordSalesButtonActive);
+
   const showReconcileButton =
     isToday &&
     !hasChanges &&
     !hasErrors &&
+    !isRecordSalesVisible &&
+    !hasSalesToRecord &&
     (cachedReconcilePreview?.itemsAdjusted ?? 0) > 0;
 
   const latestSavedAt = useMemo(() => {
@@ -922,19 +1132,34 @@ export function StandardStockCountSheetPage({
   }
 
   function handleClosingChange(itemId: string, value: string) {
+    if (!canEdit) return;
     // Allow empty, an in-progress decimal point, and up to 3 fractional digits.
     if (isValidQtyInput(value)) {
+      lastKeystrokeAtRef.current = Date.now();
       setLocalClosings((prev) => ({ ...prev, [itemId]: value }));
     }
   }
 
-  // Auto-save with 1.5s debounce after edits
+  // Auto-save with 2.5s debounce after edits to allow user to completely finish typing
+  const AUTO_SAVE_DEBOUNCE_MS = 2500;
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const doAutoSave = useCallback(() => {
-    if (!hasErrors && canEdit && hasChanges && !saveMutation.isPending) {
-      saveMutation.mutate();
+    if (hasErrors || !canEdit || !hasChanges) return;
+    const elapsed = Date.now() - lastKeystrokeAtRef.current;
+    if (elapsed < AUTO_SAVE_DEBOUNCE_MS) {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = setTimeout(
+        doAutoSave,
+        Math.max(AUTO_SAVE_DEBOUNCE_MS - elapsed, 100)
+      );
+      return;
     }
-  }, [hasErrors, canEdit, hasChanges, saveMutation]);
+    if (saveMutation.isPending || systemSyncMutation.isPending) {
+      pendingSaveScheduledRef.current = true;
+      return;
+    }
+    saveMutation.mutate();
+  }, [hasErrors, canEdit, hasChanges, saveMutation, systemSyncMutation]);
 
   useEffect(() => {
     if (!hasChanges || hasErrors || !canEdit) return;
@@ -943,11 +1168,18 @@ export function StandardStockCountSheetPage({
       return;
     }
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = setTimeout(doAutoSave, 1500);
+    autoSaveTimerRef.current = setTimeout(doAutoSave, AUTO_SAVE_DEBOUNCE_MS);
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [localClosings, localComments, hasChanges, hasErrors, canEdit, doAutoSave, saveMutation]);
+  }, [
+    localClosings,
+    localComments,
+    hasChanges,
+    hasErrors,
+    canEdit,
+    doAutoSave,
+  ]);
 
   function handleSave() {
     if (hasErrors) {
@@ -968,36 +1200,57 @@ export function StandardStockCountSheetPage({
   }
 
   return (
-    <div className={`flex flex-col overflow-hidden ${tableExpanded ? "fixed inset-0 z-40 bg-white p-2 dark:bg-slate-900" : "min-h-0 flex-1 p-6"}`}>
+    <div
+      className={`flex flex-col overflow-hidden ${
+        tableExpanded
+          ? "fixed inset-0 z-40 bg-white p-2 dark:bg-slate-900"
+          : "fixed inset-0 z-30 flex flex-col bg-slate-100 p-1.5 dark:bg-darkBg xl:relative xl:inset-auto xl:z-auto xl:min-h-0 xl:flex-1 xl:p-6"
+      }`}
+    >
       {!tableExpanded && (
-        <PageHeader
-          title="Stock Count Sheet"
-          subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = latest saved Closing before this date (0 if never saved). Added = GRN receipts on this date. Total Stock = Opening + Added + Added today. Closing = physical count (defaults to Total Stock for unsaved rows so Units Sold starts at 0; editable); Units Sold = Total Stock − Closing.`}
-          subtitleRevealOnTitleHover
-          icon={FileSpreadsheet}
-          fallbackTo="/operator"
-        />
+        <div className="hidden xl:block">
+          <PageHeader
+            title="Stock Count Sheet"
+            subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = latest saved Closing before this date (0 if never saved). Added = GRN receipts on this date. Total Stock = Opening + Added + Added today. Closing = physical count (defaults to Total Stock for unsaved rows so Units Sold starts at 0; editable); Units Sold = Total Stock − Closing.`}
+            subtitleRevealOnTitleHover
+            icon={FileSpreadsheet}
+            fallbackTo="/operator"
+          />
+        </div>
       )}
 
       {!tableExpanded && (
-        <InlineCopilot
-          screen="stock-count"
-          label="Explain variance"
-          defaultQuestion="Stock variance"
-          className="mb-3"
-        />
+        <div className="hidden xl:block">
+          <InlineCopilot
+            screen="stock-count"
+            label="Explain variance"
+            defaultQuestion="Stock variance"
+            className="mb-3"
+          />
+        </div>
       )}
 
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+      {/* Streamlined responsive action bar: search, reconcile, record sales on mobile/tablet; full controls on desktop */}
+      <div className="mb-1.5 flex items-center justify-between gap-1.5 xl:mb-3 xl:gap-4">
         {sheet ? (
-          <div className="flex min-w-0 items-center gap-2">
-            <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search all columns…" />
-            {hasChanges ? (
-              <span className="hidden shrink-0 text-xs text-amber-600 md:inline dark:text-amber-400">
-                Unsaved changes
+          <div className="flex flex-1 min-w-0 items-center gap-1.5 sm:gap-2">
+            <div className="flex-1 min-w-0 sm:flex-initial">
+              <TableSearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search all columns…"
+              />
+            </div>
+            {saveMutation.isPending ? (
+              <span className="flex items-center gap-1 shrink-0 text-xs text-amber-600 dark:text-amber-400">
+                <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" /> Saving…
+              </span>
+            ) : hasChanges ? (
+              <span className="hidden shrink-0 text-xs text-amber-600 xl:inline dark:text-amber-400">
+                {changedItemIds.size} unsaved change{changedItemIds.size > 1 ? "s" : ""}
               </span>
             ) : latestSavedAt ? (
-              <span className="hidden shrink-0 text-xs text-slate-500 md:inline dark:text-slate-400">
+              <span className="hidden shrink-0 text-xs text-slate-500 xl:inline dark:text-slate-400">
                 Last saved: {new Date(latestSavedAt).toLocaleString()}
               </span>
             ) : null}
@@ -1005,94 +1258,109 @@ export function StandardStockCountSheetPage({
         ) : (
           <div className="min-w-0 flex-1" />
         )}
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:flex-nowrap sm:gap-2">
-          <button
-            type="button"
-            onClick={goPrevDay}
-            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            aria-label="Previous day"
-          >
-            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-          </button>
-          <DatePicker
-            selected={dateStr ? parseDateStr(dateStr) : null}
-            onChange={(d: Date | null) => changeDate(d ? toDateStr(d) : todayStr())}
-            maxDate={new Date()}
-            dateFormat="dd/MM/yyyy"
-            showPopperArrow={false}
-            placeholderText="Select date"
-            className="w-[6.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 sm:w-32 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-          />
-          <button
-            type="button"
-            onClick={goNextDay}
-            disabled={isToday}
-            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            aria-label="Next day"
-          >
-            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
-          </button>
-          <span className="mx-0.5 hidden h-4 w-px bg-slate-300 sm:mx-1 sm:block dark:bg-slate-600" aria-hidden />
+
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          {/* Desktop date navigation */}
+          <div className="hidden xl:flex items-center gap-1.5 sm:gap-2">
+            <button
+              type="button"
+              onClick={goPrevDay}
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              aria-label="Previous day"
+            >
+              <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+            </button>
+            <DatePicker
+              selected={dateStr ? parseDateStr(dateStr) : null}
+              onChange={(d: Date | null) => changeDate(d ? toDateStr(d) : todayStr())}
+              maxDate={new Date()}
+              dateFormat="dd/MM/yyyy"
+              showPopperArrow={false}
+              placeholderText="Select date"
+              className="w-[6.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 sm:w-32 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+            />
+            <button
+              type="button"
+              onClick={goNextDay}
+              disabled={isToday}
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              aria-label="Next day"
+            >
+              <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+            </button>
+            <span className="mx-0.5 hidden h-4 w-px bg-slate-300 sm:mx-1 sm:block dark:bg-slate-600" aria-hidden />
+          </div>
+
+          {/* PDF button - desktop only */}
           {showPdfButton && (
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={handleDownloadPdf}
-            disabled={!sheet}
-            aria-label="Download PDF"
-            className="px-2.5 py-1.5 sm:px-4 sm:py-2"
-          >
-            <Download className="h-4 w-4" />
-            <span className="hidden xs:inline">PDF</span>
-          </Button>
-          )}
-          {showSaveButton && saveButtonActive && (
-          <Button
-            size="md"
-            onClick={handleSave}
-            className="px-2.5 py-1.5 sm:px-4 sm:py-2"
-          >
-            <Save className="h-4 w-4" />
-            <span className="hidden xs:inline">Save</span>
-          </Button>
-          )}
-          {showReconcileButton && showReconcileSetting && (
             <Button
               variant="secondary"
               size="md"
+              onClick={handleDownloadPdf}
+              disabled={!sheet}
+              aria-label="Download PDF"
+              className="hidden xl:inline-flex px-2.5 py-1.5 sm:px-4 sm:py-2"
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden xs:inline">PDF</span>
+            </Button>
+          )}
+
+          {/* Save button - desktop only */}
+          {showSaveButton && saveButtonActive && (
+            <Button
+              size="md"
+              onClick={handleSave}
+              className="hidden xl:inline-flex px-2.5 py-1.5 sm:px-4 sm:py-2"
+            >
+              <Save className="h-4 w-4" />
+              <span className="hidden xs:inline">Save</span>
+            </Button>
+          )}
+
+          {/* Reconcile button - visible on all screens */}
+          {showReconcileButton && showReconcileSetting && (
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={handleReconcileClick}
               disabled={reconcileMutation.isPending || saveMutation.isPending}
               title="Set POS on-hand to match saved closings"
               aria-label="Reconcile inventory"
-              className="px-2.5 py-1.5 sm:px-4 sm:py-2"
+              className="p-2 xl:px-3 xl:py-2 text-xs xl:text-sm shrink-0"
             >
               {reconcileMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <GitCompare className="h-4 w-4" />
+                <GitCompare className="h-4 w-4 text-primary-600 dark:text-primary-400" />
               )}
-              <span className="hidden xs:inline">Reconcile inventory</span>
+              <span className="hidden xl:inline">Reconcile inventory</span>
             </Button>
           )}
+
+          {/* Record sales button - visible on all screens */}
           {showRecordSalesButton && recordSalesButtonActive && (
-          <Button
-            variant="success"
-            size="md"
-            onClick={() => void handleRecordSalesClick()}
-            title="Record sales from Sold column"
-            aria-label="Record sales"
-            className="px-2.5 py-1.5 sm:px-4 sm:py-2"
-          >
-            <ShoppingBag className="h-4 w-4" />
-            <span className="hidden xs:inline">Record sales</span>
-          </Button>
+            <Button
+              variant="success"
+              size="sm"
+              onClick={() => void handleRecordSalesClick()}
+              title="Record sales from Sold column"
+              aria-label="Record sales"
+              disabled={salesPreviewLoading}
+              className="p-2 xl:px-3 xl:py-2 text-xs xl:text-sm shrink-0"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              <span className="hidden xl:inline">Record sales</span>
+            </Button>
           )}
+
+          {/* Expand table button - desktop only */}
           <Button
             variant="secondary"
             size="md"
             onClick={() => setTableExpanded((v) => !v)}
             title={tableExpanded ? "Exit full screen" : "Expand table"}
-            className="px-2.5 py-1.5 sm:px-4 sm:py-2"
+            className="hidden xl:inline-flex px-2.5 py-1.5 sm:px-4 sm:py-2"
             aria-label={tableExpanded ? "Exit full screen" : "Expand table"}
           >
             {tableExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
@@ -1118,41 +1386,19 @@ export function StandardStockCountSheetPage({
 
       {!isError && (isInitialLoad || sheet) && (
         <div className="flex min-h-0 flex-1 flex-col">
-          {/* Swipe hint — visible only on small screens */}
-          {computedRows.length > 0 && (
-            <Pagination
-              position="top"
-              page={page}
-              size={pageSize}
-              totalElements={computedRows.length}
-              onPageChange={setPage}
-              onSizeChange={(s) => {
-                setPageSize(s);
-                setPage(0);
-              }}
-              sizeOptions={[10, 15, 25, 50, 100]}
-              onRefresh={() => void refetch()}
-              isRefreshing={isRefreshing}
-            />
-          )}
-          <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">
-            ← swipe table to see all columns →
-          </p>
           <div className={tableCard}>
-            <div className="relative min-h-0 flex-1 overflow-auto">
-              {/* Gradient fade on right edge */}
-              <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-              <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "900px" }}>
+            <div className="relative min-h-0 flex-1 overflow-auto scrollbar-blend">
+              <table className="w-full min-w-full divide-y divide-slate-200 xl:min-w-[850px] dark:divide-slate-600">
               <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700">
                 <tr>
-                  <TableRowNumberHead />
+                  <TableRowNumberHead className="w-[2rem] min-w-[2rem] px-0.5 py-1.5 text-center text-xs font-semibold uppercase text-slate-700 sm:py-3 sm:text-base dark:text-slate-300" />
                   <SortableTableHead
                     columnKey="item"
                     label="Item"
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={`${tableStickyHeadCell} ${tableHeadCell}`}
+                    className={`${tableStickyHeadCell} ${tableHeadCell} max-w-[110px] px-2 py-1.5 text-xs sm:max-w-none sm:px-4 sm:py-3 sm:text-lg`}
                     title="Product name"
                   />
                   <SortableTableHead
@@ -1161,7 +1407,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={tableHeadCell}
+                    className={`${tableHeadCell} hidden xl:table-cell`}
                     title="Latest saved closing before this date (from your last stock count save)"
                   />
                   <SortableTableHead
@@ -1170,7 +1416,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={tableHeadCell}
+                    className={`${tableHeadCell} hidden xl:table-cell`}
                     title="GRN receipts since your last saved count through this date"
                   />
                   <SortableTableHead
@@ -1179,7 +1425,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={tableHeadCell}
+                    className={`${tableHeadCell} px-1.5 py-1.5 text-xs sm:px-4 sm:py-3 sm:text-lg`}
                     title="Opening + Added + stock-take adds; equals System when counts align with the ledger"
                   />
                   <SortableTableHead
@@ -1188,7 +1434,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={tableHeadCell}
+                    className={`${tableHeadCell} px-1.5 py-1.5 text-xs sm:px-4 sm:py-3 sm:text-lg`}
                     title="Physical count at end of day"
                   />
                   <SortableTableHead
@@ -1197,7 +1443,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={tableHeadCell}
+                    className={`${tableHeadCell} px-1.5 py-1.5 text-xs sm:px-4 sm:py-3 sm:text-lg`}
                     title="Total Stock − Closing (units sold)"
                   />
                   <SortableTableHead
@@ -1206,7 +1452,7 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={tableHeadCell}
+                    className={`${tableHeadCell} hidden xl:table-cell`}
                     title="Selling price per unit from price list"
                   />
                   <SortableTableHead
@@ -1215,30 +1461,45 @@ export function StandardStockCountSheetPage({
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
-                    className={tableHeadCell}
+                    className={`${tableHeadCell} px-1.5 py-1.5 text-xs sm:px-4 sm:py-3 sm:text-lg`}
                     title="Units Sold × Selling Price (revenue value)"
                   />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                 {isInitialLoad ? (
-                  <TableSkeleton columns={9} rows={12} />
+                  <TableSkeleton
+                    columns={9}
+                    rows={12}
+                    columnClassName={(col) => {
+                      if (col === 2 || col === 3 || col === 7) return "hidden xl:table-cell";
+                      return "";
+                    }}
+                  />
                 ) : paginatedRows.map((r, index) => (
                   <tr
                     key={r.itemId}
                     className={tableBodyRow}
                   >
-                    <TableRowNumberCell page={page} pageSize={pageSize} indexInPage={index} />
-                    <td className={tableStickyFirstBody}>
+                    <TableRowNumberCell
+                      page={page}
+                      pageSize={pageSize}
+                      indexInPage={index}
+                      className="w-[2rem] min-w-[2rem] px-0.5 py-1.5 text-center text-xs tabular-nums text-slate-600 sm:py-2.5 sm:text-base dark:text-slate-400"
+                    />
+                    <td className={`${tableStickyFirstBody} max-w-[110px] truncate px-2 py-1.5 text-xs sm:max-w-none sm:px-4 sm:py-2.5 sm:text-lg`}>
                       {r.name || "—"}
                     </td>
-                    <td className={tableBodyCellNumDebts}>{formatQty(r.openingStock)}</td>
-                    <td className={tableBodyCellNumDebts}>{formatQty(r.addedStock)}</td>
-                    <td className={tableBodyCellNumDebts}>{formatQty(r.totalStock)}</td>
-                    <td className={canEdit ? tableBodyCell : tableBodyCellNumDebts}>
+                    <td className={`${tableBodyCellNumDebts} hidden xl:table-cell`}>{formatQty(r.openingStock)}</td>
+                    <td className={`${tableBodyCellNumDebts} hidden xl:table-cell`}>{formatQty(r.addedStock)}</td>
+                    <td className="px-1.5 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400">{formatQty(r.totalStock)}</td>
+                    <td className={canEdit ? "px-1.5 py-1.5 text-left text-xs sm:px-4 sm:py-2.5 sm:text-lg" : tableBodyCellNumDebts}>
                       {canEdit ? (
                         <div className="flex flex-col">
                           <input
+                            ref={(el) => {
+                              inputRefs.current[index] = el;
+                            }}
                             type="text"
                             inputMode="decimal"
                             pattern="[0-9]*\.?[0-9]{0,2}"
@@ -1250,7 +1511,40 @@ export function StandardStockCountSheetPage({
                             onChange={(e) =>
                               handleClosingChange(r.itemId, e.target.value)
                             }
-                            className={`w-20 rounded border px-2 py-1 text-left text-lg tabular-nums sm:w-24 sm:text-xl ${
+                            onClick={(e) => {
+                              const el = e.currentTarget;
+                              const len = el.value.length;
+                              el.setSelectionRange(len, len);
+                            }}
+                            onFocus={(e) => {
+                              const el = e.currentTarget;
+                              const len = el.value.length;
+                              el.setSelectionRange(len, len);
+                            }}
+                            onKeyDown={(e) => {
+                              const maxPage = Math.max(
+                                0,
+                                Math.ceil(computedRows.length / pageSize) - 1
+                              );
+                              if (e.key === "Enter" || e.key === "ArrowDown") {
+                                e.preventDefault();
+                                if (index + 1 < paginatedRows.length) {
+                                  inputRefs.current[index + 1]?.focus();
+                                } else if (page < maxPage) {
+                                  setPage((p) => p + 1);
+                                  pendingFocusIndexRef.current = 0;
+                                }
+                              } else if (e.key === "ArrowUp") {
+                                e.preventDefault();
+                                if (index - 1 >= 0) {
+                                  inputRefs.current[index - 1]?.focus();
+                                } else if (page > 0) {
+                                  setPage((p) => p - 1);
+                                  pendingFocusIndexRef.current = pageSize - 1;
+                                }
+                              }
+                            }}
+                            className={`w-14 rounded border px-1 py-0.5 text-left text-xs font-semibold tabular-nums focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:w-24 sm:px-2 sm:py-1 sm:text-xl ${
                               r.closingError
                                 ? "border-red-500 bg-red-50 dark:border-red-600 dark:bg-red-950/20"
                                 : r.closingStale
@@ -1269,8 +1563,15 @@ export function StandardStockCountSheetPage({
                             </span>
                           )}
                           {!r.closingError && !r.closingStale && r.closingUnsaved && (
-                            <span className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
-                              Not saved
+                            <span className="mt-0.5 flex items-center gap-0.5 text-[10px] font-medium sm:text-xs">
+                              {savingItemIds.has(r.itemId) ? (
+                                <span className="flex items-center gap-1 text-sky-600 dark:text-sky-400">
+                                  <Loader2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 animate-spin shrink-0" />
+                                  Saving…
+                                </span>
+                              ) : (
+                                <span className="text-amber-600 dark:text-amber-400">Not saved</span>
+                              )}
                             </span>
                           )}
                         </div>
@@ -1278,9 +1579,9 @@ export function StandardStockCountSheetPage({
                         r.closingStock
                       )}
                     </td>
-                    <td className={tableBodyCellNumDebts}>{formatQty(r.unitsSold)}</td>
-                    <td className={tableBodyCellNumDebts}>{formatAmount(r.sellingPrice)}</td>
-                    <td className={`${tableBodyCellNumDebts} font-bold text-slate-700 dark:text-slate-300`}>
+                    <td className="px-1.5 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400">{formatQty(r.unitsSold)}</td>
+                    <td className={`${tableBodyCellNumDebts} hidden xl:table-cell`}>{formatAmount(r.sellingPrice)}</td>
+                    <td className="px-1.5 py-1.5 text-left text-xs tabular-nums font-bold text-slate-700 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-300">
                       {formatAmount(r.amount)}
                     </td>
                   </tr>
@@ -1288,9 +1589,60 @@ export function StandardStockCountSheetPage({
               </tbody>
             </table>
             </div>
+
+            {computedRows.length > 0 && (
+              <div className="hidden xl:block">
+                <Pagination
+                  page={page}
+                  size={pageSize}
+                  totalElements={computedRows.length}
+                  onPageChange={setPage}
+                  onSizeChange={(s) => {
+                    setPageSize(s);
+                    setPage(0);
+                  }}
+                  sizeOptions={[10, 15, 25, 50, 100, 200]}
+                  onRefresh={() => void refetch()}
+                  isRefreshing={isRefreshing}
+                />
+              </div>
+            )}
+
+            {/* Mobile/tablet-only compact pager at bottom of table */}
+            {computedRows.length > pageSize && (
+              <div className="flex shrink-0 items-center justify-between border-t border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 xl:hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                <span className="font-medium">
+                  {page * pageSize + 1}–{Math.min((page + 1) * pageSize, computedRows.length)} of {computedRows.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="rounded p-1 text-slate-600 hover:bg-slate-200 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-700"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="font-semibold">
+                    {page + 1} / {Math.ceil(computedRows.length / pageSize)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(Math.ceil(computedRows.length / pageSize) - 1, p + 1))}
+                    disabled={page >= Math.ceil(computedRows.length / pageSize) - 1}
+                    className="rounded p-1 text-slate-600 hover:bg-slate-200 disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-700"
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className={`mt-4 flex flex-wrap justify-end gap-1.5 sm:gap-3 ${tableExpanded ? "hidden" : ""}`}>
+          <div className={`mt-4 hidden xl:flex flex-wrap justify-end gap-1.5 sm:gap-3 ${tableExpanded ? "!hidden" : ""}`}>
+
             <StatChip
               label="Today Debts"
               value={formatCurrency(dayDebtsTotal)}

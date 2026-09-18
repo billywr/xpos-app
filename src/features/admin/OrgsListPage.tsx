@@ -279,27 +279,12 @@ export function OrgsListPage() {
           </Button>
         }
         toolbar={
-          <>
-            <TableSearchInput
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search organizations…"
-              className="mb-4"
-            />
-            {totalElements > 0 && (
-              <Pagination
-                position="top"
-                page={page}
-                size={size}
-                totalElements={totalElements}
-                onPageChange={setPage}
-                onSizeChange={handleSizeChange}
-                sizeOptions={[10, 25, 50, 100]}
-                onRefresh={() => void refetch()}
-                isRefreshing={isRefreshing}
-              />
-            )}
-          </>
+          <TableSearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search organizations…"
+            className="mb-4"
+          />
         }
       >
         {!isInitialLoad && (
@@ -367,6 +352,18 @@ export function OrgsListPage() {
             </tbody>
           </table>
         </div>
+        {totalElements > 0 && (
+          <Pagination
+            page={page}
+            size={size}
+            totalElements={totalElements}
+            onPageChange={setPage}
+            onSizeChange={handleSizeChange}
+            sizeOptions={[10, 25, 50, 100]}
+            onRefresh={() => void refetch()}
+            isRefreshing={isRefreshing}
+          />
+        )}
       </div>
           </>
         )}
