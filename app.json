@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "xpos-mobile",
+    "name": "XPOS Mobile",
     "slug": "xpos-mobile",
     "version": "1.0.0",
+    "scheme": "xpos",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0f172a",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
+        "backgroundImage": "./assets/android-icon-background.png"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
