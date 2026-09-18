@@ -50,6 +50,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -464,16 +465,69 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     if (!branchId.equals(request.outletId())) {
       throw new ConflictException("OUTLET_MISMATCH", "Branch ID does not match request outlet ID.");
     }
-    branchService.require(orgId, branchId);
+    Branch branch = branchService.require(orgId, branchId);
     Instant now = Instant.now();
 
-    Branch branch = branchService.require(orgId, branchId);
+    List<StdStockCountCountDto> counts = request.counts();
+    if (counts != null && !counts.isEmpty()) {
+      Set<UUID> itemIds =
+          counts.stream().map(StdStockCountCountDto::itemId).collect(Collectors.toSet());
+      Map<UUID, Item> itemsById =
+          itemRepository.findAllByIdInAndOrgId(itemIds, orgId).stream()
+              .collect(Collectors.toMap(Item::getId, Function.identity()));
 
-    for (StdStockCountCountDto dto : request.counts()) {
-      upsertSnapshot(orgId, branch, branchId, request.date(), dto, now);
+      Map<UUID, StdStockCountSnapshot> existingByItem =
+          snapshotRepository
+              .findAllByBranchIdAndBusinessDateAndItemIdIn(branchId, request.date(), itemIds)
+              .stream()
+              .collect(
+                  Collectors.toMap(s -> s.getItem().getId(), Function.identity(), (a, b) -> a));
+
+      List<StdStockCountSnapshot> toSave = new ArrayList<>(counts.size());
+      for (StdStockCountCountDto dto : counts) {
+        Item item = itemsById.get(dto.itemId());
+        if (item == null) {
+          continue;
+        }
+        BigDecimal qty = normalizeClosingQty(dto.closingStock());
+        StdStockCountSnapshot snap = existingByItem.get(dto.itemId());
+        if (snap == null) {
+          snap = new StdStockCountSnapshot();
+          snap.setOrg(branch.getOrg());
+          snap.setBranch(branch);
+          snap.setItem(item);
+          snap.setBusinessDate(request.date());
+          snap.setCreatedAt(now);
+        }
+        applySnapshotValues(snap, qty, now, dto);
+        toSave.add(snap);
+      }
+
+      if (!toSave.isEmpty()) {
+        try {
+          snapshotRepository.saveAllAndFlush(toSave);
+        } catch (DataIntegrityViolationException ex) {
+          entityManager.clear();
+          for (StdStockCountSnapshot s : toSave) {
+            StdStockCountCountDto dto = findDtoFor(counts, s.getItem().getId());
+            if (dto != null) {
+              upsertSnapshot(orgId, branch, branchId, request.date(), dto, now);
+            }
+          }
+        }
+      }
     }
 
     return getSheet(orgId, branchId, request.date());
+  }
+
+  private static StdStockCountCountDto findDtoFor(List<StdStockCountCountDto> counts, UUID itemId) {
+    for (StdStockCountCountDto dto : counts) {
+      if (dto.itemId().equals(itemId)) {
+        return dto;
+      }
+    }
+    return null;
   }
 
   private void upsertSnapshot(

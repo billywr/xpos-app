@@ -2,6 +2,8 @@
 spring:
   application:
     name: xpos
+  main:
+    banner-mode: "off"
 
   datasource:
     url: ${SPRING_DATASOURCE_URL}
@@ -39,6 +41,8 @@ spring:
 
   data:
     redis:
+      repositories:
+        enabled: false
       host: ${SPRING_DATA_REDIS_HOST}
       port: ${SPRING_DATA_REDIS_PORT}
       password: ${SPRING_DATA_REDIS_PASSWORD}
@@ -91,9 +95,14 @@ management:
 
 logging:
   level:
-    root: INFO
+    root: WARN
+    org.springframework: WARN
     org.springframework.security: WARN
+    org.hibernate: WARN
     org.hibernate.SQL: WARN
+    org.apache.kafka: WARN
+    com.zaxxer.hikari: WARN
+    org.flywaydb: WARN
     com.blinc.xpos: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

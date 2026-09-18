@@ -1,6 +1,7 @@
 package com.blinc.xpos.modules.catalog.repository;
 
 import com.blinc.xpos.modules.catalog.domain.Item;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,6 +18,12 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
       where i.id = :id and i.org.id = :orgId
       """)
   Optional<Item> findByIdAndOrgId(@Param("id") UUID id, @Param("orgId") UUID orgId);
+
+  @Query("""
+      select i from Item i
+      where i.id in :ids and i.org.id = :orgId
+      """)
+  List<Item> findAllByIdInAndOrgId(@Param("ids") Collection<UUID> ids, @Param("orgId") UUID orgId);
 
   @Query("""
       select i from Item i

@@ -1,6 +1,8 @@
 spring:
   application:
     name: xpos
+  main:
+    banner-mode: "off"
   config:
     import: optional:classpath:application-mpesa-secrets.yml
 
@@ -40,6 +42,8 @@ spring:
 
   data:
     redis:
+      repositories:
+        enabled: false
       host: localhost
       port: 6379
       password: root
@@ -93,10 +97,15 @@ management:
 
 logging:
   level:
-    root: INFO
-    org.springframework.security: INFO
+    root: WARN
+    org.springframework: WARN
+    org.springframework.security: WARN
+    org.hibernate: WARN
     org.hibernate.SQL: WARN
-    com.blinc.xpos: DEBUG
+    org.apache.kafka: WARN
+    com.zaxxer.hikari: WARN
+    org.flywaydb: WARN
+    com.blinc.xpos: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 

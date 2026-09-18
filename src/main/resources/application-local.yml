@@ -1,0 +1,6 @@
+# Local development profile (alias of dev)
+# Used when SPRING_PROFILES_ACTIVE=local or -Dspring.profiles.active=local is specified.
+spring:
+  config:
+    import:
+      - classpath:application-dev.yml
