@@ -56,7 +56,9 @@ import {
   Download,
   ShoppingBag,
   GitCompare,
+  RotateCw,
 } from "lucide-react";
+import { cn } from "@/utils/cn";
 import { downloadStdStockCountPdf } from "@/utils/stdStockCountPdf";
 import {
   Button,
@@ -1076,12 +1078,12 @@ export function StandardStockCountSheetPage({
     [recordPreview]
   );
 
+  const [isRefreshingPreview, setIsRefreshingPreview] = useState(false);
+
   async function openRecordPreview() {
     setPreviewLoading(true);
     try {
-      const result = cachedSalesPreview
-        ? { data: cachedSalesPreview }
-        : await refetchSalesPreview();
+      const result = await refetchSalesPreview();
       const preview = result.data;
       if (preview) {
         setRecordPreview(preview);
@@ -1094,6 +1096,26 @@ export function StandardStockCountSheetPage({
       });
     } finally {
       setPreviewLoading(false);
+    }
+  }
+
+  async function handleRefreshPreview() {
+    setIsRefreshingPreview(true);
+    try {
+      const result = await refetchSalesPreview();
+      const preview = result.data;
+      if (preview) {
+        setRecordPreview(preview);
+        toast.success("Sales preview refreshed");
+      }
+    } catch (err) {
+      toast.error(getApiErrorMessage(err), {
+        detail: getApiErrorRequestId(err)
+          ? `Reference: ${getApiErrorRequestId(err)}`
+          : undefined,
+      });
+    } finally {
+      setIsRefreshingPreview(false);
     }
   }
 
@@ -1947,6 +1969,18 @@ export function StandardStockCountSheetPage({
         onClose={() => setRecordPreview(null)}
         title="Record sales from stock count"
         maxWidth="max-w-xl"
+        headerAction={
+          <button
+            type="button"
+            onClick={handleRefreshPreview}
+            disabled={isRefreshingPreview}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+            title="Refresh preview items"
+          >
+            <RotateCw className={cn("h-3.5 w-3.5", isRefreshingPreview && "animate-spin")} />
+            <span>Refresh</span>
+          </button>
+        }
       >
         {recordPreview && (
           <div className="flex flex-col gap-4">

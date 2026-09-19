@@ -10,6 +10,8 @@ export interface SlideOverProps {
   children: ReactNode;
   /** Optional max width class (default max-w-lg) */
   maxWidth?: "max-w-md" | "max-w-lg" | "max-w-xl";
+  /** Optional action element rendered in the header next to close button */
+  headerAction?: ReactNode;
 }
 
 /**
@@ -22,6 +24,7 @@ export function SlideOver({
   title,
   children,
   maxWidth = "max-w-lg",
+  headerAction,
 }: SlideOverProps) {
   useEffect(() => {
     if (!open) return;
@@ -57,9 +60,12 @@ export function SlideOver({
           <h2 id="slideover-title" className="text-base font-semibold text-slate-900 sm:text-lg dark:text-white">
             {title}
           </h2>
-          <IconButton onClick={onClose} aria-label="Close">
-            <X className="h-5 w-5" />
-          </IconButton>
+          <div className="flex items-center gap-2">
+            {headerAction}
+            <IconButton onClick={onClose} aria-label="Close">
+              <X className="h-5 w-5" />
+            </IconButton>
+          </div>
         </div>
         <div className="flex-1 overflow-auto p-4 sm:p-6">{children}</div>
       </div>
