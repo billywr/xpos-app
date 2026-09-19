@@ -101,7 +101,7 @@ export function CatalogPage() {
             Categories, units of measure, items, and price lists
           </p>
         </div>
-        {hasOrgs && (
+        {orgs.length > 1 && (
           <div className="flex items-center gap-2">
             <label
               htmlFor="catalog-context-org"

@@ -224,43 +224,51 @@ export function StockCountSessionsPage() {
           noMargin
         />
         <div className="flex flex-wrap items-center gap-4">
-          <label
-            htmlFor="stock-sessions-org"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Organization
-          </label>
-          <SearchableSelect
-            id="stock-sessions-org"
-            options={orgSelectOptions}
-            value={selectedOrgId}
-            onChange={(next) => {
-              setSelectedOrgId(next);
-              setSelectedBranchId("");
-              setPage(0);
-            }}
-            placeholder="Search organization…"
-            className="w-full sm:w-auto min-w-[12rem]"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
-          <label
-            htmlFor="stock-sessions-branch"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Branch
-          </label>
-          <SearchableSelect
-            id="stock-sessions-branch"
-            options={branchSelectOptions}
-            value={selectedBranchId}
-            onChange={(next) => {
-              setSelectedBranchId(next);
-              setPage(0);
-            }}
-            placeholder="Search branch…"
-            className="w-full sm:w-auto min-w-[12rem]"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
+          {filteredOrgs.length > 1 && (
+            <>
+              <label
+                htmlFor="stock-sessions-org"
+                className="text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Organization
+              </label>
+              <SearchableSelect
+                id="stock-sessions-org"
+                options={orgSelectOptions}
+                value={selectedOrgId}
+                onChange={(next) => {
+                  setSelectedOrgId(next);
+                  setSelectedBranchId("");
+                  setPage(0);
+                }}
+                placeholder="Search organization…"
+                className="w-full sm:w-auto min-w-[12rem]"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
+            </>
+          )}
+          {filteredBranches.length > 1 && (
+            <>
+              <label
+                htmlFor="stock-sessions-branch"
+                className="text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Branch
+              </label>
+              <SearchableSelect
+                id="stock-sessions-branch"
+                options={branchSelectOptions}
+                value={selectedBranchId}
+                onChange={(next) => {
+                  setSelectedBranchId(next);
+                  setPage(0);
+                }}
+                placeholder="Search branch…"
+                className="w-full sm:w-auto min-w-[12rem]"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
+            </>
+          )}
           <Button
             onClick={() => startMutation.mutate()}
             disabled={

@@ -271,47 +271,51 @@ export function SalesListPage() {
       </div>
 
       <div className="mb-4 flex flex-row flex-wrap items-end gap-x-6 gap-y-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <label
-            htmlFor="sales-org-select"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Organization
-          </label>
-          <SearchableSelect
-            id="sales-org-select"
-            options={orgSelectOptions}
-            value={selectedOrgId}
-            onChange={(next) => {
-              setSelectedOrgId(next);
-              setSelectedBranchId("");
-              setPage(0);
-            }}
-            placeholder="Search organization…"
-            className="w-full sm:w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <label
-            htmlFor="sales-branch-select"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Branch
-          </label>
-          <SearchableSelect
-            id="sales-branch-select"
-            options={branchSelectOptions}
-            value={selectedBranchId}
-            onChange={(next) => {
-              setSelectedBranchId(next);
-              setPage(0);
-            }}
-            placeholder="Search branch…"
-            className="w-full sm:w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
-        </div>
+        {orgs.length > 1 && (
+          <div className="flex min-w-0 flex-col gap-1">
+            <label
+              htmlFor="sales-org-select"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Organization
+            </label>
+            <SearchableSelect
+              id="sales-org-select"
+              options={orgSelectOptions}
+              value={selectedOrgId}
+              onChange={(next) => {
+                setSelectedOrgId(next);
+                setSelectedBranchId("");
+                setPage(0);
+              }}
+              placeholder="Search organization…"
+              className="w-full sm:w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
+              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            />
+          </div>
+        )}
+        {branches.length > 1 && (
+          <div className="flex min-w-0 flex-col gap-1">
+            <label
+              htmlFor="sales-branch-select"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Branch
+            </label>
+            <SearchableSelect
+              id="sales-branch-select"
+              options={branchSelectOptions}
+              value={selectedBranchId}
+              onChange={(next) => {
+                setSelectedBranchId(next);
+                setPage(0);
+              }}
+              placeholder="Search branch…"
+              className="w-full sm:w-56 min-w-[12rem] max-w-[min(100%,20rem)]"
+              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            />
+          </div>
+        )}
         <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
           <div className="flex flex-col gap-1">
             <label

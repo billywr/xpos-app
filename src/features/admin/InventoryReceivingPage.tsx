@@ -131,48 +131,52 @@ export function InventoryReceivingPage() {
             Suppliers, stock receiving, and inventory by branch
           </p>
         </div>
-        {hasOrgs && (
+        {hasOrgs && (orgs.length > 1 || branches.length > 1) && (
           <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="inv-rec-context-org"
-                className="text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Organization
-              </label>
-              <SearchableSelect
-                id="inv-rec-context-org"
-                options={orgSelectOptions}
-                value={contextOrgId}
-                onChange={(next) => {
-                  setContextOrgId(next);
-                  setContextBranchId("");
-                }}
-                placeholder="Search organization…"
-                compact
-                className="min-w-[11rem]"
-                controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="inv-rec-context-branch"
-                className="text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Branch
-              </label>
-              <SearchableSelect
-                id="inv-rec-context-branch"
-                options={branchSelectOptions}
-                value={contextBranchId}
-                onChange={setContextBranchId}
-                disabled={!contextOrgId}
-                placeholder="Search branch…"
-                compact
-                className="min-w-[11rem]"
-                controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500 disabled:opacity-60"
-              />
-            </div>
+            {orgs.length > 1 && (
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="inv-rec-context-org"
+                  className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Organization
+                </label>
+                <SearchableSelect
+                  id="inv-rec-context-org"
+                  options={orgSelectOptions}
+                  value={contextOrgId}
+                  onChange={(next) => {
+                    setContextOrgId(next);
+                    setContextBranchId("");
+                  }}
+                  placeholder="Search organization…"
+                  compact
+                  className="min-w-[11rem]"
+                  controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500"
+                />
+              </div>
+            )}
+            {branches.length > 1 && (
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="inv-rec-context-branch"
+                  className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Branch
+                </label>
+                <SearchableSelect
+                  id="inv-rec-context-branch"
+                  options={branchSelectOptions}
+                  value={contextBranchId}
+                  onChange={setContextBranchId}
+                  disabled={!contextOrgId}
+                  placeholder="Search branch…"
+                  compact
+                  className="min-w-[11rem]"
+                  controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500 disabled:opacity-60"
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

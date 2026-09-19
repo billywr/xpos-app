@@ -124,7 +124,7 @@ export function OrgSetupPage() {
             Organizations, businesses, branches, terminals, devices, and staff
           </p>
         </div>
-        {hasOrgs && activeTab !== "org" && (
+        {orgs.length > 1 && activeTab !== "org" && (
           <div className="flex items-center gap-2">
             <label
               htmlFor="org-setup-context-org"

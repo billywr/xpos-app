@@ -345,24 +345,28 @@ export function StockTakingSchedulesPage() {
           noMargin
         />
         <div className="flex flex-wrap items-center gap-4">
-          <label
-            htmlFor="stock-schedule-org"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Organization
-          </label>
-          <SearchableSelect
-            id="stock-schedule-org"
-            options={stockScheduleOrgOptions}
-            value={selectedOrgId}
-            onChange={(next) => {
-              setSelectedOrgId(next);
-              setPage(0);
-            }}
-            placeholder="Search organization…"
-            className="w-full sm:w-auto min-w-[12rem]"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
+          {filteredOrgs.length > 1 && (
+            <>
+              <label
+                htmlFor="stock-schedule-org"
+                className="text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Organization
+              </label>
+              <SearchableSelect
+                id="stock-schedule-org"
+                options={stockScheduleOrgOptions}
+                value={selectedOrgId}
+                onChange={(next) => {
+                  setSelectedOrgId(next);
+                  setPage(0);
+                }}
+                placeholder="Search organization…"
+                className="w-full sm:w-auto min-w-[12rem]"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
+            </>
+          )}
           <Button
             onClick={openCreate}
             disabled={!selectedOrgId || filteredBranches.length === 0}

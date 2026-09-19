@@ -357,26 +357,28 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
       />
 
       <div className="mb-4 flex flex-wrap items-end gap-4">
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="branch-org-select"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Organization
-          </label>
-          <SearchableSelect
-            id="branch-org-select"
-            options={orgSelectOptions}
-            value={selectedOrgId}
-            onChange={(next) => {
-              setSelectedOrgId(next);
-              setPage(0);
-            }}
-            placeholder="Search organization…"
-            className="w-full sm:w-56"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
-        </div>
+        {orgs.length > 1 && (
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="branch-org-select"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Organization
+            </label>
+            <SearchableSelect
+              id="branch-org-select"
+              options={orgSelectOptions}
+              value={selectedOrgId}
+              onChange={(next) => {
+                setSelectedOrgId(next);
+                setPage(0);
+              }}
+              placeholder="Search organization…"
+              className="w-full sm:w-56"
+              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            />
+          </div>
+        )}
         {selectedOrgId && (
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4" />

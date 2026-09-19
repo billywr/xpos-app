@@ -223,49 +223,55 @@ export function SelectContextPage() {
       </section>
       )}
 
-      {/* Step 2: Branch */}
-      <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          {orgs.length === 1 ? "1. Branch" : "2. Branch"}
-        </h2>
-        {!selectedOrgId ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
-            Select an organization first.
-          </div>
-        ) : branchesLoading ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
-            Loading branches…
-          </div>
-        ) : branches.length === 0 ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
-            No branches for this org. Create one in Admin.
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {branches.map((b) => (
-              <li key={b.id}>
-                <button
-                  type="button"
-                  onClick={() => handleBranchSelect(b)}
-                  className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition ${
-                    selectedBranch?.id === b.id
-                      ? "border-primary-500 bg-primary-50 text-primary-800 dark:border-primary-500 dark:bg-primary-900/40 dark:text-primary-200"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:border-slate-500 dark:hover:bg-slate-700"
-                  }`}
-                >
-                  <span className="font-medium">{b.name}</span>
-                  <ChevronRight className="h-5 w-5 text-slate-400 dark:text-slate-500" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* Step 2: Branch (hidden when only one branch) */}
+      {branches.length !== 1 && (
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            {orgs.length === 1 ? "1. Branch" : "2. Branch"}
+          </h2>
+          {!selectedOrgId ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
+              Select an organization first.
+            </div>
+          ) : branchesLoading ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
+              Loading branches…
+            </div>
+          ) : branches.length === 0 ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
+              No branches for this org. Create one in Admin.
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {branches.map((b) => (
+                <li key={b.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleBranchSelect(b)}
+                    className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition ${
+                      selectedBranch?.id === b.id
+                        ? "border-primary-500 bg-primary-50 text-primary-800 dark:border-primary-500 dark:bg-primary-900/40 dark:text-primary-200"
+                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:border-slate-500 dark:hover:bg-slate-700"
+                    }`}
+                  >
+                    <span className="font-medium">{b.name}</span>
+                    <ChevronRight className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       {/* Step 3: Terminal */}
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          {orgs.length === 1 ? "2. Terminal" : "3. Terminal"}
+          {orgs.length === 1 && branches.length === 1
+            ? "1. Terminal"
+            : orgs.length === 1 || branches.length === 1
+            ? "2. Terminal"
+            : "3. Terminal"}
         </h2>
         {!selectedBranch ? (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">

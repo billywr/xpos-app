@@ -129,4 +129,42 @@ describe("RevenueDashboardPage", () => {
     expect(screen.getByText(/Business revenue status/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /load dashboard/i })).toBeInTheDocument();
   });
+
+  it("automatically adjusts dates when end date is set before start date", async () => {
+    wrap(<RevenueDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Revenue & P&L/)).toBeInTheDocument();
+    });
+
+    const inputs = screen.getAllByDisplayValue(/20\d\d-\d\d-\d\d/);
+    expect(inputs.length).toBeGreaterThanOrEqual(2);
+    const [startInput, endInput] = inputs;
+
+    // Set start date to a future date
+    const { fireEvent } = await import("@testing-library/react");
+    fireEvent.change(startInput, { target: { value: "2026-05-20" } });
+    fireEvent.change(endInput, { target: { value: "2026-05-10" } });
+
+    // End date was before start date; start date should auto-adjust to match end date
+    expect(startInput).toHaveValue("2026-05-10");
+    expect(endInput).toHaveValue("2026-05-10");
+    expect(screen.getByText(/Date Adjusted/i)).toBeInTheDocument();
+  });
+
+  it("keeps filter controls and reports page accessible when API returns an error", async () => {
+    vi.mocked(revenueApi.fetchRevenueDashboard).mockRejectedValue(
+      new Error("endDate must not be before startDate")
+    );
+
+    wrap(<RevenueDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Revenue & P&L/)).toBeInTheDocument();
+    });
+
+    // Both the header and load button remain present
+    expect(screen.getByRole("button", { name: /load dashboard/i })).toBeInTheDocument();
+    expect(screen.getByText(/Business revenue status/)).toBeInTheDocument();
+  });
 });

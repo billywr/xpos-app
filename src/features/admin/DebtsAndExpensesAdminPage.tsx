@@ -93,43 +93,47 @@ export function DebtsAndExpensesAdminPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label
-              htmlFor="debt-org-select"
-              className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400"
-            >
-              Org:
-            </label>
-            <SearchableSelect
-              id="debt-org-select"
-              options={orgSelectOptions}
-              value={selectedOrgId}
-              onChange={(next) => {
-                setSelectedOrgId(next);
-                setSelectedBranchId("");
-              }}
-              placeholder="Select organization…"
-              className="w-48"
-              compact
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <label
-              htmlFor="debt-branch-select"
-              className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400"
-            >
-              Branch:
-            </label>
-            <SearchableSelect
-              id="debt-branch-select"
-              options={branchSelectOptions}
-              value={selectedBranchId}
-              onChange={setSelectedBranchId}
-              placeholder="Select branch…"
-              className="w-48"
-              compact
-            />
-          </div>
+          {filteredOrgs.length > 1 && (
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="debt-org-select"
+                className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400"
+              >
+                Org:
+              </label>
+              <SearchableSelect
+                id="debt-org-select"
+                options={orgSelectOptions}
+                value={selectedOrgId}
+                onChange={(next) => {
+                  setSelectedOrgId(next);
+                  setSelectedBranchId("");
+                }}
+                placeholder="Select organization…"
+                className="w-48"
+                compact
+              />
+            </div>
+          )}
+          {filteredBranches.length > 1 && (
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="debt-branch-select"
+                className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400"
+              >
+                Branch:
+              </label>
+              <SearchableSelect
+                id="debt-branch-select"
+                options={branchSelectOptions}
+                value={selectedBranchId}
+                onChange={setSelectedBranchId}
+                placeholder="Select branch…"
+                className="w-48"
+                compact
+              />
+            </div>
+          )}
         </div>
       </div>
 

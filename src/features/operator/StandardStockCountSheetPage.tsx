@@ -403,7 +403,7 @@ export function StandardStockCountSheetPage({
     queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
     queryFn: () => fetchStdStockCountSalesPreview(token, orgId, branchId, dateStr),
     enabled: salesPreviewQueryEnabled,
-    staleTime: 30_000,
+    staleTime: 0,
   });
 
   const { data: analytics } = useQuery({
@@ -512,6 +512,8 @@ export function StandardStockCountSheetPage({
     return response;
   }, [sheet?.rows, token, orgId, branchId, dateStr, localClosings, localComments]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const refetchPreviewsRef = useRef<() => void>(() => {});
+
   const invalidateAfterSheetSave = useCallback(
     (updatedSheet?: StdStockCountSheetResponse | null) => {
       if (updatedSheet) {
@@ -522,6 +524,16 @@ export function StandardStockCountSheetPage({
       } else {
         void invalidateInventoryQueries(queryClient);
       }
+
+      void queryClient.invalidateQueries({
+        queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
+        refetchType: "all",
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
+        refetchType: "all",
+      });
+      refetchPreviewsRef.current();
 
       const inFlight = inFlightSnapshotRef.current;
       if (inFlight) {
@@ -710,9 +722,28 @@ export function StandardStockCountSheetPage({
     },
     onSuccess: (result) => {
       void invalidateInventoryQueries(queryClient);
+      queryClient.setQueryData(
+        ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
+        (old: any) =>
+          old
+            ? {
+                ...old,
+                totalQtyToRecord: 0,
+                totalValueToRecord: 0,
+                lines: (old.lines ?? []).map((l: any) => ({
+                  ...l,
+                  qtyToRecord: 0,
+                  lineValue: 0,
+                  alreadyRecorded: l.impliedSold,
+                  status: "RECORDED",
+                })),
+              }
+            : old
+      );
       void queryClient.invalidateQueries({
         queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
       });
+      void refetchSalesPreview();
       setRecordPreview(null);
       if (result.saleIds.length === 0) {
         toast.success("No new sales to record — counts already match recorded sales.", {
@@ -968,9 +999,19 @@ export function StandardStockCountSheetPage({
     systemSyncMutation,
   ]);
 
-  const hasSalesToRecord = (cachedSalesPreview?.totalQtyToRecord ?? 0) > 0;
-  const noSalesToRecord =
-    !hasChanges && salesPreviewFetched && salesPreviewQueryEnabled && !hasSalesToRecord;
+  const sheetHasUnitsSold = useMemo(
+    () => allComputedRows.some((r) => r.unitsSold > 0),
+    [allComputedRows]
+  );
+  const sheetHasSavedClosings = useMemo(
+    () => (sheet?.rows ?? []).some((r) => r.closingStock != null),
+    [sheet?.rows]
+  );
+
+  const remainingQtyToRecord = cachedSalesPreview?.totalQtyToRecord ?? 0;
+  const hasSalesToRecord = salesPreviewFetched
+    ? remainingQtyToRecord > 0
+    : sheetHasUnitsSold;
 
   const saveButtonActive =
     canEdit && hasChanges && !hasErrors && !saveMutation.isPending;
@@ -982,25 +1023,36 @@ export function StandardStockCountSheetPage({
     !previewLoading &&
     !recordSalesMutation.isPending &&
     !saveMutation.isPending &&
-    !noSalesToRecord &&
-    !(salesPreviewLoading && !hasChanges);
+    hasSalesToRecord;
 
   const reconcilePreviewQueryEnabled = Boolean(
-    token && orgId && branchId && isToday && sheet && !hasChanges && !hasErrors
+    token && orgId && branchId && isToday && sheet && !hasErrors
   );
 
-  const { data: cachedReconcilePreview } = useQuery({
+  const {
+    data: cachedReconcilePreview,
+    isFetching: isReconcilePreviewFetching,
+    refetch: refetchReconcilePreview,
+  } = useQuery({
     queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
     queryFn: () => fetchStdStockCountReconcilePreview(token, orgId, branchId, dateStr),
     enabled: reconcilePreviewQueryEnabled,
-    staleTime: 30_000,
+    staleTime: 0,
   });
+
+  useEffect(() => {
+    refetchPreviewsRef.current = () => {
+      void refetchSalesPreview();
+      void refetchReconcilePreview();
+    };
+  }, [refetchSalesPreview, refetchReconcilePreview]);
 
   const showReconcileButton =
     isToday &&
     !hasChanges &&
     !hasErrors &&
-    (cachedReconcilePreview?.itemsAdjusted ?? 0) > 0;
+    ((cachedReconcilePreview?.itemsAdjusted ?? 0) > 0 ||
+      (sheetHasSavedClosings && (cachedReconcilePreview === undefined || isReconcilePreviewFetching)));
 
   const latestSavedAt = useMemo(() => {
     const times = (sheet?.rows ?? [])
@@ -1282,6 +1334,16 @@ export function StandardStockCountSheetPage({
                 onChange={setSearchQuery}
                 placeholder="Search all columns…"
               />
+            </div>
+            {/* Total Sales pill for small/smaller screens (< xl) */}
+            <div
+              className="flex xl:hidden shrink-0 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+              title="Total Sales for today"
+            >
+              <span className="hidden xs:inline text-[11px] font-medium text-emerald-600 dark:text-emerald-400 mr-1">
+                Sales:
+              </span>
+              <span>{formatCurrency(totals.amount)}</span>
             </div>
             {hasChanges ? (
               <span className="hidden shrink-0 text-xs text-amber-600 xl:inline dark:text-amber-400">

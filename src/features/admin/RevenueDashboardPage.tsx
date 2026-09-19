@@ -21,9 +21,10 @@ import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
-import { TrendingUp, DollarSign, Receipt, Percent, Package, CircleDollarSign } from "lucide-react";
+import { TrendingUp, DollarSign, Receipt, Percent, Package, CircleDollarSign, AlertTriangle } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { DateInput } from "@/components/ui";
+import { useToast } from "@/contexts/ToastContext";
 
 function useDateRange(days = 30) {
   const end = new Date();
@@ -106,6 +107,7 @@ const chartVariants = {
 };
 
 export function RevenueDashboardPage() {
+  const toast = useToast();
   const token = useAppSelector(selectToken);
   const defaultRange = useDateRange(30);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
@@ -202,10 +204,50 @@ export function RevenueDashboardPage() {
     }
   }, [selectedOrgId, selectedBranchId, startDate, endDate, submittedRange]);
 
+  const handleStartDateChange = (newStart: string) => {
+    if (endDate && newStart && newStart > endDate) {
+      setStartDate(newStart);
+      setEndDate(newStart);
+      setSubmittedRange(null);
+      toast.error(
+        "Start date cannot be after end date. End date automatically adjusted.",
+        { title: "Date Adjusted" }
+      );
+      return;
+    }
+    setStartDate(newStart);
+    setSubmittedRange(null);
+  };
+
+  const handleEndDateChange = (newEnd: string) => {
+    if (startDate && newEnd && newEnd < startDate) {
+      setStartDate(newEnd);
+      setEndDate(newEnd);
+      setSubmittedRange(null);
+      toast.error(
+        "End date cannot be before start date. Start date automatically adjusted.",
+        { title: "Date Adjusted" }
+      );
+      return;
+    }
+    setEndDate(newEnd);
+    setSubmittedRange(null);
+  };
+
   const handleLoad = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedOrgId && selectedBranchId && startDate && endDate) {
-      setSubmittedRange({ start: startDate, end: endDate });
+      let finalStart = startDate;
+      let finalEnd = endDate;
+      if (finalEnd < finalStart) {
+        finalStart = finalEnd;
+        setStartDate(finalEnd);
+        toast.error(
+          "End date cannot be before start date. Dates adjusted automatically.",
+          { title: "Date Adjusted" }
+        );
+      }
+      setSubmittedRange({ start: finalStart, end: finalEnd });
     }
   };
 
@@ -224,22 +266,6 @@ export function RevenueDashboardPage() {
     }));
   }, [dashboard?.trend]);
 
-  if (isError && selectedOrgId && selectedBranchId && submittedRange) {
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Revenue & P&amp;L
-        </h1>
-        <div
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
-          role="alert"
-        >
-          <p>{getApiErrorMessage(error)}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -255,57 +281,58 @@ export function RevenueDashboardPage() {
       </div>
 
       <form onSubmit={handleLoad} className="mb-6 flex flex-wrap items-end gap-4">
-        <div className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:flex-initial">
-          <label
-            htmlFor="revenue-dash-org"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Organization
-          </label>
-          <SearchableSelect
-            id="revenue-dash-org"
-            options={orgSelectOptions}
-            value={selectedOrgId}
-            onChange={(next) => {
-              setSelectedOrgId(next);
-              setSelectedBranchId("");
-              setSubmittedRange(null);
-            }}
-            placeholder="Search organization…"
-            className="min-w-[12rem]"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
-        </div>
-        <div className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:flex-initial">
-          <label
-            htmlFor="revenue-dash-branch"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Branch
-          </label>
-          <SearchableSelect
-            id="revenue-dash-branch"
-            options={branchSelectOptions}
-            value={selectedBranchId}
-            onChange={(next) => {
-              setSelectedBranchId(next);
-              setSubmittedRange(null);
-            }}
-            placeholder="Search branch…"
-            className="min-w-[12rem]"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
-        </div>
+        {orgs.length > 1 && (
+          <div className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:flex-initial">
+            <label
+              htmlFor="revenue-dash-org"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Organization
+            </label>
+            <SearchableSelect
+              id="revenue-dash-org"
+              options={orgSelectOptions}
+              value={selectedOrgId}
+              onChange={(next) => {
+                setSelectedOrgId(next);
+                setSelectedBranchId("");
+                setSubmittedRange(null);
+              }}
+              placeholder="Search organization…"
+              className="min-w-[12rem]"
+              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            />
+          </div>
+        )}
+        {branches.length > 1 && (
+          <div className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:flex-initial">
+            <label
+              htmlFor="revenue-dash-branch"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Branch
+            </label>
+            <SearchableSelect
+              id="revenue-dash-branch"
+              options={branchSelectOptions}
+              value={selectedBranchId}
+              onChange={(next) => {
+                setSelectedBranchId(next);
+                setSubmittedRange(null);
+              }}
+              placeholder="Search branch…"
+              className="min-w-[12rem]"
+              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            />
+          </div>
+        )}
         <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-initial">
           <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Start date
           </label>
           <DateInput
             value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              setSubmittedRange(null);
-            }}
+            onChange={(e) => handleStartDateChange(e.target.value)}
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
           />
         </div>
@@ -315,10 +342,7 @@ export function RevenueDashboardPage() {
           </label>
           <DateInput
             value={endDate}
-            onChange={(e) => {
-              setEndDate(e.target.value);
-              setSubmittedRange(null);
-            }}
+            onChange={(e) => handleEndDateChange(e.target.value)}
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
           />
         </div>
@@ -343,6 +367,21 @@ export function RevenueDashboardPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
           <p className="mt-4">Loading revenue data…</p>
+        </div>
+      ) : isError ? (
+        <div
+          className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+          role="alert"
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
+            <div>
+              <p className="font-semibold">{getApiErrorMessage(error)}</p>
+              <p className="mt-1 text-sm opacity-90">
+                Please adjust your date range or selection above and click &quot;Load dashboard&quot; to try again.
+              </p>
+            </div>
+          </div>
         </div>
       ) : dashboard ? (
         <motion.div

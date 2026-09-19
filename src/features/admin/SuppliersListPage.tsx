@@ -311,28 +311,30 @@ export function SuppliersListPage({
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <label
-            htmlFor="suppliers-org-select"
-            className="shrink-0 text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Organization
-          </label>
-          <SearchableSelect
-            id="suppliers-org-select"
-            options={orgSelectOptions}
-            value={selectedOrgId}
-            onChange={(next) => {
-              setSelectedOrgId(next);
-              setPage(0);
-              onOrgChange?.(next);
-            }}
-            placeholder="Search organization…"
-            compact
-            className="w-44 min-w-[10rem] max-w-[min(100%,16rem)]"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
-        </div>
+        {orgs.length > 1 && (
+          <div className="flex min-w-0 items-center gap-2">
+            <label
+              htmlFor="suppliers-org-select"
+              className="shrink-0 text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Organization
+            </label>
+            <SearchableSelect
+              id="suppliers-org-select"
+              options={orgSelectOptions}
+              value={selectedOrgId}
+              onChange={(next) => {
+                setSelectedOrgId(next);
+                setPage(0);
+                onOrgChange?.(next);
+              }}
+              placeholder="Search organization…"
+              compact
+              className="w-44 min-w-[10rem] max-w-[min(100%,16rem)]"
+              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            />
+          </div>
+        )}
         <label className="flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"

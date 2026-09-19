@@ -109,31 +109,39 @@ export function AnalyticsOrgBranchFilter() {
     ...branches.map((b) => ({ value: b.id, label: b.name })),
   ];
 
+  if (orgs.length <= 1 && branches.length <= 1) {
+    return null;
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="flex items-center gap-2">
-        <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-        <SearchableSelect
-          aria-label="Filter by organization"
-          options={orgs.map((o) => ({ value: o.id, label: o.name }))}
-          value={orgId ?? ""}
-          onChange={handleOrgChange}
-          className="min-w-[160px] max-w-[240px]"
-          controlClassName="border-slate-200 dark:border-slate-600 dark:bg-slate-800"
-        />
-      </div>
-      <div className="flex items-center gap-2">
-        <MapPin className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-        <SearchableSelect
-          aria-label="Filter by branch"
-          options={branchOptions}
-          value={branchId ?? ""}
-          onChange={handleBranchChange}
-          placeholder={branchPlaceholderLabel}
-          className="min-w-[160px] max-w-[240px]"
-          controlClassName="border-slate-200 dark:border-slate-600 dark:bg-slate-800"
-        />
-      </div>
+      {orgs.length > 1 && (
+        <div className="flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+          <SearchableSelect
+            aria-label="Filter by organization"
+            options={orgs.map((o) => ({ value: o.id, label: o.name }))}
+            value={orgId ?? ""}
+            onChange={handleOrgChange}
+            className="min-w-[160px] max-w-[240px]"
+            controlClassName="border-slate-200 dark:border-slate-600 dark:bg-slate-800"
+          />
+        </div>
+      )}
+      {branches.length > 1 && (
+        <div className="flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+          <SearchableSelect
+            aria-label="Filter by branch"
+            options={branchOptions}
+            value={branchId ?? ""}
+            onChange={handleBranchChange}
+            placeholder={branchPlaceholderLabel}
+            className="min-w-[160px] max-w-[240px]"
+            controlClassName="border-slate-200 dark:border-slate-600 dark:bg-slate-800"
+          />
+        </div>
+      )}
     </div>
   );
 }

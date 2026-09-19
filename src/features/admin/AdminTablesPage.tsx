@@ -428,42 +428,48 @@ export function AdminTablesPage() {
         fallbackTo="/admin"
       />
 
-      <div className="mb-4 flex flex-wrap items-end gap-4">
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="tables-org-select"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Organization
-          </label>
-          <SearchableSelect
-            id="tables-org-select"
-            options={orgSelectOptions}
-            value={selectedOrgId}
-            onChange={setSelectedOrgId}
-            placeholder="Search organization…"
-            className="w-full sm:w-56"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
+      {(orgs.length > 1 || branches.length > 1) && (
+        <div className="mb-4 flex flex-wrap items-end gap-4">
+          {orgs.length > 1 && (
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="tables-org-select"
+                className="text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Organization
+              </label>
+              <SearchableSelect
+                id="tables-org-select"
+                options={orgSelectOptions}
+                value={selectedOrgId}
+                onChange={setSelectedOrgId}
+                placeholder="Search organization…"
+                className="w-full sm:w-56"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
+            </div>
+          )}
+          {branches.length > 1 && (
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="tables-branch-select"
+                className="text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Branch
+              </label>
+              <SearchableSelect
+                id="tables-branch-select"
+                options={branchSelectOptions}
+                value={selectedBranchId}
+                onChange={setSelectedBranchId}
+                placeholder="Search branch…"
+                className="w-full sm:w-56"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
+            </div>
+          )}
         </div>
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="tables-branch-select"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Branch
-          </label>
-          <SearchableSelect
-            id="tables-branch-select"
-            options={branchSelectOptions}
-            value={selectedBranchId}
-            onChange={setSelectedBranchId}
-            placeholder="Search branch…"
-            className="w-full sm:w-56"
-            controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-          />
-        </div>
-      </div>
+      )}
 
       {selectedBranchId && (
         <>

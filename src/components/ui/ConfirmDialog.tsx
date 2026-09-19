@@ -82,12 +82,6 @@ export function ConfirmDialog({
                 : "p-4 sm:p-6"
         )}
       >
-        {anyLoading && (
-          <div className="absolute top-0 left-0 right-0 h-1 overflow-hidden bg-slate-100 dark:bg-slate-700/80">
-            <div className="animate-indeterminate-1 rounded-full bg-primary-600 dark:bg-primary-500" />
-            <div className="animate-indeterminate-2 rounded-full bg-primary-400 dark:bg-primary-400" />
-          </div>
-        )}
         <h3
           id="confirm-dialog-title"
           className={cn(
