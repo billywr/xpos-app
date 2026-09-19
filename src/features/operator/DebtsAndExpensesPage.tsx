@@ -45,6 +45,8 @@ import {
   tableBodyRow,
   tableStickyFirstCell,
   tableStickyHeadCell,
+  tableRowNoHead,
+  tableRowNoCell,
 } from "@/components/ui";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { filterRowsBySearch } from "@/utils/tableSearchMatch";
@@ -78,7 +80,6 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { PageHeader } from "@/components/PageHeader";
 import { AdminTabList, AdminTabPanel } from "@/components/ui/AdminTabs";
 import { SearchableSelect } from "@/components/SearchableSelect";
 // ---------------------------------------------------------------------------
@@ -1492,18 +1493,9 @@ export function DebtsAndExpensesPage({
   // Render
   // -----------------------------------------------------------------------
   return (
-    <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-6">
-      {/* Header: title + date picker + tabs */}
-      <div className="mb-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <PageHeader
-            title="Debts & Expenses"
-            subtitle={branchName ?? "this branch"}
-            fallbackTo="/operator"
-            noMargin
-          />
-        </div>
-
+    <div className="min-h-0 flex-1 overflow-auto p-1.5 sm:p-5">
+      {/* Top Bar: Tabs on left, Actions (Download PDF + Record button) on right */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <AdminTabList
           tabListId="debts-expenses"
           ariaLabel="Debts and Expenses"
@@ -1514,6 +1506,64 @@ export function DebtsAndExpensesPage({
           activeTab={tab}
           onTabChange={(id) => setTab(id as TabId)}
         />
+
+        <div className="flex items-center gap-2">
+          {tab === "debts" ? (
+            <>
+              {debtTotalElements > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDownloadDebtsPdf}
+                  disabled={debtsPdfLoading}
+                  className="hidden xl:inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  title={`Download debts from ${dateRangeLabel}`}
+                >
+                  {debtsPdfLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileDown className="h-4 w-4" />
+                  )}
+                  <span className="hidden sm:inline">Download PDF</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={openDebtRecordForm}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Record debt</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {expTotalElements > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDownloadExpensesPdf}
+                  disabled={expensesPdfLoading}
+                  className="hidden xl:inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  title={`Download all expenses from ${dateRangeLabel}`}
+                >
+                  {expensesPdfLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileDown className="h-4 w-4" />
+                  )}
+                  <span className="hidden sm:inline">Download PDF</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setExpFormOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Record expense</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ================================================================= */}
@@ -1521,58 +1571,6 @@ export function DebtsAndExpensesPage({
       {/* ================================================================= */}
       {tab === "debts" && (
         <AdminTabPanel panelId="debts-expenses-panel-debts" tabId="debts-expenses-tab-debts">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <label
-                htmlFor="debt-status-filter"
-                className="text-sm font-medium text-slate-600 dark:text-slate-400"
-              >
-                Status
-              </label>
-              <SearchableSelect
-                id="debt-status-filter"
-                options={debtStatusFilterOptions}
-                value={statusFilter}
-                onChange={(v) => {
-                  setStatusFilter(v);
-                  setDebtsPage(0);
-                }}
-                aria-label="Filter by status"
-                placeholder="Search status…"
-                compact
-                className="w-full min-w-0 sm:min-w-[12rem]"
-                controlClassName="border-slate-200 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus:border-primary-400 dark:focus:ring-primary-400"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {debtTotalElements > 0 && (
-                <button
-                  type="button"
-                  onClick={handleDownloadDebtsPdf}
-                  disabled={debtsPdfLoading}
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                  title={`Download debts from ${dateRangeLabel} (status: ${
-                    STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "All"
-                  })`}
-                >
-                  {debtsPdfLoading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <FileDown className="h-5 w-5" />
-                  )}
-                  Download PDF
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={openDebtRecordForm}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
-              >
-                <Plus className="h-5 w-5" />
-                Record debt
-              </button>
-            </div>
-          </div>
 
           {(debtsLoading || activeDebtsBootstrapLoading || !dateRangeReady) && (
             <div className="flex items-center justify-center py-16">
@@ -1593,18 +1591,42 @@ export function DebtsAndExpensesPage({
               <div className="mb-4 flex flex-col gap-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <TableSearchInput value={debtSearchQuery} onChange={setDebtSearchQuery} placeholder="Search debts…" />
-                  <RecordedDateFilters
-                    fromDate={fromDate}
-                    toDate={toDate}
-                    onRecordedDate={onRecordedDate}
-                    onFromDateChange={setFromDate}
-                    onToDateChange={setToDate}
-                    onOnRecordedDateChange={handleOnRecordedDateChange}
-                    onClearOnRecordedDate={clearOnRecordedDate}
-                  />
+                  <div className="hidden xl:flex items-center gap-1.5">
+                    <label
+                      htmlFor="debt-status-filter"
+                      className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400"
+                    >
+                      Status
+                    </label>
+                    <SearchableSelect
+                      id="debt-status-filter"
+                      options={debtStatusFilterOptions}
+                      value={statusFilter}
+                      onChange={(v) => {
+                        setStatusFilter(v);
+                        setDebtsPage(0);
+                      }}
+                      aria-label="Filter by status"
+                      placeholder="Search status…"
+                      compact
+                      className="w-44"
+                      controlClassName="border-slate-200 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus:border-primary-400 dark:focus:ring-primary-400"
+                    />
+                  </div>
+                  <div className="hidden xl:block">
+                    <RecordedDateFilters
+                      fromDate={fromDate}
+                      toDate={toDate}
+                      onRecordedDate={onRecordedDate}
+                      onFromDateChange={setFromDate}
+                      onToDateChange={setToDate}
+                      onOnRecordedDateChange={handleOnRecordedDateChange}
+                      onClearOnRecordedDate={clearOnRecordedDate}
+                    />
+                  </div>
                 </div>
                 {onRecordedDate ? (
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="hidden xl:block text-xs text-slate-500 dark:text-slate-400">
                     Showing debts recorded on {onRecordedDate}
                   </p>
                 ) : null}
@@ -1637,17 +1659,17 @@ export function DebtsAndExpensesPage({
                     <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
                     <div className="relative min-h-0 flex-1 overflow-auto">
                       <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-                      <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "1100px" }}>
+                      <table className="w-full min-w-full divide-y divide-slate-200 dark:divide-slate-600 xl:min-w-[1100px]">
                         <thead className="bg-slate-50 dark:bg-slate-700">
                           <tr>
-                            <TableRowNumberHead />
+                            <TableRowNumberHead className={`${tableRowNoHead} hidden xl:table-cell`} />
                             <SortableTableHead
                               columnKey="customer"
                               label="Customer"
                               sortColumn={debtSortColumn}
                               sortDirection={debtSortDirection}
                               onSort={toggleDebtSort}
-                              className={`${tableStickyHeadCell} px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300`}
+                              className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
                             />
                             {showDebtPhoneCol && (
                               <SortableTableHead
@@ -1656,7 +1678,7 @@ export function DebtsAndExpensesPage({
                                 sortColumn={debtSortColumn}
                                 sortDirection={debtSortDirection}
                                 onSort={toggleDebtSort}
-                                className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                                className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                               />
                             )}
                             <SortableTableHead
@@ -1665,7 +1687,7 @@ export function DebtsAndExpensesPage({
                               sortColumn={debtSortColumn}
                               sortDirection={debtSortDirection}
                               onSort={toggleDebtSort}
-                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                             />
                             <SortableTableHead
                               columnKey="amountSettled"
@@ -1673,7 +1695,7 @@ export function DebtsAndExpensesPage({
                               sortColumn={debtSortColumn}
                               sortDirection={debtSortDirection}
                               onSort={toggleDebtSort}
-                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                             />
                             <SortableTableHead
                               columnKey="outstanding"
@@ -1681,7 +1703,7 @@ export function DebtsAndExpensesPage({
                               sortColumn={debtSortColumn}
                               sortDirection={debtSortDirection}
                               onSort={toggleDebtSort}
-                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                             />
                             <SortableTableHead
                               columnKey="status"
@@ -1689,7 +1711,7 @@ export function DebtsAndExpensesPage({
                               sortColumn={debtSortColumn}
                               sortDirection={debtSortDirection}
                               onSort={toggleDebtSort}
-                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                             />
                             {showDebtDueCol && (
                               <SortableTableHead
@@ -1698,7 +1720,7 @@ export function DebtsAndExpensesPage({
                                 sortColumn={debtSortColumn}
                                 sortDirection={debtSortDirection}
                                 onSort={toggleDebtSort}
-                                className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                                className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                               />
                             )}
                             {showDebtIssuedByCol && (
@@ -1708,7 +1730,7 @@ export function DebtsAndExpensesPage({
                                 sortColumn={debtSortColumn}
                                 sortDirection={debtSortDirection}
                                 onSort={toggleDebtSort}
-                                className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                                className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                               />
                             )}
                             <SortableTableHead
@@ -1717,7 +1739,7 @@ export function DebtsAndExpensesPage({
                               sortColumn={debtSortColumn}
                               sortDirection={debtSortDirection}
                               onSort={toggleDebtSort}
-                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
                             />
                             {showDebtNotesCol && (
                               <SortableTableHead
@@ -1726,7 +1748,7 @@ export function DebtsAndExpensesPage({
                                 sortColumn={debtSortColumn}
                                 sortDirection={debtSortDirection}
                                 onSort={toggleDebtSort}
-                                className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                                className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
                               />
                             )}
                             <SortableTableHead
@@ -1736,16 +1758,16 @@ export function DebtsAndExpensesPage({
                               sortDirection={debtSortDirection}
                               onSort={toggleDebtSort}
                               sortable={false}
-                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                             />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                           {visibleDebts.map((d: CustomerDebtResponse, index) => (
                             <tr key={d.id} className={tableBodyRow}>
-                    <TableRowNumberCell page={debtsPage} pageSize={DEBTS_PAGE_SIZE} indexInPage={index} />
+                              <TableRowNumberCell className={`${tableRowNoCell} hidden xl:table-cell`} page={debtsPage} pageSize={DEBTS_PAGE_SIZE} indexInPage={index} />
                               <td
-                                className={`${tableStickyFirstCell} px-4 py-2 text-lg font-bold text-slate-900 sm:px-6 sm:py-2.5 sm:text-xl dark:text-white ${
+                                className={`${tableStickyFirstCell} px-2 py-1.5 text-xs font-bold text-slate-900 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-white ${
                                   inlineNameDebtId !== d.id
                                     ? "cursor-pointer hover:underline"
                                     : ""
@@ -1834,11 +1856,11 @@ export function DebtsAndExpensesPage({
                                 )}
                               </td>
                               {showDebtPhoneCol && (
-                                <td className="px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{d.customerPhone ?? "—"}</td>
+                                <td className="px-2 py-1.5 text-xs text-slate-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-400">{d.customerPhone ?? "—"}</td>
                               )}
-                              <td className="px-4 py-2 text-left text-lg tabular-nums text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{formatAmount(d.amount)}</td>
+                              <td className="px-2 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-400">{formatAmount(d.amount)}</td>
                               <td
-                                className={`px-4 py-2 text-left text-lg tabular-nums font-bold text-emerald-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-emerald-400 ${
+                                className={`px-2 py-1.5 text-left text-xs tabular-nums font-bold text-emerald-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-emerald-400 ${
                                   canRecordPayment(d) && inlinePayDebtId !== d.id
                                     ? "cursor-pointer hover:underline"
                                     : ""
@@ -1932,10 +1954,10 @@ export function DebtsAndExpensesPage({
                                   formatAmount(d.amountSettled ?? 0)
                                 )}
                               </td>
-                              <td className="px-4 py-2 text-left text-lg tabular-nums font-bold text-red-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-red-400">{formatAmount(d.outstanding)}</td>
-                              <td className="px-4 py-2 sm:px-6 sm:py-2.5">
+                              <td className="px-2 py-1.5 text-left text-xs tabular-nums font-bold text-red-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-red-400">{formatAmount(d.outstanding)}</td>
+                              <td className="px-2 py-1.5 sm:px-6 sm:py-2.5">
                                 <span
-                                  className={`inline-flex justify-start rounded-full px-2.5 py-0.5 text-left text-xs font-medium ${
+                                  className={`inline-flex justify-start rounded-full px-2.5 py-0.5 text-left text-[11px] font-medium sm:text-xs ${
                                     d.status === "OPEN" || d.status === "PARTIAL"
                                       ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
                                       : d.status === "CLOSED"
@@ -1947,14 +1969,14 @@ export function DebtsAndExpensesPage({
                                 </span>
                               </td>
                               {showDebtDueCol && (
-                                <td className="px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{d.dueDate ?? "—"}</td>
+                                <td className="px-2 py-1.5 text-xs text-slate-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-400">{d.dueDate ?? "—"}</td>
                               )}
                               {showDebtIssuedByCol && (
-                                <td className="px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{d.issuedBy ?? "—"}</td>
+                                <td className="px-2 py-1.5 text-xs text-slate-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-400">{d.issuedBy ?? "—"}</td>
                               )}
-                              <td className="px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{new Date(d.createdAt).toLocaleString()}</td>
+                              <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{new Date(d.createdAt).toLocaleString()}</td>
                               {showDebtNotesCol && (
-                                <td className="max-w-[14rem] px-4 py-2 align-top text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">
+                                <td className="hidden max-w-[14rem] px-4 py-2 align-top text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">
                                   {d.notes?.trim() ? (
                                     <div className="max-h-24 overflow-y-auto whitespace-pre-wrap break-words">{d.notes}</div>
                                   ) : (
@@ -1962,25 +1984,29 @@ export function DebtsAndExpensesPage({
                                   )}
                                 </td>
                               )}
-                              <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
+                              <td className="px-2 py-1.5 text-left sm:px-6 sm:py-2.5">
                                 {canRecordPayment(d) ? (
-                                  <div className="flex flex-wrap justify-start gap-2">
-                                    <button type="button" onClick={() => openSettleForm(d)} className="rounded p-1.5 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30" title="Record payment">
-                                      <Banknote className="h-4 w-4" />
+                                  <div className="flex flex-wrap justify-start gap-1">
+                                    <button type="button" onClick={() => openSettleForm(d)} className="rounded p-1 text-emerald-600 hover:bg-emerald-50 sm:p-1.5 dark:text-emerald-400 dark:hover:bg-emerald-900/30" title="Record payment">
+                                      <Banknote className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                     </button>
                                     {canEditDebt(d) && (
-                                      <button type="button" onClick={() => openDebtEditForm(d)} className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200" title="Edit customer debt">
-                                        <Pencil className="h-4 w-4" />
+                                      <button type="button" onClick={() => openDebtEditForm(d)} className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 sm:p-1.5 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200" title="Edit customer debt">
+                                        <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                       </button>
                                     )}
                                     {canClearDebt(d) && (
-                                      <button type="button" onClick={() => setClearDialogDebt(d)} className="rounded p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-900/30 dark:hover:text-red-400" title="Clear debt">
-                                        <XCircle className="h-4 w-4" />
+                                      <button type="button" onClick={() => setClearDialogDebt(d)} className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600 sm:p-1.5 dark:text-slate-400 dark:hover:bg-red-900/30 dark:hover:text-red-400" title="Clear debt">
+                                        <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                       </button>
                                     )}
                                   </div>
                                 ) : (
-                                  "—"
+                                  canClearDebt(d) && (
+                                    <button type="button" onClick={() => setClearDialogDebt(d)} className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600 sm:p-1.5 dark:text-slate-400 dark:hover:bg-red-900/30 dark:hover:text-red-400" title="Clear debt">
+                                      <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                    </button>
+                                  )
                                 )}
                               </td>
                             </tr>
@@ -2028,34 +2054,7 @@ export function DebtsAndExpensesPage({
       {/* ================================================================= */}
       {tab === "expenses" && (
         <AdminTabPanel panelId="debts-expenses-panel-expenses" tabId="debts-expenses-tab-expenses">
-          <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              {expTotalElements > 0 && (
-                <button
-                  type="button"
-                  onClick={handleDownloadExpensesPdf}
-                  disabled={expensesPdfLoading}
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                  title={`Download all expenses from ${dateRangeLabel}`}
-                >
-                  {expensesPdfLoading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <FileDown className="h-5 w-5" />
-                  )}
-                  Download PDF
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setExpFormOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
-              >
-                <Plus className="h-5 w-5" />
-                Record expense
-              </button>
-            </div>
-          </div>
+
 
           {(expensesLoading || activeDebtsBootstrapLoading || !dateRangeReady) && (
             <div className="flex items-center justify-center py-16">
@@ -2076,18 +2075,20 @@ export function DebtsAndExpensesPage({
               <div className="mb-4 flex flex-col gap-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <TableSearchInput value={expSearchQuery} onChange={setExpSearchQuery} placeholder="Search expenses…" />
-                  <RecordedDateFilters
-                    fromDate={fromDate}
-                    toDate={toDate}
-                    onRecordedDate={onRecordedDate}
-                    onFromDateChange={setFromDate}
-                    onToDateChange={setToDate}
-                    onOnRecordedDateChange={handleOnRecordedDateChange}
-                    onClearOnRecordedDate={clearOnRecordedDate}
-                  />
+                  <div className="hidden xl:block">
+                    <RecordedDateFilters
+                      fromDate={fromDate}
+                      toDate={toDate}
+                      onRecordedDate={onRecordedDate}
+                      onFromDateChange={setFromDate}
+                      onToDateChange={setToDate}
+                      onOnRecordedDateChange={handleOnRecordedDateChange}
+                      onClearOnRecordedDate={clearOnRecordedDate}
+                    />
+                  </div>
                 </div>
                 {onRecordedDate ? (
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="hidden xl:block text-xs text-slate-500 dark:text-slate-400">
                     Showing expenses recorded on {onRecordedDate}
                   </p>
                 ) : null}
@@ -2120,10 +2121,10 @@ export function DebtsAndExpensesPage({
                     <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
                     <div className="relative min-h-0 flex-1 overflow-auto">
                       <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-                      <table className="w-full divide-y divide-slate-200 dark:divide-slate-600" style={{ minWidth: "840px" }}>
+                      <table className="w-full min-w-full divide-y divide-slate-200 dark:divide-slate-600 xl:min-w-[840px]">
                         <thead className="bg-slate-50 dark:bg-slate-700">
                           <tr>
-                            <TableRowNumberHead />
+                            <TableRowNumberHead className={`${tableRowNoHead} hidden xl:table-cell`} />
                             {showExpIncurredByCol && (
                               <SortableTableHead
                                 columnKey="incurredBy"
@@ -2131,7 +2132,7 @@ export function DebtsAndExpensesPage({
                                 sortColumn={expSortColumn}
                                 sortDirection={expSortDirection}
                                 onSort={toggleExpSort}
-                                className={`${tableStickyHeadCell} px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300`}
+                                className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
                               />
                             )}
                             <SortableTableHead
@@ -2140,7 +2141,7 @@ export function DebtsAndExpensesPage({
                               sortColumn={expSortColumn}
                               sortDirection={expSortDirection}
                               onSort={toggleExpSort}
-                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                             />
                             <SortableTableHead
                               columnKey="category"
@@ -2148,7 +2149,7 @@ export function DebtsAndExpensesPage({
                               sortColumn={expSortColumn}
                               sortDirection={expSortDirection}
                               onSort={toggleExpSort}
-                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                             />
                             <SortableTableHead
                               columnKey="description"
@@ -2156,7 +2157,7 @@ export function DebtsAndExpensesPage({
                               sortColumn={expSortColumn}
                               sortDirection={expSortDirection}
                               onSort={toggleExpSort}
-                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
                             />
                             {showExpReceiptRefCol && (
                               <SortableTableHead
@@ -2165,7 +2166,7 @@ export function DebtsAndExpensesPage({
                                 sortColumn={expSortColumn}
                                 sortDirection={expSortDirection}
                                 onSort={toggleExpSort}
-                                className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                                className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
                               />
                             )}
                             <SortableTableHead
@@ -2174,7 +2175,7 @@ export function DebtsAndExpensesPage({
                               sortColumn={expSortColumn}
                               sortDirection={expSortDirection}
                               onSort={toggleExpSort}
-                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
                             />
                             <SortableTableHead
                               columnKey="actions"
@@ -2183,33 +2184,33 @@ export function DebtsAndExpensesPage({
                               sortDirection={expSortDirection}
                               onSort={toggleExpSort}
                               sortable={false}
-                              className="px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300"
+                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                             />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                           {visibleExpenses.map((e: MiscExpenseResponse, index) => (
                             <tr key={e.id} className={tableBodyRow}>
-                    <TableRowNumberCell page={expensesPage} pageSize={EXPENSES_PAGE_SIZE} indexInPage={index} />
+                              <TableRowNumberCell className={`${tableRowNoCell} hidden xl:table-cell`} page={expensesPage} pageSize={EXPENSES_PAGE_SIZE} indexInPage={index} />
                               {showExpIncurredByCol && (
-                                <td className={`${tableStickyFirstCell} px-4 py-2 text-lg font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-300`}>{e.incurredBy ?? "—"}</td>
+                                <td className={`${tableStickyFirstCell} px-2 py-1.5 text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-300`}>{e.incurredBy ?? "—"}</td>
                               )}
-                              <td className="px-4 py-2 text-left text-lg font-semibold tabular-nums text-slate-700 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-300">{formatAmount(e.amount)}</td>
-                              <td className="px-4 py-2 sm:px-6 sm:py-2.5">
-                                <span className="inline-flex justify-start rounded-full bg-slate-100 px-2.5 py-0.5 text-left text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">{e.category}</span>
+                              <td className="px-2 py-1.5 text-left text-xs font-semibold tabular-nums text-slate-700 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-300">{formatAmount(e.amount)}</td>
+                              <td className="px-2 py-1.5 sm:px-6 sm:py-2.5">
+                                <span className="inline-flex justify-start rounded-full bg-slate-100 px-2 py-0.5 text-left text-[11px] font-medium text-slate-700 sm:text-xs xl:text-sm dark:bg-slate-700 dark:text-slate-300">{e.category}</span>
                               </td>
-                              <td className="px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{e.description}</td>
+                              <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{e.description}</td>
                               {showExpReceiptRefCol && (
-                                <td className="px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{e.receiptRef ?? "—"}</td>
+                                <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{e.receiptRef ?? "—"}</td>
                               )}
-                              <td className="px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400">{new Date(e.createdAt).toLocaleString()}</td>
-                              <td className="px-4 py-2 text-left sm:px-6 sm:py-2.5">
+                              <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{new Date(e.createdAt).toLocaleString()}</td>
+                              <td className="px-2 py-1.5 text-left sm:px-6 sm:py-2.5">
                                 <div className="flex justify-start gap-1">
-                                  <button type="button" onClick={() => openExpEditForm(e)} className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200" title="Edit">
-                                    <Pencil className="h-4 w-4" />
+                                  <button type="button" onClick={() => openExpEditForm(e)} className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 sm:p-1.5 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200" title="Edit">
+                                    <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                   </button>
-                                  <button type="button" onClick={() => setCancelDialogExpense(e)} className="rounded p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-900/30 dark:hover:text-red-400" title="Delete">
-                                    <XCircle className="h-4 w-4" />
+                                  <button type="button" onClick={() => setCancelDialogExpense(e)} className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600 sm:p-1.5 dark:text-slate-400 dark:hover:bg-red-900/30 dark:hover:text-red-400" title="Delete">
+                                    <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                   </button>
                                 </div>
                               </td>

@@ -97,7 +97,7 @@ export function Layout() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-app">
-      <header className="sticky top-0 z-20 shrink-0 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-darkNav/95">
+      <header className="sticky top-0 z-20 shrink-0 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-darkNav/95 hidden xl:block">
         <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
           <div className="flex h-14 items-center justify-between">
             <div className="flex items-center gap-2">

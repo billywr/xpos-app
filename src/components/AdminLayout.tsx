@@ -155,7 +155,7 @@ export function AdminLayout() {
           />
           <aside
             className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-sidebar shadow-xl"
-            style={{ top: HEADER_HEIGHT }}
+            style={{ top: 0 }}
           >
             <div className="flex items-center justify-between border-b border-slate-200/60 px-3 py-3 dark:border-white/10">
               <div>
@@ -220,7 +220,7 @@ export function AdminLayout() {
 
       {/* Content area: offset by sidebar width on desktop, full-width on mobile */}
       <main
-        className={`min-h-[calc(100vh-3.5rem)] min-w-0 flex-1 overflow-auto bg-transparent p-3 transition-[margin] duration-200 sm:p-4 md:p-6 ${
+        className={`min-h-screen xl:min-h-[calc(100vh-3.5rem)] min-w-0 flex-1 overflow-auto bg-transparent p-1.5 sm:p-4 xl:p-6 transition-[margin] duration-200 ${
           collapsed ? "md:ml-[4.25rem]" : "md:ml-56"
         }`}
       >

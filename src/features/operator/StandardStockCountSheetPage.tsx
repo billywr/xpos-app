@@ -370,6 +370,9 @@ export function StandardStockCountSheetPage({
     itemIds: Set<string>;
   } | null>(null);
   const pendingSaveScheduledRef = useRef(false);
+  const pendingBlurSaveRef = useRef(false);
+  const doSaveNowRef = useRef<() => void>(() => {});
+  const doAutoSaveRef = useRef<() => void>(() => {});
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const pendingFocusIndexRef = useRef<number | null>(null);
 
@@ -594,12 +597,21 @@ export function StandardStockCountSheetPage({
       setSavingItemIds(new Set());
       if (pendingSaveScheduledRef.current) {
         pendingSaveScheduledRef.current = false;
-        const elapsed = Date.now() - lastKeystrokeAtRef.current;
-        const remaining = Math.max(0, AUTO_SAVE_DEBOUNCE_MS - elapsed);
-        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-        autoSaveTimerRef.current = setTimeout(() => {
-          doAutoSave();
-        }, remaining);
+        const isBlur = pendingBlurSaveRef.current;
+        pendingBlurSaveRef.current = false;
+        if (isBlur) {
+          if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+          autoSaveTimerRef.current = setTimeout(() => {
+            doSaveNowRef.current();
+          }, 100);
+        } else {
+          const elapsed = Date.now() - lastKeystrokeAtRef.current;
+          const remaining = Math.max(0, AUTO_SAVE_DEBOUNCE_MS - elapsed);
+          if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+          autoSaveTimerRef.current = setTimeout(() => {
+            doAutoSaveRef.current();
+          }, remaining);
+        }
       } else {
         void queryClient.invalidateQueries({
           queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
@@ -626,12 +638,21 @@ export function StandardStockCountSheetPage({
       setSavingItemIds(new Set());
       if (pendingSaveScheduledRef.current) {
         pendingSaveScheduledRef.current = false;
-        const elapsed = Date.now() - lastKeystrokeAtRef.current;
-        const remaining = Math.max(0, AUTO_SAVE_DEBOUNCE_MS - elapsed);
-        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-        autoSaveTimerRef.current = setTimeout(() => {
-          doAutoSave();
-        }, remaining);
+        const isBlur = pendingBlurSaveRef.current;
+        pendingBlurSaveRef.current = false;
+        if (isBlur) {
+          if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+          autoSaveTimerRef.current = setTimeout(() => {
+            doSaveNowRef.current();
+          }, 100);
+        } else {
+          const elapsed = Date.now() - lastKeystrokeAtRef.current;
+          const remaining = Math.max(0, AUTO_SAVE_DEBOUNCE_MS - elapsed);
+          if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+          autoSaveTimerRef.current = setTimeout(() => {
+            doAutoSaveRef.current();
+          }, remaining);
+        }
       } else {
         void queryClient.invalidateQueries({
           queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
@@ -975,14 +996,10 @@ export function StandardStockCountSheetPage({
     staleTime: 30_000,
   });
 
-  const isRecordSalesVisible = Boolean(showRecordSalesButton && recordSalesButtonActive);
-
   const showReconcileButton =
     isToday &&
     !hasChanges &&
     !hasErrors &&
-    !isRecordSalesVisible &&
-    !hasSalesToRecord &&
     (cachedReconcilePreview?.itemsAdjusted ?? 0) > 0;
 
   const latestSavedAt = useMemo(() => {
@@ -1140,9 +1157,21 @@ export function StandardStockCountSheetPage({
     }
   }
 
-  // Auto-save with 2.5s debounce after edits to allow user to completely finish typing
+  // Auto-save: 2.5s debounce while typing to let operator finish; fast 150ms save on blur
   const AUTO_SAVE_DEBOUNCE_MS = 2500;
+  const BLUR_SAVE_DEBOUNCE_MS = 150;
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const doSaveNow = useCallback(() => {
+    if (hasErrors || !canEdit || !hasChanges) return;
+    if (saveMutation.isPending || systemSyncMutation.isPending) {
+      pendingBlurSaveRef.current = true;
+      pendingSaveScheduledRef.current = true;
+      return;
+    }
+    saveMutation.mutate();
+  }, [hasErrors, canEdit, hasChanges, saveMutation, systemSyncMutation]);
+
   const doAutoSave = useCallback(() => {
     if (hasErrors || !canEdit || !hasChanges) return;
     const elapsed = Date.now() - lastKeystrokeAtRef.current;
@@ -1161,12 +1190,25 @@ export function StandardStockCountSheetPage({
     saveMutation.mutate();
   }, [hasErrors, canEdit, hasChanges, saveMutation, systemSyncMutation]);
 
+  doSaveNowRef.current = doSaveNow;
+  doAutoSaveRef.current = doAutoSave;
+
+  // Fast save when cursor leaves the cell (few milliseconds after blur)
+  const handleClosingBlur = useCallback(() => {
+    if (hasErrors || !canEdit || !hasChanges) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      doSaveNowRef.current();
+    }, BLUR_SAVE_DEBOUNCE_MS);
+  }, [hasErrors, canEdit, hasChanges]);
+
   useEffect(() => {
     if (!hasChanges || hasErrors || !canEdit) return;
     if (skipAutoSaveDebounceRef.current) {
       skipAutoSaveDebounceRef.current = false;
       return;
     }
+    pendingBlurSaveRef.current = false;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(doAutoSave, AUTO_SAVE_DEBOUNCE_MS);
     return () => {
@@ -1203,8 +1245,8 @@ export function StandardStockCountSheetPage({
     <div
       className={`flex flex-col overflow-hidden ${
         tableExpanded
-          ? "fixed inset-0 z-40 bg-white p-2 dark:bg-slate-900"
-          : "fixed inset-0 z-30 flex flex-col bg-slate-100 p-1.5 dark:bg-darkBg xl:relative xl:inset-auto xl:z-auto xl:min-h-0 xl:flex-1 xl:p-6"
+          ? "fixed inset-0 z-50 bg-white p-2 dark:bg-slate-900"
+          : "fixed inset-0 z-40 flex flex-col bg-slate-100 p-1.5 dark:bg-darkBg xl:relative xl:inset-auto xl:z-auto xl:min-h-0 xl:flex-1 xl:p-6"
       }`}
     >
       {!tableExpanded && (
@@ -1241,11 +1283,7 @@ export function StandardStockCountSheetPage({
                 placeholder="Search all columns…"
               />
             </div>
-            {saveMutation.isPending ? (
-              <span className="flex items-center gap-1 shrink-0 text-xs text-amber-600 dark:text-amber-400">
-                <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" /> Saving…
-              </span>
-            ) : hasChanges ? (
+            {hasChanges ? (
               <span className="hidden shrink-0 text-xs text-amber-600 xl:inline dark:text-amber-400">
                 {changedItemIds.size} unsaved change{changedItemIds.size > 1 ? "s" : ""}
               </span>
@@ -1511,6 +1549,7 @@ export function StandardStockCountSheetPage({
                             onChange={(e) =>
                               handleClosingChange(r.itemId, e.target.value)
                             }
+                            onBlur={handleClosingBlur}
                             onClick={(e) => {
                               const el = e.currentTarget;
                               const len = el.value.length;

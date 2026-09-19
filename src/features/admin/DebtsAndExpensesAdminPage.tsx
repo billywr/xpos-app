@@ -8,7 +8,7 @@ import { fetchBranches } from "@/api/branches";
 import { DebtsAndExpensesPage } from "@/features/operator/DebtsAndExpensesPage";
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
-import { PageHeader } from "@/components/PageHeader";
+
 import { HandCoins } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -80,14 +80,18 @@ export function DebtsAndExpensesAdminPage() {
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-        <PageHeader
-          title="Debts & Expenses"
-          subtitle="View and manage customer debts, settlements, and operational expenses across any branch."
-          icon={HandCoins}
-          fallbackTo="/admin"
-        />
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-4 xl:p-6">
+      <div className="mb-3 hidden xl:flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3 dark:border-slate-700">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
+            <HandCoins className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-base font-bold text-slate-900 dark:text-white">
+              Debts & Expenses
+            </h1>
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
             <label

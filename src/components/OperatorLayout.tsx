@@ -283,9 +283,17 @@ export function OperatorLayout() {
     );
   };
 
+  const isStdStockCount = location.pathname.startsWith(
+    "/operator/inventory/stock-count"
+  );
+
   return (
     <div className="flex h-full flex-col overflow-hidden bg-slate-100 text-slate-900 dark:bg-darkBg dark:text-white">
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-3 shadow-sm sm:gap-4 sm:px-4 dark:border-white/10 dark:bg-darkNav">
+      <header
+        className={`sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-3 shadow-sm sm:gap-4 sm:px-4 dark:border-white/10 dark:bg-darkNav ${
+          isStdStockCount ? "hidden xl:flex" : ""
+        }`}
+      >
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           {/* Mobile hamburger */}
           <button

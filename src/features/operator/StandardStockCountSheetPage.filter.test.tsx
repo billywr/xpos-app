@@ -1746,7 +1746,7 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
     });
   });
 
-  it("shows Record sales and hides Reconcile when unrecorded sales exist, hiding text on small screens", async () => {
+  it("shows both Record sales and Reconcile when unrecorded sales and discrepancies exist, hiding text on small screens", async () => {
     vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
       date: today,
       branchId: "branch-1",
@@ -1807,15 +1807,19 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
       expect(screen.getByText("Product 1")).toBeInTheDocument();
     });
 
-    // Record sales is visible, Reconcile is strictly hidden
+    // Both Record sales and Reconcile are visible
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /record sales/i })).toBeInTheDocument();
     });
-    expect(screen.queryByRole("button", { name: /reconcile inventory/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /reconcile inventory/i })).toBeInTheDocument();
 
     const recordSalesBtn = screen.getByRole("button", { name: /record sales/i });
     const recordSalesText = recordSalesBtn.querySelector("span");
     expect(recordSalesText?.className).toContain("hidden xl:inline");
+
+    const reconcileBtn = screen.getByRole("button", { name: /reconcile inventory/i });
+    const reconcileText = reconcileBtn.querySelector("span");
+    expect(reconcileText?.className).toContain("hidden xl:inline");
   });
 
   it("shows Reconcile only after sales have been recorded and discrepancies exist", async () => {
@@ -1887,6 +1891,102 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
 
     const reconcileText = screen.getByText("Reconcile inventory");
     expect(reconcileText.className).toContain("hidden xl:inline");
+  });
+
+  it("triggers auto-save quickly (few milliseconds) on cell blur instead of waiting 2.5s", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+        date: today,
+        branchId: "branch-1",
+        totalQtyToRecord: 0,
+        totalValueToRecord: 0,
+        lines: [],
+      });
+      vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
+        date: today,
+        branchId: "branch-1",
+        itemsAdjusted: 0,
+        itemsAlreadyMatched: 1,
+        lines: [],
+      });
+      vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+        date: today,
+        outletId: "branch-1",
+        rows: [
+          {
+            itemId: "item-1",
+            sku: "SKU001",
+            name: "Product 1",
+            openingStock: 10,
+            addedStock: 0,
+            addedTodayStock: 0,
+            sellingPrice: 100,
+            closingStock: 10,
+            lastSavedAt: new Date().toISOString(),
+            firstStockAddedAt: null,
+            comments: null,
+          },
+        ],
+      });
+      vi.mocked(stdApi.saveStdStockCount).mockResolvedValue({
+        date: today,
+        outletId: "branch-1",
+        rows: [
+          {
+            itemId: "item-1",
+            sku: "SKU001",
+            name: "Product 1",
+            openingStock: 10,
+            addedStock: 0,
+            addedTodayStock: 0,
+            sellingPrice: 100,
+            closingStock: 8,
+            lastSavedAt: new Date().toISOString(),
+            firstStockAddedAt: null,
+            comments: null,
+          },
+        ],
+      });
+
+      wrap(<StandardStockCountSheetPage />, "term-1");
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue("10")).toBeInTheDocument();
+      });
+
+      const input = screen.getByDisplayValue("10");
+      fireEvent.change(input, { target: { value: "8" } });
+
+      // Cell displays "Not saved"
+      expect(screen.getByText("Not saved")).toBeInTheDocument();
+
+      // After 100ms without blur, save has NOT been called (2.5s typing debounce is active)
+      await vi.advanceTimersByTimeAsync(100);
+      expect(stdApi.saveStdStockCount).not.toHaveBeenCalled();
+
+      // User leaves the cell (blur)
+      fireEvent.blur(input);
+
+      // Within ~200ms of leaving the cell, save is executed
+      await vi.advanceTimersByTimeAsync(200);
+
+      expect(stdApi.saveStdStockCount).toHaveBeenCalledWith(
+        "t",
+        "org-1",
+        "branch-1",
+        expect.objectContaining({
+          counts: [
+            expect.objectContaining({
+              itemId: "item-1",
+              closingStock: 8,
+            }),
+          ],
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
