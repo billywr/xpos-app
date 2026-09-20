@@ -49,6 +49,8 @@ class RevenueDashboardAdminControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.summary.revenueTotal").value(0))
         .andExpect(jsonPath("$.summary.taxTotal").value(0))
         .andExpect(jsonPath("$.summary.cogsTotal").value(0))
+        .andExpect(jsonPath("$.summary.expenseTotal").value(0))
+        .andExpect(jsonPath("$.summary.netProfit").value(0))
         .andExpect(jsonPath("$.summary.saleCount").value(0))
         .andExpect(jsonPath("$.trend").isArray())
         .andExpect(jsonPath("$.trend.length()").value(0));

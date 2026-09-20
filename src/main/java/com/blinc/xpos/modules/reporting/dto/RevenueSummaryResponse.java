@@ -14,4 +14,6 @@ public record RevenueSummaryResponse(
     BigDecimal taxTotal,
     BigDecimal discountTotal,
     BigDecimal cogsTotal,
+    BigDecimal expenseTotal,
+    BigDecimal netProfit,
     int saleCount) {}
