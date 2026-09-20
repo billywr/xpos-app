@@ -15,9 +15,29 @@ const KEYS = {
   SELECTED_TERMINAL_ID: "@xpos:selected_terminal_id",
   SELECTED_TERMINAL_NAME: "@xpos:selected_terminal_name",
   THEME_MODE: "@xpos:theme_mode",
+  USERNAME: "@xpos:username",
+  CUSTOM_SERVERS: "@xpos:custom_servers",
 };
 
+export interface CustomServer {
+  id: string;
+  name: string;
+  apiBaseUrl: string;
+  keycloakUrl: string;
+  realm: string;
+  clientId: string;
+}
+
 export const storage = {
+  async getUsername(): Promise<string | null> {
+    return AsyncStorage.getItem(KEYS.USERNAME);
+  },
+  async setUsername(username: string): Promise<void> {
+    await AsyncStorage.setItem(KEYS.USERNAME, username);
+  },
+  async clearUsername(): Promise<void> {
+    await AsyncStorage.removeItem(KEYS.USERNAME);
+  },
   async getAuthToken(): Promise<string | null> {
     return AsyncStorage.getItem(KEYS.AUTH_TOKEN);
   },
@@ -41,6 +61,30 @@ export const storage = {
   },
   async setKeycloakUrl(url: string): Promise<void> {
     await AsyncStorage.setItem(KEYS.KEYCLOAK_URL, url);
+  },
+  async getRealm(): Promise<string | null> {
+    return AsyncStorage.getItem(KEYS.REALM);
+  },
+  async setRealm(realm: string): Promise<void> {
+    await AsyncStorage.setItem(KEYS.REALM, realm);
+  },
+  async getClientId(): Promise<string | null> {
+    return AsyncStorage.getItem(KEYS.CLIENT_ID);
+  },
+  async setClientId(clientId: string): Promise<void> {
+    await AsyncStorage.setItem(KEYS.CLIENT_ID, clientId);
+  },
+  async getCustomServers(): Promise<CustomServer[]> {
+    const raw = await AsyncStorage.getItem(KEYS.CUSTOM_SERVERS);
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw) as CustomServer[];
+    } catch {
+      return [];
+    }
+  },
+  async setCustomServers(servers: CustomServer[]): Promise<void> {
+    await AsyncStorage.setItem(KEYS.CUSTOM_SERVERS, JSON.stringify(servers));
   },
   async getOrgContext(): Promise<{
     orgId: string | null;
@@ -125,6 +169,7 @@ export const storage = {
       KEYS.SELECTED_BRANCH_NAME,
       KEYS.SELECTED_TERMINAL_ID,
       KEYS.SELECTED_TERMINAL_NAME,
+      KEYS.USERNAME,
     ];
     await Promise.all(keys.map((k) => AsyncStorage.removeItem(k)));
   },

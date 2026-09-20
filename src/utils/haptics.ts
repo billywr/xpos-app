@@ -2,6 +2,13 @@ import * as Haptics from "expo-haptics";
 import { Platform } from "react-native";
 
 export const haptics = {
+  selection: () => {
+    if (Platform.OS !== "web") {
+      try {
+        void Haptics.selectionAsync();
+      } catch {}
+    }
+  },
   light: () => {
     if (Platform.OS !== "web") {
       try {

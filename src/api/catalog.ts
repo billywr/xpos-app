@@ -63,3 +63,68 @@ export async function addItemBarcode(
     { token, method: "POST", body: { barcode } }
   );
 }
+
+export interface CreateItemBody {
+  sku?: string | null;
+  name: string;
+  itemType: string;
+  categoryId?: string | null;
+  taxProfileId?: string | null;
+  trackInventory?: boolean;
+  active?: boolean;
+  buyingPrice?: number | null;
+  defaultSellingPrice?: number | null;
+  visibleInPos?: boolean;
+  imageUrl?: string | null;
+}
+
+export interface UpdateItemBody {
+  sku?: string | null;
+  name?: string;
+  itemType?: string;
+  categoryId?: string | null;
+  taxProfileId?: string | null;
+  trackInventory?: boolean;
+  active?: boolean;
+  buyingPrice?: number | null;
+  defaultSellingPrice?: number | null;
+  visibleInPos?: boolean;
+  imageUrl?: string | null;
+}
+
+export async function createItem(
+  token: string | null,
+  orgId: string,
+  body: CreateItemBody
+): Promise<Item> {
+  return apiFetch<Item>(`/api/v1/admin/orgs/${orgId}/items`, {
+    token,
+    method: "POST",
+    body: {
+      sku: body.sku ?? null,
+      name: body.name,
+      itemType: body.itemType,
+      categoryId: body.categoryId ?? null,
+      taxProfileId: body.taxProfileId ?? null,
+      trackInventory: body.trackInventory ?? false,
+      active: body.active ?? true,
+      buyingPrice: body.buyingPrice ?? null,
+      defaultSellingPrice: body.defaultSellingPrice ?? null,
+      visibleInPos: body.visibleInPos ?? true,
+      imageUrl: body.imageUrl ?? null,
+    },
+  });
+}
+
+export async function updateItem(
+  token: string | null,
+  orgId: string,
+  itemId: string,
+  body: UpdateItemBody
+): Promise<Item> {
+  return apiFetch<Item>(`/api/v1/admin/orgs/${orgId}/items/${itemId}`, {
+    token,
+    method: "PATCH",
+    body,
+  });
+}

@@ -1,9 +1,8 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   FlatList,
   ScrollView,
   TouchableOpacity,
@@ -11,15 +10,18 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  Switch,
 } from "react-native";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
-  Barcode,
-  Tag,
   Package,
   Plus,
+  X,
   Layers,
+  CheckCircle2,
+  RefreshCw,
 } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -27,8 +29,8 @@ import { useOrg } from "@/context/OrgContext";
 import {
   fetchItems,
   fetchCategories,
-  fetchItemBarcodes,
-  addItemBarcode,
+  createItem,
+  updateItem,
 } from "@/api/catalog";
 import type { Item, Category } from "@/types";
 import { formatCurrency } from "@/utils/formatCurrency";
@@ -37,69 +39,91 @@ import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { BarcodeScannerModal } from "@/components/BarcodeScannerModal";
+import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
+import { useRouter } from "expo-router";
+
+const PAGE_SIZE = 30;
+
+// ---------------------------------------------------------------------------
+// Skeleton card matching the real catalog item card layout
+// ---------------------------------------------------------------------------
+const CatalogSkeletonCard: React.FC = () => (
+  <Card style={{ padding: 14, marginBottom: 10 }}>
+    {/* top row: name block + price */}
+    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
+      <View style={{ flex: 1, gap: 6, marginRight: 12 }}>
+        <SkeletonBlock width="70%" height={15} radius={6} />
+        <SkeletonBlock width={60} height={11} radius={5} />
+      </View>
+      <SkeletonBlock width={64} height={18} radius={6} />
+    </View>
+    {/* badge row */}
+    <View style={{ flexDirection: "row", gap: 6 }}>
+      <SkeletonBlock width={72} height={20} radius={10} />
+      <SkeletonBlock width={60} height={20} radius={10} />
+      <SkeletonBlock width={48} height={20} radius={10} />
+    </View>
+  </Card>
+);
 
 export const CatalogScreen: React.FC = () => {
   const { colors } = useTheme();
   const { token } = useAuth();
   const { orgId } = useOrg();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [scannerOpen, setScannerOpen] = useState(false);
 
-  // Selected item for detail modal
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [newBarcode, setNewBarcode] = useState("");
+  // Item Create/Edit Modal State
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [formName, setFormName] = useState("");
+  const [formSku, setFormSku] = useState("");
+  const [formItemType, setFormItemType] = useState("MENU");
+  const [formCategoryId, setFormCategoryId] = useState<string | null>(null);
+  const [formSellingPrice, setFormSellingPrice] = useState("");
+  const [formBuyingPrice, setFormBuyingPrice] = useState("");
+  const [formTrackInventory, setFormTrackInventory] = useState(true);
+  const [formActive, setFormActive] = useState(true);
+  const [formVisibleInPos, setFormVisibleInPos] = useState(true);
 
   // Fetch categories
-  const { data: categoriesData } = useQuery({
+  const { data: categoriesData, refetch: refetchCategories } = useQuery({
     queryKey: ["catalog-categories", token, orgId],
     queryFn: () => fetchCategories(token, orgId!),
     enabled: Boolean(token && orgId),
   });
   const categories = categoriesData?.content ?? [];
 
-  // Fetch items
+  // Fetch items — infinite scroll
   const {
-    data: itemsData,
+    data: itemsPages,
     isLoading: itemsLoading,
-    isRefetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
     refetch,
-  } = useQuery({
+    isRefetching,
+  } = useInfiniteQuery({
     queryKey: ["catalog-items", token, orgId, selectedCategoryId],
-    queryFn: () =>
+    queryFn: ({ pageParam = 0 }) =>
       fetchItems(token, orgId!, {
-        size: 150,
+        page: pageParam as number,
+        size: PAGE_SIZE,
         categoryId: selectedCategoryId,
       }),
+    getNextPageParam: (lastPage) =>
+      lastPage.last ? undefined : (lastPage.number ?? 0) + 1,
+    initialPageParam: 0,
     enabled: Boolean(token && orgId),
   });
-  const items = itemsData?.content ?? [];
 
-  // Fetch item barcodes for modal
-  const { data: barcodesData, refetch: refetchBarcodes } = useQuery({
-    queryKey: ["item-barcodes", token, orgId, selectedItem?.id],
-    queryFn: () => fetchItemBarcodes(token, orgId!, selectedItem!.id),
-    enabled: Boolean(token && orgId && selectedItem),
-  });
-
-  // Add barcode mutation
-  const addBarcodeMutation = useMutation({
-    mutationFn: (barcode: string) =>
-      addItemBarcode(token, orgId!, selectedItem!.id, barcode),
-    onSuccess: () => {
-      haptics.success();
-      setNewBarcode("");
-      void refetchBarcodes();
-      Alert.alert("Success", "Barcode added to item.");
-    },
-    onError: (err: any) => {
-      haptics.error();
-      Alert.alert("Error", err?.data?.message ?? "Failed to add barcode.");
-    },
-  });
+  const items = useMemo(
+    () => itemsPages?.pages.flatMap((p) => p.content) ?? [],
+    [itemsPages]
+  );
 
   // Filtered items
   const filteredItems = useMemo(() => {
@@ -112,8 +136,103 @@ export const CatalogScreen: React.FC = () => {
     );
   }, [items, searchQuery]);
 
+  // Open Create Item Modal
+  const handleOpenCreate = () => {
+    haptics.light();
+    setEditingItem(null);
+    setFormName("");
+    setFormSku("");
+    setFormItemType("MENU");
+    setFormCategoryId(selectedCategoryId ?? null);
+    setFormSellingPrice("");
+    setFormBuyingPrice("");
+    setFormTrackInventory(true);
+    setFormActive(true);
+    setFormVisibleInPos(true);
+    setModalOpen(true);
+  };
+
+  // Open Edit Item Modal (View & Edit)
+  const handleOpenEdit = (item: Item) => {
+    haptics.medium();
+    setEditingItem(item);
+    setFormName(item.name);
+    setFormSku(item.sku || "");
+    setFormItemType(item.itemType || "MENU");
+    setFormCategoryId(item.categoryId || null);
+    setFormSellingPrice(
+      item.defaultSellingPrice != null ? String(item.defaultSellingPrice) : ""
+    );
+    setFormBuyingPrice(
+      item.buyingPrice != null ? String(item.buyingPrice) : ""
+    );
+    setFormTrackInventory(item.trackInventory ?? true);
+    setFormActive(item.active ?? true);
+    setFormVisibleInPos(item.visibleInPos ?? true);
+    setModalOpen(true);
+  };
+
+  // Create Mutation
+  const createMutation = useMutation({
+    mutationFn: () =>
+      createItem(token, orgId!, {
+        name: formName.trim(),
+        sku: formSku.trim() || null,
+        itemType: formItemType,
+        categoryId: formCategoryId || null,
+        defaultSellingPrice: formSellingPrice ? Number(formSellingPrice) : null,
+        buyingPrice: formBuyingPrice ? Number(formBuyingPrice) : null,
+        trackInventory: formTrackInventory,
+        active: formActive,
+        visibleInPos: formVisibleInPos,
+      }),
+    onSuccess: () => {
+      haptics.success();
+      setModalOpen(false);
+      void queryClient.invalidateQueries({ queryKey: ["catalog-items"] });
+      Alert.alert("Success", "Item created successfully.");
+    },
+    onError: (err: any) => {
+      haptics.error();
+      Alert.alert("Error", err?.data?.message ?? err?.message ?? "Failed to create item.");
+    },
+  });
+
+  // Update Mutation
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      updateItem(token, orgId!, editingItem!.id, {
+        name: formName.trim(),
+        sku: formSku.trim() || null,
+        itemType: formItemType,
+        categoryId: formCategoryId || null,
+        defaultSellingPrice: formSellingPrice ? Number(formSellingPrice) : null,
+        buyingPrice: formBuyingPrice ? Number(formBuyingPrice) : null,
+        trackInventory: formTrackInventory,
+        active: formActive,
+        visibleInPos: formVisibleInPos,
+      }),
+    onSuccess: () => {
+      haptics.success();
+      setModalOpen(false);
+      void queryClient.invalidateQueries({ queryKey: ["catalog-items"] });
+      Alert.alert("Success", "Item updated successfully.");
+    },
+    onError: (err: any) => {
+      haptics.error();
+      Alert.alert("Error", err?.data?.message ?? err?.message ?? "Failed to update item.");
+    },
+  });
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const handleToolbarRefresh = async () => {
+    haptics.light();
+    await Promise.all([refetch(), refetchCategories()]);
+  };
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={["top", "left", "right"]} style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Top Search Toolbar */}
       <View style={styles.toolbar}>
         <View style={styles.searchBox}>
@@ -125,11 +244,31 @@ export const CatalogScreen: React.FC = () => {
             containerStyle={{ marginBottom: 0 }}
           />
         </View>
+        <Button
+          title="+ Add Item"
+          size="sm"
+          onPress={handleOpenCreate}
+          style={styles.addBtn}
+        />
         <TouchableOpacity
-          onPress={() => setScannerOpen(true)}
-          style={[styles.scannerBtn, { backgroundColor: colors.surfaceRaised }]}
+          onPress={handleToolbarRefresh}
+          disabled={isRefetching}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh catalog items"
+          style={[
+            styles.refreshToolbarBtn,
+            {
+              backgroundColor: colors.surfaceRaised,
+              borderColor: colors.border,
+            },
+          ]}
         >
-          <Barcode size={20} color={colors.primary} />
+          {isRefetching ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <RefreshCw size={16} color={colors.text} />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -205,12 +344,15 @@ export const CatalogScreen: React.FC = () => {
 
       {/* Item List */}
       {itemsLoading ? (
-        <View style={styles.centerLoading}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.textMuted }]}>
-            Loading catalog items…
-          </Text>
-        </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[styles.listContent, { paddingTop: 10 }]}
+          scrollEnabled={false}
+        >
+          {Array.from({ length: 8 }).map((_, i) => (
+            <CatalogSkeletonCard key={i} />
+          ))}
+        </ScrollView>
       ) : (
         <FlatList
           data={filteredItems}
@@ -223,6 +365,19 @@ export const CatalogScreen: React.FC = () => {
             />
           }
           contentContainerStyle={styles.listContent}
+          onEndReachedThreshold={0.3}
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) {
+              void fetchNextPage();
+            }
+          }}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View style={{ paddingVertical: 16, alignItems: "center" }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <Package size={40} color={colors.textSubtle} />
@@ -235,7 +390,10 @@ export const CatalogScreen: React.FC = () => {
             <TouchableOpacity
               onPress={() => {
                 haptics.light();
-                setSelectedItem(item);
+                handleOpenEdit(item);
+              }}
+              onLongPress={() => {
+                handleOpenEdit(item);
               }}
               activeOpacity={0.7}
             >
@@ -277,8 +435,8 @@ export const CatalogScreen: React.FC = () => {
         />
       )}
 
-      {/* Item Detail & Barcodes Modal */}
-      <Modal visible={Boolean(selectedItem)} animationType="slide" transparent>
+      {/* Item Create / Edit Modal */}
+      <Modal visible={modalOpen} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
           <View
             style={[
@@ -289,106 +447,234 @@ export const CatalogScreen: React.FC = () => {
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {selectedItem?.name}
+                  {editingItem ? "Edit Item Details" : "Add New Item"}
                 </Text>
-                <Text style={[styles.modalSku, { color: colors.textSubtle }]}>
-                  SKU: {selectedItem?.sku || "N/A"}
-                </Text>
+                {editingItem ? (
+                  <Text style={[styles.modalSubtitle, { color: colors.textSubtle }]}>
+                    {editingItem.categoryName ? `${editingItem.categoryName} · ` : ""}SKU: {editingItem.sku || "N/A"}
+                  </Text>
+                ) : (
+                  <Text style={[styles.modalSubtitle, { color: colors.textSubtle }]}>
+                    Create a new product or service for your catalog
+                  </Text>
+                )}
               </View>
-              <Badge
-                label={selectedItem?.active ? "Active" : "Inactive"}
-                variant={selectedItem?.active ? "primary" : "danger"}
-              />
+              <TouchableOpacity
+                onPress={() => setModalOpen(false)}
+                style={[styles.closeBtn, { backgroundColor: colors.surfaceRaised }]}
+              >
+                <X size={18} color={colors.text} />
+              </TouchableOpacity>
             </View>
 
-            {/* Price Info */}
-            <View
-              style={[
-                styles.priceGrid,
-                { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
-              ]}
+            <ScrollView
+              style={{ maxHeight: 420 }}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 16 }}
             >
-              <View style={styles.priceCol}>
-                <Text style={[styles.priceLabel, { color: colors.textSubtle }]}>
-                  Selling Price
-                </Text>
-                <Text style={[styles.priceVal, { color: colors.primary }]}>
-                  {formatCurrency(selectedItem?.defaultSellingPrice)}
-                </Text>
-              </View>
-              <View style={styles.priceCol}>
-                <Text style={[styles.priceLabel, { color: colors.textSubtle }]}>
-                  Buying Price
-                </Text>
-                <Text style={[styles.priceVal, { color: colors.textMuted }]}>
-                  {formatCurrency(selectedItem?.buyingPrice)}
-                </Text>
-              </View>
-            </View>
+              <Input
+                label="Item Name *"
+                value={formName}
+                onChangeText={setFormName}
+                placeholder="e.g. Tusker Cider 500ml"
+              />
 
-            {/* Barcodes Section */}
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Barcodes
-            </Text>
-            <View style={styles.barcodesBox}>
-              {(barcodesData ?? []).length === 0 ? (
-                <Text style={[styles.emptyBarcode, { color: colors.textSubtle }]}>
-                  No barcodes assigned.
-                </Text>
-              ) : (
-                barcodesData?.map((b) => (
-                  <View
-                    key={b.id}
+              <View style={styles.twoColRow}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Input
+                    label="Selling Price *"
+                    value={formSellingPrice}
+                    onChangeText={setFormSellingPrice}
+                    placeholder="0.00"
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Input
+                    label="Buying Price"
+                    value={formBuyingPrice}
+                    onChangeText={setFormBuyingPrice}
+                    placeholder="0.00"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              <Input
+                label="SKU / Barcode"
+                value={formSku}
+                onChangeText={setFormSku}
+                placeholder="e.g. TSK-500"
+              />
+
+              {/* Category Selection */}
+              <Text style={[styles.fieldLabel, { color: colors.textSubtle }]}>
+                Category
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoryPickerRow}
+              >
+                <TouchableOpacity
+                  onPress={() => {
+                    haptics.light();
+                    setFormCategoryId(null);
+                  }}
+                  style={[
+                    styles.catChip,
+                    {
+                      backgroundColor:
+                        formCategoryId === null ? colors.primary : colors.surfaceRaised,
+                    },
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.barcodeChip,
-                      { backgroundColor: colors.surfaceRaised },
+                      styles.catChipText,
+                      {
+                        color: formCategoryId === null ? "#ffffff" : colors.textMuted,
+                        fontWeight: formCategoryId === null ? "700" : "500",
+                      },
                     ]}
                   >
-                    <Barcode size={16} color={colors.primary} />
-                    <Text style={[styles.barcodeText, { color: colors.text }]}>
-                      {b.barcode}
-                    </Text>
-                  </View>
-                ))
-              )}
-            </View>
+                    None
+                  </Text>
+                </TouchableOpacity>
+                {categories.map((c) => {
+                  const isSel = formCategoryId === c.id;
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      onPress={() => {
+                        haptics.light();
+                        setFormCategoryId(isSel ? null : c.id);
+                      }}
+                      style={[
+                        styles.catChip,
+                        {
+                          backgroundColor: isSel
+                            ? colors.primary
+                            : colors.surfaceRaised,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.catChipText,
+                          {
+                            color: isSel ? "#ffffff" : colors.textMuted,
+                            fontWeight: isSel ? "700" : "500",
+                          },
+                        ]}
+                      >
+                        {c.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
 
-            {/* Add barcode inline */}
-            <View style={styles.addBarcodeRow}>
-              <Input
-                value={newBarcode}
-                onChangeText={setNewBarcode}
-                placeholder="Scan or enter new barcode…"
-                keyboardType="numeric"
-                containerStyle={{ flex: 1, marginBottom: 0 }}
+              {/* Item Type Selection */}
+              <Text style={[styles.fieldLabel, { color: colors.textSubtle, marginTop: 12 }]}>
+                Item Type
+              </Text>
+              <View style={styles.itemTypeRow}>
+                {["MENU", "RETAIL", "SERVICE"].map((t) => {
+                  const isSel = formItemType === t;
+                  return (
+                    <TouchableOpacity
+                      key={t}
+                      onPress={() => {
+                        haptics.light();
+                        setFormItemType(t);
+                      }}
+                      style={[
+                        styles.typePill,
+                        {
+                          backgroundColor: isSel
+                            ? colors.primaryLight
+                            : colors.surfaceRaised,
+                          borderColor: isSel ? colors.primary : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.typePillText,
+                          {
+                            color: isSel ? colors.primary : colors.textMuted,
+                            fontWeight: isSel ? "700" : "500",
+                          },
+                        ]}
+                      >
+                        {t}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Toggle Switches */}
+              <View style={[styles.togglesBox, { borderColor: colors.borderSubtle }]}>
+                <View style={styles.toggleRow}>
+                  <Text style={[styles.toggleLabel, { color: colors.text }]}>
+                    Track Inventory
+                  </Text>
+                  <Switch
+                    value={formTrackInventory}
+                    onValueChange={setFormTrackInventory}
+                    trackColor={{ false: colors.surfaceRaised, true: colors.primary }}
+                  />
+                </View>
+                <View style={styles.toggleRow}>
+                  <Text style={[styles.toggleLabel, { color: colors.text }]}>
+                    Active
+                  </Text>
+                  <Switch
+                    value={formActive}
+                    onValueChange={setFormActive}
+                    trackColor={{ false: colors.surfaceRaised, true: colors.primary }}
+                  />
+                </View>
+                <View style={styles.toggleRow}>
+                  <Text style={[styles.toggleLabel, { color: colors.text }]}>
+                    Visible in POS
+                  </Text>
+                  <Switch
+                    value={formVisibleInPos}
+                    onValueChange={setFormVisibleInPos}
+                    trackColor={{ false: colors.surfaceRaised, true: colors.primary }}
+                  />
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Modal Actions */}
+            <View style={styles.modalBtns}>
+              <Button
+                title="Cancel"
+                variant="secondary"
+                onPress={() => setModalOpen(false)}
+                style={{ flex: 1, marginRight: 8 }}
               />
               <Button
-                title="Add"
-                disabled={!newBarcode.trim()}
-                loading={addBarcodeMutation.isPending}
-                onPress={() => addBarcodeMutation.mutate(newBarcode.trim())}
-                style={{ marginLeft: 8 }}
+                title={editingItem ? "Update Item" : "Create Item"}
+                loading={isSaving}
+                disabled={!formName.trim() || isSaving}
+                onPress={() => {
+                  if (editingItem) {
+                    updateMutation.mutate();
+                  } else {
+                    createMutation.mutate();
+                  }
+                }}
+                style={{ flex: 1.4 }}
               />
             </View>
-
-            <Button
-              title="Close"
-              variant="secondary"
-              onPress={() => setSelectedItem(null)}
-              style={{ marginTop: 16 }}
-            />
           </View>
         </View>
       </Modal>
-
-      {/* Barcode Camera Scanner */}
-      <BarcodeScannerModal
-        visible={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onScan={(barcode) => {
-          setSearchQuery(barcode);
-        }}
-      />
     </SafeAreaView>
   );
 };
@@ -407,12 +693,17 @@ const styles = StyleSheet.create({
   searchBox: {
     flex: 1,
   },
-  scannerBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  addBtn: {
+    paddingHorizontal: 14,
+    height: 42,
+  },
+  refreshToolbarBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
   },
   categoryScrollContainer: {
     paddingBottom: 8,
@@ -496,63 +787,82 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 14,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: "800",
   },
-  modalSku: {
+  modalSubtitle: {
     fontSize: 12,
     marginTop: 2,
   },
-  priceGrid: {
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  twoColRow: {
     flexDirection: "row",
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    marginBottom: 16,
+    alignItems: "center",
   },
-  priceCol: {
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 6,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  categoryPickerRow: {
+    gap: 8,
+    paddingBottom: 6,
+  },
+  catChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  catChipText: {
+    fontSize: 12,
+  },
+  itemTypeRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
+  },
+  typePill: {
     flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  priceLabel: {
-    fontSize: 11,
+  typePillText: {
+    fontSize: 12,
+  },
+  togglesBox: {
+    borderTopWidth: 0.5,
+    borderBottomWidth: 0.5,
+    paddingVertical: 8,
+    marginVertical: 8,
+    gap: 8,
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+  },
+  toggleLabel: {
+    fontSize: 14,
     fontWeight: "500",
   },
-  priceVal: {
-    fontSize: 16,
-    fontWeight: "800",
-    marginTop: 2,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-  barcodesBox: {
+  modalBtns: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 16,
-  },
-  emptyBarcode: {
-    fontSize: 13,
-  },
-  barcodeChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  barcodeText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  addBarcodeRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    marginTop: 14,
+    paddingBottom: 16,
   },
 });

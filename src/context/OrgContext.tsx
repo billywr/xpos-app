@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { storage } from "@/utils/storage";
+import { useAuth } from "@/context/AuthContext";
+import { fetchOrgs, fetchBranches, fetchTerminals } from "@/api/context";
 
 interface OrgContextType {
   orgId: string | null;
@@ -30,6 +32,7 @@ const OrgContext = createContext<OrgContextType>({
 });
 
 export const OrgProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { token } = useAuth();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
   const [branchId, setBranchId] = useState<string | null>(null);
@@ -54,6 +57,100 @@ export const OrgProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     void loadOrgContext();
   }, []);
+
+  // Automatically select first org, branch, and terminal if not already selected
+  useEffect(() => {
+    if (!token) {
+      setOrgId(null);
+      setOrgName(null);
+      setBranchId(null);
+      setBranchName(null);
+      setTerminalId(null);
+      setTerminalName(null);
+      return;
+    }
+
+    let isMounted = true;
+    async function autoSelect() {
+      try {
+        let currentOrgId = orgId;
+        let currentOrgName = orgName;
+        let currentBranchId = branchId;
+        let currentBranchName = branchName;
+        let currentTerminalId = terminalId;
+
+        // Fetch organizations available to this authenticated user in this environment
+        const orgsRes = await fetchOrgs(token);
+        const orgs = orgsRes?.content ?? [];
+
+        // If currentOrgId is not set or belongs to another environment (stale UUID), reset to first org
+        const matchedOrg = orgs.find((o) => o.id === currentOrgId);
+        if (!matchedOrg && orgs.length > 0 && isMounted) {
+          currentOrgId = orgs[0].id;
+          currentOrgName = orgs[0].name;
+          setOrgId(currentOrgId);
+          setOrgName(currentOrgName);
+          currentBranchId = null;
+          currentBranchName = null;
+          setBranchId(null);
+          setBranchName(null);
+          currentTerminalId = null;
+          setTerminalId(null);
+          setTerminalName(null);
+          await storage.setOrgContext({
+            orgId: currentOrgId,
+            orgName: currentOrgName,
+            branchId: null,
+            branchName: null,
+            terminalId: null,
+            terminalName: null,
+          });
+        }
+
+        // Validate or select branch
+        if (currentOrgId && isMounted) {
+          const branchesRes = await fetchBranches(token, currentOrgId);
+          const branches = branchesRes?.content ?? [];
+          const matchedBranch = branches.find((b) => b.id === currentBranchId);
+          if (!matchedBranch && branches.length > 0 && isMounted) {
+            currentBranchId = branches[0].id;
+            currentBranchName = branches[0].name;
+            setBranchId(currentBranchId);
+            setBranchName(currentBranchName);
+            currentTerminalId = null;
+            setTerminalId(null);
+            setTerminalName(null);
+            await storage.setOrgContext({
+              branchId: currentBranchId,
+              branchName: currentBranchName,
+              terminalId: null,
+              terminalName: null,
+            });
+          }
+        }
+
+        // Validate or select terminal
+        if (currentOrgId && currentBranchId && isMounted) {
+          const terminalsRes = await fetchTerminals(token, currentOrgId, currentBranchId);
+          const terminals = terminalsRes?.content ?? [];
+          const matchedTerminal = terminals.find((t) => t.id === currentTerminalId);
+          if (!matchedTerminal && terminals.length > 0 && isMounted) {
+            const firstTerminal = terminals[0];
+            setTerminalId(firstTerminal.id);
+            setTerminalName(firstTerminal.name);
+            await storage.setOrgContext({
+              terminalId: firstTerminal.id,
+              terminalName: firstTerminal.name,
+            });
+          }
+        }
+      } catch {
+        // Silently continue if network fails
+      }
+    }
+
+    void autoSelect();
+  }, [token]);
 
   const setOrg = async (id: string | null, name: string | null) => {
     setOrgId(id);

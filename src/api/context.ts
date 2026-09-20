@@ -21,7 +21,7 @@ export async function fetchTerminals(
   branchId: string
 ): Promise<PageResponse<Terminal>> {
   return apiFetch<PageResponse<Terminal>>(
-    `/api/v1/admin/orgs/${orgId}/branches/${branchId}/terminals?size=100&sort=name,asc`,
+    `/api/v1/admin/orgs/${orgId}/branches/${branchId}/terminals?size=100&sort=terminalCode,asc`,
     { token }
   );
 }

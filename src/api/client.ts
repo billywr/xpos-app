@@ -1,10 +1,14 @@
+import { Platform } from "react-native";
 import { storage } from "@/utils/storage";
 import { generateUuid } from "@/utils/uuid";
+import { DEFAULT_CONFIG } from "@/constants/config";
+import { refreshKeycloakToken } from "./auth";
 import type { ApiError } from "@/types";
 
 const REQUEST_ID_HEADER = "X-Request-Id";
+const DEFAULT_TIMEOUT_MS = 15000;
 
-let defaultApiBaseUrl = "http://localhost:9003";
+let defaultApiBaseUrl: string = DEFAULT_CONFIG.API_BASE_URL;
 
 export function setDefaultApiBaseUrl(url: string) {
   defaultApiBaseUrl = url.replace(/\/$/, "");
@@ -16,19 +20,73 @@ export async function getBaseUrl(): Promise<string> {
   return defaultApiBaseUrl;
 }
 
+let on401: (() => void) | null = null;
+let onTokenRefreshed: ((token: string) => void) | null = null;
+let refreshPromise: Promise<string> | null = null;
+
+export function set401Handler(handler: (() => void) | null): void {
+  on401 = handler;
+}
+
+export function setTokenRefreshedHandler(handler: ((token: string) => void) | null): void {
+  onTokenRefreshed = handler;
+}
+
+async function tryRefreshToken(): Promise<string> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const refreshToken = await storage.getRefreshToken();
+    if (!refreshToken) throw new Error("No refresh token available");
+
+    const keycloakUrl = (await storage.getKeycloakUrl()) || DEFAULT_CONFIG.KEYCLOAK_URL;
+    const realm = (await storage.getRealm()) || DEFAULT_CONFIG.KEYCLOAK_REALM;
+    const clientId = (await storage.getClientId()) || DEFAULT_CONFIG.KEYCLOAK_CLIENT_ID;
+
+    const newToken = await refreshKeycloakToken({
+      keycloakUrl,
+      realm,
+      clientId,
+      refreshToken,
+    });
+
+    if (onTokenRefreshed) {
+      onTokenRefreshed(newToken);
+    }
+    return newToken;
+  })().finally(() => {
+    refreshPromise = null;
+  });
+
+  return refreshPromise;
+}
+
 export interface RequestConfig {
   token?: string | null;
   requestId?: string;
   body?: unknown;
+  timeoutMs?: number;
+  _isRetry?: boolean;
 }
 
 export async function apiFetch<T>(
   path: string,
   options: RequestConfig & Omit<RequestInit, "body"> = {}
 ): Promise<T> {
-  const { token, requestId = generateUuid(), body, ...init } = options;
+  let { token, requestId = generateUuid(), body, timeoutMs = DEFAULT_TIMEOUT_MS, _isRetry, ...init } = options;
+  if (!token) {
+    token = await storage.getAuthToken();
+  }
   const baseUrl = await getBaseUrl();
-  const url = path.startsWith("http") ? path : `${baseUrl}${path}`;
+  const isWeb = Platform.OS === "web" && typeof window !== "undefined";
+  // On Web, remote prod server (62.169.22.51) rejects cross-origin browser requests with 403.
+  // Metro has a local reverse proxy on window.location.origin (/api/) that strips origin and forwards.
+  const useWebProxy = isWeb && baseUrl.includes("62.169.22.51") && Boolean(window.location?.origin);
+  const url = path.startsWith("http")
+    ? path
+    : useWebProxy
+    ? `${window.location.origin}${path.startsWith("/") ? path : `/${path}`}`
+    : `${baseUrl}${path}`;
 
   const headers = new Headers(init.headers);
   headers.set(REQUEST_ID_HEADER, requestId);
@@ -39,23 +97,38 @@ export async function apiFetch<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  let res: Response;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let res: Response | null = null;
+  let lastErr: unknown = null;
+
   try {
-    res = await fetch(url, {
+    const attempt = await fetch(url, {
       ...init,
+      signal: init.signal || controller.signal,
       headers,
       body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
     });
+    res = attempt;
   } catch (err) {
+    lastErr = err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!res) {
+    const isTimeout = lastErr instanceof Error && (lastErr.name === "AbortError" || lastErr.name === "TimeoutError");
     const error: ApiError = {
       timestamp: new Date().toISOString(),
       status: 0,
-      error: "NETWORK_ERROR",
-      code: "NETWORK_ERROR",
-      message:
-        err instanceof Error
-          ? err.message
-          : "Cannot reach backend. Check your network or server URL.",
+      error: isTimeout ? "TIMEOUT_ERROR" : "NETWORK_ERROR",
+      code: isTimeout ? "TIMEOUT_ERROR" : "NETWORK_ERROR",
+      message: isTimeout
+        ? "Request timed out. Please check server status or network connection."
+        : lastErr instanceof Error
+        ? lastErr.message
+        : "Cannot reach backend. Check your network or server URL.",
       path,
       requestId,
     };
@@ -71,6 +144,27 @@ export async function apiFetch<T>(
   const data = isJson ? await res.json() : await res.text();
 
   if (!res.ok) {
+    if (res.status === 401) {
+      if (!options._isRetry) {
+        try {
+          const newToken = await tryRefreshToken();
+          if (newToken) {
+            return apiFetch<T>(path, {
+              ...options,
+              token: newToken,
+              _isRetry: true,
+            });
+          }
+        } catch {
+          if (on401) {
+            on401();
+          }
+        }
+      } else if (on401) {
+        on401();
+      }
+    }
+
     const apiError: ApiError = isJson
       ? data
       : {
@@ -82,6 +176,7 @@ export async function apiFetch<T>(
           path,
           requestId: res.headers.get(REQUEST_ID_HEADER) ?? requestId,
         };
+    console.warn(`[apiFetch] HTTP ${res.status} for ${path}:`, apiError);
     throw { status: res.status, data: apiError };
   }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -10,12 +10,14 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  type TextInput as RNTextInput,
 } from "react-native";
-import { Store, Settings, Lock, User, Server } from "lucide-react-native";
+import { Store, Settings, Lock, User, Server, Eye, EyeOff } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { storage } from "@/utils/storage";
 import { setDefaultApiBaseUrl } from "@/api/client";
+import { DEFAULT_CONFIG, LOCALHOST_CONFIG } from "@/constants/config";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
@@ -24,17 +26,19 @@ import { haptics } from "@/utils/haptics";
 export const LoginScreen: React.FC = () => {
   const { colors } = useTheme();
   const { login, isLoading } = useAuth();
+  const passwordRef = useRef<RNTextInput>(null);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   // Server settings modal
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [apiBaseUrl, setApiBaseUrl] = useState("http://localhost:9003");
-  const [keycloakUrl, setKeycloakUrl] = useState("http://localhost:8080");
-  const [realm, setRealm] = useState("xpos");
-  const [clientId, setClientId] = useState("xpos-frontend");
+  const [apiBaseUrl, setApiBaseUrl] = useState<string>(DEFAULT_CONFIG.API_BASE_URL);
+  const [keycloakUrl, setKeycloakUrl] = useState<string>(DEFAULT_CONFIG.KEYCLOAK_URL);
+  const [realm, setRealm] = useState<string>(DEFAULT_CONFIG.KEYCLOAK_REALM);
+  const [clientId, setClientId] = useState<string>(DEFAULT_CONFIG.KEYCLOAK_CLIENT_ID);
 
   useEffect(() => {
     async function loadSettings() {
@@ -42,6 +46,10 @@ export const LoginScreen: React.FC = () => {
       if (storedApi) setApiBaseUrl(storedApi);
       const storedKc = await storage.getKeycloakUrl();
       if (storedKc) setKeycloakUrl(storedKc);
+      const storedRealm = await storage.getRealm();
+      if (storedRealm) setRealm(storedRealm);
+      const storedClientId = await storage.getClientId();
+      if (storedClientId) setClientId(storedClientId);
     }
     void loadSettings();
   }, []);
@@ -71,6 +79,8 @@ export const LoginScreen: React.FC = () => {
   const handleSaveSettings = async () => {
     await storage.setApiBaseUrl(apiBaseUrl);
     await storage.setKeycloakUrl(keycloakUrl);
+    await storage.setRealm(realm);
+    await storage.setClientId(clientId);
     setDefaultApiBaseUrl(apiBaseUrl);
     setSettingsOpen(false);
     haptics.success();
@@ -79,6 +89,18 @@ export const LoginScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Top Right Corner Settings Button */}
+      <TouchableOpacity
+        onPress={() => setSettingsOpen(true)}
+        style={[
+          styles.cornerSettingsBtn,
+          { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
+        ]}
+        accessibilityLabel="Server Settings"
+      >
+        <Settings size={20} color={colors.textMuted} />
+      </TouchableOpacity>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
@@ -87,80 +109,108 @@ export const LoginScreen: React.FC = () => {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Top Settings Button */}
-          <View style={styles.topBar}>
+          <View style={styles.contentWrapper}>
+            {/* Logo & Title */}
+            <View style={styles.header}>
+              <View style={[styles.logoBox, { backgroundColor: colors.primary }]}>
+                <Store size={36} color="#ffffff" />
+              </View>
+              <Text style={[styles.appName, { color: colors.text }]}>XPOS Mobile</Text>
+              <Text style={[styles.appSubtitle, { color: colors.textMuted }]}>
+                Stock Control · Catalog · Debts & Expenses
+              </Text>
+            </View>
+
+            {/* Login Form */}
+            <Card style={styles.card}>
+              {errorMsg ? (
+                <View
+                  style={[
+                    styles.errorBox,
+                    { backgroundColor: colors.dangerLight, borderColor: colors.danger },
+                  ]}
+                >
+                  <Text style={[styles.errorText, { color: colors.danger }]}>
+                    {errorMsg}
+                  </Text>
+                  {Platform.OS === "web" &&
+                  (errorMsg.includes("Keycloak") ||
+                    errorMsg.includes("SSL") ||
+                    errorMsg.includes("certificate")) ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (typeof window !== "undefined") {
+                          window.open(`${keycloakUrl}/realms/${realm}`, "_blank");
+                        }
+                      }}
+                      style={styles.certHelpBtn}
+                    >
+                      <Text style={[styles.certHelpBtnText, { color: colors.danger }]}>
+                        Tap here to trust SSL certificate in browser ↗
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ) : null}
+
+              <Input
+                label="Username"
+                value={username}
+                onChangeText={setUsername}
+                placeholder="e.g. operator"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                leftIcon={<User size={18} color={colors.textSubtle} />}
+              />
+
+              <Input
+                ref={passwordRef}
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                returnKeyType="go"
+                onSubmitEditing={handleLogin}
+                leftIcon={<Lock size={18} color={colors.textSubtle} />}
+                rightIcon={
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={18} color={colors.textSubtle} />
+                    ) : (
+                      <Eye size={18} color={colors.textSubtle} />
+                    )}
+                  </TouchableOpacity>
+                }
+              />
+
+              <Button
+                title="Sign In"
+                onPress={handleLogin}
+                loading={isLoading}
+                style={{ marginTop: 8 }}
+              />
+            </Card>
+
+            {/* Server status footnote */}
             <TouchableOpacity
               onPress={() => setSettingsOpen(true)}
-              style={[styles.settingsBtn, { backgroundColor: colors.surfaceRaised }]}
+              style={styles.serverInfo}
+              activeOpacity={0.7}
             >
-              <Settings size={18} color={colors.textMuted} />
+              <Server size={14} color={colors.textSubtle} />
+              <Text style={[styles.serverText, { color: colors.textSubtle }]}>
+                API: {apiBaseUrl}
+              </Text>
             </TouchableOpacity>
           </View>
-
-          {/* Logo & Title */}
-          <View style={styles.header}>
-            <View style={[styles.logoBox, { backgroundColor: colors.primary }]}>
-              <Store size={36} color="#ffffff" />
-            </View>
-            <Text style={[styles.appName, { color: colors.text }]}>XPOS Mobile</Text>
-            <Text style={[styles.appSubtitle, { color: colors.textMuted }]}>
-              Stock Control · Catalog · Debts & Expenses
-            </Text>
-          </View>
-
-          {/* Login Form */}
-          <Card style={styles.card}>
-            {errorMsg ? (
-              <View
-                style={[
-                  styles.errorBox,
-                  { backgroundColor: colors.dangerLight, borderColor: colors.danger },
-                ]}
-              >
-                <Text style={[styles.errorText, { color: colors.danger }]}>
-                  {errorMsg}
-                </Text>
-              </View>
-            ) : null}
-
-            <Input
-              label="Username"
-              value={username}
-              onChangeText={setUsername}
-              placeholder="e.g. operator"
-              autoCapitalize="none"
-              autoCorrect={false}
-              leftIcon={<User size={18} color={colors.textSubtle} />}
-            />
-
-            <Input
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              secureTextEntry
-              autoCapitalize="none"
-              leftIcon={<Lock size={18} color={colors.textSubtle} />}
-            />
-
-            <Button
-              title="Sign In"
-              onPress={handleLogin}
-              loading={isLoading}
-              style={{ marginTop: 8 }}
-            />
-          </Card>
-
-          {/* Server status footnote */}
-          <TouchableOpacity
-            onPress={() => setSettingsOpen(true)}
-            style={styles.serverInfo}
-          >
-            <Server size={14} color={colors.textSubtle} />
-            <Text style={[styles.serverText, { color: colors.textSubtle }]}>
-              API: {apiBaseUrl}
-            </Text>
-          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -173,43 +223,143 @@ export const LoginScreen: React.FC = () => {
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Server Configuration
-            </Text>
-            <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
-              Configure Spring Boot API and Keycloak IAM endpoints. Use your LAN IP
-              when testing on a physical phone.
-            </Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Server Configuration
+              </Text>
+              <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
+                Switch presets or manually configure Spring Boot API and Keycloak IAM endpoints.
+              </Text>
 
-            <Input
-              label="XPOS Backend API URL"
-              value={apiBaseUrl}
-              onChangeText={setApiBaseUrl}
-              placeholder="http://192.168.1.100:9003"
-              autoCapitalize="none"
-            />
+              {/* Quick Preset Buttons */}
+              <View style={styles.presetContainer}>
+                <Text style={[styles.presetLabel, { color: colors.textSubtle }]}>
+                  QUICK PRESETS
+                </Text>
+                <View style={styles.presetRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.presetBtn,
+                      {
+                        backgroundColor:
+                          apiBaseUrl === DEFAULT_CONFIG.API_BASE_URL
+                            ? colors.primaryLight
+                            : colors.surfaceRaised,
+                        borderColor:
+                          apiBaseUrl === DEFAULT_CONFIG.API_BASE_URL
+                            ? colors.primary
+                            : colors.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      setApiBaseUrl(DEFAULT_CONFIG.API_BASE_URL);
+                      setKeycloakUrl(DEFAULT_CONFIG.KEYCLOAK_URL);
+                      setRealm(DEFAULT_CONFIG.KEYCLOAK_REALM);
+                      setClientId(DEFAULT_CONFIG.KEYCLOAK_CLIENT_ID);
+                      haptics.light();
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.presetBtnText,
+                        {
+                          color:
+                            apiBaseUrl === DEFAULT_CONFIG.API_BASE_URL
+                              ? colors.primary
+                              : colors.text,
+                        },
+                      ]}
+                    >
+                      Production (62.169.22.51)
+                    </Text>
+                  </TouchableOpacity>
 
-            <Input
-              label="Keycloak Server URL"
-              value={keycloakUrl}
-              onChangeText={setKeycloakUrl}
-              placeholder="http://192.168.1.100:8080"
-              autoCapitalize="none"
-            />
+                  <TouchableOpacity
+                    style={[
+                      styles.presetBtn,
+                      {
+                        backgroundColor:
+                          apiBaseUrl === LOCALHOST_CONFIG.API_BASE_URL
+                            ? colors.primaryLight
+                            : colors.surfaceRaised,
+                        borderColor:
+                          apiBaseUrl === LOCALHOST_CONFIG.API_BASE_URL
+                            ? colors.primary
+                            : colors.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      setApiBaseUrl(LOCALHOST_CONFIG.API_BASE_URL);
+                      setKeycloakUrl(LOCALHOST_CONFIG.KEYCLOAK_URL);
+                      setRealm(LOCALHOST_CONFIG.KEYCLOAK_REALM);
+                      setClientId(LOCALHOST_CONFIG.KEYCLOAK_CLIENT_ID);
+                      haptics.light();
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.presetBtnText,
+                        {
+                          color:
+                            apiBaseUrl === LOCALHOST_CONFIG.API_BASE_URL
+                              ? colors.primary
+                              : colors.text,
+                        },
+                      ]}
+                    >
+                      Local Dev (Localhost)
+                    </Text>
+                  </TouchableOpacity>
 
-            <View style={styles.modalBtns}>
-              <Button
-                title="Cancel"
-                variant="secondary"
-                onPress={() => setSettingsOpen(false)}
-                style={{ flex: 1, marginRight: 8 }}
+                </View>
+              </View>
+
+              <Input
+                label="XPOS Backend API URL"
+                value={apiBaseUrl}
+                onChangeText={setApiBaseUrl}
+                placeholder="https://62.169.22.51:9005"
+                autoCapitalize="none"
               />
-              <Button
-                title="Save Settings"
-                onPress={handleSaveSettings}
-                style={{ flex: 1 }}
+
+              <Input
+                label="Keycloak Server URL"
+                value={keycloakUrl}
+                onChangeText={setKeycloakUrl}
+                placeholder="https://62.169.22.51:8443"
+                autoCapitalize="none"
               />
-            </View>
+
+              <Input
+                label="Keycloak Realm"
+                value={realm}
+                onChangeText={setRealm}
+                placeholder="xpos"
+                autoCapitalize="none"
+              />
+
+              <Input
+                label="Keycloak Client ID"
+                value={clientId}
+                onChangeText={setClientId}
+                placeholder="xpos-client-api"
+                autoCapitalize="none"
+              />
+
+              <View style={styles.modalBtns}>
+                <Button
+                  title="Cancel"
+                  variant="secondary"
+                  onPress={() => setSettingsOpen(false)}
+                  style={{ flex: 1, marginRight: 8 }}
+                />
+                <Button
+                  title="Save Settings"
+                  onPress={handleSaveSettings}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -226,13 +376,19 @@ const styles = StyleSheet.create({
     padding: 24,
     justifyContent: "center",
   },
-  topBar: {
-    alignItems: "flex-end",
-    marginBottom: 8,
+  contentWrapper: {
+    width: "100%",
+    maxWidth: 400,
+    alignSelf: "center",
   },
-  settingsBtn: {
+  cornerSettingsBtn: {
+    position: "absolute",
+    top: Platform.OS === "web" ? 20 : 16,
+    right: 20,
+    zIndex: 10,
     padding: 10,
     borderRadius: 12,
+    borderWidth: 1,
   },
   header: {
     alignItems: "center",
@@ -288,9 +444,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalCard: {
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
+    maxHeight: "85%",
   },
   modalTitle: {
     fontSize: 18,
@@ -299,11 +459,52 @@ const styles = StyleSheet.create({
   },
   modalDesc: {
     fontSize: 13,
-    marginBottom: 16,
+    marginBottom: 14,
     lineHeight: 18,
+  },
+  presetContainer: {
+    marginBottom: 14,
+  },
+  presetLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 6,
+    letterSpacing: 0.5,
+  },
+  presetRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  presetBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  presetBtnText: {
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
   },
   modalBtns: {
     flexDirection: "row",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  certHelpBtn: {
     marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    alignItems: "center",
+  },
+  certHelpBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    textDecorationLine: "underline",
   },
 });

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   FlatList,
   TextInput,
   TouchableOpacity,
@@ -11,19 +10,24 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  ScrollView,
+  Platform,
+  KeyboardAvoidingView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
   ChevronLeft,
   ChevronRight,
   Search,
-  Barcode,
   ClipboardCheck,
   RefreshCw,
   CheckCircle2,
   AlertCircle,
   Clock,
+  Sparkles,
+  GitCompare,
 } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -43,7 +47,40 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { BarcodeScannerModal } from "@/components/BarcodeScannerModal";
+import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
+import { DatePickerModal } from "@/components/ui/DatePickerModal";
+
+// ---------------------------------------------------------------------------
+// Skeleton card that mirrors the real stock-count row layout
+// ---------------------------------------------------------------------------
+const StockRowSkeleton: React.FC = () => (
+  <View
+    style={{
+      padding: 8,
+      borderRadius: 16,
+      backgroundColor: "transparent",
+      marginBottom: 8,
+    }}
+  >
+    <Card style={{ padding: 8 }}>
+      {/* name + price row */}
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8, gap: 8 }}>
+        <SkeletonBlock width="55%" height={13} radius={6} />
+        <SkeletonBlock width={50} height={11} radius={5} />
+      </View>
+      {/* 6-column metrics row */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 4 }}>
+        {[36, 36, 36, 62, 36, 50].map((w, i) => (
+          <View key={i} style={{ alignItems: "center", width: w }}>
+            <SkeletonBlock width={w * 0.7} height={9} radius={4} style={{ marginBottom: 4 }} />
+            <SkeletonBlock width={w} height={30} radius={6} />
+          </View>
+        ))}
+      </View>
+    </Card>
+  </View>
+);
+
 
 function toDateString(d: Date): string {
   const y = d.getFullYear();
@@ -53,7 +90,7 @@ function toDateString(d: Date): string {
 }
 
 export const StockCountScreen: React.FC = () => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { token } = useAuth();
   const { orgId, branchId, terminalId } = useOrg();
   const queryClient = useQueryClient();
@@ -61,17 +98,33 @@ export const StockCountScreen: React.FC = () => {
   const [date, setDate] = useState<Date>(new Date());
   const dateStr = useMemo(() => toDateString(date), [date]);
   const isToday = useMemo(() => dateStr === toDateString(new Date()), [dateStr]);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+
+  const handlePickDate = (picked: string) => {
+    const [y, m, d] = picked.split("-").map(Number);
+    setDate(new Date(y, m - 1, d));
+    setDatePickerOpen(false);
+  };
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [scannerOpen, setScannerOpen] = useState(false);
 
   // Local draft of edited closing stocks
   const [closingDrafts, setClosingDrafts] = useState<Record<string, string>>({});
+  const closingDraftsRef = useRef<Record<string, string>>({});
+  closingDraftsRef.current = closingDrafts;
   const [savingItemIds, setSavingItemIds] = useState<Set<string>>(new Set());
+
+  // Input selection tracking to place cursor on right side without highlighting
+  const [activeSelection, setActiveSelection] = useState<{
+    itemId: string;
+    selection: { start: number; end: number };
+  } | null>(null);
+  const [focusedItemId, setFocusedItemId] = useState<string | null>(null);
 
   // Record Sales & Reconcile Modals
   const [recordSalesOpen, setRecordSalesOpen] = useState(false);
   const [reconcileOpen, setReconcileOpen] = useState(false);
+  const [soldModalOpen, setSoldModalOpen] = useState(false);
 
   // Auto-save debounce timer
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,7 +144,11 @@ export const StockCountScreen: React.FC = () => {
   });
 
   // Sales preview query
-  const { data: salesPreview, refetch: refetchSalesPreview } = useQuery({
+  const {
+    data: salesPreview,
+    refetch: refetchSalesPreview,
+    isFetching: isFetchingSalesPreview,
+  } = useQuery({
     queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
     queryFn: () =>
       fetchStdStockCountSalesPreview(token, orgId!, branchId!, dateStr),
@@ -114,13 +171,22 @@ export const StockCountScreen: React.FC = () => {
         outletId: branchId!,
         counts,
       }),
-    onSuccess: (updatedSheet) => {
+    onSuccess: (updatedSheet, variables) => {
       haptics.success();
       queryClient.setQueryData(
         ["std-stock-count-sheet", token, orgId, branchId, dateStr],
         updatedSheet
       );
+      // Clean up saved drafts so they no longer show as pending unsaved
+      const savedIds = new Set(variables.map((c) => c.itemId));
+      setClosingDrafts((prev) => {
+        const next = { ...prev };
+        savedIds.forEach((id) => delete next[id]);
+        closingDraftsRef.current = next;
+        return next;
+      });
       setSavingItemIds(new Set());
+      void refetch();
       void refetchSalesPreview();
       void refetchReconcilePreview();
     },
@@ -141,10 +207,30 @@ export const StockCountScreen: React.FC = () => {
     onSuccess: () => {
       haptics.success();
       setRecordSalesOpen(false);
-      Alert.alert("Success", "Sales have been recorded successfully.");
+      queryClient.setQueryData(
+        ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
+        (old: any) =>
+          old
+            ? {
+                ...old,
+                totalQtyToRecord: 0,
+                totalValueToRecord: 0,
+                lines: (old.lines ?? []).map((l: any) => ({
+                  ...l,
+                  qtyToRecord: 0,
+                  lineValue: 0,
+                  alreadyRecorded: l.impliedSold,
+                })),
+              }
+            : old
+      );
+      void queryClient.invalidateQueries({
+        queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
+      });
       void refetch();
       void refetchSalesPreview();
       void refetchReconcilePreview();
+      Alert.alert("Success", "Sales have been recorded successfully.");
     },
     onError: (err: any) => {
       haptics.error();
@@ -175,18 +261,19 @@ export const StockCountScreen: React.FC = () => {
   // Save execution
   const executeSave = useCallback(
     (itemId?: string) => {
-      const rows = sheetData?.rows ?? [];
+      if (!token || !orgId || !branchId) return;
+      const drafts = closingDraftsRef.current;
       const countsToSave: { itemId: string; closingStock: number }[] = [];
       const itemIdsToMark = new Set<string>();
 
-      if (itemId && closingDrafts[itemId] !== undefined) {
-        const val = Number(closingDrafts[itemId]);
+      if (itemId && drafts[itemId] !== undefined) {
+        const val = Number(drafts[itemId]);
         if (!Number.isNaN(val) && val >= 0) {
           countsToSave.push({ itemId, closingStock: val });
           itemIdsToMark.add(itemId);
         }
       } else {
-        Object.entries(closingDrafts).forEach(([id, strVal]) => {
+        Object.entries(drafts).forEach(([id, strVal]) => {
           const val = Number(strVal);
           if (!Number.isNaN(val) && val >= 0) {
             countsToSave.push({ itemId: id, closingStock: val });
@@ -200,12 +287,16 @@ export const StockCountScreen: React.FC = () => {
         saveMutation.mutate(countsToSave);
       }
     },
-    [sheetData?.rows, closingDrafts, saveMutation]
+    [token, orgId, branchId, saveMutation]
   );
 
   // Handle typing closing stock
   const handleClosingChange = (itemId: string, val: string) => {
-    setClosingDrafts((prev) => ({ ...prev, [itemId]: val }));
+    setClosingDrafts((prev) => {
+      const next = { ...prev, [itemId]: val };
+      closingDraftsRef.current = next;
+      return next;
+    });
 
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
@@ -219,6 +310,50 @@ export const StockCountScreen: React.FC = () => {
     autoSaveTimerRef.current = setTimeout(() => {
       executeSave(itemId);
     }, BLUR_SAVE_DEBOUNCE_MS);
+  };
+
+  // Open Record Sales preview with pending draft flush and fresh preview refetch
+  const handleOpenRecordSales = () => {
+    haptics.light();
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    if (Object.keys(closingDrafts).length > 0) {
+      executeSave();
+    }
+    setRecordSalesOpen(true);
+    void refetchSalesPreview();
+  };
+
+  // Manual refresh inside record sales preview modal
+  const handleRefreshPreview = () => {
+    haptics.light();
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    if (Object.keys(closingDrafts).length > 0) {
+      executeSave();
+    }
+    void refetchSalesPreview();
+  };
+
+  // Manual refresh from toolbar button
+  const handleManualRefresh = () => {
+    haptics.light();
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    if (Object.keys(closingDrafts).length > 0) {
+      executeSave();
+    }
+    void refetch();
+    void refetchSalesPreview();
+    if (isToday) {
+      void refetchReconcilePreview();
+    }
   };
 
   // Date Navigation
@@ -247,6 +382,13 @@ export const StockCountScreen: React.FC = () => {
     let totalItems = 0;
     let totalSold = 0;
     let totalRevenue = 0;
+    const soldItems: {
+      itemId: string;
+      name: string;
+      unitPrice: number;
+      unitsSold: number;
+      totalValue: number;
+    }[] = [];
 
     (sheetData?.rows ?? []).forEach((r) => {
       totalItems += 1;
@@ -257,29 +399,81 @@ export const StockCountScreen: React.FC = () => {
           : r.closingStock;
       if (closing !== null && !Number.isNaN(closing)) {
         const sold = Math.max(0, totalStock - closing);
+        if (sold > 0) {
+          soldItems.push({
+            itemId: r.itemId,
+            name: r.name,
+            unitPrice: r.sellingPrice,
+            unitsSold: sold,
+            totalValue: sold * r.sellingPrice,
+          });
+        }
         totalSold += sold;
         totalRevenue += sold * r.sellingPrice;
       }
     });
 
-    return { totalItems, totalSold, totalRevenue };
+    return { totalItems, totalSold, totalRevenue, soldItems };
   }, [sheetData?.rows, closingDrafts]);
 
+  // Map of already recorded sales per item for today
+  const alreadyRecordedByItem = useMemo(() => {
+    const map: Record<string, number> = {};
+    (salesPreview?.lines ?? []).forEach((line) => {
+      map[line.itemId] = line.alreadyRecorded ?? 0;
+    });
+    return map;
+  }, [salesPreview?.lines]);
+
+  // Reactive sales to record calculation: (Total - Closing) - alreadyRecorded
+  const reactiveSales = useMemo(() => {
+    let totalQtyToRecord = 0;
+    let totalRecorded = 0;
+
+    (sheetData?.rows ?? []).forEach((r) => {
+      const totalStock = r.openingStock + r.addedStock + r.addedTodayStock;
+      const closing =
+        closingDrafts[r.itemId] !== undefined
+          ? Number(closingDrafts[r.itemId])
+          : r.closingStock;
+      const already = alreadyRecordedByItem[r.itemId] ?? 0;
+      totalRecorded += already;
+
+      if (closing !== null && !Number.isNaN(closing)) {
+        const implied = Math.max(0, totalStock - closing);
+        const toRecord = Math.max(0, implied - already);
+        totalQtyToRecord += toRecord;
+      }
+    });
+
+    return { totalQtyToRecord, totalRecorded };
+  }, [sheetData?.rows, closingDrafts, alreadyRecordedByItem]);
+
   // Action button visibility
-  const totalQtyToRecord = salesPreview?.totalQtyToRecord ?? 0;
+  const totalQtyToRecord =
+    reactiveSales.totalQtyToRecord > 0
+      ? reactiveSales.totalQtyToRecord
+      : (salesPreview?.totalQtyToRecord ?? 0);
   const itemsToReconcile = reconcilePreview?.itemsAdjusted ?? 0;
-  const showRecordSales = totalQtyToRecord > 0;
-  const showReconcile = isToday && itemsToReconcile > 0;
+  const hasSavedClosings = (sheetData?.rows ?? []).some((r) => r.closingStock != null);
+  const canRecord = totalQtyToRecord > 0 && !sheetLoading;
+  const canReconcile = itemsToReconcile > 0 && !sheetLoading && !reconcileMutation.isPending;
+  const showReconcile = isToday && canReconcile;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Date Header Bar */}
-      <View
-        style={[
-          styles.dateBar,
-          { backgroundColor: colors.surface, borderBottomColor: colors.border },
-        ]}
+    <SafeAreaView edges={["top", "left", "right"]} style={[styles.container, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
       >
+        {/* Date Header Bar */}
+        <View
+          style={[
+            styles.dateBar,
+            { backgroundColor: colors.surface, borderBottomColor: colors.border },
+          ]}
+        >
         <TouchableOpacity
           onPress={() => changeDate(-1)}
           style={[styles.dateNavBtn, { backgroundColor: colors.surfaceRaised }]}
@@ -287,12 +481,19 @@ export const StockCountScreen: React.FC = () => {
           <ChevronLeft size={20} color={colors.text} />
         </TouchableOpacity>
 
-        <View style={styles.dateCenter}>
+        <TouchableOpacity
+          onPress={() => {
+            haptics.light();
+            setDatePickerOpen(true);
+          }}
+          activeOpacity={0.7}
+          style={styles.dateCenter}
+        >
           <Calendar size={16} color={colors.primary} />
           <Text style={[styles.dateText, { color: colors.text }]}>
             {dateStr} {isToday ? "(Today)" : ""}
           </Text>
-        </View>
+        </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => changeDate(1)}
@@ -309,85 +510,120 @@ export const StockCountScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Summary KPI Strip */}
-      <View
-        style={[
-          styles.kpiStrip,
-          { backgroundColor: colors.surfaceCard, borderBottomColor: colors.border },
-        ]}
-      >
-        <View style={styles.kpiCol}>
-          <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Items</Text>
-          <Text style={[styles.kpiValue, { color: colors.text }]}>
-            {totals.totalItems}
-          </Text>
-        </View>
-        <View style={[styles.kpiDivider, { backgroundColor: colors.border }]} />
-        <View style={styles.kpiCol}>
-          <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Sold Units</Text>
-          <Text style={[styles.kpiValue, { color: colors.primary }]}>
-            {formatQty(totals.totalSold)}
-          </Text>
-        </View>
-        <View style={[styles.kpiDivider, { backgroundColor: colors.border }]} />
-        <View style={styles.kpiCol}>
-          <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Revenue</Text>
-          <Text style={[styles.kpiValue, { color: colors.accent }]}>
-            {formatCurrency(totals.totalRevenue)}
-          </Text>
-        </View>
-      </View>
-
       {/* Search & Action Bar */}
       <View style={styles.toolbar}>
         <View style={styles.searchBox}>
           <Input
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search items or SKU…"
-            leftIcon={<Search size={16} color={colors.textSubtle} />}
+            placeholder="Search…"
+            leftIcon={<Search size={15} color={colors.textSubtle} />}
             containerStyle={{ marginBottom: 0 }}
+            inputWrapperStyle={styles.searchInputWrapper}
+            style={{ fontSize: 13 }}
           />
         </View>
+
         <TouchableOpacity
-          onPress={() => setScannerOpen(true)}
-          style={[styles.iconActionBtn, { backgroundColor: colors.surfaceRaised }]}
+          onPress={() => {
+            haptics.light();
+            setSoldModalOpen(true);
+          }}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="View items sold breakdown"
+          style={[
+            styles.totalSalesPill,
+            {
+              backgroundColor: colors.primaryLight,
+              borderColor: colors.primary,
+            },
+          ]}
         >
-          <Barcode size={20} color={colors.primary} />
+          <Text style={[styles.totalSalesText, { color: colors.primary }]}>
+            {formatCurrency(totals.totalRevenue)}
+          </Text>
         </TouchableOpacity>
 
-        {showRecordSales ? (
+        {canRecord ? (
           <TouchableOpacity
-            onPress={() => setRecordSalesOpen(true)}
-            style={[styles.recordBtn, { backgroundColor: colors.primary }]}
+            onPress={handleOpenRecordSales}
+            activeOpacity={0.7}
+            style={[
+              styles.recordBtn,
+              {
+                backgroundColor: colors.primary,
+                borderColor: colors.primary,
+                borderWidth: 0,
+                opacity: 1,
+              },
+            ]}
           >
-            <ClipboardCheck size={18} color="#ffffff" />
-            <Text style={styles.recordBtnText}>{totalQtyToRecord}</Text>
+            <ClipboardCheck size={16} color="#ffffff" />
+            <Text style={[styles.recordBtnText, { color: "#ffffff" }]}>
+              {totalQtyToRecord}
+            </Text>
           </TouchableOpacity>
         ) : null}
 
         {showReconcile ? (
           <TouchableOpacity
             onPress={() => setReconcileOpen(true)}
-            style={[styles.reconcileBtn, { backgroundColor: colors.warning }]}
+            activeOpacity={0.7}
+            style={[
+              styles.reconcileBtn,
+              {
+                backgroundColor: colors.warning,
+                borderColor: colors.warning,
+                borderWidth: 0,
+                opacity: 1,
+              },
+            ]}
           >
-            <RefreshCw size={18} color="#ffffff" />
-            <Text style={styles.recordBtnText}>{itemsToReconcile}</Text>
+            <RefreshCw size={16} color="#ffffff" />
+            <Text style={[styles.recordBtnText, { color: "#ffffff" }]}>
+              {itemsToReconcile}
+            </Text>
           </TouchableOpacity>
         ) : null}
+
+        <TouchableOpacity
+          onPress={handleManualRefresh}
+          disabled={isRefetching}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh stock count sheet"
+          style={[
+            styles.refreshToolbarBtn,
+            {
+              backgroundColor: colors.surfaceRaised,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          {isRefetching ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <RefreshCw size={16} color={colors.text} />
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Sheet Items List */}
-      {sheetLoading ? (
-        <View style={styles.centerLoading}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.textMuted }]}>
-            Loading stock count sheet…
-          </Text>
-        </View>
+      {sheetLoading && !sheetData ? (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[styles.listContent, { paddingTop: 10 }]}
+          scrollEnabled={false}
+        >
+          {Array.from({ length: 8 }).map((_, i) => (
+            <StockRowSkeleton key={i} />
+          ))}
+        </ScrollView>
       ) : (
         <FlatList
           data={filteredRows}
+          extraData={[closingDrafts, savingItemIds, alreadyRecordedByItem, dateStr, focusedItemId]}
           keyExtractor={(item) => item.itemId}
           refreshControl={
             <RefreshControl
@@ -397,6 +633,19 @@ export const StockCountScreen: React.FC = () => {
             />
           }
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          decelerationRate={Platform.OS === "ios" ? "normal" : 0.985}
+          bounces={true}
+          alwaysBounceVertical={true}
+          overScrollMode="never"
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+          keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={16}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          updateCellsBatchingPeriod={40}
+          removeClippedSubviews={Platform.OS === "android"}
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <Text style={[styles.emptyText, { color: colors.textMuted }]}>
@@ -418,6 +667,7 @@ export const StockCountScreen: React.FC = () => {
             const isUnsaved =
               draftVal !== undefined &&
               String(draftVal) !== String(item.closingStock ?? "");
+            const isFocused = focusedItemId === item.itemId;
 
             const closingNum = Number(currentClosing);
             const unitsSold =
@@ -425,24 +675,30 @@ export const StockCountScreen: React.FC = () => {
                 ? Math.max(0, totalStock - closingNum)
                 : 0;
             const soldAmount = unitsSold * item.sellingPrice;
+            const alreadyRecorded = alreadyRecordedByItem[item.itemId] ?? 0;
+            const newToRecord = Math.max(0, unitsSold - alreadyRecorded);
 
             return (
               <Card style={styles.rowCard}>
                 <View style={styles.cardHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.itemName, { color: colors.text }]}>
+                  <View style={styles.cardHeaderLeft}>
+                    <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={1}>
                       {index + 1}. {item.name}
                     </Text>
-                    <Text style={[styles.itemSku, { color: colors.textSubtle }]}>
-                      SKU: {item.sku || "N/A"} · Price: {formatCurrency(item.sellingPrice)}
+                    <Text style={[styles.itemPrice, { color: colors.textSubtle }]}>
+                      {formatCurrency(item.sellingPrice)}
                     </Text>
                   </View>
                   {isSaving ? (
                     <Badge label="Saving…" variant="warning" size="sm" />
                   ) : isUnsaved ? (
                     <Badge label="Unsaved" variant="danger" size="sm" />
+                  ) : newToRecord > 0 ? (
+                    <Badge label={`${newToRecord} to record`} variant="purple" size="sm" />
+                  ) : alreadyRecorded > 0 && unitsSold === alreadyRecorded ? (
+                    <Badge label="Recorded" variant="primary" size="sm" />
                   ) : item.lastSavedAt ? (
-                    <Badge label="Saved" variant="primary" size="sm" />
+                    <Badge label="Saved" variant="neutral" size="sm" />
                   ) : null}
                 </View>
 
@@ -452,25 +708,42 @@ export const StockCountScreen: React.FC = () => {
                     <Text style={[styles.metricLabel, { color: colors.textSubtle }]}>
                       Open
                     </Text>
-                    <Text style={[styles.metricVal, { color: colors.textMuted }]}>
-                      {formatQty(item.openingStock)}
-                    </Text>
+                    <View style={styles.metricValWrap}>
+                      <Text style={[styles.metricVal, { color: colors.textMuted }]}>
+                        {formatQty(item.openingStock)}
+                      </Text>
+                    </View>
                   </View>
                   <View style={styles.metricCol}>
                     <Text style={[styles.metricLabel, { color: colors.textSubtle }]}>
                       Added
                     </Text>
-                    <Text style={[styles.metricVal, { color: colors.textMuted }]}>
-                      {formatQty(item.addedStock + item.addedTodayStock)}
-                    </Text>
+                    <View style={styles.metricValWrap}>
+                      <Text style={[styles.metricVal, { color: colors.textMuted }]}>
+                        {formatQty(item.addedStock + item.addedTodayStock)}
+                      </Text>
+                    </View>
                   </View>
                   <View style={styles.metricCol}>
-                    <Text style={[styles.metricLabel, { color: colors.textSubtle }]}>
+                    <Text
+                      style={[
+                        styles.metricLabel,
+                        styles.metricLabelTotal,
+                        { color: isDark ? "#38bdf8" : "#0284c7" },
+                      ]}
+                    >
                       Total
                     </Text>
-                    <Text style={[styles.metricValBold, { color: colors.text }]}>
-                      {formatQty(totalStock)}
-                    </Text>
+                    <View style={styles.metricValWrap}>
+                      <Text
+                        style={[
+                          styles.metricValBold,
+                          { color: colors.text, fontWeight: "800" },
+                        ]}
+                      >
+                        {formatQty(totalStock)}
+                      </Text>
+                    </View>
                   </View>
 
                   {/* Closing Stock Input */}
@@ -480,10 +753,48 @@ export const StockCountScreen: React.FC = () => {
                     </Text>
                     <TextInput
                       value={currentClosing}
-                      onChangeText={(val) => handleClosingChange(item.itemId, val)}
-                      onBlur={() => handleClosingBlur(item.itemId)}
-                      keyboardType="numeric"
-                      selectTextOnFocus
+                      onChangeText={(val) => {
+                        haptics.selection();
+                        handleClosingChange(item.itemId, val);
+                      }}
+                      onBlur={() => {
+                        setFocusedItemId(null);
+                        handleClosingBlur(item.itemId);
+                      }}
+                      onSubmitEditing={() => executeSave(item.itemId)}
+                      returnKeyType="done"
+                      blurOnSubmit={true}
+                      keyboardType={Platform.OS === "ios" ? "decimal-pad" : "numeric"}
+                      cursorColor={colors.primary}
+                      selectionColor={isDark ? "rgba(16, 185, 129, 0.35)" : "rgba(5, 150, 105, 0.25)"}
+                      selectTextOnFocus={false}
+                      autoCorrect={false}
+                      spellCheck={false}
+                      autoCapitalize="none"
+                      onFocus={(e: any) => {
+                        setFocusedItemId(item.itemId);
+                        haptics.light();
+                        const len = currentClosing.length;
+                        if (Platform.OS === "web" && e?.target?.setSelectionRange) {
+                          try {
+                            e.target.setSelectionRange(len, len);
+                          } catch {}
+                        }
+                        setActiveSelection({
+                          itemId: item.itemId,
+                          selection: { start: len, end: len },
+                        });
+                      }}
+                      onSelectionChange={() => {
+                        if (activeSelection?.itemId === item.itemId) {
+                          setActiveSelection(null);
+                        }
+                      }}
+                      selection={
+                        activeSelection?.itemId === item.itemId
+                          ? activeSelection.selection
+                          : undefined
+                      }
                       placeholder="0"
                       placeholderTextColor={colors.textSubtle}
                       style={[
@@ -491,7 +802,15 @@ export const StockCountScreen: React.FC = () => {
                         {
                           backgroundColor: colors.surfaceRaised,
                           color: colors.text,
-                          borderColor: isUnsaved ? colors.warning : colors.border,
+                          borderColor: isFocused
+                            ? colors.primary
+                            : isUnsaved
+                            ? colors.warning
+                            : colors.border,
+                          shadowColor: isFocused ? colors.primary : "transparent",
+                          shadowOpacity: isFocused ? 0.35 : 0,
+                          shadowRadius: isFocused ? 4 : 0,
+                          elevation: isFocused ? 2 : 0,
                         },
                       ]}
                     />
@@ -501,17 +820,26 @@ export const StockCountScreen: React.FC = () => {
                     <Text style={[styles.metricLabel, { color: colors.primary }]}>
                       Sold
                     </Text>
-                    <Text style={[styles.metricValSold, { color: colors.primary }]}>
-                      {formatQty(unitsSold)}
-                    </Text>
+                    <View style={styles.metricValWrap}>
+                      <Text style={[styles.metricValSold, { color: colors.primary }]}>
+                        {formatQty(unitsSold)}
+                      </Text>
+                    </View>
+                    {alreadyRecorded > 0 ? (
+                      <Text style={[styles.recordedSubtext, { color: colors.textSubtle }]}>
+                        {newToRecord > 0 ? `+${newToRecord} new` : "all rec"}
+                      </Text>
+                    ) : null}
                   </View>
                   <View style={styles.metricCol}>
                     <Text style={[styles.metricLabel, { color: colors.accent }]}>
                       Amt
                     </Text>
-                    <Text style={[styles.metricValSold, { color: colors.accent }]}>
-                      {formatCurrency(soldAmount)}
-                    </Text>
+                    <View style={styles.metricValWrap}>
+                      <Text style={[styles.metricValSold, { color: colors.accent }]}>
+                        {formatCurrency(soldAmount)}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               </Card>
@@ -529,50 +857,133 @@ export const StockCountScreen: React.FC = () => {
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Record Sales Preview
-            </Text>
-            <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
-              Create POS sales for {totalQtyToRecord} units sold (Total:{" "}
-              {formatCurrency(salesPreview?.totalValueToRecord ?? 0)}).
-            </Text>
-
-            <FlatList
-              data={salesPreview?.lines.filter((l) => l.qtyToRecord > 0) ?? []}
-              keyExtractor={(l) => l.itemId}
-              style={{ maxHeight: 300, marginVertical: 12 }}
-              renderItem={({ item }) => (
-                <View
-                  style={[
-                    styles.previewLine,
-                    { borderBottomColor: colors.borderSubtle },
-                  ]}
-                >
-                  <Text style={[styles.previewName, { color: colors.text }]}>
-                    {item.name}
-                  </Text>
-                  <Text style={[styles.previewQty, { color: colors.primary }]}>
-                    {item.qtyToRecord} × {formatCurrency(item.unitPrice)} ={" "}
-                    {formatCurrency(item.lineValue)}
-                  </Text>
-                </View>
-              )}
-            />
-
-            <View style={styles.modalBtns}>
-              <Button
-                title="Cancel"
-                variant="secondary"
-                onPress={() => setRecordSalesOpen(false)}
-                style={{ flex: 1, marginRight: 8 }}
-              />
-              <Button
-                title="Confirm Record Sales"
-                loading={recordSalesMutation.isPending}
-                onPress={() => recordSalesMutation.mutate()}
-                style={{ flex: 1.4 }}
-              />
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>
+                Record Sales Preview
+              </Text>
+              <TouchableOpacity
+                onPress={handleRefreshPreview}
+                disabled={isFetchingSalesPreview}
+                style={[
+                  styles.modalRefreshBtn,
+                  {
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.border,
+                  },
+                ]}
+                activeOpacity={0.7}
+              >
+                {isFetchingSalesPreview ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <RefreshCw size={13} color={colors.text} />
+                )}
+                <Text style={[styles.modalRefreshBtnText, { color: colors.text }]}>
+                  Refresh
+                </Text>
+              </TouchableOpacity>
             </View>
+            {totalQtyToRecord > 0 ? (
+              <>
+                <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
+                  Create POS sales for {totalQtyToRecord} units sold (Total:{" "}
+                  {formatCurrency(salesPreview?.totalValueToRecord ?? 0)}).
+                </Text>
+
+                <FlatList
+                  data={salesPreview?.lines.filter((l) => l.qtyToRecord > 0) ?? []}
+                  keyExtractor={(l) => l.itemId}
+                  style={{ maxHeight: 300, marginVertical: 12 }}
+                  contentContainerStyle={{ paddingRight: 14 }}
+                  renderItem={({ item }) => (
+                    <View
+                      style={[
+                        styles.previewLine,
+                        { borderBottomColor: colors.borderSubtle },
+                      ]}
+                    >
+                      <Text style={[styles.previewName, { color: colors.text }]}>
+                        {item.name}
+                      </Text>
+                      <Text style={[styles.previewQty, { color: colors.primary }]}>
+                        {item.qtyToRecord} × {formatCurrency(item.unitPrice)} ={" "}
+                        {formatCurrency(item.lineValue)}
+                      </Text>
+                    </View>
+                  )}
+                />
+
+                <View style={styles.modalBtns}>
+                  <Button
+                    title="Cancel"
+                    variant="secondary"
+                    onPress={() => setRecordSalesOpen(false)}
+                    style={{ flex: 1, marginRight: 8 }}
+                  />
+                  <Button
+                    title="Confirm Record Sales"
+                    loading={recordSalesMutation.isPending}
+                    onPress={() => recordSalesMutation.mutate()}
+                    style={{ flex: 1.4 }}
+                  />
+                </View>
+              </>
+            ) : (
+              <View style={{ marginVertical: 12 }}>
+                <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
+                  {reactiveSales.totalRecorded > 0
+                    ? `All sales up to current closing counts are already recorded (${reactiveSales.totalRecorded} sold today). Enter new closing counts on the sheet to record additional sales.`
+                    : "No new sales to record. Enter closing stock on the sheet to calculate units sold."}
+                </Text>
+
+                {(salesPreview?.lines.filter((l) => l.alreadyRecorded > 0) ?? []).length > 0 && (
+                  <View style={{ marginTop: 8 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "600",
+                        color: colors.textSubtle,
+                        marginBottom: 6,
+                      }}
+                    >
+                      Already Recorded Today:
+                    </Text>
+                    <FlatList
+                      data={
+                        salesPreview?.lines.filter((l) => l.alreadyRecorded > 0) ?? []
+                      }
+                      keyExtractor={(l) => l.itemId}
+                      style={{ maxHeight: 200 }}
+                      contentContainerStyle={{ paddingRight: 14 }}
+                      renderItem={({ item }) => (
+                        <View
+                          style={[
+                            styles.previewLine,
+                            { borderBottomColor: colors.borderSubtle },
+                          ]}
+                        >
+                          <Text style={[styles.previewName, { color: colors.text }]}>
+                            {item.name}
+                          </Text>
+                          <Text style={[styles.previewQty, { color: colors.textMuted }]}>
+                            {item.alreadyRecorded} rec
+                          </Text>
+                        </View>
+                      )}
+                    />
+                  </View>
+                )}
+
+                <View style={[styles.modalBtns, { marginTop: 16 }]}>
+                  <Button
+                    title="Close"
+                    variant="secondary"
+                    onPress={() => setRecordSalesOpen(false)}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -635,14 +1046,109 @@ export const StockCountScreen: React.FC = () => {
         </View>
       </Modal>
 
-      {/* Barcode Camera Scanner */}
-      <BarcodeScannerModal
-        visible={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onScan={(barcode) => {
-          setSearchQuery(barcode);
-        }}
-      />
+      {/* Sold Items Breakdown Modal */}
+      <Modal
+        visible={soldModalOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSoldModalOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View
+            style={[
+              styles.modalSheet,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>
+                Items Sold
+              </Text>
+              <Badge
+                label={`${totals.totalSold} sold · ${formatCurrency(totals.totalRevenue)}`}
+                variant="primary"
+                size="sm"
+              />
+            </View>
+            <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
+              Breakdown of {totals.soldItems.length} items sold based on current stock count.
+            </Text>
+
+            {totals.soldItems.length === 0 ? (
+              <View style={{ paddingVertical: 24, alignItems: "center" }}>
+                <Text style={{ color: colors.textMuted, fontSize: 13 }}>
+                  No items sold yet. Enter closing counts below total stock.
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={totals.soldItems}
+                keyExtractor={(item) => item.itemId}
+                style={{ maxHeight: 340, marginVertical: 8 }}
+                contentContainerStyle={{ paddingRight: 14 }}
+                renderItem={({ item }) => (
+                  <View
+                    style={[
+                      styles.previewLine,
+                      { borderBottomColor: colors.borderSubtle },
+                    ]}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.previewName,
+                          { color: colors.text, flex: 1, marginRight: 8 },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.name}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "700",
+                          color: colors.primary,
+                        }}
+                      >
+                        {formatCurrency(item.totalValue)}
+                      </Text>
+                    </View>
+                    <Text style={[styles.previewQty, { color: colors.textMuted }]}>
+                      {item.unitsSold} × {formatCurrency(item.unitPrice)}
+                    </Text>
+                  </View>
+                )}
+              />
+            )}
+
+            <View style={styles.modalBtns}>
+              <Button
+                title="Close"
+                variant="secondary"
+                onPress={() => setSoldModalOpen(false)}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+        {/* DatePickerModal for fast date selection */}
+        <DatePickerModal
+          visible={datePickerOpen}
+          onClose={() => setDatePickerOpen(false)}
+          value={dateStr}
+          maxDate={toDateString(new Date())}
+          title="Select Stock Sheet Date"
+          onSelectDate={handlePickDate}
+        />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -656,11 +1162,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 7,
     borderBottomWidth: 1,
   },
   dateNavBtn: {
-    padding: 8,
+    padding: 7,
     borderRadius: 10,
   },
   dateCenter: {
@@ -672,129 +1178,187 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
-  kpiStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-  },
-  kpiCol: {
-    alignItems: "center",
-  },
-  kpiLabel: {
-    fontSize: 11,
-    fontWeight: "500",
-  },
-  kpiValue: {
-    fontSize: 15,
-    fontWeight: "800",
-    marginTop: 2,
-  },
-  kpiDivider: {
-    width: 1,
-    height: 24,
-  },
   toolbar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    gap: 6,
   },
   searchBox: {
     flex: 1,
+    minWidth: 70,
+  },
+  searchInputWrapper: {
+    height: 40,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+  },
+  totalSalesPill: {
+    paddingHorizontal: 8,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  totalSalesText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   iconActionBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
   recordBtn: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    height: 44,
-    borderRadius: 12,
-    gap: 6,
+    paddingHorizontal: 10,
+    height: 40,
+    borderRadius: 10,
+    gap: 4,
   },
   reconcileBtn: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    height: 44,
-    borderRadius: 12,
-    gap: 6,
+    paddingHorizontal: 10,
+    height: 40,
+    borderRadius: 10,
+    gap: 4,
+  },
+  refreshToolbarBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
   },
   recordBtnText: {
     color: "#ffffff",
     fontWeight: "700",
-    fontSize: 14,
+    fontSize: 13,
+  },
+  allRecordedPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 5,
+  },
+  allRecordedText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  infoBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
+  },
+  infoBannerText: {
+    fontSize: 11,
+    lineHeight: 15,
+    flex: 1,
+  },
+  recordedSubtext: {
+    fontSize: 9,
+    fontWeight: "600",
+    marginTop: 1,
   },
   listContent: {
-    padding: 16,
-    paddingBottom: 40,
-    gap: 12,
+    padding: 10,
+    paddingBottom: 24,
+    gap: 8,
   },
   rowCard: {
-    padding: 12,
+    padding: 8,
   },
   cardHeader: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 6,
+    gap: 6,
+  },
+  cardHeaderLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
+    marginRight: 4,
   },
   itemName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
+    flexShrink: 1,
   },
-  itemSku: {
+  itemPrice: {
     fontSize: 11,
-    marginTop: 2,
+    fontWeight: "600",
   },
   metricsRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: 6,
+    gap: 4,
   },
   metricCol: {
+    alignItems: "center",
+    minWidth: 36,
+  },
+  metricValWrap: {
+    height: 30,
+    justifyContent: "center",
     alignItems: "center",
   },
   closingInputCol: {
     alignItems: "center",
-    width: 68,
+    width: 62,
   },
   metricLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "600",
-    marginBottom: 4,
+    marginBottom: 2,
     textTransform: "uppercase",
+  },
+  metricLabelTotal: {
+    fontWeight: "800",
   },
   metricVal: {
     fontSize: 13,
   },
   metricValBold: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
   },
   metricValSold: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
   },
   closingInput: {
     width: "100%",
-    height: 36,
+    height: 30,
     borderRadius: 8,
     borderWidth: 1.5,
     textAlign: "center",
     fontWeight: "700",
     fontSize: 14,
     padding: 0,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
   centerLoading: {
     flex: 1,
@@ -823,6 +1387,25 @@ const styles = StyleSheet.create({
     padding: 20,
     borderTopWidth: 1,
   },
+  modalHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  modalRefreshBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  modalRefreshBtnText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
   modalTitle: {
     fontSize: 18,
     fontWeight: "800",
@@ -835,6 +1418,7 @@ const styles = StyleSheet.create({
   },
   previewLine: {
     paddingVertical: 8,
+    paddingRight: 14,
     borderBottomWidth: 0.5,
   },
   previewName: {

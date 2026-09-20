@@ -19,8 +19,8 @@ export const darkColors = {
   warning: "#f59e0b", // Amber
   warningLight: "rgba(245, 158, 11, 0.15)",
 
-  danger: "#ef4444", // Crimson
-  dangerLight: "rgba(239, 68, 68, 0.15)",
+  danger: "#e05252", // Soft brick red — muted, readable
+  dangerLight: "rgba(224, 82, 82, 0.12)",
 
   success: "#10b981",
   successLight: "rgba(16, 185, 129, 0.15)",
@@ -52,8 +52,8 @@ export const lightColors = {
   warning: "#d97706",
   warningLight: "rgba(217, 119, 6, 0.1)",
 
-  danger: "#dc2626",
-  dangerLight: "rgba(220, 38, 38, 0.1)",
+  danger: "#c0392b", // Calm warm red — less vivid on white
+  dangerLight: "rgba(192, 57, 43, 0.10)",
 
   success: "#059669",
   successLight: "rgba(5, 150, 105, 0.1)",

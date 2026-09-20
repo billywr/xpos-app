@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, type ViewStyle } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, type ViewStyle } from "react-native";
 import { useTheme } from "@/context/ThemeContext";
 
 interface StatCardProps {
@@ -9,6 +9,7 @@ interface StatCardProps {
   icon?: React.ReactNode;
   variant?: "primary" | "warning" | "danger" | "accent" | "neutral";
   style?: ViewStyle;
+  onPress?: () => void;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -18,6 +19,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   icon,
   variant = "neutral",
   style,
+  onPress,
 }) => {
   const { colors } = useTheme();
 
@@ -38,17 +40,8 @@ export const StatCard: React.FC<StatCardProps> = ({
 
   const accentColor = getVariantColor();
 
-  return (
-    <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: colors.surfaceCard,
-          borderColor: colors.border,
-        },
-        style,
-      ]}
-    >
+  const cardContent = (
+    <>
       <View style={styles.topRow}>
         <Text style={[styles.label, { color: colors.textMuted }]}>{label}</Text>
         {icon ? <View style={styles.icon}>{icon}</View> : null}
@@ -59,8 +52,32 @@ export const StatCard: React.FC<StatCardProps> = ({
           {subtitle}
         </Text>
       ) : null}
-    </View>
+    </>
   );
+
+  const containerStyle = [
+    styles.container,
+    {
+      backgroundColor: colors.surfaceCard,
+      borderColor: colors.border,
+    },
+    style,
+  ];
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        style={containerStyle}
+      >
+        {cardContent}
+      </TouchableOpacity>
+    );
+  }
+
+  return <View style={containerStyle}>{cardContent}</View>;
 };
 
 const styles = StyleSheet.create({

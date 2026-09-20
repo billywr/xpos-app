@@ -4,7 +4,7 @@ import { useTheme } from "@/context/ThemeContext";
 
 interface BadgeProps {
   label: string;
-  variant?: "primary" | "accent" | "warning" | "danger" | "neutral";
+  variant?: "primary" | "accent" | "warning" | "danger" | "neutral" | "purple" | "info";
   size?: "sm" | "md";
   style?: ViewStyle;
 }
@@ -15,7 +15,7 @@ export const Badge: React.FC<BadgeProps> = ({
   size = "md",
   style,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const getColors = () => {
     switch (variant) {
@@ -23,6 +23,14 @@ export const Badge: React.FC<BadgeProps> = ({
         return { bg: colors.primaryLight, text: colors.primary };
       case "accent":
         return { bg: colors.accentLight, text: colors.accent };
+      case "purple":
+        return isDark
+          ? { bg: "rgba(168, 85, 247, 0.22)", text: "#c084fc" }
+          : { bg: "rgba(147, 51, 234, 0.12)", text: "#7c3aed" };
+      case "info":
+        return isDark
+          ? { bg: "rgba(56, 189, 248, 0.2)", text: "#38bdf8" }
+          : { bg: "rgba(2, 132, 199, 0.12)", text: "#0284c7" };
       case "warning":
         return { bg: colors.warningLight, text: colors.warning };
       case "danger":
