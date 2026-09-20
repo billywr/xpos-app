@@ -399,7 +399,6 @@ export function StandardStockCountSheetPage({
   const {
     data: cachedSalesPreview,
     isLoading: salesPreviewLoading,
-    isFetched: salesPreviewFetched,
     refetch: refetchSalesPreview,
   } = useQuery({
     queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
@@ -1001,19 +1000,39 @@ export function StandardStockCountSheetPage({
     systemSyncMutation,
   ]);
 
-  const sheetHasUnitsSold = useMemo(
-    () => allComputedRows.some((r) => r.unitsSold > 0),
-    [allComputedRows]
-  );
   const sheetHasSavedClosings = useMemo(
     () => (sheet?.rows ?? []).some((r) => r.closingStock != null),
     [sheet?.rows]
   );
 
   const remainingQtyToRecord = cachedSalesPreview?.totalQtyToRecord ?? 0;
-  const hasSalesToRecord = salesPreviewFetched
-    ? remainingQtyToRecord > 0
-    : sheetHasUnitsSold;
+  const alreadyRecordedByItem = useMemo(() => {
+    const map: Record<string, number> = {};
+    (cachedSalesPreview?.lines ?? []).forEach((line) => {
+      map[line.itemId] = line.alreadyRecorded ?? 0;
+    });
+    return map;
+  }, [cachedSalesPreview?.lines]);
+
+  const reactiveTotalQtyToRecord = useMemo(() => {
+    let sum = 0;
+    for (const r of allComputedRows) {
+      const already = alreadyRecordedByItem[r.itemId] ?? 0;
+      const toRecord = Math.max(0, (r.unitsSold ?? 0) - already);
+      sum += toRecord;
+    }
+    return sum;
+  }, [allComputedRows, alreadyRecordedByItem]);
+
+  const effectiveTotalQtyToRecord =
+    reactiveTotalQtyToRecord > 0
+      ? reactiveTotalQtyToRecord
+      : remainingQtyToRecord;
+
+  const showRecordSales =
+    showRecordSalesButton &&
+    canEdit &&
+    effectiveTotalQtyToRecord > 0;
 
   const saveButtonActive =
     canEdit && hasChanges && !hasErrors && !saveMutation.isPending;
@@ -1024,8 +1043,7 @@ export function StandardStockCountSheetPage({
     !hasErrors &&
     !previewLoading &&
     !recordSalesMutation.isPending &&
-    !saveMutation.isPending &&
-    hasSalesToRecord;
+    !saveMutation.isPending;
 
   const reconcilePreviewQueryEnabled = Boolean(
     token && orgId && branchId && isToday && sheet && !hasErrors
@@ -1049,12 +1067,12 @@ export function StandardStockCountSheetPage({
     };
   }, [refetchSalesPreview, refetchReconcilePreview]);
 
+  const itemsToReconcile = cachedReconcilePreview?.itemsAdjusted ?? 0;
   const showReconcileButton =
     isToday &&
     !hasChanges &&
     !hasErrors &&
-    ((cachedReconcilePreview?.itemsAdjusted ?? 0) > 0 ||
-      (sheetHasSavedClosings && (cachedReconcilePreview === undefined || isReconcilePreviewFetching)));
+    itemsToReconcile > 0;
 
   const latestSavedAt = useMemo(() => {
     const times = (sheet?.rows ?? [])
@@ -1460,19 +1478,22 @@ export function StandardStockCountSheetPage({
             </Button>
           )}
 
-          {/* Record sales button - visible on all screens */}
-          {showRecordSalesButton && recordSalesButtonActive && (
+          {/* Record sales button - visible only when sales to record exist */}
+          {showRecordSales && (
             <Button
               variant="success"
               size="sm"
               onClick={() => void handleRecordSalesClick()}
               title="Record sales from Sold column"
               aria-label="Record sales"
-              disabled={salesPreviewLoading}
+              disabled={!recordSalesButtonActive || salesPreviewLoading}
               className="p-2 xl:px-3 xl:py-2 text-xs xl:text-sm shrink-0"
             >
               <ShoppingBag className="h-4 w-4" />
               <span className="hidden xl:inline">Record sales</span>
+              <span className="ml-1.5 rounded-full bg-emerald-700 px-1.5 py-0.5 text-xs text-white">
+                {effectiveTotalQtyToRecord}
+              </span>
             </Button>
           )}
 
@@ -1702,7 +1723,21 @@ export function StandardStockCountSheetPage({
                         r.closingStock
                       )}
                     </td>
-                    <td className="px-1.5 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400">{formatQty(r.unitsSold)}</td>
+                    <td className="px-1.5 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400">
+                      <div>{formatQty(r.unitsSold)}</div>
+                      {(() => {
+                        const already = alreadyRecordedByItem[r.itemId] ?? 0;
+                        const toRecord = Math.max(0, (r.unitsSold ?? 0) - already);
+                        if (already <= 0) return null;
+                        return (
+                          <div className="text-[10px] font-normal text-slate-400 dark:text-slate-500">
+                            {toRecord > 0
+                              ? `(${formatQty(already)} rec · ${formatQty(toRecord)} new)`
+                              : "(all rec)"}
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className={`${tableBodyCellNumDebts} hidden xl:table-cell`}>{formatAmount(r.sellingPrice)}</td>
                     <td className="px-1.5 py-1.5 text-left text-xs tabular-nums font-bold text-slate-700 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-300">
                       {formatAmount(r.amount)}

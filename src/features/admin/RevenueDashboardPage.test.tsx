@@ -11,10 +11,12 @@ import { RevenueDashboardPage } from "./RevenueDashboardPage";
 import * as orgsApi from "@/api/orgs";
 import * as branchesApi from "@/api/branches";
 import * as revenueApi from "@/api/revenueDashboard";
+import * as miscExpensesApi from "@/api/miscExpenses";
 
 vi.mock("@/api/orgs");
 vi.mock("@/api/branches");
 vi.mock("@/api/revenueDashboard");
+vi.mock("@/api/miscExpenses");
 
 function wrap(component: React.ReactElement) {
   const store = configureStore({
@@ -99,6 +101,8 @@ describe("RevenueDashboardPage", () => {
         taxTotal: 22500,
         discountTotal: 5000,
         cogsTotal: 60000,
+        expenseTotal: 10000,
+        netProfit: 80000,
         saleCount: 42,
       },
       trend: [
@@ -107,6 +111,8 @@ describe("RevenueDashboardPage", () => {
           revenue: 50000,
           tax: 7500,
           cogs: 20000,
+          expenses: 3000,
+          netProfit: 27000,
           saleCount: 15,
         },
         {
@@ -114,9 +120,32 @@ describe("RevenueDashboardPage", () => {
           revenue: 52000,
           tax: 7800,
           cogs: 21000,
+          expenses: 7000,
+          netProfit: 24000,
           saleCount: 16,
         },
       ],
+    });
+    vi.mocked(miscExpensesApi.fetchMiscExpenses).mockResolvedValue({
+      content: [
+        {
+          id: "exp-1",
+          amount: 3000,
+          category: "Transport",
+          description: "Fuel",
+          incurredBy: null,
+          receiptRef: null,
+          terminalId: null,
+          shiftId: null,
+          createdByStaffUserId: "user-1",
+          createdAt: "2025-01-15T10:00:00Z",
+        },
+      ],
+      totalElements: 1,
+      totalPages: 1,
+      size: 500,
+      number: 0,
+      totalAmount: 10000,
     });
   });
 
@@ -128,6 +157,22 @@ describe("RevenueDashboardPage", () => {
     });
     expect(screen.getByText(/Business revenue status/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /load dashboard/i })).toBeInTheDocument();
+  });
+
+  it("displays Expenses and Net Profit when dashboard is loaded", async () => {
+    wrap(<RevenueDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /load dashboard/i })).toBeInTheDocument();
+    });
+
+    const { fireEvent } = await import("@testing-library/react");
+    fireEvent.click(screen.getByRole("button", { name: /load dashboard/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Expenses")).toBeInTheDocument();
+      expect(screen.getByText("Net profit")).toBeInTheDocument();
+    });
   });
 
   it("automatically adjusts dates when end date is set before start date", async () => {

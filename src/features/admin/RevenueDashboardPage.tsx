@@ -17,11 +17,12 @@ import { selectToken } from "@/store/selectors/authSelectors";
 import { fetchOrgs } from "@/api/orgs";
 import { fetchBranches } from "@/api/branches";
 import { fetchRevenueDashboard } from "@/api/revenueDashboard";
+import { fetchMiscExpenses } from "@/api/miscExpenses";
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
-import { TrendingUp, DollarSign, Receipt, Percent, Package, CircleDollarSign, AlertTriangle } from "lucide-react";
+import { TrendingUp, DollarSign, Receipt, Percent, Package, CircleDollarSign, AlertTriangle, CreditCard } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { DateInput } from "@/components/ui";
 import { useToast } from "@/contexts/ToastContext";
@@ -160,6 +161,28 @@ export function RevenueDashboardPage() {
       Boolean(submittedRange),
   });
 
+  const { data: expensesData } = useQuery({
+    queryKey: [
+      "admin-revenue-expenses",
+      token,
+      selectedOrgId,
+      selectedBranchId,
+      submittedRange?.start,
+      submittedRange?.end,
+    ],
+    queryFn: () =>
+      fetchMiscExpenses(token, selectedOrgId, selectedBranchId, {
+        fromDate: submittedRange!.start,
+        toDate: submittedRange!.end,
+        size: 500,
+      }),
+    enabled:
+      Boolean(token) &&
+      Boolean(selectedOrgId) &&
+      Boolean(selectedBranchId) &&
+      Boolean(submittedRange),
+  });
+
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
   const branches = filterNonDeletedBranches(branchesData?.content ?? []);
 
@@ -251,20 +274,46 @@ export function RevenueDashboardPage() {
     }
   };
 
+  const expenseTotal = useMemo(() => {
+    const fromApi = Number(expensesData?.totalAmount ?? 0);
+    const fromDash = Number(dashboard?.summary?.expenseTotal ?? 0);
+    return fromApi > 0 ? fromApi : fromDash;
+  }, [expensesData?.totalAmount, dashboard?.summary?.expenseTotal]);
+
   const netProfit = useMemo(() => {
     if (!dashboard?.summary) return 0;
     const { revenueTotal, cogsTotal } = dashboard.summary;
-    return revenueTotal - cogsTotal;
-  }, [dashboard]);
+    return revenueTotal - cogsTotal - expenseTotal;
+  }, [dashboard, expenseTotal]);
+
+  const dailyExpensesMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (expensesData?.content) {
+      for (const exp of expensesData.content) {
+        if (!exp.createdAt || exp.amount == null) continue;
+        const d = exp.createdAt.slice(0, 10);
+        map[d] = (map[d] ?? 0) + Number(exp.amount);
+      }
+    }
+    return map;
+  }, [expensesData?.content]);
 
   const chartData = useMemo(() => {
-    return (dashboard?.trend ?? []).map((t) => ({
-      date: t.date.slice(5),
-      revenue: t.revenue,
-      tax: t.tax,
-      sales: t.saleCount,
-    }));
-  }, [dashboard?.trend]);
+    return (dashboard?.trend ?? []).map((t) => {
+      const fullDate = t.date;
+      const apiExp = dailyExpensesMap[fullDate] ?? 0;
+      const finalExp = (t.expenses && t.expenses > 0) ? t.expenses : apiExp;
+      return {
+        date: t.date.slice(5),
+        revenue: t.revenue,
+        tax: t.tax,
+        cogs: t.cogs,
+        expenses: finalExp,
+        netProfit: t.netProfit ?? (t.revenue - t.cogs - finalExp),
+        sales: t.saleCount,
+      };
+    });
+  }, [dashboard?.trend, dailyExpensesMap]);
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
@@ -389,7 +438,7 @@ export function RevenueDashboardPage() {
           animate="visible"
           className="space-y-6"
         >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <motion.div
               variants={cardVariants}
               custom={0}
@@ -423,6 +472,21 @@ export function RevenueDashboardPage() {
             <motion.div
               variants={cardVariants}
               custom={2}
+              className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-amber-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-amber-950/30 dark:to-slate-800"
+            >
+              <div className="p-4">
+                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                  <CreditCard className="h-5 w-5" />
+                  <span className="text-sm font-medium">Expenses</span>
+                </div>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
+                  <AnimatedNumber value={expenseTotal} />
+                </p>
+              </div>
+            </motion.div>
+            <motion.div
+              variants={cardVariants}
+              custom={3}
               className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-violet-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-violet-950/30 dark:to-slate-800"
             >
               <div className="p-4">
@@ -437,11 +501,11 @@ export function RevenueDashboardPage() {
             </motion.div>
             <motion.div
               variants={cardVariants}
-              custom={3}
-              className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-amber-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-amber-950/30 dark:to-slate-800"
+              custom={4}
+              className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-blue-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-blue-950/30 dark:to-slate-800"
             >
               <div className="p-4">
-                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                   <Percent className="h-5 w-5" />
                   <span className="text-sm font-medium">Tax</span>
                 </div>
@@ -452,11 +516,11 @@ export function RevenueDashboardPage() {
             </motion.div>
             <motion.div
               variants={cardVariants}
-              custom={4}
-              className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-blue-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-blue-950/30 dark:to-slate-800"
+              custom={5}
+              className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-sky-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-sky-950/30 dark:to-slate-800"
             >
               <div className="p-4">
-                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                <div className="flex items-center gap-2 text-sky-600 dark:text-sky-400">
                   <Receipt className="h-5 w-5" />
                   <span className="text-sm font-medium">Sales</span>
                 </div>

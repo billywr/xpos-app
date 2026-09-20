@@ -9,6 +9,8 @@ export interface RevenueSummaryResponse {
   taxTotal: number;
   discountTotal: number;
   cogsTotal: number;
+  expenseTotal?: number;
+  netProfit?: number;
   saleCount: number;
 }
 
@@ -17,6 +19,8 @@ export interface RevenueTrendPointResponse {
   revenue: number;
   tax: number;
   cogs: number;
+  expenses?: number;
+  netProfit?: number;
   saleCount: number;
 }
 
