@@ -117,6 +117,8 @@ export const StockCountScreen: React.FC = () => {
   };
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [showZeroStockItems, setShowZeroStockItems] = useState(false);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
   // Local draft of edited closing stocks
   const [closingDrafts, setClosingDrafts] = useState<Record<string, string>>({});
@@ -141,15 +143,15 @@ export const StockCountScreen: React.FC = () => {
   const AUTO_SAVE_DEBOUNCE_MS = 2500;
   const BLUR_SAVE_DEBOUNCE_MS = 150;
 
-  // Fetch sheet query - reads directly from local SQLite (<10ms)
+  // Fetch sheet query - reads directly from local SQLite (<10ms) with cold-start remote fallback
   const {
     data: sheetData,
     isLoading: sheetLoading,
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ["local-stock-count-sheet", orgId, branchId, dateStr],
-    queryFn: () => stockCountRepository.getSheet(orgId!, branchId!, dateStr),
+    queryKey: ["local-stock-count-sheet", orgId, branchId, dateStr, token],
+    queryFn: () => stockCountRepository.getSheet(orgId!, branchId!, dateStr, token),
     enabled: Boolean(orgId && branchId),
   });
 
@@ -370,8 +372,8 @@ export const StockCountScreen: React.FC = () => {
     void refetchSalesPreview();
   };
 
-  // Manual refresh from toolbar button
-  const handleManualRefresh = () => {
+  // Manual refresh from toolbar button and pull-to-refresh
+  const handleManualRefresh = async () => {
     haptics.light();
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
@@ -380,10 +382,23 @@ export const StockCountScreen: React.FC = () => {
     if (Object.keys(closingDrafts).length > 0) {
       executeSave();
     }
-    void refetch();
-    void refetchSalesPreview();
-    if (isToday) {
-      void refetchReconcilePreview();
+    setIsManualRefreshing(true);
+    try {
+      if (token && orgId && branchId) {
+        const remoteSheet = await fetchStdStockCountSheet(token, orgId, branchId, dateStr);
+        if (remoteSheet && remoteSheet.rows) {
+          await stockCountRepository.hydrateFromRemote(orgId, branchId, remoteSheet);
+        }
+      }
+    } catch (err) {
+      console.warn("[StockCountScreen] Manual refresh remote fetch warning:", err);
+    } finally {
+      setIsManualRefreshing(false);
+      void refetch();
+      void refetchSalesPreview();
+      if (isToday) {
+        void refetchReconcilePreview();
+      }
     }
   };
 
@@ -397,10 +412,11 @@ export const StockCountScreen: React.FC = () => {
   };
 
   // Filtered rows: hide items with zero total stock (opening + added + addedToday <= 0),
-  // unless there is an active closing count recorded or drafted > 0.
+  // unless showZeroStockItems is true or there is an active closing count recorded or drafted > 0.
   const filteredRows = useMemo(() => {
     const rows = sheetData?.rows ?? [];
     const activeRows = rows.filter((r) => {
+      if (showZeroStockItems) return true;
       const totalStock = r.openingStock + r.addedStock + r.addedTodayStock;
       const draftVal = closingDrafts[r.itemId];
       const hasClosingDraft = draftVal !== undefined && draftVal.trim() !== "" && Number(draftVal) > 0;
@@ -415,7 +431,7 @@ export const StockCountScreen: React.FC = () => {
         r.name.toLowerCase().includes(q) ||
         (r.sku && r.sku.toLowerCase().includes(q))
     );
-  }, [sheetData?.rows, closingDrafts, searchQuery]);
+  }, [sheetData?.rows, closingDrafts, searchQuery, showZeroStockItems]);
 
   // Totals calculations
   const totals = useMemo(() => {
@@ -703,7 +719,7 @@ export const StockCountScreen: React.FC = () => {
 
         <TouchableOpacity
           onPress={handleManualRefresh}
-          disabled={isRefetching}
+          disabled={isRefetching || isManualRefreshing}
           activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityLabel="Refresh stock count sheet"
@@ -715,7 +731,7 @@ export const StockCountScreen: React.FC = () => {
             },
           ]}
         >
-          {isRefetching ? (
+          {isRefetching || isManualRefreshing ? (
             <ActivityIndicator size="small" color={colors.primary} />
           ) : (
             <RefreshCw size={16} color={colors.text} />
@@ -737,12 +753,12 @@ export const StockCountScreen: React.FC = () => {
       ) : (
         <FlatList
           data={filteredRows}
-          extraData={[closingDrafts, savingItemIds, alreadyRecordedByItem, dateStr, focusedItemId]}
+          extraData={[closingDrafts, savingItemIds, alreadyRecordedByItem, dateStr, focusedItemId, showZeroStockItems]}
           keyExtractor={(item) => item.itemId}
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={refetch}
+              refreshing={isRefetching || isManualRefreshing}
+              onRefresh={handleManualRefresh}
               tintColor={colors.primary}
             />
           }
@@ -762,9 +778,37 @@ export const StockCountScreen: React.FC = () => {
           removeClippedSubviews={Platform.OS === "android"}
           ListEmptyComponent={
             <View style={styles.emptyBox}>
-              <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                {searchQuery ? "No items match your search." : "No stock sheet rows."}
-              </Text>
+              {searchQuery ? (
+                <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                  No items match &quot;{searchQuery}&quot;.
+                </Text>
+              ) : (sheetData?.rows ?? []).length > 0 ? (
+                <View style={{ alignItems: "center", paddingHorizontal: 16 }}>
+                  <Text style={[styles.emptyText, { color: colors.textMuted, marginBottom: 12, textAlign: "center" }]}>
+                    All {(sheetData?.rows ?? []).length} items have zero total stock today.
+                  </Text>
+                  <Button
+                    title={showZeroStockItems ? "Hide Zero-Stock Items" : "Show All Items"}
+                    variant="outline"
+                    size="sm"
+                    onPress={() => setShowZeroStockItems((prev) => !prev)}
+                  />
+                </View>
+              ) : (
+                <View style={{ alignItems: "center", paddingHorizontal: 16 }}>
+                  <Text style={[styles.emptyText, { color: colors.textMuted, marginBottom: 12, textAlign: "center" }]}>
+                    No stock count data found locally.
+                  </Text>
+                  <Button
+                    title="Sync from Server"
+                    variant="primary"
+                    size="sm"
+                    loading={isManualRefreshing}
+                    onPress={handleManualRefresh}
+                    icon={<RefreshCw size={14} color="#fff" />}
+                  />
+                </View>
+              )}
             </View>
           }
           renderItem={({ item, index }) => {

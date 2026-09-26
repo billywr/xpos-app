@@ -13,6 +13,7 @@ import {
   MONEY_SCALE,
 } from "@/services/mathEngine";
 import { outboxEngine } from "@/services/outboxEngine";
+import { fetchStdStockCountSheet } from "@/api/stdStockCount";
 import type {
   StdStockCountSheetResponse,
   StdStockCountRowResponse,
@@ -30,12 +31,13 @@ export interface LocalStockCountRow extends StdStockCountRowResponse {
 export class StockCountRepository {
   /**
    * Retrieves the stock count sheet from local SQLite.
-   * If the sheet doesn't exist locally, it initializes it from the local catalog items.
+   * If the local database is empty on cold start, it automatically fetches and hydrates from remote.
    */
   public async getSheet(
     orgId: string,
     branchId: string,
-    dateStr: string
+    dateStr: string,
+    token?: string | null
   ): Promise<{ date: string; outletId: string; rows: LocalStockCountRow[] }> {
     const db = await getDatabase();
 
@@ -80,7 +82,20 @@ export class StockCountRepository {
       ORDER BY i.name ASC
     `;
 
-    const rawRows = await db.getAllAsync<any>(query, [branchId, dateStr]);
+    let rawRows = await db.getAllAsync<any>(query, [branchId, dateStr]);
+
+    // Cold-start fallback: if local database has 0 items and token is provided, fetch and hydrate from remote
+    if (rawRows.length === 0 && token) {
+      try {
+        const remoteSheet = await fetchStdStockCountSheet(token, orgId, branchId, dateStr);
+        if (remoteSheet && remoteSheet.rows && remoteSheet.rows.length > 0) {
+          await this.hydrateFromRemote(orgId, branchId, remoteSheet);
+          rawRows = await db.getAllAsync<any>(query, [branchId, dateStr]);
+        }
+      } catch (err) {
+        console.warn("[stockCountRepository.getSheet] Remote fallback fetch warning:", err);
+      }
+    }
 
     const rows: LocalStockCountRow[] = rawRows.map((r) => {
       const opening = r.openingStock !== null && r.openingStock !== undefined ? Number(r.openingStock) : 0;
@@ -454,6 +469,31 @@ export class StockCountRepository {
       }
 
       for (const r of remoteSheet.rows) {
+        // Ensure item exists in items table to satisfy foreign key constraint
+        const nowIso = new Date().toISOString();
+        await db.runAsync(
+          `INSERT INTO items (
+             id, org_id, name, sku, selling_price, cost_price,
+             item_type, track_inventory, active, visible_in_pos, current_stock,
+             version, created_at, updated_at
+           ) VALUES (?, ?, ?, ?, ?, 0.0, 'RETAIL', 1, 1, 1, 0.0, 1, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             name = excluded.name,
+             sku = excluded.sku,
+             selling_price = excluded.selling_price,
+             active = 1,
+             updated_at = excluded.updated_at`,
+          [
+            r.itemId,
+            orgId,
+            r.name,
+            r.sku || "",
+            Number(r.sellingPrice) || 0,
+            nowIso,
+            nowIso,
+          ]
+        );
+
         // Check if there is an uncommitted local edit
         const existing = await db.getFirstAsync<any>(
           `SELECT id, sync_status, closing_stock FROM stock_count_lines 
