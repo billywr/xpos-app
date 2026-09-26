@@ -2,7 +2,7 @@ import { getDatabase, withTransaction } from "@/db/sqlite";
 import { generateUuid } from "@/utils/uuid";
 import { outboxEngine } from "@/services/outboxEngine";
 import { roundHalfUp, SCALE, MONEY_SCALE } from "@/services/mathEngine";
-import type { GoodsReceiptNoteResponse, GrnLineResponse } from "@/api/goodsReceiptNotes";
+import type { GoodsReceiptNoteResponse, GrnLineResponse, GrnUpdateBody } from "@/api/goodsReceiptNotes";
 
 export class ReceivingRepository {
   /**
@@ -224,6 +224,79 @@ export class ReceivingRepository {
           }
         }
       }
+    });
+  }
+
+  /**
+   * Updates an existing GRN locally and enqueues an outbox mutation for background sync.
+   */
+  public async updateReceiptNote(
+    orgId: string,
+    branchId: string,
+    grnId: string,
+    body: GrnUpdateBody
+  ): Promise<void> {
+    await withTransaction(async (db) => {
+      await db.runAsync(
+        `UPDATE goods_receipt_notes SET supplier_id = COALESCE(?, supplier_id), sync_status = 'PENDING' WHERE id = ?`,
+        [body.supplierId || null, grnId]
+      );
+      if (body.lines && body.lines.length > 0) {
+        for (const line of body.lines) {
+          await db.runAsync(
+            `UPDATE grn_lines SET quantity = ?, unit_cost = ?, total_cost = ? WHERE grn_id = ? AND item_id = ?`,
+            [
+              line.qty,
+              line.receivedUnitCost || 0,
+              roundHalfUp((line.qty || 0) * (line.receivedUnitCost || 0), MONEY_SCALE),
+              grnId,
+              line.itemId,
+            ]
+          );
+        }
+      }
+
+      await outboxEngine.enqueue(
+        {
+          orgId,
+          branchId,
+          entityType: "GRN_UPDATE",
+          entityId: grnId,
+          action: "UPDATE",
+          endpoint: `/api/v1/admin/orgs/${orgId}/goods-receipt-notes/${grnId}`,
+          httpMethod: "PATCH",
+          payloadJson: JSON.stringify(body),
+        },
+        db
+      );
+    });
+  }
+
+  /**
+   * Deletes a GRN locally and enqueues an outbox mutation for background sync.
+   */
+  public async deleteReceiptNote(
+    orgId: string,
+    branchId: string,
+    grnId: string
+  ): Promise<void> {
+    await withTransaction(async (db) => {
+      await db.runAsync(`DELETE FROM grn_lines WHERE grn_id = ?`, [grnId]);
+      await db.runAsync(`DELETE FROM goods_receipt_notes WHERE id = ?`, [grnId]);
+
+      await outboxEngine.enqueue(
+        {
+          orgId,
+          branchId,
+          entityType: "GRN_DELETE",
+          entityId: grnId,
+          action: "DELETE",
+          endpoint: `/api/v1/admin/orgs/${orgId}/goods-receipt-notes/${grnId}`,
+          httpMethod: "DELETE",
+          payloadJson: "{}",
+        },
+        db
+      );
     });
   }
 }

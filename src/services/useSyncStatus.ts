@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
-import { outboxEngine } from "./outboxEngine";
+import { outboxEngine, OutboxMutation } from "./outboxEngine";
 
 export interface SyncStatus {
   isOnline: boolean;
   pendingCount: number;
   syncingCount: number;
+  committedCount: number;
+  failedCount: number;
   lastError: string | null;
   lastSyncedAt: Date | null;
   triggerSync: () => void;
   syncNow: () => Promise<{ synced: number; failed: number }>;
+  getRecentMutations: (limit?: number) => Promise<OutboxMutation[]>;
 }
 
 export function useSyncStatus(): SyncStatus {
@@ -16,16 +19,26 @@ export function useSyncStatus(): SyncStatus {
     isOnline: outboxEngine.getIsOnline(),
     pendingCount: 0,
     syncingCount: 0,
+    committedCount: 0,
+    failedCount: 0,
     lastError: null as string | null,
-    lastSyncedAt: outboxEngine.getLastSyncedAt(),
+    lastSyncedAt: null as Date | null,
   });
 
   useEffect(() => {
+    void outboxEngine.getLastSyncedAt().then((date) => {
+      if (date) {
+        setStatus((prev) => ({ ...prev, lastSyncedAt: date }));
+      }
+    });
+
     const unsubscribe = outboxEngine.subscribe((updated) => {
       setStatus({
         isOnline: updated.isOnline,
         pendingCount: updated.pendingCount,
         syncingCount: updated.syncingCount,
+        committedCount: updated.committedCount,
+        failedCount: updated.failedCount,
         lastError: updated.lastError,
         lastSyncedAt: updated.lastSyncedAt,
       });
@@ -44,13 +57,20 @@ export function useSyncStatus(): SyncStatus {
     return await outboxEngine.processQueue();
   }, []);
 
+  const getRecentMutations = useCallback((limit = 15) => {
+    return outboxEngine.getRecentMutations(limit);
+  }, []);
+
   return {
     isOnline: status.isOnline,
     pendingCount: status.pendingCount,
     syncingCount: status.syncingCount,
+    committedCount: status.committedCount,
+    failedCount: status.failedCount,
     lastError: status.lastError,
     lastSyncedAt: status.lastSyncedAt,
     triggerSync,
     syncNow,
+    getRecentMutations,
   };
 }

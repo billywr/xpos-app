@@ -28,6 +28,8 @@ export interface OutboxMutation {
 export type OutboxListener = (status: {
   pendingCount: number;
   syncingCount: number;
+  committedCount: number;
+  failedCount: number;
   isOnline: boolean;
   lastError: string | null;
   lastSyncedAt: Date | null;
@@ -43,6 +45,7 @@ class OutboxEngine {
 
   constructor() {
     this.initNetworkListener();
+    void this.getLastSyncedAt();
   }
 
   public subscribe(listener: OutboxListener): () => void {
@@ -53,16 +56,34 @@ class OutboxEngine {
     };
   }
 
+  public async getLastSyncedAt(): Promise<Date | null> {
+    if (this.lastSyncedAt) return this.lastSyncedAt;
+    try {
+      const db = await getDatabase();
+      const row = await db.getFirstAsync<{ last_synced: string }>(
+        `SELECT MAX(synced_at) as last_synced FROM outbox_mutations WHERE status = 'COMMITTED'`
+      );
+      if (row?.last_synced) {
+        this.lastSyncedAt = new Date(row.last_synced);
+        return this.lastSyncedAt;
+      }
+    } catch {}
+    return null;
+  }
+
   private async notifyListeners() {
     try {
       const stats = await this.getStats();
+      const lastSynced = this.lastSyncedAt || (await this.getLastSyncedAt());
       this.listeners.forEach((fn) =>
         fn({
           pendingCount: stats.pending,
           syncingCount: stats.syncing,
+          committedCount: stats.committed,
+          failedCount: stats.failed,
           isOnline: this.isOnline,
           lastError: this.lastError,
-          lastSyncedAt: this.lastSyncedAt,
+          lastSyncedAt: lastSynced,
         })
       );
     } catch {
@@ -91,20 +112,34 @@ class OutboxEngine {
     }
   }
 
-  public async getStats(): Promise<{ pending: number; syncing: number; failed: number }> {
+  public async getStats(): Promise<{ pending: number; syncing: number; committed: number; failed: number }> {
     const db = await getDatabase();
     const rows = await db.getAllAsync<{ status: string; count: number }>(
       `SELECT status, COUNT(*) as count FROM outbox_mutations GROUP BY status`
     );
     let pending = 0;
     let syncing = 0;
+    let committed = 0;
     let failed = 0;
     rows.forEach((r) => {
       if (r.status === "PENDING") pending = r.count;
       else if (r.status === "SYNCING") syncing = r.count;
+      else if (r.status === "COMMITTED") committed = r.count;
       else if (r.status === "FAILED") failed = r.count;
     });
-    return { pending, syncing, failed };
+    return { pending, syncing, committed, failed };
+  }
+
+  public async getRecentMutations(limit = 15): Promise<OutboxMutation[]> {
+    try {
+      const db = await getDatabase();
+      return await db.getAllAsync<OutboxMutation>(
+        `SELECT * FROM outbox_mutations ORDER BY created_at DESC LIMIT ?`,
+        [limit]
+      );
+    } catch {
+      return [];
+    }
   }
 
   /**
@@ -316,10 +351,6 @@ class OutboxEngine {
 
   public getIsOnline(): boolean {
     return this.isOnline;
-  }
-
-  public getLastSyncedAt(): Date | null {
-    return this.lastSyncedAt;
   }
 }
 

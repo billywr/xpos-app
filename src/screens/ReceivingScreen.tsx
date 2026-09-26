@@ -45,6 +45,7 @@ import { fetchSuppliers, type Supplier } from "@/api/suppliers";
 import { fetchItems } from "@/api/catalog";
 import { receivingRepository } from "@/repositories/receivingRepository";
 import { catalogRepository } from "@/repositories/catalogRepository";
+import { outboxEngine } from "@/services/outboxEngine";
 import type { Item } from "@/types";
 import { formatCurrency, formatQty } from "@/utils/formatCurrency";
 import { haptics } from "@/utils/haptics";
@@ -273,7 +274,7 @@ export const ReceivingScreen: React.FC = () => {
     setEditModalOpen(true);
   };
 
-  // Edit Mutation
+  // Edit Mutation (local-first with outbox sync)
   const editMutation = useMutation({
     mutationFn: async () => {
       if (!editingRow) return;
@@ -284,7 +285,7 @@ export const ReceivingScreen: React.FC = () => {
         throw new Error("Unit price must be positive");
       }
 
-      return updateGoodsReceiptNote(token, orgId!, editingRow.grn.id, {
+      await receivingRepository.updateReceiptNote(orgId!, branchId!, editingRow.grn.id, {
         supplierId: editSupplierId,
         receivedAt: editingRow.grn.receivedAt,
         lines: [
@@ -298,10 +299,12 @@ export const ReceivingScreen: React.FC = () => {
     },
     onSuccess: () => {
       haptics.success();
-      toast.success("Stock receipt updated successfully.");
+      toast.success("Stock receipt updated (queued for sync).");
       setEditModalOpen(false);
       setEditingRow(null);
+      void outboxEngine.processQueue();
       queryClient.invalidateQueries({ queryKey: ["mobile-goods-receipt-notes"] });
+      queryClient.invalidateQueries({ queryKey: ["local-goods-receipt-notes"] });
       queryClient.invalidateQueries({ queryKey: ["mobile-items-all"] });
     },
     onError: (err: any) => {
@@ -317,18 +320,20 @@ export const ReceivingScreen: React.FC = () => {
     setDeleteConfirmOpen(true);
   };
 
-  // Delete Mutation
+  // Delete Mutation (local-first with outbox sync)
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!rowToDelete) return;
-      return deleteGoodsReceiptNotePermanently(token, orgId!, rowToDelete.grn.id);
+      await receivingRepository.deleteReceiptNote(orgId!, branchId!, rowToDelete.grn.id);
     },
     onSuccess: () => {
       haptics.success();
-      toast.success("Stock receipt deleted. Inventory movements reversed.");
+      toast.success("Stock receipt deleted (queued for sync).");
       setDeleteConfirmOpen(false);
       setRowToDelete(null);
+      void outboxEngine.processQueue();
       queryClient.invalidateQueries({ queryKey: ["mobile-goods-receipt-notes"] });
+      queryClient.invalidateQueries({ queryKey: ["local-goods-receipt-notes"] });
       queryClient.invalidateQueries({ queryKey: ["mobile-items-all"] });
     },
     onError: (err: any) => {

@@ -24,12 +24,15 @@ import {
   Cloud,
   Database,
   AlertTriangle,
+  Clock,
+  CheckCircle2,
 } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useOrg } from "@/context/OrgContext";
 import { useToast } from "@/context/ToastContext";
 import { useSyncStatus } from "@/services/useSyncStatus";
+import type { OutboxMutation } from "@/services/outboxEngine";
 import { hydrationService } from "@/services/hydrationService";
 import { fetchOrgs, fetchBranches, fetchTerminals } from "@/api/context";
 import { isUuid } from "@/api/auth";
@@ -37,6 +40,7 @@ import { storage } from "@/utils/storage";
 import { DEFAULT_CONFIG } from "@/constants/config";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { haptics } from "@/utils/haptics";
 import type { Org, Branch, Terminal } from "@/types";
 
@@ -49,13 +53,17 @@ export const SettingsScreen: React.FC = () => {
     isOnline,
     pendingCount,
     syncingCount,
+    committedCount,
+    failedCount,
     lastError,
     lastSyncedAt,
     syncNow,
+    getRecentMutations,
   } = useSyncStatus();
 
   const [isSyncingNow, setIsSyncingNow] = useState(false);
   const [isFullResyncing, setIsFullResyncing] = useState(false);
+  const [recentMutations, setRecentMutations] = useState<OutboxMutation[]>([]);
 
   const {
     orgId,
@@ -73,6 +81,57 @@ export const SettingsScreen: React.FC = () => {
   const [keycloakUrl, setKeycloakUrl] = useState("");
   const [realm, setRealm] = useState("");
   const [clientId, setClientId] = useState("");
+
+  const loadMutations = useCallback(async () => {
+    try {
+      const list = await getRecentMutations(5);
+      setRecentMutations(list);
+    } catch {}
+  }, [getRecentMutations]);
+
+  useEffect(() => {
+    void loadMutations();
+  }, [pendingCount, syncingCount, committedCount, failedCount, loadMutations]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadMutations();
+    }, [loadMutations])
+  );
+
+  const formatMutationTitle = (m: OutboxMutation): string => {
+    try {
+      const payload = m.payload_json ? JSON.parse(m.payload_json) : {};
+      switch (m.entity_type) {
+        case "CATALOG_ITEM_CREATE":
+          return `Add Item: ${payload.name || "Catalog Item"}`;
+        case "CATALOG_ITEM_UPDATE":
+          return `Update Item: ${payload.name || m.entity_id}`;
+        case "STOCK_COUNT_SAVE":
+          return "Saved Stock Closing Count";
+        case "STOCK_COUNT_RECORD_SALES":
+          return "Recorded Stock Sales";
+        case "STOCK_COUNT_RECONCILE":
+          return "Reconciled Inventory";
+        case "GRN_CREATE":
+          return "Received Stock Delivery (GRN)";
+        case "GRN_UPDATE":
+          return "Updated Stock Receipt";
+        case "GRN_DELETE":
+          return "Deleted Stock Receipt";
+        case "DEBT_CREATE":
+          return `Customer Debt: ${payload.customerName || "Customer"}`;
+        case "DEBT_SETTLE":
+          return `Debt Payment: KSh ${payload.paymentAmount || ""}`;
+        case "EXPENSE_CREATE":
+          return `Expense: ${payload.category || "General"} (${payload.description || ""})`;
+        default:
+          return `${m.action} ${m.entity_type}`;
+      }
+    } catch {
+      return `${m.action} ${m.entity_type}`;
+    }
+  };
 
   const formatLastSync = (d: Date | null) => {
     if (!d) return "Not synced yet";
@@ -388,6 +447,15 @@ export const SettingsScreen: React.FC = () => {
 
           <View style={[styles.infoRow, { marginTop: 8 }]}>
             <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+              Synced Changes:
+            </Text>
+            <Text style={[styles.infoVal, { color: colors.success, fontWeight: "600" }]}>
+              {committedCount} synchronized
+            </Text>
+          </View>
+
+          <View style={[styles.infoRow, { marginTop: 8 }]}>
+            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
               Sync Cadence:
             </Text>
             <Text style={[styles.infoVal, { color: colors.text }]}>
@@ -437,6 +505,62 @@ export const SettingsScreen: React.FC = () => {
               onPress={handleFullResync}
               style={{ flex: 1 }}
             />
+          </View>
+
+          {/* Recent changes tracked in outbox queue */}
+          <View style={[styles.activitySection, { borderTopColor: colors.border }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <Text style={[styles.activityHeading, { color: colors.textSubtle }]}>
+                RECENT TRACKED CHANGES
+              </Text>
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                {recentMutations.length} logged
+              </Text>
+            </View>
+
+            {recentMutations.length === 0 ? (
+              <Text style={[styles.noActivityText, { color: colors.textMuted }]}>
+                No local changes recorded yet.
+              </Text>
+            ) : (
+              recentMutations.map((m) => (
+                <View
+                  key={m.id}
+                  style={[
+                    styles.mutationRow,
+                    { borderBottomColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" },
+                  ]}
+                >
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={[styles.mutationTitle, { color: colors.text }]} numberOfLines={1}>
+                      {formatMutationTitle(m)}
+                    </Text>
+                    <Text style={[styles.mutationTime, { color: colors.textMuted }]}>
+                      {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                    </Text>
+                  </View>
+                  <Badge
+                    label={
+                      m.status === "COMMITTED"
+                        ? "Synced"
+                        : m.status === "SYNCING"
+                        ? "Syncing…"
+                        : m.status === "PENDING"
+                        ? "Queued"
+                        : "Failed"
+                    }
+                    variant={
+                      m.status === "COMMITTED"
+                        ? "primary"
+                        : m.status === "FAILED"
+                        ? "danger"
+                        : "warning"
+                    }
+                    size="sm"
+                  />
+                </View>
+              ))
+            )}
           </View>
         </Card>
 
@@ -654,5 +778,36 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     flex: 1,
+  },
+  activitySection: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  activityHeading: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  noActivityText: {
+    fontSize: 12,
+    fontStyle: "italic",
+    paddingVertical: 6,
+  },
+  mutationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  mutationTitle: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  mutationTime: {
+    fontSize: 11,
+    marginTop: 2,
   },
 });

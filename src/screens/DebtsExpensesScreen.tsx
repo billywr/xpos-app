@@ -40,6 +40,8 @@ import {
   fetchExpenseCategories,
 } from "@/api/miscExpenses";
 import type { CustomerDebtResponse, MiscExpenseResponse } from "@/types";
+import { debtsExpensesRepository } from "@/repositories/debtsExpensesRepository";
+import { outboxEngine } from "@/services/outboxEngine";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { haptics } from "@/utils/haptics";
 import { Input } from "@/components/ui/Input";
@@ -268,10 +270,10 @@ export const DebtsExpensesScreen: React.FC = () => {
       enabled: Boolean(token && orgId && branchId),
     });
 
-  // Create Debt Mutation
+  // Create Debt Mutation (local-first with outbox sync)
   const createDebtMutation = useMutation({
     mutationFn: () =>
-      createDebt(token, orgId!, branchId!, {
+      debtsExpensesRepository.createDebt(orgId!, branchId!, {
         customerId: `temp-${Date.now()}`,
         customerName: debtCustomerName.trim(),
         customerPhone: debtCustomerPhone.trim() || undefined,
@@ -287,38 +289,40 @@ export const DebtsExpensesScreen: React.FC = () => {
       setDebtAmount("");
       setDebtDueDate("");
       setDebtNotes("");
+      void outboxEngine.processQueue();
       void refetchDebts();
       void queryClient.invalidateQueries({ queryKey: ["debts-pending-total"] });
-      toast.success("Debt recorded successfully.");
+      toast.success("Debt recorded (queued for sync).");
     },
     onError: (err: any) => {
       haptics.error();
-      toast.error(err?.data?.message ?? "Failed to record debt.", "Error");
+      toast.error(err?.data?.message ?? err?.message ?? "Failed to record debt.", "Error");
     },
   });
 
-  // Settle Debt Mutation
+  // Settle Debt Mutation (local-first with outbox sync)
   const settleDebtMutation = useMutation({
     mutationFn: () =>
-      settleDebt(token, orgId!, branchId!, settleDebtItem!.id, Number(settleAmount)),
+      debtsExpensesRepository.settleDebt(orgId!, branchId!, settleDebtItem!.id, Number(settleAmount)),
     onSuccess: () => {
       haptics.success();
       setSettleDebtItem(null);
       setSettleAmount("");
+      void outboxEngine.processQueue();
       void refetchDebts();
       void queryClient.invalidateQueries({ queryKey: ["debts-pending-total"] });
-      toast.success("Payment recorded successfully.");
+      toast.success("Payment recorded (queued for sync).");
     },
     onError: (err: any) => {
       haptics.error();
-      toast.error(err?.data?.message ?? "Failed to settle payment.", "Error");
+      toast.error(err?.data?.message ?? err?.message ?? "Failed to settle payment.", "Error");
     },
   });
 
-  // Create Expense Mutation
+  // Create Expense Mutation (local-first with outbox sync)
   const createExpMutation = useMutation({
     mutationFn: () =>
-      createMiscExpense(token, orgId!, branchId!, {
+      debtsExpensesRepository.createExpense(orgId!, branchId!, {
         amount: Number(expAmount),
         category: expCategory,
         description: expDescription.trim(),
@@ -332,12 +336,13 @@ export const DebtsExpensesScreen: React.FC = () => {
       setExpDescription("");
       setExpIncurredBy("");
       setExpReceiptRef("");
+      void outboxEngine.processQueue();
       void refetchExpenses();
-      toast.success("Expense recorded successfully.");
+      toast.success("Expense recorded (queued for sync).");
     },
     onError: (err: any) => {
       haptics.error();
-      toast.error(err?.data?.message ?? "Failed to record expense.", "Error");
+      toast.error(err?.data?.message ?? err?.message ?? "Failed to record expense.", "Error");
     },
   });
 
