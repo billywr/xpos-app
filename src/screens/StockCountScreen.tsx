@@ -57,6 +57,7 @@ import { Badge } from "@/components/ui/Badge";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { DatePickerModal } from "@/components/ui/DatePickerModal";
 import { AnimatedModalBackdrop } from "@/components/ui/AnimatedModalBackdrop";
+import { storage } from "@/utils/storage";
 
 // ---------------------------------------------------------------------------
 // Skeleton card that mirrors the real stock-count row layout
@@ -117,7 +118,6 @@ export const StockCountScreen: React.FC = () => {
   };
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [showZeroStockItems, setShowZeroStockItems] = useState(false);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
   // Local draft of edited closing stocks
@@ -150,12 +150,13 @@ export const StockCountScreen: React.FC = () => {
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ["local-stock-count-sheet", orgId, branchId, dateStr],
+    queryKey: ["local-stock-count-sheet", orgId, branchId, dateStr, token],
     queryFn: async () => {
       // 1. If online & authenticated: fetch remote sheet and hydrate SQLite
-      if (token && orgId && branchId && isOnline) {
+      const effectiveToken = token || (await storage.getAuthToken());
+      if (effectiveToken && orgId && branchId && isOnline) {
         try {
-          const remoteSheet = await fetchStdStockCountSheet(token, orgId, branchId, dateStr);
+          const remoteSheet = await fetchStdStockCountSheet(effectiveToken, orgId, branchId, dateStr);
           if (remoteSheet && remoteSheet.rows) {
             await stockCountRepository.hydrateFromRemote(orgId, branchId, remoteSheet);
           }
@@ -165,7 +166,7 @@ export const StockCountScreen: React.FC = () => {
       }
 
       // 2. Read from local SQLite
-      return await stockCountRepository.getSheet(orgId!, branchId!, dateStr, token);
+      return await stockCountRepository.getSheet(orgId!, branchId!, dateStr, effectiveToken);
     },
     enabled: Boolean(orgId && branchId),
   });
@@ -176,11 +177,12 @@ export const StockCountScreen: React.FC = () => {
     refetch: refetchSalesPreview,
     isFetching: isFetchingSalesPreview,
   } = useQuery({
-    queryKey: ["std-stock-count-sales-preview", orgId, branchId, dateStr],
+    queryKey: ["std-stock-count-sales-preview", orgId, branchId, dateStr, token],
     queryFn: async () => {
-      if (isOnline && token) {
+      const effectiveToken = token || (await storage.getAuthToken());
+      if (isOnline && effectiveToken && orgId && branchId) {
         try {
-          return await fetchStdStockCountSalesPreview(token, orgId!, branchId!, dateStr);
+          return await fetchStdStockCountSalesPreview(effectiveToken, orgId, branchId, dateStr);
         } catch {}
       }
       return stockCountRepository.getSalesPreview(orgId!, branchId!, dateStr);
@@ -190,11 +192,12 @@ export const StockCountScreen: React.FC = () => {
 
   // Reconcile preview query - computes directly or checks remote
   const { data: reconcilePreview, refetch: refetchReconcilePreview } = useQuery({
-    queryKey: ["std-stock-count-reconcile-preview", orgId, branchId, dateStr],
+    queryKey: ["std-stock-count-reconcile-preview", orgId, branchId, dateStr, token],
     queryFn: async () => {
-      if (isOnline && token) {
+      const effectiveToken = token || (await storage.getAuthToken());
+      if (isOnline && effectiveToken && orgId && branchId) {
         try {
-          return await fetchStdStockCountReconcilePreview(token, orgId!, branchId!, dateStr);
+          return await fetchStdStockCountReconcilePreview(effectiveToken, orgId, branchId, dateStr);
         } catch {}
       }
       return stockCountRepository.getReconcilePreview(orgId!, branchId!, dateStr);
@@ -377,8 +380,9 @@ export const StockCountScreen: React.FC = () => {
     }
     setIsManualRefreshing(true);
     try {
-      if (token && orgId && branchId) {
-        const remoteSheet = await fetchStdStockCountSheet(token, orgId, branchId, dateStr);
+      const effectiveToken = token || (await storage.getAuthToken());
+      if (effectiveToken && orgId && branchId) {
+        const remoteSheet = await fetchStdStockCountSheet(effectiveToken, orgId, branchId, dateStr);
         if (remoteSheet && remoteSheet.rows) {
           await stockCountRepository.hydrateFromRemote(orgId, branchId, remoteSheet);
         }
@@ -404,27 +408,17 @@ export const StockCountScreen: React.FC = () => {
     setClosingDrafts({});
   };
 
-  // Filtered rows: hide items with zero total stock (opening + added + addedToday <= 0),
-  // unless showZeroStockItems is true or there is an active closing count recorded or drafted > 0.
+  // Filtered rows: filter by search query; show all items in inventory
   const filteredRows = useMemo(() => {
     const rows = sheetData?.rows ?? [];
-    const activeRows = rows.filter((r) => {
-      if (showZeroStockItems) return true;
-      const totalStock = r.openingStock + r.addedStock + r.addedTodayStock;
-      const draftVal = closingDrafts[r.itemId];
-      const hasClosingDraft = draftVal !== undefined && draftVal.trim() !== "" && Number(draftVal) > 0;
-      const hasRecordedClosing = r.closingStock !== null && r.closingStock > 0;
-      return totalStock > 0 || hasClosingDraft || hasRecordedClosing;
-    });
-
-    if (!searchQuery.trim()) return activeRows;
+    if (!searchQuery.trim()) return rows;
     const q = searchQuery.toLowerCase().trim();
-    return activeRows.filter(
+    return rows.filter(
       (r) =>
         r.name.toLowerCase().includes(q) ||
         (r.sku && r.sku.toLowerCase().includes(q))
     );
-  }, [sheetData?.rows, closingDrafts, searchQuery, showZeroStockItems]);
+  }, [sheetData?.rows, searchQuery]);
 
   // Totals calculations
   const totals = useMemo(() => {
@@ -746,7 +740,7 @@ export const StockCountScreen: React.FC = () => {
       ) : (
         <FlatList
           data={filteredRows}
-          extraData={[closingDrafts, savingItemIds, alreadyRecordedByItem, dateStr, focusedItemId, showZeroStockItems]}
+          extraData={[closingDrafts, savingItemIds, alreadyRecordedByItem, dateStr, focusedItemId]}
           keyExtractor={(item) => item.itemId}
           refreshControl={
             <RefreshControl
@@ -775,22 +769,10 @@ export const StockCountScreen: React.FC = () => {
                 <Text style={[styles.emptyText, { color: colors.textMuted }]}>
                   No items match &quot;{searchQuery}&quot;.
                 </Text>
-              ) : (sheetData?.rows ?? []).length > 0 ? (
-                <View style={{ alignItems: "center", paddingHorizontal: 16 }}>
-                  <Text style={[styles.emptyText, { color: colors.textMuted, marginBottom: 12, textAlign: "center" }]}>
-                    All {(sheetData?.rows ?? []).length} items have zero total stock today.
-                  </Text>
-                  <Button
-                    title={showZeroStockItems ? "Hide Zero-Stock Items" : "Show All Items"}
-                    variant="outline"
-                    size="sm"
-                    onPress={() => setShowZeroStockItems((prev) => !prev)}
-                  />
-                </View>
               ) : (
                 <View style={{ alignItems: "center", paddingHorizontal: 16 }}>
                   <Text style={[styles.emptyText, { color: colors.textMuted, marginBottom: 12, textAlign: "center" }]}>
-                    No stock count data found locally.
+                    No stock count items found.
                   </Text>
                   <Button
                     title="Sync from Server"
