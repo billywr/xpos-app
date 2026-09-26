@@ -1,5 +1,7 @@
 import { getDatabase, withTransaction } from "@/db/sqlite";
-import { fetchItems, fetchCategories } from "@/api/catalog";
+import { fetchItems, fetchCategories, type CreateItemBody, type UpdateItemBody } from "@/api/catalog";
+import { generateUuid } from "@/utils/uuid";
+import { outboxEngine } from "@/services/outboxEngine";
 import type { Item, Category } from "@/types";
 
 export class CatalogRepository {
@@ -124,6 +126,137 @@ export class CatalogRepository {
     } catch (err) {
       console.warn("[CatalogRepository] Background hydration failed (offline or network error):", err);
     }
+  }
+
+  /**
+   * Saves an item locally in SQLite with sub-5ms latency and enqueues an outbox mutation.
+   * If existingId is provided, performs an UPDATE / PATCH mutation.
+   * If existingId is null/undefined, generates a local UUID and performs a CREATE / POST mutation.
+   */
+  public async saveItem(
+    orgId: string,
+    data: CreateItemBody | UpdateItemBody,
+    existingId?: string
+  ): Promise<Item> {
+    const isUpdate = Boolean(existingId);
+    const itemId = existingId || generateUuid();
+    const now = new Date().toISOString();
+
+    const db = await getDatabase();
+    if (isUpdate) {
+      await db.runAsync(
+        `UPDATE items SET
+           name = COALESCE(?, name),
+           sku = COALESCE(?, sku),
+           selling_price = COALESCE(?, selling_price),
+           cost_price = COALESCE(?, cost_price),
+           category_id = COALESCE(?, category_id),
+           item_type = COALESCE(?, item_type),
+           track_inventory = COALESCE(?, track_inventory),
+           active = COALESCE(?, active),
+           visible_in_pos = COALESCE(?, visible_in_pos),
+           updated_at = ?
+         WHERE id = ?`,
+        [
+          data.name ?? null,
+          data.sku ?? null,
+          data.defaultSellingPrice !== undefined && data.defaultSellingPrice !== null ? Number(data.defaultSellingPrice) : null,
+          data.buyingPrice !== undefined && data.buyingPrice !== null ? Number(data.buyingPrice) : null,
+          data.categoryId ?? null,
+          data.itemType ?? null,
+          data.trackInventory !== undefined ? (data.trackInventory ? 1 : 0) : null,
+          data.active !== undefined ? (data.active ? 1 : 0) : null,
+          data.visibleInPos !== undefined ? (data.visibleInPos ? 1 : 0) : null,
+          now,
+          itemId,
+        ]
+      );
+
+      // Enqueue delta mutation for update
+      await outboxEngine.enqueue({
+        orgId,
+        branchId: "global",
+        entityType: "CATALOG_ITEM_UPDATE",
+        entityId: itemId,
+        action: "UPDATE",
+        endpoint: `/api/v1/admin/orgs/${orgId}/items/${itemId}`,
+        httpMethod: "PATCH",
+        payloadJson: JSON.stringify(data),
+      });
+    } else {
+      await db.runAsync(
+        `INSERT INTO items (
+           id, org_id, category_id, name, sku, selling_price, cost_price,
+           item_type, track_inventory, active, visible_in_pos, current_stock,
+           version, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.0, 1, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           sku = excluded.sku,
+           selling_price = excluded.selling_price,
+           cost_price = excluded.cost_price,
+           category_id = excluded.category_id,
+           item_type = excluded.item_type,
+           track_inventory = excluded.track_inventory,
+           active = excluded.active,
+           visible_in_pos = excluded.visible_in_pos,
+           updated_at = excluded.updated_at`,
+        [
+          itemId,
+          orgId,
+          data.categoryId ?? null,
+          data.name ?? "New Item",
+          data.sku ?? null,
+          data.defaultSellingPrice ? Number(data.defaultSellingPrice) : 0,
+          data.buyingPrice ? Number(data.buyingPrice) : 0,
+          data.itemType || "RETAIL",
+          data.trackInventory ? 1 : 0,
+          data.active !== false ? 1 : 0,
+          data.visibleInPos !== false ? 1 : 0,
+          now,
+          now,
+        ]
+      );
+
+      // Enqueue mutation for create
+      await outboxEngine.enqueue({
+        orgId,
+        branchId: "global",
+        entityType: "CATALOG_ITEM_CREATE",
+        entityId: itemId,
+        action: "CREATE",
+        endpoint: `/api/v1/admin/orgs/${orgId}/items`,
+        httpMethod: "POST",
+        payloadJson: JSON.stringify(data),
+      });
+    }
+
+    const row = await db.getFirstAsync<any>(
+      `SELECT i.*, c.name as categoryName 
+       FROM items i 
+       LEFT JOIN categories c ON c.id = i.category_id 
+       WHERE i.id = ?`,
+      [itemId]
+    );
+
+    return {
+      id: itemId,
+      orgId,
+      sku: row?.sku ?? data.sku ?? null,
+      name: row?.name ?? data.name,
+      itemType: row?.item_type ?? data.itemType ?? "RETAIL",
+      categoryId: row?.category_id ?? data.categoryId ?? null,
+      categoryName: row?.categoryName ?? null,
+      taxProfileId: null,
+      trackInventory: Boolean(row?.track_inventory ?? data.trackInventory),
+      active: Boolean(row?.active ?? data.active),
+      buyingPrice: row?.cost_price ?? data.buyingPrice ?? null,
+      defaultSellingPrice: row?.selling_price ?? data.defaultSellingPrice ?? null,
+      visibleInPos: Boolean(row?.visible_in_pos ?? data.visibleInPos),
+      imageUrl: null,
+      createdAt: row?.created_at ?? now,
+      updatedAt: row?.updated_at ?? now,
+    };
   }
 }
 

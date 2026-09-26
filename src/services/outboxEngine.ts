@@ -30,6 +30,7 @@ export type OutboxListener = (status: {
   syncingCount: number;
   isOnline: boolean;
   lastError: string | null;
+  lastSyncedAt: Date | null;
 }) => void;
 
 class OutboxEngine {
@@ -38,6 +39,7 @@ class OutboxEngine {
   private listeners: Set<OutboxListener> = new Set();
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private lastError: string | null = null;
+  private lastSyncedAt: Date | null = null;
 
   constructor() {
     this.initNetworkListener();
@@ -60,6 +62,7 @@ class OutboxEngine {
           syncingCount: stats.syncing,
           isOnline: this.isOnline,
           lastError: this.lastError,
+          lastSyncedAt: this.lastSyncedAt,
         })
       );
     } catch {
@@ -78,13 +81,13 @@ class OutboxEngine {
       }
     });
 
-    // Start background sync timer every 30s
+    // Start background sync timer every 5s for near-instant delta synchronization
     if (!this.intervalId) {
       this.intervalId = setInterval(() => {
         if (this.isOnline && !this.isProcessing) {
           void this.processQueue();
         }
-      }, 30000);
+      }, 5000);
     }
   }
 
@@ -106,6 +109,8 @@ class OutboxEngine {
 
   /**
    * Enqueue a new mutation into outbox table inside an existing or new SQLite transaction.
+   * Performs delta coalescing: if a mutation for the same entity is already PENDING,
+   * updates the payload and timestamp instead of appending redundant requests.
    */
   public async enqueue(
     mutation: {
@@ -121,37 +126,71 @@ class OutboxEngine {
     },
     customDb?: any
   ): Promise<string> {
-    const id = generateUuid();
     const clientRequestId = mutation.clientRequestId || generateUuid();
     const now = new Date().toISOString();
 
-    const runner = async (db: any) => {
-      await db.runAsync(
-        `INSERT INTO outbox_mutations (
-          id, client_request_id, org_id, branch_id, entity_type, entity_id, action,
-          endpoint, http_method, payload_json, status, retry_count, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0, ?, ?)`,
-        [
-          id,
-          clientRequestId,
-          mutation.orgId,
-          mutation.branchId,
-          mutation.entityType,
-          mutation.entityId,
-          mutation.action,
-          mutation.endpoint,
-          mutation.httpMethod,
-          mutation.payloadJson,
-          now,
-          now,
-        ]
-      );
+    const runner = async (db: any): Promise<string> => {
+      // Delta Coalescing: Check if an identical entity already has a PENDING mutation
+      const existingPending = (await db.getFirstAsync(
+        `SELECT id, client_request_id FROM outbox_mutations 
+         WHERE org_id = ? AND entity_type = ? AND entity_id = ? AND status = 'PENDING'
+         ORDER BY created_at DESC LIMIT 1`,
+        [mutation.orgId, mutation.entityType, mutation.entityId]
+      )) as { id: string; client_request_id: string } | null;
+
+      if (existingPending) {
+        // Coalesce into existing pending mutation: update payload, endpoint, action, and timestamp
+        await db.runAsync(
+          `UPDATE outbox_mutations SET 
+             action = ?,
+             endpoint = ?,
+             http_method = ?,
+             payload_json = ?,
+             updated_at = ?
+           WHERE id = ?`,
+          [
+            mutation.action,
+            mutation.endpoint,
+            mutation.httpMethod,
+            mutation.payloadJson,
+            now,
+            existingPending.id,
+          ]
+        );
+        return existingPending.client_request_id;
+      } else {
+        const id = generateUuid();
+        await db.runAsync(
+          `INSERT INTO outbox_mutations (
+            id, client_request_id, org_id, branch_id, entity_type, entity_id, action,
+            endpoint, http_method, payload_json, status, retry_count, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0, ?, ?)`,
+          [
+            id,
+            clientRequestId,
+            mutation.orgId,
+            mutation.branchId,
+            mutation.entityType,
+            mutation.entityId,
+            mutation.action,
+            mutation.endpoint,
+            mutation.httpMethod,
+            mutation.payloadJson,
+            now,
+            now,
+          ]
+        );
+        return clientRequestId;
+      }
     };
 
+    let resultRequestId = clientRequestId;
     if (customDb) {
-      await runner(customDb);
+      resultRequestId = await runner(customDb);
     } else {
-      await withTransaction(runner);
+      await withTransaction(async (db) => {
+        resultRequestId = await runner(db);
+      });
     }
 
     this.notifyListeners();
@@ -163,21 +202,23 @@ class OutboxEngine {
       }, 50);
     }
 
-    return clientRequestId;
+    return resultRequestId;
   }
 
   /**
    * Process pending items in outbox queue sequentially or in coalesced batches.
+   * Returns counts of synced and failed mutations.
    */
-  public async processQueue(): Promise<void> {
-    if (this.isProcessing) return;
+  public async processQueue(): Promise<{ synced: number; failed: number }> {
+    if (this.isProcessing) return { synced: 0, failed: 0 };
     this.isProcessing = true;
+    let synced = 0;
+    let failed = 0;
 
     try {
       const token = await storage.getAuthToken();
       if (!token) {
-        this.isProcessing = false;
-        return;
+        return { synced: 0, failed: 0 };
       }
 
       const db = await getDatabase();
@@ -189,8 +230,7 @@ class OutboxEngine {
       );
 
       if (pendingList.length === 0) {
-        this.isProcessing = false;
-        return;
+        return { synced: 0, failed: 0 };
       }
 
       for (const item of pendingList) {
@@ -203,7 +243,7 @@ class OutboxEngine {
 
         try {
           const body = item.payload_json ? JSON.parse(item.payload_json) : undefined;
-          await apiFetch(item.endpoint, {
+          const res = await apiFetch<any>(item.endpoint, {
             method: item.http_method,
             token,
             requestId: item.client_request_id,
@@ -224,10 +264,16 @@ class OutboxEngine {
                WHERE branch_id = ? AND item_id = ? AND sync_status = 'SYNCING'`,
               [item.branch_id, item.entity_id]
             );
+          } else if (item.entity_type === "CATALOG_ITEM_CREATE" && res?.id && res.id !== item.entity_id) {
+            // Update local item ID from client temp UUID to server UUID
+            await db.runAsync(`UPDATE items SET id = ?, updated_at = ? WHERE id = ?`, [res.id, syncedAt, item.entity_id]);
           }
 
+          synced++;
+          this.lastSyncedAt = new Date();
           this.lastError = null;
         } catch (err: any) {
+          failed++;
           const status = err?.status ?? 0;
           const errMsg = err?.data?.message || err?.message || "Sync failed";
           this.lastError = errMsg;
@@ -264,10 +310,16 @@ class OutboxEngine {
       this.isProcessing = false;
       this.notifyListeners();
     }
+
+    return { synced, failed };
   }
 
   public getIsOnline(): boolean {
     return this.isOnline;
+  }
+
+  public getLastSyncedAt(): Date | null {
+    return this.lastSyncedAt;
   }
 }
 

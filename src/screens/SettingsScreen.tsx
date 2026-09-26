@@ -20,10 +20,17 @@ import {
   Monitor,
   Check,
   Shield,
+  RefreshCw,
+  Cloud,
+  Database,
+  AlertTriangle,
 } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useOrg } from "@/context/OrgContext";
+import { useToast } from "@/context/ToastContext";
+import { useSyncStatus } from "@/services/useSyncStatus";
+import { hydrationService } from "@/services/hydrationService";
 import { fetchOrgs, fetchBranches, fetchTerminals } from "@/api/context";
 import { isUuid } from "@/api/auth";
 import { storage } from "@/utils/storage";
@@ -37,6 +44,19 @@ export const SettingsScreen: React.FC = () => {
   const router = useRouter();
   const { colors, isDark, toggleTheme } = useTheme();
   const { username, token, logout } = useAuth();
+  const toast = useToast();
+  const {
+    isOnline,
+    pendingCount,
+    syncingCount,
+    lastError,
+    lastSyncedAt,
+    syncNow,
+  } = useSyncStatus();
+
+  const [isSyncingNow, setIsSyncingNow] = useState(false);
+  const [isFullResyncing, setIsFullResyncing] = useState(false);
+
   const {
     orgId,
     orgName,
@@ -53,6 +73,66 @@ export const SettingsScreen: React.FC = () => {
   const [keycloakUrl, setKeycloakUrl] = useState("");
   const [realm, setRealm] = useState("");
   const [clientId, setClientId] = useState("");
+
+  const formatLastSync = (d: Date | null) => {
+    if (!d) return "Not synced yet";
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
+    if (diffSec < 5) return "Just now";
+    if (diffSec < 60) return `${diffSec}s ago`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const handleSyncNow = async () => {
+    haptics.light();
+    if (!isOnline) {
+      toast.info("Cannot sync while offline. Changes are saved locally.", "Offline");
+      return;
+    }
+    setIsSyncingNow(true);
+    try {
+      const res = await syncNow();
+      if (res.failed > 0) {
+        toast.info(`Sync finished: ${res.synced} sent, ${res.failed} failed.`, "Sync Alert");
+      } else if (res.synced > 0) {
+        toast.success(`Synchronized ${res.synced} change(s) to server.`, "Sync Completed");
+      } else {
+        toast.success("All local data is already up to date.", "Synced");
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Sync encountered an issue.", "Sync Error");
+    } finally {
+      setIsSyncingNow(false);
+    }
+  };
+
+  const handleFullResync = async () => {
+    haptics.light();
+    if (!token || !orgId || !branchId) {
+      toast.error("Organization or branch context missing.", "Error");
+      return;
+    }
+    if (!isOnline) {
+      toast.info("Cannot perform full re-sync while offline.", "Offline");
+      return;
+    }
+    setIsFullResyncing(true);
+    try {
+      await syncNow();
+      const res = await hydrationService.hydrateAll(token, orgId, branchId);
+      if (res.success) {
+        toast.success("Full re-sync completed successfully.", "Data Synchronized");
+      } else {
+        toast.info(res.error ?? "Completed with warnings.", "Sync Notice");
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to perform full re-sync.", "Error");
+    } finally {
+      setIsFullResyncing(false);
+    }
+  };
 
   // Reload System Info values every time the screen is focused so that
   // changes saved in the config modal are immediately reflected here.
@@ -249,6 +329,117 @@ export const SettingsScreen: React.FC = () => {
         ) : null}
 
 
+        {/* Data & Synchronization */}
+        <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>
+          DATA & SYNCHRONIZATION
+        </Text>
+        <Card style={styles.card}>
+          <View style={styles.syncHeaderRow}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Database size={18} color={colors.primary} />
+              <Text style={[styles.syncTitle, { color: colors.text }]}>
+                Local-First Engine
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.onlineBadge,
+                {
+                  backgroundColor: !isOnline
+                    ? (isDark ? "rgba(239, 68, 68, 0.2)" : "#fee2e2")
+                    : (isDark ? "rgba(16, 185, 129, 0.2)" : "#d1fae5"),
+                  borderColor: !isOnline ? colors.danger : colors.success,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.onlineDot,
+                  { backgroundColor: !isOnline ? colors.danger : colors.success },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.onlineText,
+                  { color: !isOnline ? colors.danger : colors.success },
+                ]}
+              >
+                {isOnline ? "Online" : "Offline"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.infoRow, { marginTop: 12 }]}>
+            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+              Pending Changes:
+            </Text>
+            <Text
+              style={[
+                styles.infoVal,
+                {
+                  color: pendingCount > 0 ? colors.warning : colors.text,
+                  fontWeight: pendingCount > 0 ? "700" : "600",
+                },
+              ]}
+            >
+              {syncingCount > 0 ? `Syncing (${syncingCount})…` : `${pendingCount} queued`}
+            </Text>
+          </View>
+
+          <View style={[styles.infoRow, { marginTop: 8 }]}>
+            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+              Sync Cadence:
+            </Text>
+            <Text style={[styles.infoVal, { color: colors.text }]}>
+              Every 5s (deltas only)
+            </Text>
+          </View>
+
+          <View style={[styles.infoRow, { marginTop: 8 }]}>
+            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+              Last Synchronized:
+            </Text>
+            <Text style={[styles.infoVal, { color: colors.text }]}>
+              {formatLastSync(lastSyncedAt)}
+            </Text>
+          </View>
+
+          {lastError ? (
+            <View
+              style={[
+                styles.errorBox,
+                { backgroundColor: isDark ? "rgba(245, 158, 11, 0.15)" : "#fef3c7" },
+              ]}
+            >
+              <AlertTriangle size={14} color={colors.warning} />
+              <Text style={[styles.errorText, { color: colors.warning }]} numberOfLines={2}>
+                {lastError}
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+            <Button
+              title="Sync Now"
+              variant="primary"
+              size="md"
+              loading={isSyncingNow || syncingCount > 0}
+              icon={<RefreshCw size={15} color="#ffffff" />}
+              onPress={handleSyncNow}
+              style={{ flex: 1 }}
+            />
+            <Button
+              title="Full Re-sync"
+              variant="outline"
+              size="md"
+              loading={isFullResyncing}
+              icon={<Cloud size={15} color={colors.text} />}
+              onPress={handleFullResync}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </Card>
+
         {/* Server & Connectivity */}
         <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>
           SYSTEM INFO
@@ -420,5 +611,48 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     flex: 1,
     textAlign: "right",
+  },
+  syncHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(150, 150, 150, 0.2)",
+  },
+  syncTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  onlineBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  onlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  onlineText: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    padding: 8,
+    borderRadius: 8,
+  },
+  errorText: {
+    fontSize: 12,
+    flex: 1,
   },
 });

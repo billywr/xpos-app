@@ -6,7 +6,9 @@ export interface SyncStatus {
   pendingCount: number;
   syncingCount: number;
   lastError: string | null;
+  lastSyncedAt: Date | null;
   triggerSync: () => void;
+  syncNow: () => Promise<{ synced: number; failed: number }>;
 }
 
 export function useSyncStatus(): SyncStatus {
@@ -15,6 +17,7 @@ export function useSyncStatus(): SyncStatus {
     pendingCount: 0,
     syncingCount: 0,
     lastError: null as string | null,
+    lastSyncedAt: outboxEngine.getLastSyncedAt(),
   });
 
   useEffect(() => {
@@ -24,6 +27,7 @@ export function useSyncStatus(): SyncStatus {
         pendingCount: updated.pendingCount,
         syncingCount: updated.syncingCount,
         lastError: updated.lastError,
+        lastSyncedAt: updated.lastSyncedAt,
       });
     });
 
@@ -36,11 +40,17 @@ export function useSyncStatus(): SyncStatus {
     void outboxEngine.processQueue();
   }, []);
 
+  const syncNow = useCallback(async () => {
+    return await outboxEngine.processQueue();
+  }, []);
+
   return {
     isOnline: status.isOnline,
     pendingCount: status.pendingCount,
     syncingCount: status.syncingCount,
     lastError: status.lastError,
+    lastSyncedAt: status.lastSyncedAt,
     triggerSync,
+    syncNow,
   };
 }
