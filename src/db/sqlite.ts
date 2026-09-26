@@ -4,6 +4,8 @@ import { initSchema } from "./schema";
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
+export const DB_NAME = "xpos_local.db";
+
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (dbInstance) {
     return dbInstance;
@@ -14,7 +16,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   }
 
   initPromise = (async () => {
-    const db = await SQLite.openDatabaseAsync("xpos_offline.db");
+    const db = await SQLite.openDatabaseAsync(DB_NAME);
     // Enable Write-Ahead Logging for high-concurrency read/writes and enforce foreign key constraints
     await db.execAsync(`
       PRAGMA journal_mode = WAL;
