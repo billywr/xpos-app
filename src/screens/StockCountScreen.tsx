@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -35,12 +35,19 @@ import { useAuth } from "@/context/AuthContext";
 import { useOrg } from "@/context/OrgContext";
 import {
   fetchStdStockCountSheet,
-  saveStdStockCount,
   fetchStdStockCountSalesPreview,
-  recordStdStockCountSales,
   fetchStdStockCountReconcilePreview,
-  reconcileStdStockCountInventory,
 } from "@/api/stdStockCount";
+import { stockCountRepository, LocalStockCountRow } from "@/repositories/stockCountRepository";
+import { useSyncStatus } from "@/services/useSyncStatus";
+import {
+  calcTotalStock,
+  normalizeClosingQty,
+  calcImpliedSold,
+  calcQtyToRecord,
+  calcLineRevenue,
+  roundHalfUp,
+} from "@/services/mathEngine";
 import { formatCurrency, formatQty, formatQtyVariance } from "@/utils/formatCurrency";
 import { haptics } from "@/utils/haptics";
 import { Button } from "@/components/ui/Button";
@@ -96,6 +103,7 @@ export const StockCountScreen: React.FC = () => {
   const { orgId, branchId, terminalId } = useOrg();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { isOnline, pendingCount, syncingCount, triggerSync } = useSyncStatus();
 
   const [date, setDate] = useState<Date>(new Date());
   const dateStr = useMemo(() => toDateString(date), [date]);
@@ -133,106 +141,91 @@ export const StockCountScreen: React.FC = () => {
   const AUTO_SAVE_DEBOUNCE_MS = 2500;
   const BLUR_SAVE_DEBOUNCE_MS = 150;
 
-  // Fetch sheet query
+  // Fetch sheet query - reads directly from local SQLite (<10ms)
   const {
     data: sheetData,
     isLoading: sheetLoading,
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ["std-stock-count-sheet", token, orgId, branchId, dateStr],
-    queryFn: () => fetchStdStockCountSheet(token, orgId!, branchId!, dateStr),
-    enabled: Boolean(token && orgId && branchId),
+    queryKey: ["local-stock-count-sheet", orgId, branchId, dateStr],
+    queryFn: () => stockCountRepository.getSheet(orgId!, branchId!, dateStr),
+    enabled: Boolean(orgId && branchId),
   });
 
-  // Sales preview query
+  // Background hydration from server without blocking UI
+  useEffect(() => {
+    if (!token || !orgId || !branchId) return;
+    let active = true;
+
+    fetchStdStockCountSheet(token, orgId, branchId, dateStr)
+      .then(async (remoteSheet) => {
+        if (!active || !remoteSheet) return;
+        await stockCountRepository.hydrateFromRemote(orgId, branchId, remoteSheet);
+        void queryClient.invalidateQueries({
+          queryKey: ["local-stock-count-sheet", orgId, branchId, dateStr],
+        });
+      })
+      .catch(() => {
+        // Silently caught when offline or server unreachable
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [token, orgId, branchId, dateStr, queryClient]);
+
+  // Sales preview query - computes directly or checks remote
   const {
     data: salesPreview,
     refetch: refetchSalesPreview,
     isFetching: isFetchingSalesPreview,
   } = useQuery({
-    queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
-    queryFn: () =>
-      fetchStdStockCountSalesPreview(token, orgId!, branchId!, dateStr),
-    enabled: Boolean(token && orgId && branchId),
+    queryKey: ["std-stock-count-sales-preview", orgId, branchId, dateStr],
+    queryFn: async () => {
+      if (isOnline && token) {
+        try {
+          return await fetchStdStockCountSalesPreview(token, orgId!, branchId!, dateStr);
+        } catch {}
+      }
+      return stockCountRepository.getSalesPreview(orgId!, branchId!, dateStr);
+    },
+    enabled: Boolean(orgId && branchId),
   });
 
-  // Reconcile preview query
+  // Reconcile preview query - computes directly or checks remote
   const { data: reconcilePreview, refetch: refetchReconcilePreview } = useQuery({
-    queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
-    queryFn: () =>
-      fetchStdStockCountReconcilePreview(token, orgId!, branchId!, dateStr),
-    enabled: Boolean(token && orgId && branchId && isToday),
+    queryKey: ["std-stock-count-reconcile-preview", orgId, branchId, dateStr],
+    queryFn: async () => {
+      if (isOnline && token) {
+        try {
+          return await fetchStdStockCountReconcilePreview(token, orgId!, branchId!, dateStr);
+        } catch {}
+      }
+      return stockCountRepository.getReconcilePreview(orgId!, branchId!, dateStr);
+    },
+    enabled: Boolean(orgId && branchId && isToday),
   });
 
-  // Save mutation
-  const saveMutation = useMutation({
-    mutationFn: (counts: { itemId: string; closingStock: number }[]) =>
-      saveStdStockCount(token, orgId!, branchId!, {
-        date: dateStr,
-        outletId: branchId!,
-        counts,
-      }),
-    onSuccess: (updatedSheet, variables) => {
-      haptics.success();
-      queryClient.setQueryData(
-        ["std-stock-count-sheet", token, orgId, branchId, dateStr],
-        updatedSheet
-      );
-      // Clean up saved drafts so they no longer show as pending unsaved
-      const savedIds = new Set(variables.map((c) => c.itemId));
-      setClosingDrafts((prev) => {
-        const next = { ...prev };
-        savedIds.forEach((id) => delete next[id]);
-        closingDraftsRef.current = next;
-        return next;
-      });
-      setSavingItemIds(new Set());
-      void refetch();
-      void refetchSalesPreview();
-      void refetchReconcilePreview();
-    },
-    onError: (err: any) => {
-      haptics.error();
-      setSavingItemIds(new Set());
-      toast.error(err?.data?.message ?? "Could not save closing stock.", "Save Failed");
-    },
-  });
-
-  // Record Sales mutation
+  // Record Sales mutation (local-first with outbox sync)
   const recordSalesMutation = useMutation({
     mutationFn: () =>
-      recordStdStockCountSales(token, orgId!, branchId!, {
-        date: dateStr,
-        terminalId: terminalId ?? "term-1",
-      }),
+      stockCountRepository.recordSales(
+        orgId!,
+        branchId!,
+        terminalId ?? "term-1",
+        dateStr
+      ),
     onSuccess: () => {
       haptics.success();
       setRecordSalesOpen(false);
-      queryClient.setQueryData(
-        ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
-        (old: any) =>
-          old
-            ? {
-                ...old,
-                totalQtyToRecord: 0,
-                totalValueToRecord: 0,
-                lines: (old.lines ?? []).map((l: any) => ({
-                  ...l,
-                  qtyToRecord: 0,
-                  lineValue: 0,
-                  alreadyRecorded: l.impliedSold,
-                })),
-              }
-            : old
-      );
       void queryClient.invalidateQueries({
-        queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
+        queryKey: ["local-stock-count-sheet", orgId, branchId, dateStr],
       });
       void refetch();
       void refetchSalesPreview();
       void refetchReconcilePreview();
-      toast.success("Sales have been recorded successfully.");
+      toast.success("Sales recorded (queued for sync).");
     },
     onError: (err: any) => {
       haptics.error();
@@ -240,19 +233,19 @@ export const StockCountScreen: React.FC = () => {
     },
   });
 
-  // Reconcile mutation
+  // Reconcile mutation (local-first with outbox sync)
   const reconcileMutation = useMutation({
     mutationFn: () =>
-      reconcileStdStockCountInventory(token, orgId!, branchId!, {
-        date: dateStr,
-        outletId: branchId!,
-      }),
+      stockCountRepository.reconcileInventory(orgId!, branchId!, dateStr),
     onSuccess: () => {
       haptics.success();
       setReconcileOpen(false);
-      toast.success("Inventory reconciled successfully.");
+      void queryClient.invalidateQueries({
+        queryKey: ["local-stock-count-sheet", orgId, branchId, dateStr],
+      });
       void refetch();
       void refetchReconcilePreview();
+      toast.success("Inventory reconciled (queued for sync).");
     },
     onError: (err: any) => {
       haptics.error();
@@ -260,10 +253,10 @@ export const StockCountScreen: React.FC = () => {
     },
   });
 
-  // Save execution
+  // Save execution - instantaneous local SQLite commit (<10ms)
   const executeSave = useCallback(
-    (itemId?: string) => {
-      if (!token || !orgId || !branchId) return;
+    async (itemId?: string) => {
+      if (!orgId || !branchId) return;
       const drafts = closingDraftsRef.current;
       const countsToSave: { itemId: string; closingStock: number }[] = [];
       const itemIdsToMark = new Set<string>();
@@ -286,10 +279,30 @@ export const StockCountScreen: React.FC = () => {
 
       if (countsToSave.length > 0) {
         setSavingItemIds(itemIdsToMark);
-        saveMutation.mutate(countsToSave);
+        try {
+          await stockCountRepository.saveClosingCount(orgId, branchId, dateStr, countsToSave);
+          haptics.selection();
+          const savedIds = new Set(countsToSave.map((c) => c.itemId));
+          setClosingDrafts((prev) => {
+            const next = { ...prev };
+            savedIds.forEach((id) => delete next[id]);
+            closingDraftsRef.current = next;
+            return next;
+          });
+          setSavingItemIds(new Set());
+          void queryClient.invalidateQueries({
+            queryKey: ["local-stock-count-sheet", orgId, branchId, dateStr],
+          });
+          void refetchSalesPreview();
+          void refetchReconcilePreview();
+        } catch {
+          haptics.error();
+          setSavingItemIds(new Set());
+          toast.error("Could not persist count locally.", "Save Failed");
+        }
       }
     },
-    [token, orgId, branchId, saveMutation]
+    [orgId, branchId, dateStr, queryClient, refetchSalesPreview, refetchReconcilePreview, toast]
   );
 
   // Handle typing closing stock
@@ -563,6 +576,68 @@ export const StockCountScreen: React.FC = () => {
           />
         </View>
 
+        {/* Sync Status Badge */}
+        <TouchableOpacity
+          onPress={() => {
+            haptics.light();
+            triggerSync();
+          }}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Sync status"
+          style={[
+            styles.syncStatusPill,
+            {
+              backgroundColor: !isOnline
+                ? (isDark ? "rgba(245, 158, 11, 0.2)" : "#fef3c7")
+                : syncingCount > 0
+                ? (isDark ? "rgba(59, 130, 246, 0.2)" : "#dbeafe")
+                : pendingCount > 0
+                ? (isDark ? "rgba(245, 158, 11, 0.2)" : "#fef3c7")
+                : (isDark ? "rgba(16, 185, 129, 0.15)" : "#d1fae5"),
+              borderColor: !isOnline
+                ? colors.warning
+                : syncingCount > 0
+                ? colors.primary
+                : pendingCount > 0
+                ? colors.warning
+                : colors.success,
+            },
+          ]}
+        >
+          {!isOnline ? (
+            <Clock size={12} color={colors.warning} />
+          ) : syncingCount > 0 ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : pendingCount > 0 ? (
+            <Clock size={12} color={colors.warning} />
+          ) : (
+            <CheckCircle2 size={12} color={colors.success} />
+          )}
+          <Text
+            style={[
+              styles.syncStatusText,
+              {
+                color: !isOnline
+                  ? colors.warning
+                  : syncingCount > 0
+                  ? colors.primary
+                  : pendingCount > 0
+                  ? colors.warning
+                  : colors.success,
+              },
+            ]}
+          >
+            {!isOnline
+              ? `${pendingCount}Q`
+              : syncingCount > 0
+              ? "Sync"
+              : pendingCount > 0
+              ? `${pendingCount}Q`
+              : "Synced"}
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={() => {
             haptics.light();
@@ -728,15 +803,19 @@ export const StockCountScreen: React.FC = () => {
                       {formatCurrency(item.sellingPrice)}
                     </Text>
                   </View>
-                  {isSaving ? (
-                    <Badge label="Saving…" variant="warning" size="sm" pulse />
+                  {isSaving || item.syncStatus === "SYNCING" ? (
+                    <Badge label="Syncing…" variant="warning" size="sm" pulse />
+                  ) : item.syncStatus === "PENDING" ? (
+                    <Badge label="Queued" variant="warning" size="sm" />
+                  ) : item.syncStatus === "FAILED" ? (
+                    <Badge label="Failed" variant="danger" size="sm" />
                   ) : isUnsaved ? (
                     <Badge label="Unsaved" variant="danger" size="sm" />
                   ) : newToRecord > 0 ? (
                     <Badge label={`${formatQty(newToRecord)} to record`} variant="purple" size="sm" />
                   ) : alreadyRecorded > 0 && unitsSold === alreadyRecorded ? (
                     <Badge label="Recorded" variant="primary" size="sm" />
-                  ) : item.lastSavedAt ? (
+                  ) : item.closingStock !== null ? (
                     <Badge label="Saved" variant="neutral" size="sm" />
                   ) : null}
                 </View>
@@ -1289,6 +1368,19 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 10,
     paddingHorizontal: 10,
+  },
+  syncStatusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 40,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 4,
+  },
+  syncStatusText: {
+    fontSize: 11,
+    fontWeight: "700",
   },
   totalSalesPill: {
     paddingHorizontal: 8,

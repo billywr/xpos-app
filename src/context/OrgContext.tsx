@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { storage } from "@/utils/storage";
 import { useAuth } from "@/context/AuthContext";
 import { fetchOrgs, fetchBranches, fetchTerminals } from "@/api/context";
+import { catalogRepository } from "@/repositories/catalogRepository";
 
 interface OrgContextType {
   orgId: string | null;
@@ -107,6 +108,10 @@ export const OrgProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           });
         }
 
+        if (token && currentOrgId) {
+          void catalogRepository.hydrateCatalog(token, currentOrgId);
+        }
+
         // Validate or select branch
         if (currentOrgId && isMounted) {
           const branchesRes = await fetchBranches(token, currentOrgId);
@@ -159,6 +164,9 @@ export const OrgProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBranchName(null);
     setTerminalId(null);
     setTerminalName(null);
+    if (token && id) {
+      void catalogRepository.hydrateCatalog(token, id);
+    }
     await storage.setOrgContext({
       orgId: id,
       orgName: name,

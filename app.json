@@ -22,7 +22,8 @@
     },
     "plugins": [
       "./plugins/withNetworkSecurityConfig.js",
-      "expo-router"
+      "expo-router",
+      "expo-sqlite"
     ],
     "web": {
       "bundler": "metro",

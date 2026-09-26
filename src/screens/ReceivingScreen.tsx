@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -43,6 +43,8 @@ import {
 } from "@/api/goodsReceiptNotes";
 import { fetchSuppliers, type Supplier } from "@/api/suppliers";
 import { fetchItems } from "@/api/catalog";
+import { receivingRepository } from "@/repositories/receivingRepository";
+import { catalogRepository } from "@/repositories/catalogRepository";
 import type { Item } from "@/types";
 import { formatCurrency, formatQty } from "@/utils/formatCurrency";
 import { haptics } from "@/utils/haptics";
@@ -88,20 +90,39 @@ export const ReceivingScreen: React.FC = () => {
 
   // Queries
   const {
-    data: grnData,
+    data: localGrns,
     isLoading: isGrnLoading,
     isRefetching: isGrnRefetching,
     refetch: refetchGrn,
   } = useQuery({
-    queryKey: ["mobile-goods-receipt-notes", token, orgId, branchId],
-    queryFn: () =>
-      fetchGoodsReceiptNotes(token, orgId!, branchId!, {
-        page: 0,
-        size: 300,
-        includeInactive: false,
-      }),
-    enabled: Boolean(token && orgId && branchId),
+    queryKey: ["local-goods-receipt-notes", orgId, branchId],
+    queryFn: () => receivingRepository.getReceiptNotes(orgId!, branchId!),
+    enabled: Boolean(orgId && branchId),
   });
+
+  // Background hydration
+  useEffect(() => {
+    if (!token || !orgId || !branchId) return;
+    let active = true;
+
+    fetchGoodsReceiptNotes(token, orgId, branchId, {
+      page: 0,
+      size: 200,
+      includeInactive: false,
+    })
+      .then(async (res) => {
+        if (!active || !res?.content) return;
+        await receivingRepository.hydrateFromRemote(orgId, branchId, res.content);
+        void queryClient.invalidateQueries({
+          queryKey: ["local-goods-receipt-notes", orgId, branchId],
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [token, orgId, branchId, queryClient]);
 
   const { data: suppliersData } = useQuery({
     queryKey: ["mobile-suppliers", token, orgId],
@@ -109,10 +130,18 @@ export const ReceivingScreen: React.FC = () => {
     enabled: Boolean(token && orgId),
   });
 
-  const { data: itemsData } = useQuery({
-    queryKey: ["mobile-items-all", token, orgId],
-    queryFn: () => fetchItems(token, orgId!, { page: 0, size: 400 }),
-    enabled: Boolean(token && orgId),
+  const { data: localItems } = useQuery({
+    queryKey: ["local-items-all", orgId],
+    queryFn: async () => {
+      const items = await catalogRepository.getItems(orgId!);
+      if (items.length > 0) return items;
+      if (token) {
+        const res = await fetchItems(token, orgId!, { page: 0, size: 400 });
+        return res?.content ?? [];
+      }
+      return [];
+    },
+    enabled: Boolean(orgId),
   });
 
   const suppliers = useMemo(
@@ -120,13 +149,13 @@ export const ReceivingScreen: React.FC = () => {
     [suppliersData?.content]
   );
   const allItems = useMemo(
-    () => itemsData?.content ?? [],
-    [itemsData?.content]
+    () => localItems ?? [],
+    [localItems]
   );
 
   // Flatten receipts into line rows
   const flattenedRows: GrnFlattenedRow[] = useMemo(() => {
-    const receipts = grnData?.content ?? [];
+    const receipts = localGrns ?? [];
     const rows: GrnFlattenedRow[] = [];
     for (const grn of receipts) {
       if (!grn.lines || grn.lines.length === 0) continue;
@@ -136,7 +165,7 @@ export const ReceivingScreen: React.FC = () => {
     }
     // Sort descending by receivedAt
     return rows.sort((a, b) => b.grn.receivedAt.localeCompare(a.grn.receivedAt));
-  }, [grnData?.content]);
+  }, [localGrns]);
 
   // Filtered rows by search
   const filteredRows = useMemo(() => {
@@ -160,9 +189,9 @@ export const ReceivingScreen: React.FC = () => {
       totalItems += q;
       totalCost += q * c;
     }
-    const receiptsCount = (grnData?.content ?? []).length;
+    const receiptsCount = (localGrns ?? []).length;
     return { receiptsCount, totalItems, totalCost };
-  }, [flattenedRows, grnData?.content]);
+  }, [flattenedRows, localGrns]);
 
   // Filter items in modal
   const filteredModalItems = useMemo(() => {
@@ -202,36 +231,31 @@ export const ReceivingScreen: React.FC = () => {
     }
   };
 
-  // Create Mutation
+  // Create Mutation (Local-first persistence with background outbox synchronization)
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedSupplierId) throw new Error("Please select a supplier");
       if (!selectedItem) throw new Error("Please select an item");
       const numQty = Number(qty);
       if (isNaN(numQty) || numQty <= 0) throw new Error("Quantity must be greater than 0");
-      const numCost = unitCost ? Number(unitCost) : null;
-      if (numCost != null && (isNaN(numCost) || numCost < 0)) {
+      const numCost = unitCost ? Number(unitCost) : 0;
+      if (isNaN(numCost) || numCost < 0) {
         throw new Error("Unit buy price must be 0 or greater");
       }
 
-      return createGoodsReceiptNote(token, orgId!, {
-        branchId: branchId!,
-        supplierId: selectedSupplierId,
-        lines: [
-          {
-            itemId: selectedItem.id,
-            qty: numQty,
-            receivedUnitCost: numCost,
-          },
-        ],
+      return receivingRepository.createReceiptNote(orgId!, branchId!, {
+        supplierId: selectedSupplierId || null,
+        itemId: selectedItem.id,
+        quantity: numQty,
+        unitCost: numCost,
       });
     },
     onSuccess: () => {
       haptics.success();
-      toast.success("Stock received successfully into inventory.");
+      toast.success("Stock received and persisted locally.");
       setCreateModalOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["mobile-goods-receipt-notes"] });
-      queryClient.invalidateQueries({ queryKey: ["mobile-items-all"] });
+      void queryClient.invalidateQueries({ queryKey: ["local-goods-receipt-notes"] });
+      void queryClient.invalidateQueries({ queryKey: ["local-items-all"] });
+      void queryClient.invalidateQueries({ queryKey: ["local-stock-count-sheet"] });
     },
     onError: (err: any) => {
       haptics.error();
@@ -420,7 +444,7 @@ export const ReceivingScreen: React.FC = () => {
         </View>
 
         {/* Loading Skeletons */}
-        {isGrnLoading && !grnData ? (
+        {isGrnLoading && !localGrns ? (
           <View style={{ gap: 10, marginTop: 8 }}>
             {[1, 2, 3, 4].map((i) => (
               <Card key={i} style={{ padding: 14, gap: 8 }}>
