@@ -143,39 +143,32 @@ export const StockCountScreen: React.FC = () => {
   const AUTO_SAVE_DEBOUNCE_MS = 2500;
   const BLUR_SAVE_DEBOUNCE_MS = 150;
 
-  // Fetch sheet query - reads directly from local SQLite (<10ms) with cold-start remote fallback
+  // Fetch sheet query - Stale-while-revalidate local-first strategy
   const {
     data: sheetData,
     isLoading: sheetLoading,
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ["local-stock-count-sheet", orgId, branchId, dateStr, token],
-    queryFn: () => stockCountRepository.getSheet(orgId!, branchId!, dateStr, token),
+    queryKey: ["local-stock-count-sheet", orgId, branchId, dateStr],
+    queryFn: async () => {
+      // 1. If online & authenticated: fetch remote sheet and hydrate SQLite
+      if (token && orgId && branchId && isOnline) {
+        try {
+          const remoteSheet = await fetchStdStockCountSheet(token, orgId, branchId, dateStr);
+          if (remoteSheet && remoteSheet.rows) {
+            await stockCountRepository.hydrateFromRemote(orgId, branchId, remoteSheet);
+          }
+        } catch (err) {
+          console.warn("[StockCountScreen] Remote fetch failed or offline, loading from local SQLite:", err);
+        }
+      }
+
+      // 2. Read from local SQLite
+      return await stockCountRepository.getSheet(orgId!, branchId!, dateStr, token);
+    },
     enabled: Boolean(orgId && branchId),
   });
-
-  // Background hydration from server without blocking UI
-  useEffect(() => {
-    if (!token || !orgId || !branchId) return;
-    let active = true;
-
-    fetchStdStockCountSheet(token, orgId, branchId, dateStr)
-      .then(async (remoteSheet) => {
-        if (!active || !remoteSheet) return;
-        await stockCountRepository.hydrateFromRemote(orgId, branchId, remoteSheet);
-        void queryClient.invalidateQueries({
-          queryKey: ["local-stock-count-sheet", orgId, branchId, dateStr],
-        });
-      })
-      .catch(() => {
-        // Silently caught when offline or server unreachable
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [token, orgId, branchId, dateStr, queryClient]);
 
   // Sales preview query - computes directly or checks remote
   const {

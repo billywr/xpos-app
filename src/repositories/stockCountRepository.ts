@@ -1,5 +1,6 @@
 import { getDatabase, withTransaction } from "@/db/sqlite";
 import { generateUuid } from "@/utils/uuid";
+import { storage } from "@/utils/storage";
 import {
   calcTotalStock,
   normalizeClosingQty,
@@ -31,7 +32,7 @@ export interface LocalStockCountRow extends StdStockCountRowResponse {
 export class StockCountRepository {
   /**
    * Retrieves the stock count sheet from local SQLite.
-   * If the local database is empty on cold start, it automatically fetches and hydrates from remote.
+   * If the local database has no lines for this date, it automatically fetches and hydrates from remote.
    */
   public async getSheet(
     orgId: string,
@@ -84,16 +85,21 @@ export class StockCountRepository {
 
     let rawRows = await db.getAllAsync<any>(query, [branchId, dateStr]);
 
-    // Cold-start fallback: if local database has 0 items and token is provided, fetch and hydrate from remote
-    if (rawRows.length === 0 && token) {
-      try {
-        const remoteSheet = await fetchStdStockCountSheet(token, orgId, branchId, dateStr);
-        if (remoteSheet && remoteSheet.rows && remoteSheet.rows.length > 0) {
-          await this.hydrateFromRemote(orgId, branchId, remoteSheet);
-          rawRows = await db.getAllAsync<any>(query, [branchId, dateStr]);
+    const hasLocalLines = rawRows.some((r) => r.lineId !== null);
+
+    // If local database has no stock count lines for this date, fetch and hydrate from remote
+    if (!hasLocalLines) {
+      const effectiveToken = token || (await storage.getAuthToken());
+      if (effectiveToken) {
+        try {
+          const remoteSheet = await fetchStdStockCountSheet(effectiveToken, orgId, branchId, dateStr);
+          if (remoteSheet && remoteSheet.rows && remoteSheet.rows.length > 0) {
+            await this.hydrateFromRemote(orgId, branchId, remoteSheet);
+            rawRows = await db.getAllAsync<any>(query, [branchId, dateStr]);
+          }
+        } catch (err) {
+          console.warn("[stockCountRepository.getSheet] Remote fallback fetch warning:", err);
         }
-      } catch (err) {
-        console.warn("[stockCountRepository.getSheet] Remote fallback fetch warning:", err);
       }
     }
 
@@ -510,7 +516,10 @@ export class StockCountRepository {
         const added = Number(r.addedStock) || 0;
         const addedToday = Number(r.addedTodayStock) || 0;
         const total = calcTotalStock(opening, added, addedToday);
-        const closing = r.closingStock !== null ? Number(r.closingStock) : null;
+        const closing =
+          r.closingStock !== null && r.closingStock !== undefined && !Number.isNaN(Number(r.closingStock))
+            ? Number(r.closingStock)
+            : null;
         const implied = calcImpliedSold(total, closing);
         const price = Number(r.sellingPrice) || 0;
 
