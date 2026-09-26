@@ -86,9 +86,17 @@ export class StockCountRepository {
     let rawRows = await db.getAllAsync<any>(query, [branchId, dateStr]);
 
     const hasLocalLines = rawRows.some((r) => r.lineId !== null);
+    const hasMeaningfulStock = rawRows.some(
+      (r) =>
+        (Number(r.openingStock) || 0) > 0 ||
+        (Number(r.addedStock) || 0) > 0 ||
+        (Number(r.addedTodayStock) || 0) > 0 ||
+        (r.closingStock !== null && (Number(r.closingStock) || 0) > 0)
+    );
 
-    // If local database has no stock count lines for this date, fetch and hydrate from remote
-    if (!hasLocalLines) {
+    // If local database has no stock count lines for this date, OR if all existing lines have zero stock,
+    // fetch and hydrate from remote to ensure fresh, authoritative figures are displayed
+    if (!hasLocalLines || !hasMeaningfulStock) {
       const effectiveToken = token || (await storage.getAuthToken());
       if (effectiveToken) {
         try {
@@ -474,6 +482,24 @@ export class StockCountRepository {
         sheet = { id: sheetId };
       }
 
+      // Check active pending outbox mutations for stock count on this branch
+      const pendingMutations = await db.getAllAsync<{ payload_json: string }>(
+        `SELECT payload_json FROM outbox_mutations 
+         WHERE branch_id = ? AND entity_type = 'STOCK_COUNT_SAVE' AND status IN ('PENDING', 'SYNCING')`,
+        [branchId]
+      );
+      const pendingItemIds = new Set<string>();
+      for (const m of pendingMutations) {
+        try {
+          const body = JSON.parse(m.payload_json);
+          if (body?.counts && Array.isArray(body.counts)) {
+            for (const c of body.counts) {
+              if (c.itemId) pendingItemIds.add(c.itemId);
+            }
+          }
+        } catch {}
+      }
+
       for (const r of remoteSheet.rows) {
         // Ensure item exists in items table to satisfy foreign key constraint
         const nowIso = new Date().toISOString();
@@ -500,28 +526,47 @@ export class StockCountRepository {
           ]
         );
 
-        // Check if there is an uncommitted local edit
+        // Fetch existing line
         const existing = await db.getFirstAsync<any>(
-          `SELECT id, sync_status, closing_stock FROM stock_count_lines 
+          `SELECT id, sync_status, closing_stock, already_recorded_sold FROM stock_count_lines 
            WHERE branch_id = ? AND business_date = ? AND item_id = ?`,
           [branchId, remoteSheet.date, r.itemId]
         );
 
-        if (existing && (existing.sync_status === "PENDING" || existing.sync_status === "SYNCING")) {
-          // Do not overwrite uncommitted local inputs!
-          continue;
-        }
-
+        // Opening and Added stock are authoritative from the backend
         const opening = Number(r.openingStock) || 0;
         const added = Number(r.addedStock) || 0;
         const addedToday = Number(r.addedTodayStock) || 0;
         const total = calcTotalStock(opening, added, addedToday);
-        const closing =
-          r.closingStock !== null && r.closingStock !== undefined && !Number.isNaN(Number(r.closingStock))
-            ? Number(r.closingStock)
-            : null;
-        const implied = calcImpliedSold(total, closing);
         const price = Number(r.sellingPrice) || 0;
+        const alreadyRecorded = existing ? Number(existing.already_recorded_sold) || 0 : 0;
+
+        // Closing stock: preserve local uncommitted draft only if an active outbox mutation exists for this item
+        let closing: number | null;
+        let lineSyncStatus = "COMMITTED";
+
+        const hasLocalPendingDraft =
+          pendingItemIds.has(r.itemId) &&
+          existing &&
+          (existing.sync_status === "PENDING" || existing.sync_status === "SYNCING");
+
+        if (hasLocalPendingDraft) {
+          closing =
+            existing.closing_stock !== null && existing.closing_stock !== undefined
+              ? Number(existing.closing_stock)
+              : null;
+          lineSyncStatus = existing.sync_status;
+        } else {
+          closing =
+            r.closingStock !== null && r.closingStock !== undefined && !Number.isNaN(Number(r.closingStock))
+              ? Number(r.closingStock)
+              : null;
+          lineSyncStatus = "COMMITTED";
+        }
+
+        const implied = calcImpliedSold(total, closing);
+        const qtyToRecord = calcQtyToRecord(implied, alreadyRecorded);
+        const lineRev = calcLineRevenue(qtyToRecord, price);
 
         if (existing) {
           await db.runAsync(
@@ -532,8 +577,10 @@ export class StockCountRepository {
                selling_price = ?,
                closing_stock = ?,
                implied_sold = ?,
+               qty_to_record = ?,
+               line_revenue = ?,
                last_saved_at = ?,
-               sync_status = 'COMMITTED',
+               sync_status = ?,
                comments = ?
              WHERE id = ?`,
             [
@@ -543,7 +590,10 @@ export class StockCountRepository {
               price,
               closing,
               implied,
+              qtyToRecord,
+              lineRev,
               r.lastSavedAt,
+              lineSyncStatus,
               r.comments,
               existing.id,
             ]
@@ -555,7 +605,7 @@ export class StockCountRepository {
                opening_stock, added_stock, added_today_stock, selling_price,
                closing_stock, implied_sold, already_recorded_sold, qty_to_record,
                line_revenue, variance, last_saved_at, sync_status, local_updated_at, comments
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?, 'COMMITTED', ?, ?)`,
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 0, ?, ?, ?, ?)`,
             [
               generateUuid(),
               sheet.id,
@@ -568,7 +618,10 @@ export class StockCountRepository {
               price,
               closing,
               implied,
+              qtyToRecord,
+              lineRev,
               r.lastSavedAt,
+              lineSyncStatus,
               Date.now(),
               r.comments,
             ]

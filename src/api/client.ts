@@ -190,3 +190,135 @@ export async function apiFetch<T>(
 
   return data as T;
 }
+
+export interface DetailedApiResponse<T = any> {
+  status: number;
+  ok: boolean;
+  data: T;
+  rawText: string;
+  requestId: string;
+}
+
+export async function apiFetchDetailed<T = any>(
+  path: string,
+  options: RequestConfig & Omit<RequestInit, "body"> = {}
+): Promise<DetailedApiResponse<T>> {
+  let { token, requestId = generateUuid(), body, timeoutMs = DEFAULT_TIMEOUT_MS, _isRetry, ...init } = options;
+  if (!token) {
+    token = await storage.getAuthToken();
+  }
+  const baseUrl = await getBaseUrl();
+  const isWeb = Platform.OS === "web" && typeof window !== "undefined";
+  const useWebProxy = isWeb && baseUrl.includes("62.169.22.51") && Boolean(window.location?.origin);
+  const url = path.startsWith("http")
+    ? path
+    : useWebProxy
+    ? `${window.location.origin}${path.startsWith("/") ? path : `/${path}`}`
+    : `${baseUrl}${path}`;
+
+  const headers = new Headers(init.headers);
+  headers.set(REQUEST_ID_HEADER, requestId);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  if (body !== undefined && body !== null) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let res: Response | null = null;
+  let lastErr: unknown = null;
+
+  try {
+    const attempt = await fetch(url, {
+      ...init,
+      signal: init.signal || controller.signal,
+      headers,
+      body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
+    });
+    res = attempt;
+  } catch (err) {
+    lastErr = err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!res) {
+    const errStr = (lastErr instanceof Error ? lastErr.message : String(lastErr ?? "")).toLowerCase();
+    const isTimeout =
+      lastErr instanceof Error &&
+      (lastErr.name === "AbortError" ||
+        lastErr.name === "TimeoutError" ||
+        errStr.includes("canceled") ||
+        errStr.includes("cancelled") ||
+        errStr.includes("aborted") ||
+        errStr.includes("timeout"));
+    const error: ApiError = {
+      timestamp: new Date().toISOString(),
+      status: 0,
+      error: isTimeout ? "TIMEOUT_ERROR" : "NETWORK_ERROR",
+      code: isTimeout ? "TIMEOUT_ERROR" : "NETWORK_ERROR",
+      message: isTimeout
+        ? "Request timed out. Please check your internet connection."
+        : lastErr instanceof Error && !lastErr.message.includes("fetch failed")
+        ? lastErr.message
+        : "Cannot reach backend. Check your network or server URL.",
+      path,
+      requestId,
+    };
+    throw { status: 0, data: error, rawText: JSON.stringify(error), requestId };
+  }
+
+  if (res.status === 204) {
+    return { status: 204, ok: true, data: undefined as T, rawText: "", requestId };
+  }
+
+  const rawText = await res.text();
+  let data: any = rawText;
+  try {
+    data = JSON.parse(rawText);
+  } catch {}
+
+  if (!res.ok) {
+    if (res.status === 401 && !options._isRetry) {
+      try {
+        const newToken = await tryRefreshToken();
+        if (newToken) {
+          return apiFetchDetailed<T>(path, {
+            ...options,
+            token: newToken,
+            _isRetry: true,
+          });
+        }
+      } catch {
+        if (on401) on401();
+      }
+    } else if (res.status === 401 && on401) {
+      on401();
+    }
+
+    const apiError: ApiError =
+      typeof data === "object" && data !== null
+        ? data
+        : {
+            timestamp: new Date().toISOString(),
+            status: res.status,
+            error: res.statusText,
+            code: "UNKNOWN",
+            message: rawText || "Request failed",
+            path,
+            requestId: res.headers.get(REQUEST_ID_HEADER) ?? requestId,
+          };
+    throw { status: res.status, data: apiError, rawText, requestId };
+  }
+
+  return {
+    status: res.status,
+    ok: true,
+    data: data as T,
+    rawText,
+    requestId: res.headers.get(REQUEST_ID_HEADER) ?? requestId,
+  };
+}

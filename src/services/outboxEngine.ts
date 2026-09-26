@@ -1,7 +1,7 @@
 import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
 import { getDatabase, withTransaction } from "@/db/sqlite";
 import { generateUuid } from "@/utils/uuid";
-import { apiFetch } from "@/api/client";
+import { apiFetchDetailed } from "@/api/client";
 import { storage } from "@/utils/storage";
 
 export type OutboxStatus = "PENDING" | "SYNCING" | "COMMITTED" | "FAILED" | "CONFLICT";
@@ -23,6 +23,8 @@ export interface OutboxMutation {
   created_at: string;
   updated_at: string;
   synced_at: string | null;
+  http_status?: number | null;
+  response_json?: string | null;
 }
 
 export type OutboxListener = (status: {
@@ -130,7 +132,7 @@ class OutboxEngine {
     return { pending, syncing, committed, failed };
   }
 
-  public async getRecentMutations(limit = 15): Promise<OutboxMutation[]> {
+  public async getRecentMutations(limit = 50): Promise<OutboxMutation[]> {
     try {
       const db = await getDatabase();
       return await db.getAllAsync<OutboxMutation>(
@@ -140,6 +142,17 @@ class OutboxEngine {
     } catch {
       return [];
     }
+  }
+
+  public async retryMutation(mutationId: string): Promise<void> {
+    try {
+      const db = await getDatabase();
+      await db.runAsync(
+        `UPDATE outbox_mutations SET status = 'PENDING', retry_count = 0, last_error = NULL WHERE id = ?`,
+        [mutationId]
+      );
+      void this.processQueue();
+    } catch {}
   }
 
   /**
@@ -274,34 +287,76 @@ class OutboxEngine {
           `UPDATE outbox_mutations SET status = 'SYNCING', updated_at = ? WHERE id = ?`,
           [now, item.id]
         );
+
+        let body: any = undefined;
+        try {
+          body = item.payload_json ? JSON.parse(item.payload_json) : undefined;
+        } catch {}
+
+        // For stock counts, transition relevant lines to SYNCING
+        if (item.entity_type === "STOCK_COUNT_SAVE" && body?.counts && Array.isArray(body.counts)) {
+          for (const c of body.counts) {
+            if (c.itemId) {
+              await db.runAsync(
+                `UPDATE stock_count_lines SET sync_status = 'SYNCING' 
+                 WHERE branch_id = ? AND business_date = ? AND item_id = ? AND sync_status = 'PENDING'`,
+                [item.branch_id, body.date, c.itemId]
+              );
+            }
+          }
+        }
+
         this.notifyListeners();
 
         try {
-          const body = item.payload_json ? JSON.parse(item.payload_json) : undefined;
-          const res = await apiFetch<any>(item.endpoint, {
+          const res = await apiFetchDetailed<any>(item.endpoint, {
             method: item.http_method,
             token,
             requestId: item.client_request_id,
             body,
           });
 
-          // Mark COMMITTED
+          // Mark COMMITTED with response metadata
           const syncedAt = new Date().toISOString();
+          const responseStr = res.rawText || (res.data ? JSON.stringify(res.data) : "");
+
           await db.runAsync(
-            `UPDATE outbox_mutations SET status = 'COMMITTED', synced_at = ?, updated_at = ? WHERE id = ?`,
-            [syncedAt, syncedAt, item.id]
+            `UPDATE outbox_mutations 
+             SET status = 'COMMITTED', synced_at = ?, http_status = ?, response_json = ?, updated_at = ? 
+             WHERE id = ?`,
+            [syncedAt, res.status, responseStr, syncedAt, item.id]
           );
 
           // Update associated entity if stock count
           if (item.entity_type === "STOCK_COUNT_SAVE") {
-            await db.runAsync(
-              `UPDATE stock_count_lines SET sync_status = 'COMMITTED' 
-               WHERE branch_id = ? AND item_id = ? AND sync_status = 'SYNCING'`,
-              [item.branch_id, item.entity_id]
-            );
-          } else if (item.entity_type === "CATALOG_ITEM_CREATE" && res?.id && res.id !== item.entity_id) {
-            // Update local item ID from client temp UUID to server UUID
-            await db.runAsync(`UPDATE items SET id = ?, updated_at = ? WHERE id = ?`, [res.id, syncedAt, item.entity_id]);
+            if (body?.counts && Array.isArray(body.counts)) {
+              for (const c of body.counts) {
+                if (c.itemId) {
+                  await db.runAsync(
+                    `UPDATE stock_count_lines SET sync_status = 'COMMITTED' 
+                     WHERE branch_id = ? AND business_date = ? AND item_id = ?`,
+                    [item.branch_id, body.date, c.itemId]
+                  );
+                }
+              }
+            } else if (item.entity_id) {
+              await db.runAsync(
+                `UPDATE stock_count_lines SET sync_status = 'COMMITTED' 
+                 WHERE branch_id = ? AND item_id = ?`,
+                [item.branch_id, item.entity_id]
+              );
+            }
+
+            // Immediately rehydrate if server returned sheet rows
+            if (res.data && res.data.rows && Array.isArray(res.data.rows)) {
+              try {
+                const { stockCountRepository } = await import("@/repositories/stockCountRepository");
+                await stockCountRepository.hydrateFromRemote(item.org_id, item.branch_id, res.data);
+              } catch {}
+            }
+          } else if (item.entity_type === "CATALOG_ITEM_CREATE" && res.data?.id && res.data.id !== item.entity_id) {
+            // Update local item ID from client temp UUID to canonical server UUID
+            await db.runAsync(`UPDATE items SET id = ?, updated_at = ? WHERE id = ?`, [res.data.id, syncedAt, item.entity_id]);
           }
 
           synced++;
@@ -311,30 +366,46 @@ class OutboxEngine {
           failed++;
           const status = err?.status ?? 0;
           const errMsg = err?.data?.message || err?.message || "Sync failed";
+          const errorResponse = err?.rawText || (err?.data ? JSON.stringify(err.data) : errMsg);
           this.lastError = errMsg;
 
           const isUnrecoverable = status >= 400 && status < 500 && status !== 408;
 
           if (isUnrecoverable) {
-            // Bad request, unrecoverable validation error
+            // Bad request or unrecoverable client validation error
             await db.runAsync(
-              `UPDATE outbox_mutations SET status = 'FAILED', last_error = ?, updated_at = ? WHERE id = ?`,
-              [errMsg, new Date().toISOString(), item.id]
+              `UPDATE outbox_mutations 
+               SET status = 'FAILED', http_status = ?, last_error = ?, response_json = ?, updated_at = ? 
+               WHERE id = ?`,
+              [status, errMsg, errorResponse, new Date().toISOString(), item.id]
             );
+
             if (item.entity_type === "STOCK_COUNT_SAVE") {
-              await db.runAsync(
-                `UPDATE stock_count_lines SET sync_status = 'FAILED' 
-                 WHERE branch_id = ? AND item_id = ?`,
-                [item.branch_id, item.entity_id]
-              );
+              if (body?.counts && Array.isArray(body.counts)) {
+                for (const c of body.counts) {
+                  if (c.itemId) {
+                    await db.runAsync(
+                      `UPDATE stock_count_lines SET sync_status = 'FAILED' 
+                       WHERE branch_id = ? AND business_date = ? AND item_id = ?`,
+                      [item.branch_id, body.date, c.itemId]
+                    );
+                  }
+                }
+              } else if (item.entity_id) {
+                await db.runAsync(
+                  `UPDATE stock_count_lines SET sync_status = 'FAILED' 
+                   WHERE branch_id = ? AND item_id = ?`,
+                  [item.branch_id, item.entity_id]
+                );
+              }
             }
           } else {
             // Transient network failure or 5xx: schedule retry with backoff
             await db.runAsync(
               `UPDATE outbox_mutations 
-               SET status = 'PENDING', retry_count = retry_count + 1, last_error = ?, updated_at = ? 
+               SET status = 'PENDING', retry_count = retry_count + 1, http_status = ?, last_error = ?, response_json = ?, updated_at = ? 
                WHERE id = ?`,
-              [errMsg, new Date().toISOString(), item.id]
+              [status, errMsg, errorResponse, new Date().toISOString(), item.id]
             );
             // Break loop to prevent hammering during offline/network outage
             break;

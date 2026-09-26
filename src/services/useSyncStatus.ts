@@ -12,6 +12,7 @@ export interface SyncStatus {
   triggerSync: () => void;
   syncNow: () => Promise<{ synced: number; failed: number }>;
   getRecentMutations: (limit?: number) => Promise<OutboxMutation[]>;
+  retryMutation: (id: string) => Promise<void>;
 }
 
 export function useSyncStatus(): SyncStatus {
@@ -57,8 +58,12 @@ export function useSyncStatus(): SyncStatus {
     return await outboxEngine.processQueue();
   }, []);
 
-  const getRecentMutations = useCallback((limit = 15) => {
+  const getRecentMutations = useCallback((limit = 50) => {
     return outboxEngine.getRecentMutations(limit);
+  }, []);
+
+  const retryMutation = useCallback(async (id: string) => {
+    await outboxEngine.retryMutation(id);
   }, []);
 
   return {
@@ -72,5 +77,6 @@ export function useSyncStatus(): SyncStatus {
     triggerSync,
     syncNow,
     getRecentMutations,
+    retryMutation,
   };
 }

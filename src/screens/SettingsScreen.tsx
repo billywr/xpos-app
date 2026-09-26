@@ -26,6 +26,8 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle2,
+  Terminal as TerminalIcon,
+  ChevronRight,
 } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -43,6 +45,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { haptics } from "@/utils/haptics";
 import type { Org, Branch, Terminal } from "@/types";
+import { SyncInspectorModal } from "@/components/SyncInspectorModal";
 
 export const SettingsScreen: React.FC = () => {
   const router = useRouter();
@@ -81,6 +84,8 @@ export const SettingsScreen: React.FC = () => {
   const [keycloakUrl, setKeycloakUrl] = useState("");
   const [realm, setRealm] = useState("");
   const [clientId, setClientId] = useState("");
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [inspectorSelectedId, setInspectorSelectedId] = useState<string | null>(null);
 
   const loadMutations = useCallback(async () => {
     try {
@@ -513,9 +518,19 @@ export const SettingsScreen: React.FC = () => {
               <Text style={[styles.activityHeading, { color: colors.textSubtle }]}>
                 RECENT TRACKED CHANGES
               </Text>
-              <Text style={{ fontSize: 11, color: colors.textMuted }}>
-                {recentMutations.length} logged
-              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  haptics.selection();
+                  setInspectorSelectedId(null);
+                  setInspectorOpen(true);
+                }}
+                style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+              >
+                <TerminalIcon size={12} color={colors.primary} />
+                <Text style={{ fontSize: 11, color: colors.primary, fontWeight: "700" }}>
+                  Inspect API Logs
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {recentMutations.length === 0 ? (
@@ -524,8 +539,14 @@ export const SettingsScreen: React.FC = () => {
               </Text>
             ) : (
               recentMutations.map((m) => (
-                <View
+                <TouchableOpacity
                   key={m.id}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    haptics.selection();
+                    setInspectorSelectedId(m.id);
+                    setInspectorOpen(true);
+                  }}
                   style={[
                     styles.mutationRow,
                     { borderBottomColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" },
@@ -542,12 +563,12 @@ export const SettingsScreen: React.FC = () => {
                   <Badge
                     label={
                       m.status === "COMMITTED"
-                        ? "Synced"
+                        ? m.http_status ? `${m.http_status} OK` : "Synced"
                         : m.status === "SYNCING"
                         ? "Syncing…"
                         : m.status === "PENDING"
                         ? "Queued"
-                        : "Failed"
+                        : m.http_status ? `${m.http_status} Fail` : "Failed"
                     }
                     variant={
                       m.status === "COMMITTED"
@@ -558,9 +579,30 @@ export const SettingsScreen: React.FC = () => {
                     }
                     size="sm"
                   />
-                </View>
+                </TouchableOpacity>
               ))
             )}
+
+            <TouchableOpacity
+              onPress={() => {
+                haptics.selection();
+                setInspectorSelectedId(null);
+                setInspectorOpen(true);
+              }}
+              style={[
+                styles.openInspectorBtn,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9",
+                },
+              ]}
+            >
+              <TerminalIcon size={14} color={colors.primary} />
+              <Text style={[styles.openInspectorText, { color: colors.text }]}>
+                Open Sync Inspector & API Logs
+              </Text>
+              <ChevronRight size={14} color={colors.textMuted} />
+            </TouchableOpacity>
           </View>
         </Card>
 
@@ -649,6 +691,13 @@ export const SettingsScreen: React.FC = () => {
           style={{ marginTop: 24 }}
         />
       </ScrollView>
+
+      {/* Sync API Inspector Modal */}
+      <SyncInspectorModal
+        visible={inspectorOpen}
+        onClose={() => setInspectorOpen(false)}
+        initialSelectedId={inspectorSelectedId}
+      />
     </SafeAreaView>
   );
 };
@@ -809,5 +858,21 @@ const styles = StyleSheet.create({
   mutationTime: {
     fontSize: 11,
     marginTop: 2,
+  },
+  openInspectorBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  openInspectorText: {
+    fontSize: 12,
+    fontWeight: "600",
+    flex: 1,
+    marginLeft: 8,
   },
 });

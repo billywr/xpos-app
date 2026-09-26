@@ -196,9 +196,19 @@ export async function initSchema(db: SQLiteDatabase): Promise<void> {
       last_error TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
-      synced_at TEXT
+      synced_at TEXT,
+      http_status INTEGER,
+      response_json TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_mutations(status, created_at);
   `);
+
+  // Safe schema migrations for existing databases
+  try {
+    await db.execAsync(`ALTER TABLE outbox_mutations ADD COLUMN http_status INTEGER;`);
+  } catch {}
+  try {
+    await db.execAsync(`ALTER TABLE outbox_mutations ADD COLUMN response_json TEXT;`);
+  } catch {}
 }
