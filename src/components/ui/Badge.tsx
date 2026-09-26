@@ -1,11 +1,12 @@
-import React from "react";
-import { View, Text, StyleSheet, type ViewStyle } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { View, Text, StyleSheet, Animated, type ViewStyle } from "react-native";
 import { useTheme } from "@/context/ThemeContext";
 
 interface BadgeProps {
   label: string;
   variant?: "primary" | "accent" | "warning" | "danger" | "neutral" | "purple" | "info";
   size?: "sm" | "md";
+  pulse?: boolean;
   style?: ViewStyle;
 }
 
@@ -13,9 +14,34 @@ export const Badge: React.FC<BadgeProps> = ({
   label,
   variant = "neutral",
   size = "md",
+  pulse = false,
   style,
 }) => {
   const { colors, isDark } = useTheme();
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!pulse) {
+      pulseAnim.setValue(1);
+      return;
+    }
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.5,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [pulse, pulseAnim]);
 
   const getColors = () => {
     switch (variant) {
@@ -44,13 +70,14 @@ export const Badge: React.FC<BadgeProps> = ({
   const { bg, text } = getColors();
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.badge,
         {
           backgroundColor: bg,
           paddingHorizontal: size === "sm" ? 6 : 10,
           paddingVertical: size === "sm" ? 2 : 4,
+          opacity: pulse ? pulseAnim : 1,
         },
         style,
       ]}
@@ -66,7 +93,7 @@ export const Badge: React.FC<BadgeProps> = ({
       >
         {label}
       </Text>
-    </View>
+    </Animated.View>
   );
 };
 

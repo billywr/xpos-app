@@ -25,6 +25,7 @@ import {
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useOrg } from "@/context/OrgContext";
+import { useToast } from "@/context/ToastContext";
 import { storage, type CustomServer } from "@/utils/storage";
 import { setDefaultApiBaseUrl } from "@/api/client";
 import { DEFAULT_CONFIG, LOCALHOST_CONFIG } from "@/constants/config";
@@ -39,6 +40,7 @@ export default function ServerConfigModal() {
   const queryClient = useQueryClient();
   const { logout } = useAuth();
   const { clearContext } = useOrg();
+  const toast = useToast();
 
   // Active endpoint fields (the ones currently typed / selected)
   const [apiBaseUrl, setApiBaseUrl] = useState<string>(DEFAULT_CONFIG.API_BASE_URL);
@@ -77,7 +79,7 @@ export default function ServerConfigModal() {
 
   const handleSave = async () => {
     if (!apiBaseUrl.trim() || !keycloakUrl.trim()) {
-      Alert.alert("Missing Fields", "API Base URL and Keycloak URL are required.");
+      toast.error("API Base URL and Keycloak URL are required.", "Missing Fields");
       return;
     }
     await storage.setApiBaseUrl(apiBaseUrl.trim());
@@ -108,11 +110,11 @@ export default function ServerConfigModal() {
 
   const handleSaveCustomServer = async () => {
     if (!newName.trim()) {
-      Alert.alert("Name Required", "Please enter a name for this server (e.g. Staging).");
+      toast.error("Please enter a name for this server (e.g. Staging).", "Name Required");
       return;
     }
     if (!newApi.trim() || !newKc.trim()) {
-      Alert.alert("Missing Fields", "API URL and Keycloak URL are required.");
+      toast.error("API URL and Keycloak URL are required.", "Missing Fields");
       return;
     }
     const entry: CustomServer = {

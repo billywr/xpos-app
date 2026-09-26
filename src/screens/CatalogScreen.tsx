@@ -8,12 +8,12 @@ import {
   TouchableOpacity,
   RefreshControl,
   Modal,
-  Alert,
   ActivityIndicator,
   Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/context/ToastContext";
 import {
   Search,
   Package,
@@ -40,6 +40,8 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
+import { AnimatedModalBackdrop } from "@/components/ui/AnimatedModalBackdrop";
+import { ScalePressable } from "@/components/ui/ScalePressable";
 import { useRouter } from "expo-router";
 
 const PAGE_SIZE = 30;
@@ -72,6 +74,7 @@ export const CatalogScreen: React.FC = () => {
   const { orgId } = useOrg();
   const queryClient = useQueryClient();
   const router = useRouter();
+  const toast = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -190,11 +193,11 @@ export const CatalogScreen: React.FC = () => {
       haptics.success();
       setModalOpen(false);
       void queryClient.invalidateQueries({ queryKey: ["catalog-items"] });
-      Alert.alert("Success", "Item created successfully.");
+      toast.success("Item created successfully.");
     },
     onError: (err: any) => {
       haptics.error();
-      Alert.alert("Error", err?.data?.message ?? err?.message ?? "Failed to create item.");
+      toast.error(err?.data?.message ?? err?.message ?? "Failed to create item.", "Error");
     },
   });
 
@@ -216,11 +219,11 @@ export const CatalogScreen: React.FC = () => {
       haptics.success();
       setModalOpen(false);
       void queryClient.invalidateQueries({ queryKey: ["catalog-items"] });
-      Alert.alert("Success", "Item updated successfully.");
+      toast.success("Item updated successfully.");
     },
     onError: (err: any) => {
       haptics.error();
-      Alert.alert("Error", err?.data?.message ?? err?.message ?? "Failed to update item.");
+      toast.error(err?.data?.message ?? err?.message ?? "Failed to update item.", "Error");
     },
   });
 
@@ -279,11 +282,12 @@ export const CatalogScreen: React.FC = () => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryPills}
         >
-          <TouchableOpacity
+          <ScalePressable
             onPress={() => {
               haptics.light();
               setSelectedCategoryId(null);
             }}
+            activeScale={0.94}
             style={[
               styles.pill,
               {
@@ -305,17 +309,18 @@ export const CatalogScreen: React.FC = () => {
             >
               All Items ({items.length})
             </Text>
-          </TouchableOpacity>
+          </ScalePressable>
 
           {categories.map((cat: Category) => {
             const isSelected = selectedCategoryId === cat.id;
             return (
-              <TouchableOpacity
+              <ScalePressable
                 key={cat.id}
                 onPress={() => {
                   haptics.light();
                   setSelectedCategoryId(isSelected ? null : cat.id);
                 }}
+                activeScale={0.94}
                 style={[
                   styles.pill,
                   {
@@ -336,7 +341,7 @@ export const CatalogScreen: React.FC = () => {
                 >
                   {cat.name}
                 </Text>
-              </TouchableOpacity>
+              </ScalePressable>
             );
           })}
         </ScrollView>
@@ -436,8 +441,16 @@ export const CatalogScreen: React.FC = () => {
       )}
 
       {/* Item Create / Edit Modal */}
-      <Modal visible={modalOpen} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
+      <Modal
+        visible={modalOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setModalOpen(false)}
+      >
+        <AnimatedModalBackdrop
+          style={styles.modalBackdrop}
+          onPressBackdrop={() => setModalOpen(false)}
+        >
           <View
             style={[
               styles.modalSheet,
@@ -673,7 +686,7 @@ export const CatalogScreen: React.FC = () => {
               />
             </View>
           </View>
-        </View>
+        </AnimatedModalBackdrop>
       </Modal>
     </SafeAreaView>
   );
@@ -863,6 +876,6 @@ const styles = StyleSheet.create({
   modalBtns: {
     flexDirection: "row",
     marginTop: 14,
-    paddingBottom: 16,
+    paddingBottom: 8,
   },
 });

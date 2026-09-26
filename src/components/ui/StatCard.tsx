@@ -1,6 +1,7 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, type ViewStyle } from "react-native";
+import { View, Text, StyleSheet, type ViewStyle } from "react-native";
 import { useTheme } from "@/context/ThemeContext";
+import { ScalePressable } from "./ScalePressable";
 
 interface StatCardProps {
   label: string;
@@ -66,14 +67,14 @@ export const StatCard: React.FC<StatCardProps> = ({
 
   if (onPress) {
     return (
-      <TouchableOpacity
+      <ScalePressable
         onPress={onPress}
-        activeOpacity={0.7}
+        activeScale={0.98}
         accessibilityRole="button"
         style={containerStyle}
       >
         {cardContent}
-      </TouchableOpacity>
+      </ScalePressable>
     );
   }
 

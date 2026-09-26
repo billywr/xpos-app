@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   View,
   Text,
@@ -7,12 +8,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   type TextInput as RNTextInput,
 } from "react-native";
-import { Store, Settings, Lock, User, Server, Eye, EyeOff } from "lucide-react-native";
+import { useToast } from "@/context/ToastContext";
+import { Store, Settings, Lock, User, Server, Eye, EyeOff, X } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { storage } from "@/utils/storage";
@@ -21,11 +22,14 @@ import { DEFAULT_CONFIG, LOCALHOST_CONFIG } from "@/constants/config";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { AnimatedModalBackdrop } from "@/components/ui/AnimatedModalBackdrop";
+import { ScalePressable } from "@/components/ui/ScalePressable";
 import { haptics } from "@/utils/haptics";
 
 export const LoginScreen: React.FC = () => {
   const { colors } = useTheme();
   const { login, isLoading } = useAuth();
+  const toast = useToast();
   const passwordRef = useRef<RNTextInput>(null);
 
   const [username, setUsername] = useState("");
@@ -40,19 +44,22 @@ export const LoginScreen: React.FC = () => {
   const [realm, setRealm] = useState<string>(DEFAULT_CONFIG.KEYCLOAK_REALM);
   const [clientId, setClientId] = useState<string>(DEFAULT_CONFIG.KEYCLOAK_CLIENT_ID);
 
-  useEffect(() => {
-    async function loadSettings() {
-      const storedApi = await storage.getApiBaseUrl();
-      if (storedApi) setApiBaseUrl(storedApi);
-      const storedKc = await storage.getKeycloakUrl();
-      if (storedKc) setKeycloakUrl(storedKc);
-      const storedRealm = await storage.getRealm();
-      if (storedRealm) setRealm(storedRealm);
-      const storedClientId = await storage.getClientId();
-      if (storedClientId) setClientId(storedClientId);
-    }
-    void loadSettings();
-  }, []);
+  // Reload settings every time LoginScreen is focused (e.g. returning from server-config)
+  useFocusEffect(
+    useCallback(() => {
+      async function loadSettings() {
+        const storedApi = await storage.getApiBaseUrl();
+        if (storedApi) setApiBaseUrl(storedApi);
+        const storedKc = await storage.getKeycloakUrl();
+        if (storedKc) setKeycloakUrl(storedKc);
+        const storedRealm = await storage.getRealm();
+        if (storedRealm) setRealm(storedRealm);
+        const storedClientId = await storage.getClientId();
+        if (storedClientId) setClientId(storedClientId);
+      }
+      void loadSettings();
+    }, [])
+  );
 
   const handleLogin = async () => {
     if (!username.trim() || !password) {
@@ -61,7 +68,14 @@ export const LoginScreen: React.FC = () => {
     }
     setErrorMsg("");
     try {
+      // Ensure the selected endpoints are committed to storage before authenticating
+      // so token refresh and background tasks always target the correct server
+      await storage.setApiBaseUrl(apiBaseUrl);
+      await storage.setKeycloakUrl(keycloakUrl);
+      await storage.setRealm(realm);
+      await storage.setClientId(clientId);
       setDefaultApiBaseUrl(apiBaseUrl);
+
       await login({
         keycloakUrl,
         realm,
@@ -84,22 +98,32 @@ export const LoginScreen: React.FC = () => {
     setDefaultApiBaseUrl(apiBaseUrl);
     setSettingsOpen(false);
     haptics.success();
-    Alert.alert("Saved", "Server configuration updated.");
+    toast.success("Server configuration updated.");
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Top Right Corner Settings Button */}
-      <TouchableOpacity
+      <ScalePressable
         onPress={() => setSettingsOpen(true)}
+        activeScale={0.92}
         style={[
           styles.cornerSettingsBtn,
-          { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
+          {
+            backgroundColor: colors.surfaceRaised,
+            borderColor: colors.border,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+          },
         ]}
         accessibilityLabel="Server Settings"
       >
-        <Settings size={20} color={colors.textMuted} />
-      </TouchableOpacity>
+        <Settings size={15} color={colors.textMuted} />
+        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.text }}>
+          {keycloakUrl.includes("62.169.22.51") ? "Production" : "Local Dev"}
+        </Text>
+      </ScalePressable>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -215,21 +239,39 @@ export const LoginScreen: React.FC = () => {
       </KeyboardAvoidingView>
 
       {/* Settings Modal */}
-      <Modal visible={settingsOpen} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
+      <Modal
+        visible={settingsOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSettingsOpen(false)}
+      >
+        <AnimatedModalBackdrop
+          style={styles.modalBackdrop}
+          onPressBackdrop={() => setSettingsOpen(false)}
+        >
           <View
             style={[
               styles.modalCard,
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>
                 Server Configuration
               </Text>
-              <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
-                Switch presets or manually configure Spring Boot API and Keycloak IAM endpoints.
-              </Text>
+              <TouchableOpacity
+                onPress={() => setSettingsOpen(false)}
+                style={[styles.closeBtn, { backgroundColor: colors.surfaceRaised }]}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
+              Switch presets or manually configure Spring Boot API and Keycloak IAM endpoints.
+            </Text>
+
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
               {/* Quick Preset Buttons */}
               <View style={styles.presetContainer}>
@@ -345,23 +387,23 @@ export const LoginScreen: React.FC = () => {
                 placeholder="xpos-client-api"
                 autoCapitalize="none"
               />
-
-              <View style={styles.modalBtns}>
-                <Button
-                  title="Cancel"
-                  variant="secondary"
-                  onPress={() => setSettingsOpen(false)}
-                  style={{ flex: 1, marginRight: 8 }}
-                />
-                <Button
-                  title="Save Settings"
-                  onPress={handleSaveSettings}
-                  style={{ flex: 1 }}
-                />
-              </View>
             </ScrollView>
+
+            <View style={[styles.modalBtns, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: 12, marginTop: 6 }]}>
+              <Button
+                title="Cancel"
+                variant="secondary"
+                onPress={() => setSettingsOpen(false)}
+                style={{ flex: 1, marginRight: 8 }}
+              />
+              <Button
+                title="Save Settings"
+                onPress={handleSaveSettings}
+                style={{ flex: 1 }}
+              />
+            </View>
           </View>
-        </View>
+        </AnimatedModalBackdrop>
       </Modal>
     </SafeAreaView>
   );
@@ -493,6 +535,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginTop: 12,
     marginBottom: 8,
+  },
+  modalHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   certHelpBtn: {
     marginTop: 8,

@@ -30,7 +30,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useOrg } from "@/context/OrgContext";
 import { fetchRevenueDashboard, type RevenueTrendPointResponse } from "@/api/revenueDashboard";
 import { fetchMiscExpenses } from "@/api/miscExpenses";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatPercent } from "@/utils/formatCurrency";
 import { haptics } from "@/utils/haptics";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
@@ -38,6 +38,8 @@ import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { DatePickerModal } from "@/components/ui/DatePickerModal";
+import { AnimatedModalBackdrop } from "@/components/ui/AnimatedModalBackdrop";
+import { Button } from "@/components/ui/Button";
 
 // ---------------------------------------------------------------------------
 // Skeleton layout for the Revenue dashboard (6 stat cards + trend rows)
@@ -574,7 +576,7 @@ export const RevenueScreen: React.FC = () => {
                 <StatCard
                   label="Profit"
                   value={formatCurrency(grossProfit)}
-                  subtitle={`Margin: ${grossMarginPercent.toFixed(1)}%`}
+                  subtitle={`Margin: ${formatPercent(grossMarginPercent, 2)}`}
                   variant="primary"
                   icon={<TrendingUp size={18} color={colors.primary} />}
                   style={styles.halfCard}
@@ -597,7 +599,7 @@ export const RevenueScreen: React.FC = () => {
                 <StatCard
                   label="Net profit"
                   value={formatCurrency(netProfit)}
-                  subtitle={`Margin: ${marginPercent.toFixed(1)}%`}
+                  subtitle={`Margin: ${formatPercent(marginPercent, 2)}`}
                   variant={netProfit >= 0 ? "primary" : "danger"}
                   icon={<TrendingUp size={18} color={netProfit >= 0 ? colors.primary : colors.danger} />}
                   style={styles.halfCard}
@@ -738,7 +740,14 @@ export const RevenueScreen: React.FC = () => {
           setSelectedCategoryFilter("ALL");
         }}
       >
-        <SafeAreaView style={styles.modalOverlay}>
+        <AnimatedModalBackdrop
+          style={styles.modalOverlay}
+          onPressBackdrop={() => {
+            setShowExpenseModal(false);
+            setExpenseSearch("");
+            setSelectedCategoryFilter("ALL");
+          }}
+        >
           <View style={[styles.modalSheet, { backgroundColor: colors.surfaceCard }]}>
             {/* Modal Header */}
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
@@ -832,7 +841,7 @@ export const RevenueScreen: React.FC = () => {
                           { color: isSelected ? "#fff" : colors.text },
                         ]}
                       >
-                        {cat.category} • {formatCurrency(cat.total)} ({cat.percentage.toFixed(0)}%)
+                        {cat.category} • {formatCurrency(cat.total)} ({formatPercent(cat.percentage, 2)})
                       </Text>
                     </TouchableOpacity>
                   );
@@ -899,8 +908,21 @@ export const RevenueScreen: React.FC = () => {
                 ))
               )}
             </ScrollView>
+
+            <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }}>
+              <Button
+                title="Close"
+                variant="secondary"
+                onPress={() => {
+                  setShowExpenseModal(false);
+                  setExpenseSearch("");
+                  setSelectedCategoryFilter("ALL");
+                }}
+                style={{ width: "100%" }}
+              />
+            </View>
           </View>
-        </SafeAreaView>
+        </AnimatedModalBackdrop>
       </Modal>
     </SafeAreaView>
   );
