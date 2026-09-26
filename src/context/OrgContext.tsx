@@ -3,6 +3,7 @@ import { storage } from "@/utils/storage";
 import { useAuth } from "@/context/AuthContext";
 import { fetchOrgs, fetchBranches, fetchTerminals } from "@/api/context";
 import { catalogRepository } from "@/repositories/catalogRepository";
+import { hydrationService } from "@/services/hydrationService";
 
 interface OrgContextType {
   orgId: string | null;
@@ -148,6 +149,11 @@ export const OrgProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               terminalName: firstTerminal.name,
             });
           }
+
+          // Trigger full cold-start remote-to-local synchronization for the branch
+          if (token && currentOrgId && currentBranchId) {
+            void hydrationService.hydrateAll(token, currentOrgId, currentBranchId);
+          }
         }
       } catch {
         // Silently continue if network fails
@@ -182,6 +188,9 @@ export const OrgProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBranchName(name);
     setTerminalId(null);
     setTerminalName(null);
+    if (token && orgId && id) {
+      void hydrationService.hydrateAll(token, orgId, id);
+    }
     await storage.setOrgContext({
       branchId: id,
       branchName: name,
