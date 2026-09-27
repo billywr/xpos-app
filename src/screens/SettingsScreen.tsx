@@ -1,339 +1,380 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
 import {
   User,
   Building2,
   GitBranch,
   Moon,
   Sun,
-  LogOut,
-  Server,
-  Monitor,
-  Check,
-  Shield,
+  Database,
+  RefreshCw,
+  Trash2,
+  Sparkles,
+  Package,
+  ShoppingCart,
+  Receipt,
+  DollarSign,
+  Edit2,
+  CheckCircle2,
 } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useOrg } from "@/context/OrgContext";
-import { fetchOrgs, fetchBranches, fetchTerminals } from "@/api/context";
-import { isUuid } from "@/api/auth";
-import { storage } from "@/utils/storage";
-import { DEFAULT_CONFIG } from "@/constants/config";
+import { useToast } from "@/context/ToastContext";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
+import { AnimatedModalBackdrop } from "@/components/ui/AnimatedModalBackdrop";
+import { ScalePressable } from "@/components/ui/ScalePressable";
 import { haptics } from "@/utils/haptics";
-import type { Org, Branch, Terminal } from "@/types";
+import { getDatabase, withTransaction } from "@/db/database";
+import { seedDatabase } from "@/db/seed";
 
 export const SettingsScreen: React.FC = () => {
-  const router = useRouter();
   const { colors, isDark, toggleTheme } = useTheme();
-  const { username, token, logout } = useAuth();
-  const {
-    orgId,
-    orgName,
-    branchId,
-    branchName,
-    terminalId,
-    terminalName,
-    setOrg,
-    setBranch,
-    setTerminal,
-  } = useOrg();
+  const { username, setUsername } = useAuth();
+  const { orgName, branchName, setOrg, setBranch } = useOrg();
+  const toast = useToast();
 
-  const [apiBaseUrl, setApiBaseUrl] = useState("");
-  const [keycloakUrl, setKeycloakUrl] = useState("");
-  const [realm, setRealm] = useState("");
-  const [clientId, setClientId] = useState("");
+  const [counts, setCounts] = useState({
+    items: 0,
+    grns: 0,
+    sales: 0,
+    debts: 0,
+    expenses: 0,
+  });
 
-  // Reload System Info values every time the screen is focused so that
-  // changes saved in the config modal are immediately reflected here.
+  const [editStoreModal, setEditStoreModal] = useState(false);
+  const [formStoreName, setFormStoreName] = useState(orgName || "My Store");
+  const [formBranchName, setFormBranchName] = useState(branchName || "Main Store");
+  const [formOperatorName, setFormOperatorName] = useState(username || "Store Manager");
+
+  const loadDatabaseStats = useCallback(async () => {
+    try {
+      const db = await getDatabase();
+      const itemCount = await db.getFirstAsync<{ count: number }>("SELECT COUNT(*) as count FROM items");
+      const grnCount = await db.getFirstAsync<{ count: number }>("SELECT COUNT(*) as count FROM goods_receipt_notes");
+      const saleCount = await db.getFirstAsync<{ count: number }>("SELECT COUNT(*) as count FROM sales");
+      const debtCount = await db.getFirstAsync<{ count: number }>("SELECT COUNT(*) as count FROM customer_debts");
+      const expCount = await db.getFirstAsync<{ count: number }>("SELECT COUNT(*) as count FROM misc_expenses");
+
+      setCounts({
+        items: itemCount?.count ?? 0,
+        grns: grnCount?.count ?? 0,
+        sales: saleCount?.count ?? 0,
+        debts: debtCount?.count ?? 0,
+        expenses: expCount?.count ?? 0,
+      });
+    } catch (err) {
+      console.warn("Failed to load db stats:", err);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      void storage.getApiBaseUrl().then((u) => setApiBaseUrl(u ?? DEFAULT_CONFIG.API_BASE_URL));
-      void storage.getKeycloakUrl().then((u) => setKeycloakUrl(u ?? DEFAULT_CONFIG.KEYCLOAK_URL));
-      void storage.getRealm().then((r) => setRealm(r ?? DEFAULT_CONFIG.KEYCLOAK_REALM));
-      void storage.getClientId().then((c) => setClientId(c ?? DEFAULT_CONFIG.KEYCLOAK_CLIENT_ID));
-    }, [])
+      void loadDatabaseStats();
+    }, [loadDatabaseStats])
   );
 
+  const handleSaveStoreProfile = async () => {
+    if (!formStoreName.trim()) return;
+    await setOrg("offline-org", formStoreName.trim());
+    await setBranch("offline-branch", formBranchName.trim() || "Main Store");
+    if (formOperatorName.trim()) {
+      setUsername(formOperatorName.trim());
+    }
+    setEditStoreModal(false);
+    toast.success("Store profile updated.");
+  };
 
-  const { data: orgsData } = useQuery({
-    queryKey: ["context-orgs", token],
-    queryFn: () => fetchOrgs(token),
-    enabled: Boolean(token),
-  });
-  const orgs = orgsData?.content ?? [];
+  const handleSeedDemoData = async () => {
+    try {
+      haptics.light();
+      const db = await getDatabase();
+      await seedDatabase(db, { force: true });
+      await loadDatabaseStats();
+      toast.success("Sample demo data loaded successfully!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to seed demo data");
+    }
+  };
 
-  // Fetch Branches
-  const { data: branchesData } = useQuery({
-    queryKey: ["context-branches", token, orgId],
-    queryFn: () => fetchBranches(token, orgId!),
-    enabled: Boolean(token && orgId),
-  });
-  const branches = branchesData?.content ?? [];
-
-  // Fetch Terminals
-  const { data: terminalsData } = useQuery({
-    queryKey: ["context-terminals", token, orgId, branchId],
-    queryFn: () => fetchTerminals(token, orgId!, branchId!),
-    enabled: Boolean(token && orgId && branchId),
-  });
-  const showOrgSelector = orgs.length > 1;
-  const showBranchSelector = branches.length > 1;
-  const showOrgBranchSection = showOrgSelector || showBranchSelector;
-
-  const handleLogout = async () => {
-    haptics.warning();
-    await logout();
-    router.replace("/(auth)/login");
+  const handleResetDatabase = () => {
+    Alert.alert(
+      "Reset Local Database?",
+      "This will erase all products, receipts, sales, debts, and expenses stored on this device. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Erase All Data",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const db = await getDatabase();
+              await withTransaction(async (tx) => {
+                await tx.execAsync(`
+                  DELETE FROM sale_lines;
+                  DELETE FROM sales;
+                  DELETE FROM stock_count_lines;
+                  DELETE FROM stock_count_sheets;
+                  DELETE FROM grn_lines;
+                  DELETE FROM goods_receipt_notes;
+                  DELETE FROM debt_payments;
+                  DELETE FROM customer_debts;
+                  DELETE FROM misc_expenses;
+                  DELETE FROM items;
+                `);
+              });
+              await loadDatabaseStats();
+              toast.success("Database reset to clean factory state.");
+            } catch (err: any) {
+              toast.error(err.message || "Failed to reset database");
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* User Card */}
+        {/* Store Profile Card */}
         <Card style={styles.card}>
           <View style={styles.userRow}>
-            <View
-              style={[
-                styles.avatarBox,
-                { backgroundColor: colors.primaryLight },
-              ]}
-            >
-              <User size={28} color={colors.primary} />
+            <View style={[styles.avatarBox, { backgroundColor: colors.primaryLight }]}>
+              <Building2 size={26} color={colors.primary} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.userName, { color: colors.text }]}>
-                {username && !isUuid(username) ? username : "Operator"}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={[styles.userName, { color: colors.text }]}>
+                  {orgName || "My Store"}
+                </Text>
+                <Badge label="Offline" variant="primary" size="sm" />
+              </View>
               <Text style={[styles.userRole, { color: colors.textMuted }]}>
-                {orgName ? `${orgName}${branchName ? ` • ${branchName}` : ""}` : "XPOS Store Operator"}
+                {branchName || "Main Store"} · Operator: {username || "Store Manager"}
               </Text>
             </View>
             <TouchableOpacity
               onPress={() => {
-                haptics.light();
-                toggleTheme();
+                setFormStoreName(orgName || "My Store");
+                setFormBranchName(branchName || "Main Store");
+                setFormOperatorName(username || "Store Manager");
+                setEditStoreModal(true);
               }}
-              style={[styles.themeIconBtn, { backgroundColor: colors.surfaceRaised }]}
-              accessibilityLabel={isDark ? "Switch to Light Theme" : "Switch to Dark Theme"}
+              style={[styles.editIconBtn, { backgroundColor: colors.surfaceRaised }]}
             >
-              {isDark ? (
-                <Moon size={18} color={colors.primary} />
-              ) : (
-                <Sun size={18} color={colors.warning} />
-              )}
+              <Edit2 size={16} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </Card>
 
+        {/* Database Status Section */}
+        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
+          LOCAL DATABASE STATISTICS
+        </Text>
+        <Card style={styles.card}>
+          <View style={styles.statsGrid}>
+            <View style={styles.statCol}>
+              <View style={styles.statHeader}>
+                <Package size={15} color={colors.primary} />
+                <Text style={[styles.statLabel, { color: colors.textMuted }]}>Products</Text>
+              </View>
+              <Text style={[styles.statVal, { color: colors.text }]}>{counts.items}</Text>
+            </View>
+            <View style={styles.statCol}>
+              <View style={styles.statHeader}>
+                <Receipt size={15} color={colors.accent} />
+                <Text style={[styles.statLabel, { color: colors.textMuted }]}>Receipts (GRN)</Text>
+              </View>
+              <Text style={[styles.statVal, { color: colors.text }]}>{counts.grns}</Text>
+            </View>
+            <View style={styles.statCol}>
+              <View style={styles.statHeader}>
+                <ShoppingCart size={15} color={colors.warning} />
+                <Text style={[styles.statLabel, { color: colors.textMuted }]}>Sales</Text>
+              </View>
+              <Text style={[styles.statVal, { color: colors.text }]}>{counts.sales}</Text>
+            </View>
+            <View style={styles.statCol}>
+              <View style={styles.statHeader}>
+                <DollarSign size={15} color={colors.danger} />
+                <Text style={[styles.statLabel, { color: colors.textMuted }]}>Debts & Exp</Text>
+              </View>
+              <Text style={[styles.statVal, { color: colors.text }]}>
+                {counts.debts + counts.expenses}
+              </Text>
+            </View>
+          </View>
+        </Card>
 
-        {/* Organization & Branch Selection (hidden if only 1 org and 1 branch) */}
-        {showOrgBranchSection ? (
-          <>
-            <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>
-              ORGANIZATION & BRANCH
-            </Text>
-            <Card style={styles.card}>
-              {showOrgSelector ? (
-                <>
-                  <Text style={[styles.fieldLabel, { color: colors.textSubtle }]}>
-                    Current Organization:
-                  </Text>
-                  <View style={styles.chipRow}>
-                    {orgs.map((o: Org) => {
-                      const isSelected = orgId === o.id;
-                      return (
-                        <TouchableOpacity
-                          key={o.id}
-                          onPress={() => {
-                            haptics.light();
-                            void setOrg(o.id, o.name);
-                          }}
-                          style={[
-                            styles.contextChip,
-                            {
-                              backgroundColor: isSelected
-                                ? colors.primaryLight
-                                : colors.surfaceRaised,
-                              borderColor: isSelected ? colors.primary : colors.border,
-                            },
-                          ]}
-                        >
-                          <Building2
-                            size={14}
-                            color={isSelected ? colors.primary : colors.textSubtle}
-                          />
-                          <Text
-                            style={[
-                              styles.contextChipText,
-                              {
-                                color: isSelected ? colors.primary : colors.text,
-                                fontWeight: isSelected ? "700" : "500",
-                              },
-                            ]}
-                          >
-                            {o.name}
-                          </Text>
-                          {isSelected ? (
-                            <Check size={14} color={colors.primary} />
-                          ) : null}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </>
-              ) : null}
+        {/* Quick Data Management Actions */}
+        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
+          OFFLINE DATA TOOLS
+        </Text>
+        <Card style={styles.card}>
+          <TouchableOpacity
+            onPress={handleSeedDemoData}
+            style={[styles.actionRow, { borderBottomColor: colors.border }]}
+          >
+            <View style={styles.actionLeft}>
+              <Sparkles size={20} color={colors.primary} />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={[styles.actionTitle, { color: colors.text }]}>
+                  Load Demo Data
+                </Text>
+                <Text style={[styles.actionSub, { color: colors.textMuted }]}>
+                  Populate 5 sample products, supplier, debt, and expense
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
 
-              {/* Branch Selection */}
-              {showBranchSelector && orgId ? (
-                <View style={{ marginTop: showOrgSelector ? 16 : 0 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.textSubtle }]}>
-                    Current Branch:
-                  </Text>
-                  <View style={styles.chipRow}>
-                    {branches.map((b: Branch) => {
-                      const isSelected = branchId === b.id;
-                      return (
-                        <TouchableOpacity
-                          key={b.id}
-                          onPress={() => {
-                            haptics.light();
-                            void setBranch(b.id, b.name);
-                          }}
-                          style={[
-                            styles.contextChip,
-                            {
-                              backgroundColor: isSelected
-                                ? colors.primaryLight
-                                : colors.surfaceRaised,
-                              borderColor: isSelected ? colors.primary : colors.border,
-                            },
-                          ]}
-                        >
-                          <GitBranch
-                            size={14}
-                            color={isSelected ? colors.primary : colors.textSubtle}
-                          />
-                          <Text
-                            style={[
-                              styles.contextChipText,
-                              {
-                                color: isSelected ? colors.primary : colors.text,
-                                fontWeight: isSelected ? "700" : "500",
-                              },
-                            ]}
-                          >
-                            {b.name}
-                          </Text>
-                          {isSelected ? (
-                            <Check size={14} color={colors.primary} />
-                          ) : null}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-              ) : null}
-            </Card>
-          </>
-        ) : null}
+          <TouchableOpacity
+            onPress={loadDatabaseStats}
+            style={[styles.actionRow, { borderBottomColor: colors.border }]}
+          >
+            <View style={styles.actionLeft}>
+              <RefreshCw size={20} color={colors.textMuted} />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={[styles.actionTitle, { color: colors.text }]}>
+                  Refresh Statistics
+                </Text>
+                <Text style={[styles.actionSub, { color: colors.textMuted }]}>
+                  Recalculate local SQLite record counts
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
 
+          <TouchableOpacity onPress={handleResetDatabase} style={styles.actionRowLast}>
+            <View style={styles.actionLeft}>
+              <Trash2 size={20} color={colors.danger} />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={[styles.actionTitle, { color: colors.danger }]}>
+                  Reset Database
+                </Text>
+                <Text style={[styles.actionSub, { color: colors.textMuted }]}>
+                  Clear all local records and return to factory state
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Card>
 
-        {/* Server & Connectivity */}
-        <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>
+        {/* Preferences Section */}
+        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
+          PREFERENCES
+        </Text>
+        <Card style={styles.card}>
+          <View style={styles.settingRow}>
+            <View style={styles.settingLeft}>
+              {isDark ? (
+                <Moon size={20} color={colors.primary} />
+              ) : (
+                <Sun size={20} color={colors.primary} />
+              )}
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                Dark Mode
+              </Text>
+            </View>
+            <Button
+              title={isDark ? "Dark" : "Light"}
+              variant="outline"
+              size="sm"
+              onPress={() => {
+                haptics.light();
+                toggleTheme();
+              }}
+            />
+          </View>
+        </Card>
+
+        {/* System Info */}
+        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
           SYSTEM INFO
         </Text>
         <Card style={styles.card}>
           <View style={styles.infoRow}>
-            <Server size={16} color={colors.textSubtle} />
-            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
-              Backend Server:
-            </Text>
-            <Text style={[styles.infoVal, { color: colors.text }]}>
-              {apiBaseUrl}
-            </Text>
+            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Engine</Text>
+            <Text style={[styles.infoVal, { color: colors.text }]}>SQLite 3 (expo-sqlite)</Text>
           </View>
-          <View style={[styles.infoRow, { marginTop: 8 }]}>
-            <Server size={16} color={colors.textSubtle} />
-            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
-              Keycloak IAM:
-            </Text>
-            <Text style={[styles.infoVal, { color: colors.text }]}>
-              {keycloakUrl}
-            </Text>
+          <View style={styles.infoRow}>
+            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Storage Mode</Text>
+            <Text style={[styles.infoVal, { color: colors.primary }]}>100% Standalone Offline</Text>
           </View>
-          <View style={[styles.infoRow, { marginTop: 8 }]}>
-            <Shield size={16} color={colors.textSubtle} />
-            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
-              Realm / Client:
-            </Text>
-            <Text style={[styles.infoVal, { color: colors.text }]}>
-              {realm} / {clientId}
-            </Text>
+          <View style={styles.infoRow}>
+            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>App Version</Text>
+            <Text style={[styles.infoVal, { color: colors.text }]}>1.0.0 (offline-v)</Text>
           </View>
-          <View style={[styles.infoRow, { marginTop: 8 }]}>
-            <Monitor size={16} color={colors.textSubtle} />
-            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
-              Terminal:
-            </Text>
-            <Text style={[styles.infoVal, { color: colors.text }]}>
-              {terminalName || (terminalId && !isUuid(terminalId) ? terminalId : "Main Terminal")}
-            </Text>
-          </View>
-          {orgName ? (
-            <View style={[styles.infoRow, { marginTop: 8 }]}>
-              <Building2 size={16} color={colors.textSubtle} />
-              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
-                Organization:
-              </Text>
-              <Text style={[styles.infoVal, { color: colors.text }]}>
-                {orgName}
-              </Text>
-            </View>
-          ) : null}
-          {branchName ? (
-            <View style={[styles.infoRow, { marginTop: 8 }]}>
-              <GitBranch size={16} color={colors.textSubtle} />
-              <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
-                Branch:
-              </Text>
-              <Text style={[styles.infoVal, { color: colors.text }]}>
-                {branchName}
-              </Text>
-            </View>
-          ) : null}
-
-          <Button
-            title="Configure Server Endpoints"
-            variant="secondary"
-            icon={<Server size={16} color={colors.text} />}
-            onPress={() => {
-              haptics.light();
-              router.push("/server-config");
-            }}
-            style={{ marginTop: 12 }}
-          />
         </Card>
-
-        {/* Logout Button */}
-        <Button
-          title="Sign Out"
-          variant="danger"
-          icon={<LogOut size={18} color="#ffffff" />}
-          onPress={handleLogout}
-          style={{ marginTop: 24 }}
-        />
       </ScrollView>
+
+      {/* Edit Store Profile Modal */}
+      <Modal
+        visible={editStoreModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditStoreModal(false)}
+      >
+        <AnimatedModalBackdrop
+          style={styles.modalBackdrop}
+          onPressBackdrop={() => setEditStoreModal(false)}
+        >
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Store Profile</Text>
+            <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
+              Customize your business identity stored locally on this phone.
+            </Text>
+
+            <Input
+              label="Store / Business Name *"
+              value={formStoreName}
+              onChangeText={setFormStoreName}
+              placeholder="e.g. Mama Mary Groceries"
+            />
+            <Input
+              label="Branch Name"
+              value={formBranchName}
+              onChangeText={setFormBranchName}
+              placeholder="e.g. Westlands Branch"
+            />
+            <Input
+              label="Operator / Cashier Name"
+              value={formOperatorName}
+              onChangeText={setFormOperatorName}
+              placeholder="e.g. Mary Wanjiku"
+            />
+
+            <View style={styles.modalBtns}>
+              <Button
+                title="Cancel"
+                variant="secondary"
+                onPress={() => setEditStoreModal(false)}
+                style={{ flex: 1, marginRight: 8 }}
+              />
+              <Button
+                title="Save Profile"
+                variant="primary"
+                onPress={handleSaveStoreProfile}
+                style={{ flex: 1.4 }}
+              />
+            </View>
+          </View>
+        </AnimatedModalBackdrop>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -344,20 +385,28 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 48,
+    paddingBottom: 40,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    marginTop: 18,
+    marginLeft: 4,
   },
   card: {
     padding: 16,
-    marginBottom: 8,
+    borderRadius: 14,
   },
   userRow: {
     flexDirection: "row",
     alignItems: "center",
   },
   avatarBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -369,48 +418,78 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-  sectionHeading: {
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 16,
-    marginBottom: 8,
-    marginLeft: 4,
-    letterSpacing: 0.5,
+  editIconBtn: {
+    padding: 8,
+    borderRadius: 8,
   },
-  fieldLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  chipRow: {
+  statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 12,
   },
-  contextChip: {
+  statCol: {
+    flex: 1,
+    minWidth: "45%",
+    padding: 8,
+  },
+  statHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
     gap: 6,
+    marginBottom: 4,
   },
-  contextChipText: {
-    fontSize: 13,
+  statLabel: {
+    fontSize: 12,
+    fontWeight: "500",
   },
-  themeIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+  statVal: {
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  actionRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 8,
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  actionRowLast: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 12,
+  },
+  actionLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  actionSub: {
+    fontSize: 12,
+    marginTop: 1,
+  },
+  settingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  settingLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  settingLabel: {
+    fontSize: 14,
+    fontWeight: "500",
   },
   infoRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
+    paddingVertical: 6,
   },
   infoLabel: {
     fontSize: 13,
@@ -418,7 +497,29 @@ const styles = StyleSheet.create({
   infoVal: {
     fontSize: 13,
     fontWeight: "600",
+  },
+  modalBackdrop: {
     flex: 1,
-    textAlign: "right",
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    borderTopWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  modalDesc: {
+    fontSize: 13,
+    marginBottom: 16,
+  },
+  modalBtns: {
+    flexDirection: "row",
+    marginTop: 16,
   },
 });

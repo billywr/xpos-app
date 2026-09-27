@@ -1,27 +1,80 @@
-import { apiFetch } from "./client";
 import type { Org, Branch, Terminal, PageResponse } from "@/types";
+import { getDatabase } from "@/db/database";
 
-export async function fetchOrgs(token: string | null): Promise<PageResponse<Org>> {
-  return apiFetch<PageResponse<Org>>("/api/v1/admin/orgs?size=100&sort=name,asc", { token });
+export async function fetchOrgs(_token: string | null): Promise<PageResponse<Org>> {
+  const db = await getDatabase();
+  const setting = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM store_settings WHERE key = 'store_name'`
+  );
+  const storeName = setting?.value ?? "My Store";
+
+  const org: Org = {
+    id: "offline-org",
+    name: storeName,
+    code: "STORE",
+  };
+
+  return {
+    content: [org],
+    totalElements: 1,
+    totalPages: 1,
+    size: 100,
+    number: 0,
+    first: true,
+    last: true,
+    empty: false,
+  };
 }
 
 export async function fetchBranches(
-  token: string | null,
-  orgId: string
+  _token: string | null,
+  _orgId: string
 ): Promise<PageResponse<Branch>> {
-  return apiFetch<PageResponse<Branch>>(
-    `/api/v1/admin/orgs/${orgId}/branches?size=100&sort=name,asc`,
-    { token }
+  const db = await getDatabase();
+  const setting = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM store_settings WHERE key = 'branch_name'`
   );
+  const branchName = setting?.value ?? "Main Store";
+
+  const branch: Branch = {
+    id: "offline-branch",
+    orgId: "offline-org",
+    name: branchName,
+    code: "MAIN",
+  };
+
+  return {
+    content: [branch],
+    totalElements: 1,
+    totalPages: 1,
+    size: 100,
+    number: 0,
+    first: true,
+    last: true,
+    empty: false,
+  };
 }
 
 export async function fetchTerminals(
-  token: string | null,
-  orgId: string,
-  branchId: string
+  _token: string | null,
+  _orgId: string,
+  _branchId: string
 ): Promise<PageResponse<Terminal>> {
-  return apiFetch<PageResponse<Terminal>>(
-    `/api/v1/admin/orgs/${orgId}/branches/${branchId}/terminals?size=100&sort=terminalCode,asc`,
-    { token }
-  );
+  const terminal: Terminal = {
+    id: "offline-terminal",
+    branchId: "offline-branch",
+    name: "POS Register",
+    code: "POS-01",
+  };
+
+  return {
+    content: [terminal],
+    totalElements: 1,
+    totalPages: 1,
+    size: 100,
+    number: 0,
+    first: true,
+    last: true,
+    empty: false,
+  };
 }

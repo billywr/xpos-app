@@ -8,8 +8,8 @@ import { AuthProvider } from "@/context/AuthContext";
 import { OrgProvider } from "@/context/OrgContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { setDefaultApiBaseUrl } from "@/api/client";
-import { storage } from "@/utils/storage";
 import "@/utils/alertPolyfill";
+import { getDatabase } from "@/db/database";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -83,13 +83,9 @@ function RootNavigation() {
 }
 
 export default function RootLayout() {
-  // Initialise the API client from persisted config on every app start / hot reload.
-  // Without this the module-level default (production URL) is used until the first
-  // call to setDefaultApiBaseUrl(), which never happens after a reload.
+  // Initialize local SQLite database on app mount
   useEffect(() => {
-    void storage.getApiBaseUrl().then((url) => {
-      if (url) setDefaultApiBaseUrl(url);
-    });
+    void getDatabase();
   }, []);
 
   return (

@@ -1,5 +1,5 @@
 {
-  "name": "xpos-mobile",
+  "name": "xpos-mobi-offline-v",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
@@ -12,6 +12,7 @@
     "expo-haptics": "^57.0.3",
     "expo-linking": "~57.0.10",
     "expo-router": "~57.0.22",
+    "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
     "lucide-react-native": "^1.47.0",
     "react": "19.2.3",
@@ -34,7 +35,7 @@
     "web": "expo start --web",
     "type-check": "tsc --noEmit",
     "prebuild": "expo prebuild --platform android",
-    "build:apk": "cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a"
+    "build:apk": "cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a && cp app/build/outputs/apk/release/xpos-mobi-offline-v.apk ../xpos-mobi-offline-v.apk"
   },
   "private": true
 }

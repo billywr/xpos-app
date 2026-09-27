@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   Modal,
-  Alert,
   ActivityIndicator,
   ScrollView,
   Platform,
@@ -16,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/context/ToastContext";
 import {
   Calendar,
   ChevronLeft,
@@ -28,6 +28,7 @@ import {
   Clock,
   Sparkles,
   GitCompare,
+  X,
 } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -40,8 +41,7 @@ import {
   fetchStdStockCountReconcilePreview,
   reconcileStdStockCountInventory,
 } from "@/api/stdStockCount";
-import type { StdStockCountRowResponse } from "@/types";
-import { formatCurrency, formatQty } from "@/utils/formatCurrency";
+import { formatCurrency, formatQty, formatQtyVariance } from "@/utils/formatCurrency";
 import { haptics } from "@/utils/haptics";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -49,6 +49,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { DatePickerModal } from "@/components/ui/DatePickerModal";
+import { AnimatedModalBackdrop } from "@/components/ui/AnimatedModalBackdrop";
 
 // ---------------------------------------------------------------------------
 // Skeleton card that mirrors the real stock-count row layout
@@ -94,6 +95,7 @@ export const StockCountScreen: React.FC = () => {
   const { token } = useAuth();
   const { orgId, branchId, terminalId } = useOrg();
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const [date, setDate] = useState<Date>(new Date());
   const dateStr = useMemo(() => toDateString(date), [date]);
@@ -193,7 +195,7 @@ export const StockCountScreen: React.FC = () => {
     onError: (err: any) => {
       haptics.error();
       setSavingItemIds(new Set());
-      Alert.alert("Save Failed", err?.data?.message ?? "Could not save closing stock.");
+      toast.error(err?.data?.message ?? "Could not save closing stock.", "Save Failed");
     },
   });
 
@@ -230,11 +232,11 @@ export const StockCountScreen: React.FC = () => {
       void refetch();
       void refetchSalesPreview();
       void refetchReconcilePreview();
-      Alert.alert("Success", "Sales have been recorded successfully.");
+      toast.success("Sales have been recorded successfully.");
     },
     onError: (err: any) => {
       haptics.error();
-      Alert.alert("Error", err?.data?.message ?? "Failed to record sales.");
+      toast.error(err?.data?.message ?? "Failed to record sales.", "Error");
     },
   });
 
@@ -248,13 +250,13 @@ export const StockCountScreen: React.FC = () => {
     onSuccess: () => {
       haptics.success();
       setReconcileOpen(false);
-      Alert.alert("Success", "Inventory reconciled successfully.");
+      toast.success("Inventory reconciled successfully.");
       void refetch();
       void refetchReconcilePreview();
     },
     onError: (err: any) => {
       haptics.error();
-      Alert.alert("Error", err?.data?.message ?? "Failed to reconcile inventory.");
+      toast.error(err?.data?.message ?? "Failed to reconcile inventory.", "Error");
     },
   });
 
@@ -326,6 +328,22 @@ export const StockCountScreen: React.FC = () => {
     void refetchSalesPreview();
   };
 
+  // Open Reconcile preview with pending draft flush and fresh preview refetch
+  const handleOpenReconcile = () => {
+    haptics.light();
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    if (Object.keys(closingDrafts).length > 0) {
+      executeSave();
+    }
+    setReconcileOpen(true);
+    if (isToday) {
+      void refetchReconcilePreview();
+    }
+  };
+
   // Manual refresh inside record sales preview modal
   const handleRefreshPreview = () => {
     haptics.light();
@@ -365,17 +383,26 @@ export const StockCountScreen: React.FC = () => {
     setClosingDrafts({});
   };
 
-  // Filtered rows
+  // Filtered rows: hide items with zero total stock (opening + added + addedToday <= 0),
+  // unless there is an active closing count recorded or drafted > 0.
   const filteredRows = useMemo(() => {
     const rows = sheetData?.rows ?? [];
-    if (!searchQuery.trim()) return rows;
+    const activeRows = rows.filter((r) => {
+      const totalStock = r.openingStock + r.addedStock + r.addedTodayStock;
+      const draftVal = closingDrafts[r.itemId];
+      const hasClosingDraft = draftVal !== undefined && draftVal.trim() !== "" && Number(draftVal) > 0;
+      const hasRecordedClosing = r.closingStock !== null && r.closingStock > 0;
+      return totalStock > 0 || hasClosingDraft || hasRecordedClosing;
+    });
+
+    if (!searchQuery.trim()) return activeRows;
     const q = searchQuery.toLowerCase().trim();
-    return rows.filter(
+    return activeRows.filter(
       (r) =>
         r.name.toLowerCase().includes(q) ||
         (r.sku && r.sku.toLowerCase().includes(q))
     );
-  }, [sheetData?.rows, searchQuery]);
+  }, [sheetData?.rows, closingDrafts, searchQuery]);
 
   // Totals calculations
   const totals = useMemo(() => {
@@ -391,14 +418,20 @@ export const StockCountScreen: React.FC = () => {
     }[] = [];
 
     (sheetData?.rows ?? []).forEach((r) => {
-      totalItems += 1;
       const totalStock = r.openingStock + r.addedStock + r.addedTodayStock;
+      const draftVal = closingDrafts[r.itemId];
+      const hasClosingDraft = draftVal !== undefined && draftVal.trim() !== "" && Number(draftVal) > 0;
+      const hasRecordedClosing = r.closingStock !== null && r.closingStock > 0;
+      if (totalStock <= 0 && !hasClosingDraft && !hasRecordedClosing) {
+        return;
+      }
+      totalItems += 1;
       const closing =
-        closingDrafts[r.itemId] !== undefined
-          ? Number(closingDrafts[r.itemId])
+        draftVal !== undefined && draftVal.trim() !== ""
+          ? Number(draftVal)
           : r.closingStock;
       if (closing !== null && !Number.isNaN(closing)) {
-        const sold = Math.max(0, totalStock - closing);
+        const sold = Math.max(0, Math.round((totalStock - closing) * 100) / 100);
         if (sold > 0) {
           soldItems.push({
             itemId: r.itemId,
@@ -561,14 +594,14 @@ export const StockCountScreen: React.FC = () => {
           >
             <ClipboardCheck size={16} color="#ffffff" />
             <Text style={[styles.recordBtnText, { color: "#ffffff" }]}>
-              {totalQtyToRecord}
+              {formatQty(totalQtyToRecord)}
             </Text>
           </TouchableOpacity>
         ) : null}
 
         {showReconcile ? (
           <TouchableOpacity
-            onPress={() => setReconcileOpen(true)}
+            onPress={handleOpenReconcile}
             activeOpacity={0.7}
             style={[
               styles.reconcileBtn,
@@ -690,11 +723,11 @@ export const StockCountScreen: React.FC = () => {
                     </Text>
                   </View>
                   {isSaving ? (
-                    <Badge label="Saving…" variant="warning" size="sm" />
+                    <Badge label="Saving…" variant="warning" size="sm" pulse />
                   ) : isUnsaved ? (
                     <Badge label="Unsaved" variant="danger" size="sm" />
                   ) : newToRecord > 0 ? (
-                    <Badge label={`${newToRecord} to record`} variant="purple" size="sm" />
+                    <Badge label={`${formatQty(newToRecord)} to record`} variant="purple" size="sm" />
                   ) : alreadyRecorded > 0 && unitsSold === alreadyRecorded ? (
                     <Badge label="Recorded" variant="primary" size="sm" />
                   ) : item.lastSavedAt ? (
@@ -827,7 +860,7 @@ export const StockCountScreen: React.FC = () => {
                     </View>
                     {alreadyRecorded > 0 ? (
                       <Text style={[styles.recordedSubtext, { color: colors.textSubtle }]}>
-                        {newToRecord > 0 ? `+${newToRecord} new` : "all rec"}
+                        {newToRecord > 0 ? `+${formatQty(newToRecord)} new` : "all rec"}
                       </Text>
                     ) : null}
                   </View>
@@ -849,8 +882,16 @@ export const StockCountScreen: React.FC = () => {
       )}
 
       {/* Record Sales Preview Modal */}
-      <Modal visible={recordSalesOpen} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
+      <Modal
+        visible={recordSalesOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setRecordSalesOpen(false)}
+      >
+        <AnimatedModalBackdrop
+          style={styles.modalBackdrop}
+          onPressBackdrop={() => setRecordSalesOpen(false)}
+        >
           <View
             style={[
               styles.modalSheet,
@@ -861,32 +902,41 @@ export const StockCountScreen: React.FC = () => {
               <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>
                 Record Sales Preview
               </Text>
-              <TouchableOpacity
-                onPress={handleRefreshPreview}
-                disabled={isFetchingSalesPreview}
-                style={[
-                  styles.modalRefreshBtn,
-                  {
-                    backgroundColor: colors.surfaceRaised,
-                    borderColor: colors.border,
-                  },
-                ]}
-                activeOpacity={0.7}
-              >
-                {isFetchingSalesPreview ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <RefreshCw size={13} color={colors.text} />
-                )}
-                <Text style={[styles.modalRefreshBtnText, { color: colors.text }]}>
-                  Refresh
-                </Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <TouchableOpacity
+                  onPress={handleRefreshPreview}
+                  disabled={isFetchingSalesPreview}
+                  style={[
+                    styles.modalRefreshBtn,
+                    {
+                      backgroundColor: colors.surfaceRaised,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  {isFetchingSalesPreview ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <RefreshCw size={13} color={colors.text} />
+                  )}
+                  <Text style={[styles.modalRefreshBtnText, { color: colors.text }]}>
+                    Refresh
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setRecordSalesOpen(false)}
+                  style={[styles.closeBtn, { backgroundColor: colors.surfaceRaised }]}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <X size={18} color={colors.text} />
+                </TouchableOpacity>
+              </View>
             </View>
             {totalQtyToRecord > 0 ? (
               <>
                 <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
-                  Create POS sales for {totalQtyToRecord} units sold (Total:{" "}
+                  Create POS sales for {formatQty(totalQtyToRecord)} units sold (Total:{" "}
                   {formatCurrency(salesPreview?.totalValueToRecord ?? 0)}).
                 </Text>
 
@@ -906,7 +956,7 @@ export const StockCountScreen: React.FC = () => {
                         {item.name}
                       </Text>
                       <Text style={[styles.previewQty, { color: colors.primary }]}>
-                        {item.qtyToRecord} × {formatCurrency(item.unitPrice)} ={" "}
+                        {formatQty(item.qtyToRecord)} × {formatCurrency(item.unitPrice)} ={" "}
                         {formatCurrency(item.lineValue)}
                       </Text>
                     </View>
@@ -932,7 +982,7 @@ export const StockCountScreen: React.FC = () => {
               <View style={{ marginVertical: 12 }}>
                 <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
                   {reactiveSales.totalRecorded > 0
-                    ? `All sales up to current closing counts are already recorded (${reactiveSales.totalRecorded} sold today). Enter new closing counts on the sheet to record additional sales.`
+                    ? `All sales up to current closing counts are already recorded (${formatQty(reactiveSales.totalRecorded)} sold today). Enter new closing counts on the sheet to record additional sales.`
                     : "No new sales to record. Enter closing stock on the sheet to calculate units sold."}
                 </Text>
 
@@ -966,7 +1016,7 @@ export const StockCountScreen: React.FC = () => {
                             {item.name}
                           </Text>
                           <Text style={[styles.previewQty, { color: colors.textMuted }]}>
-                            {item.alreadyRecorded} rec
+                            {formatQty(item.alreadyRecorded)} rec
                           </Text>
                         </View>
                       )}
@@ -985,21 +1035,38 @@ export const StockCountScreen: React.FC = () => {
               </View>
             )}
           </View>
-        </View>
+        </AnimatedModalBackdrop>
       </Modal>
 
       {/* Reconcile Inventory Modal */}
-      <Modal visible={reconcileOpen} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
+      <Modal
+        visible={reconcileOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setReconcileOpen(false)}
+      >
+        <AnimatedModalBackdrop
+          style={styles.modalBackdrop}
+          onPressBackdrop={() => setReconcileOpen(false)}
+        >
           <View
             style={[
               styles.modalSheet,
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Reconcile Inventory
-            </Text>
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>
+                Reconcile Inventory
+              </Text>
+              <TouchableOpacity
+                onPress={() => setReconcileOpen(false)}
+                style={[styles.closeBtn, { backgroundColor: colors.surfaceRaised }]}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
             <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
               Adjust on-hand inventory balances to match closing counts for{" "}
               {itemsToReconcile} items.
@@ -1020,8 +1087,8 @@ export const StockCountScreen: React.FC = () => {
                     {item.name}
                   </Text>
                   <Text style={[styles.previewQty, { color: colors.warning }]}>
-                    Close: {item.closingStock} · On-Hand: {item.onHandQty} · Var:{" "}
-                    {item.variance > 0 ? `+${item.variance}` : item.variance}
+                    Close: {formatQty(item.closingStock)} · On-Hand: {formatQty(item.onHandQty)} · Var:{" "}
+                    {formatQtyVariance(item.variance)}
                   </Text>
                 </View>
               )}
@@ -1043,7 +1110,7 @@ export const StockCountScreen: React.FC = () => {
               />
             </View>
           </View>
-        </View>
+        </AnimatedModalBackdrop>
       </Modal>
 
       {/* Sold Items Breakdown Modal */}
@@ -1053,7 +1120,10 @@ export const StockCountScreen: React.FC = () => {
         transparent
         onRequestClose={() => setSoldModalOpen(false)}
       >
-        <View style={styles.modalBackdrop}>
+        <AnimatedModalBackdrop
+          style={styles.modalBackdrop}
+          onPressBackdrop={() => setSoldModalOpen(false)}
+        >
           <View
             style={[
               styles.modalSheet,
@@ -1061,14 +1131,23 @@ export const StockCountScreen: React.FC = () => {
             ]}
           >
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>
-                Items Sold
-              </Text>
-              <Badge
-                label={`${totals.totalSold} sold · ${formatCurrency(totals.totalRevenue)}`}
-                variant="primary"
-                size="sm"
-              />
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>
+                  Items Sold
+                </Text>
+                <Badge
+                  label={`${formatQty(totals.totalSold)} sold · ${formatCurrency(totals.totalRevenue)}`}
+                  variant="primary"
+                  size="sm"
+                />
+              </View>
+              <TouchableOpacity
+                onPress={() => setSoldModalOpen(false)}
+                style={[styles.closeBtn, { backgroundColor: colors.surfaceRaised }]}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={18} color={colors.text} />
+              </TouchableOpacity>
             </View>
             <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
               Breakdown of {totals.soldItems.length} items sold based on current stock count.
@@ -1120,7 +1199,7 @@ export const StockCountScreen: React.FC = () => {
                       </Text>
                     </View>
                     <Text style={[styles.previewQty, { color: colors.textMuted }]}>
-                      {item.unitsSold} × {formatCurrency(item.unitPrice)}
+                      {formatQty(item.unitsSold)} × {formatCurrency(item.unitPrice)}
                     </Text>
                   </View>
                 )}
@@ -1136,7 +1215,7 @@ export const StockCountScreen: React.FC = () => {
               />
             </View>
           </View>
-        </View>
+        </AnimatedModalBackdrop>
       </Modal>
 
         {/* DatePickerModal for fast date selection */}
@@ -1405,6 +1484,13 @@ const styles = StyleSheet.create({
   modalRefreshBtnText: {
     fontSize: 12,
     fontWeight: "600",
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   modalTitle: {
     fontSize: 18,

@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "XPOS Mobile",
-    "slug": "xpos-mobile",
+    "name": "XPOS Offline",
+    "slug": "xpos-mobi-offline-v",
     "version": "1.0.0",
-    "scheme": "xpos",
+    "scheme": "xpos-offline",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -12,9 +12,9 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.blinc.xpos",
+      "package": "com.blinc.xpos.offline",
       "adaptiveIcon": {
-        "backgroundColor": "#0f172a",
+        "backgroundColor": "#142132",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png"
       },
@@ -22,7 +22,8 @@
     },
     "plugins": [
       "./plugins/withNetworkSecurityConfig.js",
-      "expo-router"
+      "expo-router",
+      "expo-sqlite"
     ],
     "web": {
       "bundler": "metro",

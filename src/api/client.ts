@@ -6,7 +6,7 @@ import { refreshKeycloakToken } from "./auth";
 import type { ApiError } from "@/types";
 
 const REQUEST_ID_HEADER = "X-Request-Id";
-const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_TIMEOUT_MS = 30000;
 
 let defaultApiBaseUrl: string = DEFAULT_CONFIG.API_BASE_URL;
 
@@ -118,15 +118,23 @@ export async function apiFetch<T>(
   }
 
   if (!res) {
-    const isTimeout = lastErr instanceof Error && (lastErr.name === "AbortError" || lastErr.name === "TimeoutError");
+    const errStr = (lastErr instanceof Error ? lastErr.message : String(lastErr ?? "")).toLowerCase();
+    const isTimeout =
+      lastErr instanceof Error &&
+      (lastErr.name === "AbortError" ||
+        lastErr.name === "TimeoutError" ||
+        errStr.includes("canceled") ||
+        errStr.includes("cancelled") ||
+        errStr.includes("aborted") ||
+        errStr.includes("timeout"));
     const error: ApiError = {
       timestamp: new Date().toISOString(),
       status: 0,
       error: isTimeout ? "TIMEOUT_ERROR" : "NETWORK_ERROR",
       code: isTimeout ? "TIMEOUT_ERROR" : "NETWORK_ERROR",
       message: isTimeout
-        ? "Request timed out. Please check server status or network connection."
-        : lastErr instanceof Error
+        ? "Request timed out. Please check your internet connection."
+        : lastErr instanceof Error && !lastErr.message.includes("fetch failed")
         ? lastErr.message
         : "Cannot reach backend. Check your network or server URL.",
       path,

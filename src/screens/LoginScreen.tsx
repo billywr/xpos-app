@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   View,
   Text,
@@ -7,11 +8,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   type TextInput as RNTextInput,
 } from "react-native";
+import { useToast } from "@/context/ToastContext";
 import { Store, Settings, Lock, User, Server, Eye, EyeOff } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -21,11 +22,15 @@ import { DEFAULT_CONFIG, LOCALHOST_CONFIG } from "@/constants/config";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { AnimatedModalBackdrop } from "@/components/ui/AnimatedModalBackdrop";
+import { ScalePressable } from "@/components/ui/ScalePressable";
 import { haptics } from "@/utils/haptics";
 
 export const LoginScreen: React.FC = () => {
+  const router = useRouter();
   const { colors } = useTheme();
   const { login, isLoading } = useAuth();
+  const toast = useToast();
   const passwordRef = useRef<RNTextInput>(null);
 
   const [username, setUsername] = useState("");
@@ -40,39 +45,31 @@ export const LoginScreen: React.FC = () => {
   const [realm, setRealm] = useState<string>(DEFAULT_CONFIG.KEYCLOAK_REALM);
   const [clientId, setClientId] = useState<string>(DEFAULT_CONFIG.KEYCLOAK_CLIENT_ID);
 
-  useEffect(() => {
-    async function loadSettings() {
-      const storedApi = await storage.getApiBaseUrl();
-      if (storedApi) setApiBaseUrl(storedApi);
-      const storedKc = await storage.getKeycloakUrl();
-      if (storedKc) setKeycloakUrl(storedKc);
-      const storedRealm = await storage.getRealm();
-      if (storedRealm) setRealm(storedRealm);
-      const storedClientId = await storage.getClientId();
-      if (storedClientId) setClientId(storedClientId);
-    }
-    void loadSettings();
-  }, []);
+  // Reload settings every time LoginScreen is focused (e.g. returning from server-config)
+  useFocusEffect(
+    useCallback(() => {
+      async function loadSettings() {
+        const storedApi = await storage.getApiBaseUrl();
+        if (storedApi) setApiBaseUrl(storedApi);
+        const storedKc = await storage.getKeycloakUrl();
+        if (storedKc) setKeycloakUrl(storedKc);
+        const storedRealm = await storage.getRealm();
+        if (storedRealm) setRealm(storedRealm);
+        const storedClientId = await storage.getClientId();
+        if (storedClientId) setClientId(storedClientId);
+      }
+      void loadSettings();
+    }, [])
+  );
 
   const handleLogin = async () => {
-    if (!username.trim() || !password) {
-      setErrorMsg("Please enter both username and password");
-      return;
-    }
-    setErrorMsg("");
     try {
-      setDefaultApiBaseUrl(apiBaseUrl);
-      await login({
-        keycloakUrl,
-        realm,
-        clientId,
-        username: username.trim(),
-        password,
-      });
+      await login({ username: username.trim() || "Store Manager" });
       haptics.success();
+      router.replace("/(app)/(tabs)/stock");
     } catch (err: any) {
       haptics.error();
-      setErrorMsg(err.message ?? "Login failed. Check server connection.");
+      setErrorMsg("Offline sign in failed.");
     }
   };
 
@@ -84,22 +81,32 @@ export const LoginScreen: React.FC = () => {
     setDefaultApiBaseUrl(apiBaseUrl);
     setSettingsOpen(false);
     haptics.success();
-    Alert.alert("Saved", "Server configuration updated.");
+    toast.success("Server configuration updated.");
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Top Right Corner Settings Button */}
-      <TouchableOpacity
+      <ScalePressable
         onPress={() => setSettingsOpen(true)}
+        activeScale={0.92}
         style={[
           styles.cornerSettingsBtn,
-          { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
+          {
+            backgroundColor: colors.surfaceRaised,
+            borderColor: colors.border,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+          },
         ]}
         accessibilityLabel="Server Settings"
       >
-        <Settings size={20} color={colors.textMuted} />
-      </TouchableOpacity>
+        <Settings size={15} color={colors.textMuted} />
+        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.text }}>
+          {keycloakUrl.includes("62.169.22.51") ? "Production" : "Local Dev"}
+        </Text>
+      </ScalePressable>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -215,8 +222,16 @@ export const LoginScreen: React.FC = () => {
       </KeyboardAvoidingView>
 
       {/* Settings Modal */}
-      <Modal visible={settingsOpen} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
+      <Modal
+        visible={settingsOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSettingsOpen(false)}
+      >
+        <AnimatedModalBackdrop
+          style={styles.modalBackdrop}
+          onPressBackdrop={() => setSettingsOpen(false)}
+        >
           <View
             style={[
               styles.modalCard,
@@ -361,7 +376,7 @@ export const LoginScreen: React.FC = () => {
               </View>
             </ScrollView>
           </View>
-        </View>
+        </AnimatedModalBackdrop>
       </Modal>
     </SafeAreaView>
   );

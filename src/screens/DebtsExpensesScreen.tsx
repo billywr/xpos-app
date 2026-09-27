@@ -8,11 +8,11 @@ import {
   TouchableOpacity,
   RefreshControl,
   Modal,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/context/ToastContext";
 import {
   HandCoins,
   Receipt,
@@ -48,6 +48,7 @@ import { Button } from "@/components/ui/Button";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { DatePickerModal } from "@/components/ui/DatePickerModal";
+import { AnimatedModalBackdrop } from "@/components/ui/AnimatedModalBackdrop";
 
 const PAGE_SIZE = 30;
 
@@ -126,6 +127,7 @@ export const DebtsExpensesScreen: React.FC = () => {
   const { token } = useAuth();
   const { orgId, branchId } = useOrg();
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const [activeTab, setActiveTab] = useState<"debts" | "expenses">("debts");
   const [searchQuery, setSearchQuery] = useState("");
@@ -286,11 +288,11 @@ export const DebtsExpensesScreen: React.FC = () => {
       setDebtNotes("");
       void refetchDebts();
       void queryClient.invalidateQueries({ queryKey: ["debts-pending-total"] });
-      Alert.alert("Success", "Debt recorded successfully.");
+      toast.success("Debt recorded successfully.");
     },
     onError: (err: any) => {
       haptics.error();
-      Alert.alert("Error", err?.data?.message ?? "Failed to record debt.");
+      toast.error(err?.data?.message ?? "Failed to record debt.", "Error");
     },
   });
 
@@ -304,11 +306,11 @@ export const DebtsExpensesScreen: React.FC = () => {
       setSettleAmount("");
       void refetchDebts();
       void queryClient.invalidateQueries({ queryKey: ["debts-pending-total"] });
-      Alert.alert("Success", "Payment recorded successfully.");
+      toast.success("Payment recorded successfully.");
     },
     onError: (err: any) => {
       haptics.error();
-      Alert.alert("Error", err?.data?.message ?? "Failed to settle payment.");
+      toast.error(err?.data?.message ?? "Failed to settle payment.", "Error");
     },
   });
 
@@ -330,11 +332,11 @@ export const DebtsExpensesScreen: React.FC = () => {
       setExpIncurredBy("");
       setExpReceiptRef("");
       void refetchExpenses();
-      Alert.alert("Success", "Expense recorded successfully.");
+      toast.success("Expense recorded successfully.");
     },
     onError: (err: any) => {
       haptics.error();
-      Alert.alert("Error", err?.data?.message ?? "Failed to record expense.");
+      toast.error(err?.data?.message ?? "Failed to record expense.", "Error");
     },
   });
 
@@ -792,8 +794,16 @@ export const DebtsExpensesScreen: React.FC = () => {
 
 
       {/* Record Debt Modal */}
-      <Modal visible={recordDebtOpen} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
+      <Modal
+        visible={recordDebtOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setRecordDebtOpen(false)}
+      >
+        <AnimatedModalBackdrop
+          style={styles.modalBackdrop}
+          onPressBackdrop={() => setRecordDebtOpen(false)}
+        >
           <View
             style={[
               styles.modalSheet,
@@ -850,12 +860,20 @@ export const DebtsExpensesScreen: React.FC = () => {
               />
             </View>
           </View>
-        </View>
+        </AnimatedModalBackdrop>
       </Modal>
 
       {/* Settle Debt Modal */}
-      <Modal visible={Boolean(settleDebtItem)} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
+      <Modal
+        visible={Boolean(settleDebtItem)}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSettleDebtItem(null)}
+      >
+        <AnimatedModalBackdrop
+          style={styles.modalBackdrop}
+          onPressBackdrop={() => setSettleDebtItem(null)}
+        >
           <View
             style={[
               styles.modalSheet,
@@ -894,12 +912,20 @@ export const DebtsExpensesScreen: React.FC = () => {
               />
             </View>
           </View>
-        </View>
+        </AnimatedModalBackdrop>
       </Modal>
 
       {/* Record Expense Modal */}
-      <Modal visible={recordExpOpen} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
+      <Modal
+        visible={recordExpOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setRecordExpOpen(false)}
+      >
+        <AnimatedModalBackdrop
+          style={styles.modalBackdrop}
+          onPressBackdrop={() => setRecordExpOpen(false)}
+        >
           <View
             style={[
               styles.modalSheet,
@@ -961,7 +987,7 @@ export const DebtsExpensesScreen: React.FC = () => {
               />
             </View>
           </View>
-        </View>
+        </AnimatedModalBackdrop>
       </Modal>
 
       {/* Date Picker Modal for Custom date range selection */}

@@ -5,11 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/context/ToastContext";
 import {
   Barcode,
   Plus,
@@ -37,6 +37,7 @@ export default function ProductDetailScreen() {
   const { orgId } = useOrg();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const params = useLocalSearchParams<{
     id: string;
@@ -78,18 +79,18 @@ export default function ProductDetailScreen() {
       void queryClient.invalidateQueries({
         queryKey: ["item-barcodes", token, orgId, itemId],
       });
-      Alert.alert("Success", "Barcode registered successfully.");
+      toast.success("Barcode registered successfully.");
     },
     onError: (err: any) => {
       haptics.error();
-      Alert.alert("Error", err?.message || "Failed to add barcode.");
+      toast.error(err?.message || "Failed to add barcode.", "Error");
     },
   });
 
   const handleAddBarcode = (codeToAdd?: string) => {
     const code = (codeToAdd ?? newBarcode).trim();
     if (!code) {
-      Alert.alert("Invalid Input", "Please enter or scan a barcode.");
+      toast.error("Please enter or scan a barcode.", "Invalid Input");
       return;
     }
     addMutation.mutate(code);

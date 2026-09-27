@@ -43,13 +43,14 @@ import {
 import { fetchSuppliers, type Supplier } from "@/api/suppliers";
 import { fetchItems } from "@/api/catalog";
 import type { Item } from "@/types";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatQty } from "@/utils/formatCurrency";
 import { haptics } from "@/utils/haptics";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { StatCard } from "@/components/ui/StatCard";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
+import { AnimatedModalBackdrop } from "@/components/ui/AnimatedModalBackdrop";
 
 type GrnFlattenedRow = {
   grn: GoodsReceiptNoteResponse;
@@ -405,7 +406,7 @@ export const ReceivingScreen: React.FC = () => {
           />
           <StatCard
             label="Items Received"
-            value={summaryMetrics.totalItems}
+            value={formatQty(summaryMetrics.totalItems)}
             variant="neutral"
             style={styles.metricCard}
           />
@@ -501,7 +502,7 @@ export const ReceivingScreen: React.FC = () => {
                   {/* Line 2: Quantity & Unit Cost (Left) & Supplier + Date (Right) */}
                   <View style={styles.cardDetailRow}>
                     <Text style={[styles.cardSubDetail, { color: colors.textMuted }]} numberOfLines={1}>
-                      Qty: <Text style={{ fontWeight: "700", color: colors.text }}>{row.line.qty}</Text> units
+                      Qty: <Text style={{ fontWeight: "700", color: colors.text }}>{formatQty(row.line.qty)}</Text> units
                       {" · "}
                       @ {row.line.receivedUnitCost != null ? formatCurrency(row.line.receivedUnitCost) : "0.00"}
                     </Text>
@@ -537,7 +538,10 @@ export const ReceivingScreen: React.FC = () => {
         transparent={true}
         onRequestClose={() => setCreateModalOpen(false)}
       >
-        <SafeAreaView style={styles.modalOverlay}>
+        <AnimatedModalBackdrop
+          style={styles.modalOverlay}
+          onPressBackdrop={() => setCreateModalOpen(false)}
+        >
           <View style={[styles.modalSheet, { backgroundColor: colors.surfaceCard }]}>
             {/* Modal Header */}
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
@@ -556,8 +560,8 @@ export const ReceivingScreen: React.FC = () => {
             </View>
 
             <ScrollView
-              style={{ maxHeight: "82%" }}
-              contentContainerStyle={{ padding: 16, gap: 14 }}
+              style={{ maxHeight: 380 }}
+              contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 16 }}
               keyboardShouldPersistTaps="handled"
             >
               {/* Supplier Selector */}
@@ -745,12 +749,15 @@ export const ReceivingScreen: React.FC = () => {
                   onChangeText={setUnitCost}
                 />
               </View>
+            </ScrollView>
 
+            {/* Pinned Action Footer */}
+            <View style={[styles.modalFooter, { borderTopColor: colors.border, backgroundColor: colors.surfaceCard }]}>
               {/* Live Calculation Preview Banner */}
               <View
                 style={[
                   styles.calcBanner,
-                  { backgroundColor: colors.surfaceRaised, borderColor: colors.primary },
+                  { backgroundColor: colors.surfaceRaised, borderColor: colors.primary, marginBottom: 12 },
                 ]}
               >
                 <Text style={[styles.calcBannerLabel, { color: colors.textMuted }]}>
@@ -761,17 +768,24 @@ export const ReceivingScreen: React.FC = () => {
                 </Text>
               </View>
 
-              {/* Submit Button */}
-              <Button
-                onPress={() => createMutation.mutate()}
-                loading={createMutation.isPending}
-                disabled={!selectedItem || !selectedSupplierId || createMutation.isPending}
-                title="Confirm & Receive Stock"
-                style={{ marginTop: 6 }}
-              />
-            </ScrollView>
+              <View style={styles.modalBtns}>
+                <Button
+                  variant="secondary"
+                  title="Cancel"
+                  onPress={() => setCreateModalOpen(false)}
+                  style={{ flex: 1, marginRight: 8 }}
+                />
+                <Button
+                  onPress={() => createMutation.mutate()}
+                  loading={createMutation.isPending}
+                  disabled={!selectedItem || !selectedSupplierId || createMutation.isPending}
+                  title="Confirm & Receive Stock"
+                  style={{ flex: 1.5 }}
+                />
+              </View>
+            </View>
           </View>
-        </SafeAreaView>
+        </AnimatedModalBackdrop>
       </Modal>
 
       {/* ========================================================================= */}
@@ -783,7 +797,10 @@ export const ReceivingScreen: React.FC = () => {
         transparent={true}
         onRequestClose={() => setEditModalOpen(false)}
       >
-        <SafeAreaView style={styles.modalOverlay}>
+        <AnimatedModalBackdrop
+          style={styles.modalOverlay}
+          onPressBackdrop={() => setEditModalOpen(false)}
+        >
           <View style={[styles.modalSheet, { backgroundColor: colors.surfaceCard }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
               <View style={{ flex: 1 }}>
@@ -801,8 +818,8 @@ export const ReceivingScreen: React.FC = () => {
             </View>
 
             <ScrollView
-              style={{ maxHeight: "80%" }}
-              contentContainerStyle={{ padding: 16, gap: 14 }}
+              style={{ maxHeight: 340 }}
+              contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 16 }}
               keyboardShouldPersistTaps="handled"
             >
               {/* Supplier Selector */}
@@ -907,12 +924,15 @@ export const ReceivingScreen: React.FC = () => {
                   onChangeText={setEditUnitCost}
                 />
               </View>
+            </ScrollView>
 
+            {/* Pinned Action Footer */}
+            <View style={[styles.modalFooter, { borderTopColor: colors.border, backgroundColor: colors.surfaceCard }]}>
               {/* Live Preview */}
               <View
                 style={[
                   styles.calcBanner,
-                  { backgroundColor: colors.surfaceRaised, borderColor: colors.primary },
+                  { backgroundColor: colors.surfaceRaised, borderColor: colors.primary, marginBottom: 12 },
                 ]}
               >
                 <Text style={[styles.calcBannerLabel, { color: colors.textMuted }]}>
@@ -923,16 +943,24 @@ export const ReceivingScreen: React.FC = () => {
                 </Text>
               </View>
 
-              <Button
-                onPress={() => editMutation.mutate()}
-                loading={editMutation.isPending}
-                disabled={editMutation.isPending}
-                title="Save Changes"
-                style={{ marginTop: 6 }}
-              />
-            </ScrollView>
+              <View style={styles.modalBtns}>
+                <Button
+                  variant="secondary"
+                  title="Cancel"
+                  onPress={() => setEditModalOpen(false)}
+                  style={{ flex: 1, marginRight: 8 }}
+                />
+                <Button
+                  onPress={() => editMutation.mutate()}
+                  loading={editMutation.isPending}
+                  disabled={editMutation.isPending}
+                  title="Save Changes"
+                  style={{ flex: 1.5 }}
+                />
+              </View>
+            </View>
           </View>
-        </SafeAreaView>
+        </AnimatedModalBackdrop>
       </Modal>
 
       {/* ========================================================================= */}
@@ -1335,5 +1363,15 @@ const styles = StyleSheet.create({
   dialogButtonsRow: {
     flexDirection: "row",
     gap: 12,
+  },
+  modalFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  modalBtns: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 });

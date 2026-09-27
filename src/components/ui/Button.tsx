@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { haptics } from "@/utils/haptics";
+import { ScalePressable } from "./ScalePressable";
 
 interface ButtonProps {
   title: string;
@@ -81,10 +82,10 @@ export const Button: React.FC<ButtonProps> = ({
   const fontSize = size === "sm" ? 13 : size === "lg" ? 16 : 14;
 
   return (
-    <TouchableOpacity
+    <ScalePressable
       onPress={handlePress}
       disabled={disabled || loading}
-      activeOpacity={0.7}
+      activeScale={0.965}
       style={[
         styles.btn,
         {
@@ -120,7 +121,7 @@ export const Button: React.FC<ButtonProps> = ({
           </Text>
         </>
       )}
-    </TouchableOpacity>
+    </ScalePressable>
   );
 };
 
