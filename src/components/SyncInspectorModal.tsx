@@ -347,7 +347,7 @@ export const SyncInspectorModal: React.FC<SyncInspectorModalProps> = ({
                   </TouchableOpacity>
 
                   {/* Expanded Inspector Panel */}
-                  {isExpanded && (
+                   {isExpanded && (
                     <View style={[styles.expandedPanel, { borderTopColor: colors.border }]}>
                       {/* Meta stats */}
                       <View style={styles.metaGrid}>
@@ -362,12 +362,18 @@ export const SyncInspectorModal: React.FC<SyncInspectorModalProps> = ({
                                     ? colors.success
                                     : item.http_status
                                     ? colors.danger
+                                    : item.status === "COMMITTED"
+                                    ? colors.success
                                     : colors.text,
                                 fontWeight: "700",
                               },
                             ]}
                           >
-                            {item.http_status ? `${item.http_status}` : "Pending Network Call"}
+                            {item.http_status
+                              ? `${item.http_status}`
+                              : item.status === "COMMITTED"
+                              ? "2xx (legacy)"
+                              : "Pending Network Call"}
                           </Text>
                         </View>
 
@@ -408,7 +414,14 @@ export const SyncInspectorModal: React.FC<SyncInspectorModalProps> = ({
                           <Text
                             style={[
                               styles.codeTitle,
-                              { color: hasError ? colors.danger : colors.success, fontWeight: "700" },
+                              {
+                                color: hasError
+                                  ? colors.danger
+                                  : item.status === "COMMITTED"
+                                  ? colors.success
+                                  : colors.textMuted,
+                                fontWeight: "700",
+                              },
                             ]}
                           >
                             {hasError ? "BACKEND ERROR MESSAGE" : "BACKEND API RESPONSE (RETURNED)"}
@@ -440,6 +453,8 @@ export const SyncInspectorModal: React.FC<SyncInspectorModalProps> = ({
                                 {
                                   color: hasError
                                     ? colors.danger
+                                    : item.status === "COMMITTED" && !hasResponse
+                                    ? colors.success
                                     : isDark
                                     ? "#38bdf8"
                                     : "#0369a1",
@@ -450,6 +465,8 @@ export const SyncInspectorModal: React.FC<SyncInspectorModalProps> = ({
                                 ? formatJson(item.response_json)
                                 : item.last_error
                                 ? item.last_error
+                                : item.status === "COMMITTED"
+                                ? "✓ Successfully synced to server.\n(Response body not captured — this mutation was synced before API response logging was enabled.)"
                                 : "No response yet (waiting in outbox queue)"}
                             </Text>
                           </ScrollView>
@@ -484,7 +501,7 @@ export const SyncInspectorModal: React.FC<SyncInspectorModalProps> = ({
                         </View>
                       </View>
 
-                      {/* Retry Action for Failed or Pending */}
+                      {/* Retry Action — only for non-committed mutations */}
                       {item.status !== "COMMITTED" && (
                         <View style={{ marginTop: 12 }}>
                           <Button
@@ -498,6 +515,7 @@ export const SyncInspectorModal: React.FC<SyncInspectorModalProps> = ({
                         </View>
                       )}
                     </View>
+
                   )}
                 </Card>
               );
