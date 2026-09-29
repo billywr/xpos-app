@@ -38,6 +38,11 @@ Run single test:
 
 ## Non-Negotiable Hard Constraints
 
+0. **Live Production Server Protection**:
+   - Remote servers (e.g. `https://62.169.22.51:9005`, Keycloak `https://62.169.22.51:8443`) are **LIVE PRODUCTION SERVERS**.
+   - **NEVER** update anything, add info, or delete data on the live server.
+   - All tests, Flyway migrations, and write operations must run strictly in local development environments (local Docker compose, PostgreSQL).
+
 1. **Checkstyle Compliance is Mandatory**:
    - No tabs. 4-space indentation.
    - Newline at EOF.

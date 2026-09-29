@@ -13,7 +13,7 @@ public record MiscExpenseCreateRequest(
         @DecimalMin(value = "0.01", message = "Amount must be positive")
         BigDecimal amount,
     @NotBlank(message = "Category is required") @Size(max = 100) String category,
-    @NotBlank(message = "Description is required") String description,
+    String description,
     String incurredBy,
     String receiptRef,
     UUID terminalId,

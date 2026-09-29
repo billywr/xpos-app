@@ -162,7 +162,7 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
-  void createExpenseWithMissingDescriptionReturns400() throws Exception {
+  void createExpenseWithBlankDescriptionSucceeds() throws Exception {
     UUID orgId = createOrg();
     UUID businessId = createBusiness(orgId);
     UUID branchId = createBranch(orgId, businessId);
@@ -180,7 +180,8 @@ class MiscExpenseOperatorControllerIT extends AbstractIntegrationTest {
                 .with(operatorJwt())
                 .contentType(APPLICATION_JSON)
                 .content(createBody))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.description").value(""));
   }
 
   @Test
