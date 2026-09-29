@@ -48,7 +48,7 @@ import {
   tableRowNoHead,
   tableRowNoCell,
 } from "@/components/ui";
-import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import { formatCurrency, formatAmount, formatPercent } from "@/utils/formatCurrency";
 import { filterRowsBySearch } from "@/utils/tableSearchMatch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import {
@@ -1357,8 +1357,8 @@ export function DebtsAndExpensesPage({
     ev.preventDefault();
     if (!editingExpense) return;
     const amount = parseFloat(editExpAmount);
-    if (isNaN(amount) || amount <= 0 || !editExpDescription.trim()) {
-      toast.error("Enter a valid amount and description.");
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Enter a valid amount.");
       return;
     }
     setEditExpSubmitting(true);
@@ -1368,7 +1368,7 @@ export function DebtsAndExpensesPage({
         body: {
           amount,
           category: editExpCategory,
-          description: editExpDescription.trim(),
+          description: editExpDescription.trim() || editExpCategory || "General",
           incurredBy: editExpIncurredBy.trim() || undefined,
           receiptRef: editExpReceiptRef.trim() || undefined,
         },
@@ -1391,14 +1391,14 @@ export function DebtsAndExpensesPage({
   const handleExpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const amount = parseFloat(expFormAmount);
-    if (isNaN(amount) || amount <= 0 || !expFormDescription.trim()) {
-      toast.error("Enter a valid amount and description.");
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Enter a valid amount.");
       return;
     }
     createExpMutation.mutate({
       amount,
       category: expFormCategory,
-      description: expFormDescription.trim(),
+      description: expFormDescription.trim() || expFormCategory || "General",
       incurredBy: expFormIncurredBy.trim() || undefined,
       receiptRef: expFormReceiptRef.trim() || undefined,
       createdAt: recordedAtToCreatedAt(expFormRecordedOn),
@@ -2199,7 +2199,7 @@ export function DebtsAndExpensesPage({
                               <td className="px-2 py-1.5 sm:px-6 sm:py-2.5">
                                 <span className="inline-flex justify-start rounded-full bg-slate-100 px-2 py-0.5 text-left text-[11px] font-medium text-slate-700 sm:text-xs xl:text-sm dark:bg-slate-700 dark:text-slate-300">{e.category}</span>
                               </td>
-                              <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{e.description}</td>
+                              <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{e.description || "—"}</td>
                               {showExpReceiptRefCol && (
                                 <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{e.receiptRef ?? "—"}</td>
                               )}
@@ -2655,8 +2655,8 @@ export function DebtsAndExpensesPage({
             <input id="expIncurredBy" type="text" value={expFormIncurredBy} onChange={(e) => setExpFormIncurredBy(e.target.value)} placeholder="Name of person who incurred the expense" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
           </div>
           <div>
-            <label htmlFor="expDescription" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Description *</label>
-            <textarea id="expDescription" rows={3} required value={expFormDescription} onChange={(e) => setExpFormDescription(e.target.value)} placeholder="e.g. Electricity bill for January" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+            <label htmlFor="expDescription" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Description</label>
+            <textarea id="expDescription" rows={3} value={expFormDescription} onChange={(e) => setExpFormDescription(e.target.value)} placeholder="Optional — e.g. Electricity bill for January" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
           </div>
           <div>
             <label htmlFor="expReceiptRef" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Receipt / Invoice reference</label>
@@ -2710,8 +2710,8 @@ export function DebtsAndExpensesPage({
               <input id="editExpIncurredBy" type="text" value={editExpIncurredBy} onChange={(e) => setEditExpIncurredBy(e.target.value)} placeholder="Name of person who incurred the expense" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             </div>
             <div>
-              <label htmlFor="editExpDescription" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Description *</label>
-              <textarea id="editExpDescription" rows={3} required value={editExpDescription} onChange={(e) => setEditExpDescription(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+              <label htmlFor="editExpDescription" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Description</label>
+              <textarea id="editExpDescription" rows={3} value={editExpDescription} onChange={(e) => setEditExpDescription(e.target.value)} placeholder="Optional — e.g. Electricity bill for January" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             </div>
             <div>
               <label htmlFor="editExpReceiptRef" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Receipt / Invoice reference</label>
@@ -2805,7 +2805,7 @@ export function DebtsAndExpensesPage({
                         {formatAmount(r.amount)}
                       </td>
                       <td className="px-6 py-2.5 text-left text-lg font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                        {r.pct.toFixed(1)}%
+                        {formatPercent(r.pct, 2)}
                       </td>
                       <td className="px-6 py-2.5 text-left">
                         <button
@@ -2897,7 +2897,7 @@ export function DebtsAndExpensesPage({
                         {formatAmount(r.amount)}
                       </td>
                       <td className="px-6 py-2.5 text-left text-lg font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                        {r.pct.toFixed(1)}%
+                        {formatPercent(r.pct, 2)}
                       </td>
                     </tr>
                   ))}

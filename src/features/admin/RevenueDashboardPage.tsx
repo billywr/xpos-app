@@ -21,20 +21,64 @@ import { fetchMiscExpenses } from "@/api/miscExpenses";
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { getApiErrorMessage } from "@/utils/apiError";
-import { formatCurrency } from "@/utils/formatCurrency";
-import { TrendingUp, DollarSign, Receipt, Percent, Package, CircleDollarSign, AlertTriangle, CreditCard } from "lucide-react";
+import { formatCurrency, formatPercent } from "@/utils/formatCurrency";
+import { cn } from "@/utils/cn";
+import {
+  TrendingUp,
+  DollarSign,
+  Receipt,
+  Percent,
+  Package,
+  CircleDollarSign,
+  AlertTriangle,
+  CreditCard,
+  ChevronRight,
+  Search,
+  X,
+  Calendar,
+} from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { DateInput } from "@/components/ui";
+import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
 
-function useDateRange(days = 30) {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - days);
-  return {
-    startDate: start.toISOString().slice(0, 10),
-    endDate: end.toISOString().slice(0, 10),
-  };
+function formatLocalDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function toLocalDateStr(isoString: string): string {
+  try {
+    const d = new Date(isoString);
+    return formatLocalDate(d);
+  } catch {
+    return isoString.slice(0, 10);
+  }
+}
+
+type PresetRange = "today" | "7days" | "30days" | "thisMonth" | "custom";
+
+function getRangeDates(preset: PresetRange): { start: string; end: string } {
+  const now = new Date();
+  const today = formatLocalDate(now);
+  if (preset === "today") {
+    return { start: today, end: today };
+  }
+  if (preset === "7days") {
+    const s = new Date(now);
+    s.setDate(s.getDate() - 7);
+    return { start: formatLocalDate(s), end: today };
+  }
+  if (preset === "thisMonth") {
+    const s = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { start: formatLocalDate(s), end: today };
+  }
+  // 30days default
+  const s = new Date(now);
+  s.setDate(s.getDate() - 30);
+  return { start: formatLocalDate(s), end: today };
 }
 
 function AnimatedNumber({
@@ -110,15 +154,21 @@ const chartVariants = {
 export function RevenueDashboardPage() {
   const toast = useToast();
   const token = useAppSelector(selectToken);
-  const defaultRange = useDateRange(30);
+  const [activePreset, setActivePreset] = useState<PresetRange>("30days");
+  const initialDates = useMemo(() => getRangeDates("30days"), []);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
-  const [startDate, setStartDate] = useState(defaultRange.startDate);
-  const [endDate, setEndDate] = useState(defaultRange.endDate);
+  const [startDate, setStartDate] = useState(initialDates.start);
+  const [endDate, setEndDate] = useState(initialDates.end);
   const [submittedRange, setSubmittedRange] = useState<{
     start: string;
     end: string;
   } | null>(null);
+
+  // Expense breakdown modal & filter state
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [expenseSearch, setExpenseSearch] = useState("");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("ALL");
 
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
@@ -227,7 +277,20 @@ export function RevenueDashboardPage() {
     }
   }, [selectedOrgId, selectedBranchId, startDate, endDate, submittedRange]);
 
+  const handleSelectPreset = (preset: PresetRange) => {
+    setActivePreset(preset);
+    if (preset !== "custom") {
+      const r = getRangeDates(preset);
+      setStartDate(r.start);
+      setEndDate(r.end);
+      if (selectedOrgId && selectedBranchId) {
+        setSubmittedRange({ start: r.start, end: r.end });
+      }
+    }
+  };
+
   const handleStartDateChange = (newStart: string) => {
+    setActivePreset("custom");
     if (endDate && newStart && newStart > endDate) {
       setStartDate(newStart);
       setEndDate(newStart);
@@ -243,6 +306,7 @@ export function RevenueDashboardPage() {
   };
 
   const handleEndDateChange = (newEnd: string) => {
+    setActivePreset("custom");
     if (startDate && newEnd && newEnd < startDate) {
       setStartDate(newEnd);
       setEndDate(newEnd);
@@ -280,18 +344,72 @@ export function RevenueDashboardPage() {
     return fromApi > 0 ? fromApi : fromDash;
   }, [expensesData?.totalAmount, dashboard?.summary?.expenseTotal]);
 
+  const grossProfit = useMemo(() => {
+    if (!dashboard?.summary) return 0;
+    const { revenueTotal, cogsTotal } = dashboard.summary;
+    return revenueTotal - cogsTotal;
+  }, [dashboard]);
+
+  const grossMargin = useMemo(() => {
+    if (!dashboard?.summary || dashboard.summary.revenueTotal <= 0) return 0;
+    return (grossProfit / dashboard.summary.revenueTotal) * 100;
+  }, [dashboard, grossProfit]);
+
   const netProfit = useMemo(() => {
     if (!dashboard?.summary) return 0;
     const { revenueTotal, cogsTotal } = dashboard.summary;
     return revenueTotal - cogsTotal - expenseTotal;
   }, [dashboard, expenseTotal]);
 
+  const netMargin = useMemo(() => {
+    if (!dashboard?.summary || dashboard.summary.revenueTotal <= 0) return 0;
+    return (netProfit / dashboard.summary.revenueTotal) * 100;
+  }, [dashboard, netProfit]);
+
+  const expenseCategoriesSummary = useMemo(() => {
+    const list = expensesData?.content ?? [];
+    const map: Record<string, { count: number; total: number }> = {};
+    for (const exp of list) {
+      const cat = exp.category || "General";
+      if (!map[cat]) map[cat] = { count: 0, total: 0 };
+      map[cat].count += 1;
+      map[cat].total += Number(exp.amount || 0);
+    }
+    const total = Number(expensesData?.totalAmount || expenseTotal || 0);
+    return Object.entries(map)
+      .map(([category, data]) => ({
+        category,
+        count: data.count,
+        total: data.total,
+        percentage: total > 0 ? (data.total / total) * 100 : 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [expensesData?.content, expensesData?.totalAmount, expenseTotal]);
+
+  const filteredExpenses = useMemo(() => {
+    let list = expensesData?.content ?? [];
+    if (selectedCategoryFilter !== "ALL") {
+      list = list.filter((e) => (e.category || "General") === selectedCategoryFilter);
+    }
+    if (expenseSearch.trim()) {
+      const q = expenseSearch.toLowerCase();
+      list = list.filter(
+        (e) =>
+          e.description?.toLowerCase().includes(q) ||
+          e.category?.toLowerCase().includes(q) ||
+          e.incurredBy?.toLowerCase().includes(q) ||
+          e.receiptRef?.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [expensesData?.content, selectedCategoryFilter, expenseSearch]);
+
   const dailyExpensesMap = useMemo(() => {
     const map: Record<string, number> = {};
     if (expensesData?.content) {
       for (const exp of expensesData.content) {
         if (!exp.createdAt || exp.amount == null) continue;
-        const d = exp.createdAt.slice(0, 10);
+        const d = toLocalDateStr(exp.createdAt);
         map[d] = (map[d] ?? 0) + Number(exp.amount);
       }
     }
@@ -327,6 +445,39 @@ export function RevenueDashboardPage() {
             Business revenue status, profit and loss tracking with trends.
           </p>
         </div>
+      </div>
+
+      {/* Quick Range Presets */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          Quick Range:
+        </span>
+        {(
+          [
+            { key: "today", label: "Today" },
+            { key: "7days", label: "7 Days" },
+            { key: "30days", label: "30 Days" },
+            { key: "thisMonth", label: "This Month" },
+            { key: "custom", label: "Custom" },
+          ] as const
+        ).map((p) => {
+          const isSelected = activePreset === p.key;
+          return (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => handleSelectPreset(p.key)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                isSelected
+                  ? "bg-primary-600 text-white shadow-sm dark:bg-primary-500"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              )}
+            >
+              {p.label}
+            </button>
+          );
+        })}
       </div>
 
       <form onSubmit={handleLoad} className="mb-6 flex flex-wrap items-end gap-4">
@@ -438,7 +589,8 @@ export function RevenueDashboardPage() {
           animate="visible"
           className="space-y-6"
         >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+            {/* 0. Revenue */}
             <motion.div
               variants={cardVariants}
               custom={0}
@@ -452,8 +604,11 @@ export function RevenueDashboardPage() {
                 <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
                   <AnimatedNumber value={dashboard.summary.revenueTotal} />
                 </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Total gross sales</p>
               </div>
             </motion.div>
+
+            {/* 1. Cost of goods */}
             <motion.div
               variants={cardVariants}
               custom={1}
@@ -467,41 +622,96 @@ export function RevenueDashboardPage() {
                 <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
                   <AnimatedNumber value={dashboard.summary.cogsTotal} />
                 </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Direct product cost</p>
               </div>
             </motion.div>
+
+            {/* 2. Profit (Before Expenses) */}
             <motion.div
               variants={cardVariants}
               custom={2}
-              className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-amber-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-amber-950/30 dark:to-slate-800"
+              className="overflow-hidden rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50 to-white shadow-sm transition hover:shadow-md dark:border-teal-800/60 dark:from-teal-950/30 dark:to-slate-800"
             >
               <div className="p-4">
-                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                  <CreditCard className="h-5 w-5" />
-                  <span className="text-sm font-medium">Expenses</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-teal-600 dark:text-teal-400">
+                    <TrendingUp className="h-5 w-5" />
+                    <span className="text-sm font-medium">Profit</span>
+                  </div>
+                  <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-semibold text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">
+                    {formatPercent(grossMargin, 2)}
+                  </span>
+                </div>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
+                  <AnimatedNumber value={grossProfit} />
+                </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Before expenses</p>
+              </div>
+            </motion.div>
+
+            {/* 3. Expenses (Interactive Breakdown) */}
+            <motion.div
+              variants={cardVariants}
+              custom={3}
+              onClick={() => setShowExpenseModal(true)}
+              className="group relative cursor-pointer overflow-hidden rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white shadow-sm transition-all duration-200 hover:border-amber-400 hover:shadow-md dark:border-slate-700 dark:from-amber-950/30 dark:to-slate-800 dark:hover:border-amber-500"
+              title="Click to see breakdown of expenses for this period"
+            >
+              <div className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                    <CreditCard className="h-5 w-5" />
+                    <span className="text-sm font-medium">Expenses</span>
+                  </div>
+                  <span className="flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 transition group-hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:group-hover:bg-amber-900/60">
+                    <span>Breakdown</span>
+                    <ChevronRight className="h-3 w-3" />
+                  </span>
                 </div>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
                   <AnimatedNumber value={expenseTotal} />
                 </p>
+                <p className="mt-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                  <span>{expensesData?.content?.length ?? 0} items</span>
+                  <span className="text-amber-600 underline group-hover:font-medium dark:text-amber-400">View details</span>
+                </p>
               </div>
             </motion.div>
+
+            {/* 4. Net profit */}
             <motion.div
               variants={cardVariants}
-              custom={3}
+              custom={4}
               className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-violet-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-violet-950/30 dark:to-slate-800"
             >
               <div className="p-4">
-                <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
-                  <CircleDollarSign className="h-5 w-5" />
-                  <span className="text-sm font-medium">Net profit</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
+                    <CircleDollarSign className="h-5 w-5" />
+                    <span className="text-sm font-medium">Net profit</span>
+                  </div>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-xs font-semibold",
+                      netProfit >= 0
+                        ? "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300"
+                        : "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300"
+                    )}
+                  >
+                    {formatPercent(netMargin, 2)}
+                  </span>
                 </div>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
                   <AnimatedNumber value={netProfit} />
                 </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Profit - Expenses</p>
               </div>
             </motion.div>
+
+            {/* 5. Tax */}
             <motion.div
               variants={cardVariants}
-              custom={4}
+              custom={5}
               className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-blue-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-blue-950/30 dark:to-slate-800"
             >
               <div className="p-4">
@@ -512,11 +722,14 @@ export function RevenueDashboardPage() {
                 <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
                   <AnimatedNumber value={dashboard.summary.taxTotal} />
                 </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">VAT / Tax collected</p>
               </div>
             </motion.div>
+
+            {/* 6. Sales */}
             <motion.div
               variants={cardVariants}
-              custom={5}
+              custom={6}
               className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-sky-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-sky-950/30 dark:to-slate-800"
             >
               <div className="p-4">
@@ -527,6 +740,7 @@ export function RevenueDashboardPage() {
                 <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
                   <AnimatedCount value={dashboard.summary.saleCount} />
                 </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Completed receipts</p>
               </div>
             </motion.div>
           </div>
@@ -597,6 +811,173 @@ export function RevenueDashboardPage() {
           </AnimatePresence>
         </motion.div>
       ) : null}
+
+      {/* Expense Breakdown Modal */}
+      <Modal
+        open={showExpenseModal}
+        onClose={() => {
+          setShowExpenseModal(false);
+          setExpenseSearch("");
+          setSelectedCategoryFilter("ALL");
+        }}
+        title="Expense Breakdown"
+        maxWidth="max-w-3xl"
+        scrollable
+      >
+        <div className="space-y-4">
+          {/* Header context */}
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200/70 bg-amber-50/60 p-3.5 dark:border-amber-800/40 dark:bg-amber-950/20">
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                Period Filter
+              </span>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                {submittedRange?.start === submittedRange?.end
+                  ? `Today (${submittedRange?.start})`
+                  : `${submittedRange?.start} to ${submittedRange?.end}`}
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                Total Expenses
+              </span>
+              <p className="text-lg font-bold text-amber-900 dark:text-amber-200">
+                {formatCurrency(expenseTotal)}
+              </p>
+            </div>
+          </div>
+
+          {/* Category Chips Distribution */}
+          {expenseCategoriesSummary.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Category Distribution
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategoryFilter("ALL")}
+                  className={cn(
+                    "rounded-lg px-2.5 py-1 text-xs font-medium transition",
+                    selectedCategoryFilter === "ALL"
+                      ? "bg-slate-800 text-white dark:bg-white dark:text-slate-900"
+                      : "border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                  )}
+                >
+                  All ({expensesData?.content?.length ?? 0})
+                </button>
+                {expenseCategoriesSummary.map((cat) => {
+                  const isCatSelected = selectedCategoryFilter === cat.category;
+                  return (
+                    <button
+                      key={cat.category}
+                      type="button"
+                      onClick={() =>
+                        setSelectedCategoryFilter(
+                          isCatSelected ? "ALL" : cat.category
+                        )
+                      }
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition",
+                        isCatSelected
+                          ? "bg-amber-600 text-white shadow-sm dark:bg-amber-500"
+                          : "border border-amber-200 bg-amber-50/70 text-amber-900 hover:bg-amber-100 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
+                      )}
+                    >
+                      <span>{cat.category}</span>
+                      <span className="opacity-80">({formatCurrency(cat.total)})</span>
+                      <span className="rounded bg-black/10 px-1 text-[10px] dark:bg-white/10">
+                        {formatPercent(cat.percentage, 2)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Search bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={expenseSearch}
+              onChange={(e) => setExpenseSearch(e.target.value)}
+              placeholder="Search expenses by description, staff, or receipt..."
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-8 text-sm text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            />
+            {expenseSearch && (
+              <button
+                type="button"
+                onClick={() => setExpenseSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Expense Item List */}
+          <div className="max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
+            {filteredExpenses.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 dark:text-slate-400">
+                <CreditCard className="mx-auto mb-2 h-8 w-8 text-slate-400 opacity-60 dark:text-slate-500" />
+                <p className="font-medium">No expenses recorded</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  No expense records match the selected date filter and criteria.
+                </p>
+              </div>
+            ) : (
+              filteredExpenses.map((exp) => (
+                <div
+                  key={exp.id}
+                  className="flex items-center justify-between p-3.5 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-700/40"
+                >
+                  <div className="min-w-0 flex-1 pr-3">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                        {exp.category || "General"}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                        <Calendar className="h-3 w-3" />
+                        {toLocalDateStr(exp.createdAt)}
+                      </span>
+                      {exp.receiptRef && (
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                          Ref: {exp.receiptRef}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 truncate text-sm font-medium text-slate-900 dark:text-white">
+                      {exp.description || "No description"}
+                    </p>
+                    {exp.incurredBy && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Incurred by: {exp.incurredBy}
+                      </p>
+                    )}
+                  </div>
+                  <div className="whitespace-nowrap text-right">
+                    <span className="text-sm font-bold tabular-nums text-slate-900 dark:text-white">
+                      {formatCurrency(exp.amount)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="button"
+              onClick={() => setShowExpenseModal(false)}
+              className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -247,8 +247,8 @@ export function MiscExpensesPage() {
     ev.preventDefault();
     if (!editingExpense) return;
     const amount = parseFloat(editAmount);
-    if (isNaN(amount) || amount <= 0 || !editDescription.trim()) {
-      toast.error("Enter a valid amount and description.");
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Enter a valid amount.");
       return;
     }
     setEditSubmitting(true);
@@ -258,7 +258,7 @@ export function MiscExpensesPage() {
         body: {
           amount,
           category: editCategory,
-          description: editDescription.trim(),
+          description: editDescription.trim() || editCategory || "General",
           incurredBy: editIncurredBy.trim() || undefined,
           receiptRef: editReceiptRef.trim() || undefined,
         },
@@ -281,14 +281,14 @@ export function MiscExpensesPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const amount = parseFloat(formAmount);
-    if (isNaN(amount) || amount <= 0 || !formDescription.trim()) {
-      toast.error("Enter a valid amount and description.");
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Enter a valid amount.");
       return;
     }
     createMutation.mutate({
       amount,
       category: formCategory,
-      description: formDescription.trim(),
+      description: formDescription.trim() || formCategory || "General",
       incurredBy: formIncurredBy.trim() || undefined,
       receiptRef: formReceiptRef.trim() || undefined,
       createdAt: recordedAtToCreatedAt(formRecordedOn),
@@ -474,7 +474,7 @@ export function MiscExpensesPage() {
                           </span>
                         </td>
                         <td className={tableBodyCell}>
-                          {e.description}
+                          {e.description || "—"}
                         </td>
                         {showReceiptRefCol && (
                           <td className={tableBodyCell}>
@@ -622,15 +622,14 @@ export function MiscExpensesPage() {
               htmlFor="description"
               className="block text-sm font-medium text-slate-700 dark:text-slate-300"
             >
-              Description *
+              Description
             </label>
             <textarea
               id="description"
               rows={3}
-              required
               value={formDescription}
               onChange={(e) => setFormDescription(e.target.value)}
-              placeholder="e.g. Electricity bill for January"
+              placeholder="Optional — e.g. Electricity bill for January"
               className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
             />
           </div>
@@ -747,14 +746,14 @@ export function MiscExpensesPage() {
                 htmlFor="editDescription"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Description *
+                Description
               </label>
               <textarea
                 id="editDescription"
                 rows={3}
-                required
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Optional — e.g. Electricity bill for January"
                 className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               />
             </div>

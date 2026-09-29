@@ -10,6 +10,7 @@ import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
 import { InlineCopilot } from "@/components/InlineCopilot";
 import {
+  Button,
   Pagination,
   SortableTableHead,
   TableRowNumberHead,
@@ -31,6 +32,8 @@ import { TABLE_SEARCH_FETCH_SIZE } from "@/constants/tableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatAmount } from "@/utils/formatCurrency";
 import { formatQty } from "@/utils/formatQuantity";
+import { useToast } from "@/contexts/ToastContext";
+import { downloadItemsPdf } from "@/utils/itemsPdf";
 import {
   AlertCircle,
   AlertTriangle,
@@ -45,6 +48,8 @@ import {
   Percent,
   TrendingDown,
   TrendingUp,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -129,6 +134,24 @@ export function InventoryPage({
   const filteredOrgs = filterActiveOrgs(orgs);
   const filteredBranches = filterNonDeletedBranches(branches);
   const lines = reportData?.content ?? [];
+
+  const toast = useToast();
+  const [downloadingItemsPdf, setDownloadingItemsPdf] = useState(false);
+
+  const handleDownloadItemsPdf = async () => {
+    if (!token || !selectedOrgId) return;
+    setDownloadingItemsPdf(true);
+    try {
+      const allItems = await fetchAllOrgItems(token, selectedOrgId);
+      const orgName = orgs.find((o) => o.id === selectedOrgId)?.name ?? "Organization";
+      downloadItemsPdf(allItems, { orgName });
+      toast.success("PDF downloaded.", { title: "Items list" });
+    } catch (err) {
+      toast.error(getApiErrorMessage(err));
+    } finally {
+      setDownloadingItemsPdf(false);
+    }
+  };
 
   const {
     searchQuery,
@@ -292,6 +315,20 @@ export function InventoryPage({
                 <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
               )}
             </button>
+            <Button
+              variant="outline"
+              onClick={handleDownloadItemsPdf}
+              disabled={downloadingItemsPdf || !selectedOrgId}
+              title="Download PDF document of all items"
+              className="flex min-h-[40px] items-center gap-1.5"
+            >
+              {downloadingItemsPdf ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              <span>Download items PDF</span>
+            </Button>
           </div>
           {showAnalytics && (
             <AnalyticsPanel

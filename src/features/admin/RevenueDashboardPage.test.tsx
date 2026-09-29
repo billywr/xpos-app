@@ -212,4 +212,66 @@ describe("RevenueDashboardPage", () => {
     expect(screen.getByRole("button", { name: /load dashboard/i })).toBeInTheDocument();
     expect(screen.getByText(/Business revenue status/)).toBeInTheDocument();
   });
+
+  it("displays Profit (before expenses) tile alongside Net profit", async () => {
+    wrap(<RevenueDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /load dashboard/i })).toBeInTheDocument();
+    });
+
+    const { fireEvent } = await import("@testing-library/react");
+    fireEvent.click(screen.getByRole("button", { name: /load dashboard/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Profit")).toBeInTheDocument();
+      expect(screen.getByText("Before expenses")).toBeInTheDocument();
+      expect(screen.getByText("Net profit")).toBeInTheDocument();
+      expect(screen.getByText("Profit - Expenses")).toBeInTheDocument();
+    });
+  });
+
+  it("opens expense breakdown modal when clicking Expenses card", async () => {
+    wrap(<RevenueDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /load dashboard/i })).toBeInTheDocument();
+    });
+
+    const { fireEvent } = await import("@testing-library/react");
+    fireEvent.click(screen.getByRole("button", { name: /load dashboard/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Expenses")).toBeInTheDocument();
+    });
+
+    // Click Expenses tile to open modal
+    const expensesTile = screen.getByTitle(/Click to see breakdown of expenses/i);
+    fireEvent.click(expensesTile);
+
+    await waitFor(() => {
+      expect(screen.getByText("Expense Breakdown")).toBeInTheDocument();
+      expect(screen.getByText("Category Distribution")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Search expenses by description/i)).toBeInTheDocument();
+    });
+  });
+
+  it("changes range when quick preset button is clicked", async () => {
+    wrap(<RevenueDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Today")).toBeInTheDocument();
+      expect(screen.getByText("7 Days")).toBeInTheDocument();
+      expect(screen.getByText("This Month")).toBeInTheDocument();
+    });
+
+    const { fireEvent } = await import("@testing-library/react");
+    fireEvent.click(screen.getByText("Today"));
+
+    // Quick range triggers load dashboard immediately when org and branch are selected
+    await waitFor(() => {
+      expect(revenueApi.fetchRevenueDashboard).toHaveBeenCalled();
+      expect(miscExpensesApi.fetchMiscExpenses).toHaveBeenCalled();
+    });
+  });
 });

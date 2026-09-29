@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { PageTransition } from "@/components/ui/PageTransition";
-import { Store, LayoutDashboard, LogOut, Sun, Moon, Menu, X } from "lucide-react";
+import { Store, LayoutDashboard, LogOut, Sun, Moon, Menu, X, Server } from "lucide-react";
+import { ServerConfigModal } from "@/components/ServerConfigModal";
 import { ContextSelectDropdowns } from "@/components/ContextSelectDropdowns";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
@@ -44,6 +45,7 @@ export function Layout() {
   const appName = navVisibility ? getHeaderLabel(APP_NAME_KEY, "XPOS") : "XPOS";
   const logoUrl = navVisibility ? getHeaderLogo() : null;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showServerModal, setShowServerModal] = useState(false);
 
   useLayoutEffect(() => {
     document.title = appName ? `${appName} — POS` : "XPOS";
@@ -147,6 +149,15 @@ export function Layout() {
               >
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
+              <button
+                type="button"
+                onClick={() => setShowServerModal(true)}
+                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
+                aria-label="Server & IAM configuration"
+                title="Server & IAM configuration"
+              >
+                <Server className="h-4 w-4" />
+              </button>
               {token && (
                 <button
                   type="button"
@@ -227,6 +238,10 @@ export function Layout() {
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <PageTransition />
       </main>
+      <ServerConfigModal
+        open={showServerModal}
+        onClose={() => setShowServerModal(false)}
+      />
     </div>
   );
 }

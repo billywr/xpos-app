@@ -8,6 +8,7 @@ import { fetchTaxProfiles } from "@/api/taxProfiles";
 import { fetchModifierGroups } from "@/api/modifierGroups";
 import {
   fetchItems,
+  fetchAllOrgItems,
   fetchItem,
   createItem,
   updateItem,
@@ -52,9 +53,10 @@ import { useDataTable } from "@/hooks/useDataTable";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { formatAmount } from "@/utils/formatCurrency";
+import { downloadItemsPdf } from "@/utils/itemsPdf";
 import { getItemImageUrl, getItemImageName } from "@/utils/itemImage";
 import { resizeImageTo400x400 } from "@/utils/imageResize";
-import { Plus, Pencil, Trash2, Upload, ChevronDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Upload, ChevronDown, Download, Loader2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { BARCODE_ITEMS, isBarcodeVisible } from "@/config/barcodeVisibility";
@@ -757,6 +759,23 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     deleteItemMutation.mutate(confirmDelete.id);
   };
 
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (!token || !selectedOrgId) return;
+    setDownloadingPdf(true);
+    try {
+      const allItems = await fetchAllOrgItems(token, selectedOrgId);
+      const orgName = orgs.find((o) => o.id === selectedOrgId)?.name ?? "Organization";
+      downloadItemsPdf(allItems, { orgName });
+      toast.success("PDF downloaded.", { title: "Items list" });
+    } catch (err) {
+      toast.error(getApiErrorMessage(err));
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   const categoryName = (id: string | null) =>
     id ? categories.find((c: Category) => c.id === id)?.name ?? id : "—";
 
@@ -901,6 +920,20 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               placeholder="Search items…"
               className="w-full sm:w-64"
             />
+            <Button
+              variant="outline"
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf || !selectedOrgId}
+              title="Download PDF document of all items"
+              className="flex items-center gap-1.5"
+            >
+              {downloadingPdf ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              <span>Download PDF</span>
+            </Button>
             <Button onClick={openCreate}>
               <Plus className="h-4 w-4" />
               Add item

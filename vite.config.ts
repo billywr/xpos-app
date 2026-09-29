@@ -30,11 +30,27 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:9003",
         changeOrigin: true,
+        secure: false,
+        router: (req) => {
+          const target = req.headers["x-target-api"] as string | undefined;
+          if (target && target.startsWith("http")) {
+            return target.replace(/\/$/, "");
+          }
+          return "http://localhost:9003";
+        },
       },
       // Avoid CORS with Keycloak in dev: browser calls same origin, Vite forwards to Keycloak
       "/keycloak": {
         target: "http://localhost:8088",
         changeOrigin: true,
+        secure: false,
+        router: (req) => {
+          const target = req.headers["x-target-keycloak"] as string | undefined;
+          if (target && target.startsWith("http")) {
+            return target.replace(/\/$/, "");
+          }
+          return "http://localhost:8088";
+        },
         rewrite: (path) => path.replace(/^\/keycloak/, ""),
       },
     },

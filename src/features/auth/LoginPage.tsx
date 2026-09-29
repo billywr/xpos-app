@@ -7,7 +7,8 @@ import { setStoredAuth } from "@/utils/authStorage";
 import { getStoredBranding } from "@/utils/brandingStorage";
 import { getEnv } from "@/utils/env";
 import { getRolesFromToken, getUsernameFromToken } from "@/utils/jwt";
-import { Store } from "lucide-react";
+import { Store, Settings } from "lucide-react";
+import { ServerConfigModal } from "@/components/ServerConfigModal";
 
 export function LoginPage() {
   const dispatch = useAppDispatch();
@@ -29,6 +30,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showServerModal, setShowServerModal] = useState(false);
 
   const keycloakUrl = getEnv("VITE_KEYCLOAK_URL") ?? "";
   const realm = getEnv("VITE_KEYCLOAK_REALM") ?? "xpos";
@@ -67,7 +69,18 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 px-4 dark:bg-slate-900">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-slate-100 px-4 dark:bg-slate-900">
+      {/* Corner Server Config Button */}
+      <button
+        type="button"
+        onClick={() => setShowServerModal(true)}
+        className="absolute right-4 top-4 flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700"
+        title="Server & IAM Configuration"
+      >
+        <Settings className="h-3.5 w-3.5 text-slate-400" />
+        <span>{keycloakUrl.includes("62.169.22.51") ? "Production (Cloud)" : "Local Dev"}</span>
+      </button>
+
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-lg dark:border-slate-700 dark:bg-slate-800">
         <div className="mb-8 flex justify-center">
           <div className="flex items-center gap-2 text-primary-700 dark:text-primary-400">
@@ -149,6 +162,11 @@ export function LoginPage() {
           </button>
         </form>
       </div>
+
+      <ServerConfigModal
+        open={showServerModal}
+        onClose={() => setShowServerModal(false)}
+      />
     </div>
   );
 }

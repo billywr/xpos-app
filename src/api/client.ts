@@ -22,6 +22,18 @@ export function set401Handler(handler: (() => void) | null): void {
 export function getApiBaseUrl(): string {
   const base = getEnv("VITE_API_BASE_URL");
   if (!base) return "";
+  // In browser dev mode, when pointing to a remote backend (e.g. prod 62.169.22.51),
+  // route via same-origin /api so Vite's proxy can forward server-to-server and avoid browser CORS/TLS issues.
+  if (
+    typeof import.meta.env.DEV !== "undefined" &&
+    import.meta.env.DEV &&
+    typeof window !== "undefined" &&
+    window.location?.hostname &&
+    base.startsWith("http") &&
+    !base.includes(window.location.hostname)
+  ) {
+    return "";
+  }
   return base.replace(/\/$/, "");
 }
 
@@ -56,6 +68,10 @@ export async function apiFetch<T>(
   const url = path.startsWith("http") ? path : `${baseUrl}${path}`;
   const headers = new Headers(init.headers);
   headers.set(REQUEST_ID_HEADER, requestId);
+  const targetApi = getEnv("VITE_API_BASE_URL");
+  if (targetApi) {
+    headers.set("x-target-api", targetApi.replace(/\/$/, ""));
+  }
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }

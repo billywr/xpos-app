@@ -51,9 +51,16 @@ export async function loginWithPassword(params: LoginParams): Promise<{
     password: params.password,
   });
 
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  if (params.keycloakUrl) {
+    headers["x-target-keycloak"] = params.keycloakUrl.replace(/\/$/, "");
+  }
+
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers,
     body: body.toString(),
   });
 
@@ -117,9 +124,16 @@ export async function refreshAccessToken(params: {
     refresh_token: params.refreshToken,
   });
 
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  if (params.keycloakUrl) {
+    headers["x-target-keycloak"] = params.keycloakUrl.replace(/\/$/, "");
+  }
+
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers,
     body: body.toString(),
   });
 

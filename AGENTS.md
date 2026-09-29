@@ -41,6 +41,14 @@ npx vitest run src/features/admin/OrgsListPage.test.tsx
 
 ---
 
+## ⚠️ Critical Rule: Live / Production Server Safety
+- Remote backend instances are **LIVE PRODUCTION SERVERS**.
+- **NEVER** update anything on the live server.
+- **NEVER** add new information or delete data on the live server.
+- Dev and E2E tests must run against local backend (`http://localhost:9003`).
+
+---
+
 ## Runtime Config & API Client Contract
 
 Environment variables (`.env.example`):

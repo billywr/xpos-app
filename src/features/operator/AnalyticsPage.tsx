@@ -40,7 +40,7 @@ import {
   fetchOperatorAnalyticsSnapshot,
   downloadBiReportPdf,
 } from "@/api/operatorAnalytics";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatPercent } from "@/utils/formatCurrency";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { DateInput } from "@/components/ui";
@@ -647,7 +647,7 @@ function ComparisonCard({
           <p className="mt-1 flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-white">
             <span className={colorClass}>
               {percentChange > 0 ? "+" : ""}
-              {percentChange.toFixed(1)}%
+              {formatPercent(percentChange, 2)}
             </span>
             <Icon className={`h-6 w-6 ${colorClass}`} />
           </p>

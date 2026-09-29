@@ -1000,11 +1000,6 @@ export function StandardStockCountSheetPage({
     systemSyncMutation,
   ]);
 
-  const sheetHasSavedClosings = useMemo(
-    () => (sheet?.rows ?? []).some((r) => r.closingStock != null),
-    [sheet?.rows]
-  );
-
   const remainingQtyToRecord = cachedSalesPreview?.totalQtyToRecord ?? 0;
   const alreadyRecordedByItem = useMemo(() => {
     const map: Record<string, number> = {};
@@ -1051,7 +1046,6 @@ export function StandardStockCountSheetPage({
 
   const {
     data: cachedReconcilePreview,
-    isFetching: isReconcilePreviewFetching,
     refetch: refetchReconcilePreview,
   } = useQuery({
     queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],

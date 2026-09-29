@@ -16,7 +16,7 @@ export interface MiscExpenseResponse {
 export interface MiscExpenseCreateRequest {
   amount: number;
   category: string;
-  description: string;
+  description?: string;
   incurredBy?: string;
   receiptRef?: string;
   /** ISO 8601 instant. Set to backdate when recording an old expense. */
@@ -26,7 +26,7 @@ export interface MiscExpenseCreateRequest {
 export interface MiscExpenseUpdateRequest {
   amount: number;
   category: string;
-  description: string;
+  description?: string;
   incurredBy?: string;
   receiptRef?: string;
 }
