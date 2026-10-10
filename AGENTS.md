@@ -22,13 +22,9 @@ The backend is a Spring Boot monolith using Flyway migrations and Keycloak for I
 ## Commands & Verification Workflow
 
 ```bash
-npm run dev          # Vite dev server (5173) — verify after meaningful changes
-npm run build        # TypeScript check + production bundle
+npm run test         # Vitest single run (allowed for unit test verification)
+npx tsc -b           # TypeScript check (allowed for type verification)
 npm run lint         # ESLint
-npm run test         # Vitest single run
-npm run test:watch   # Vitest watch mode
-npm run test:e2e     # Playwright E2E
-npm run test:e2e:smoke
 ```
 
 Run single test:
@@ -37,7 +33,11 @@ npx vitest run src/features/admin/OrgsListPage.test.tsx
 ```
 
 > [!IMPORTANT]
-> **Always confirm with `npm run dev` after meaningful UI changes**: The Vite dev server must start cleanly (no compile/transform errors in terminal). In automation, verify until the local server URL appears.
+> **NEVER run frontend dev servers or backend servers (`npm run dev`, `mvn spring-boot:run`)**:
+> - Do NOT launch dev servers, daemons, or browser automation.
+> - You MAY verify changes using unit tests (`npm test`, `npx vitest run`) and type checking (`tsc -b`).
+> - Always ask the user to test the application after completing changes.
+
 
 ---
 

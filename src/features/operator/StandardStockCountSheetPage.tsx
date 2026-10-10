@@ -1024,6 +1024,27 @@ export function StandardStockCountSheetPage({
       ? reactiveTotalQtyToRecord
       : remainingQtyToRecord;
 
+  const reactiveUniqueItemsToRecord = useMemo(() => {
+    let count = 0;
+    for (const r of allComputedRows) {
+      const already = alreadyRecordedByItem[r.itemId] ?? 0;
+      const toRecord = Math.max(0, (r.unitsSold ?? 0) - already);
+      if (toRecord > 0) {
+        count++;
+      }
+    }
+    return count;
+  }, [allComputedRows, alreadyRecordedByItem]);
+
+  const cachedUniqueItemsToRecord = useMemo(() => {
+    return (cachedSalesPreview?.lines ?? []).filter((l) => (l.qtyToRecord ?? 0) > 0).length;
+  }, [cachedSalesPreview?.lines]);
+
+  const effectiveUniqueItemsToRecord =
+    reactiveUniqueItemsToRecord > 0
+      ? reactiveUniqueItemsToRecord
+      : cachedUniqueItemsToRecord;
+
   const showRecordSales =
     showRecordSalesButton &&
     canEdit &&
@@ -1459,8 +1480,8 @@ export function StandardStockCountSheetPage({
               size="sm"
               onClick={handleReconcileClick}
               disabled={reconcileMutation.isPending || saveMutation.isPending}
-              title="Set POS on-hand to match saved closings"
-              aria-label="Reconcile inventory"
+              title={`Set POS on-hand to match saved closings (${itemsToReconcile} item${itemsToReconcile === 1 ? "" : "s"})`}
+              aria-label={`Reconcile inventory (${itemsToReconcile} item${itemsToReconcile === 1 ? "" : "s"})`}
               className="p-2 xl:px-3 xl:py-2 text-xs xl:text-sm shrink-0"
             >
               {reconcileMutation.isPending ? (
@@ -1469,6 +1490,11 @@ export function StandardStockCountSheetPage({
                 <GitCompare className="h-4 w-4 text-primary-600 dark:text-primary-400" />
               )}
               <span className="hidden xl:inline">Reconcile inventory</span>
+              {itemsToReconcile > 0 && (
+                <span className="ml-1.5 rounded-full bg-primary-100 px-1.5 py-0.5 text-xs font-semibold text-primary-800 dark:bg-primary-950/60 dark:text-primary-300">
+                  {itemsToReconcile}
+                </span>
+              )}
             </Button>
           )}
 
@@ -1478,15 +1504,15 @@ export function StandardStockCountSheetPage({
               variant="success"
               size="sm"
               onClick={() => void handleRecordSalesClick()}
-              title="Record sales from Sold column"
-              aria-label="Record sales"
+              title={`Record sales from Sold column (${effectiveUniqueItemsToRecord} item${effectiveUniqueItemsToRecord === 1 ? "" : "s"})`}
+              aria-label={`Record sales (${effectiveUniqueItemsToRecord} item${effectiveUniqueItemsToRecord === 1 ? "" : "s"})`}
               disabled={!recordSalesButtonActive || salesPreviewLoading}
               className="p-2 xl:px-3 xl:py-2 text-xs xl:text-sm shrink-0"
             >
               <ShoppingBag className="h-4 w-4" />
               <span className="hidden xl:inline">Record sales</span>
               <span className="ml-1.5 rounded-full bg-emerald-700 px-1.5 py-0.5 text-xs text-white">
-                {effectiveTotalQtyToRecord}
+                {effectiveUniqueItemsToRecord}
               </span>
             </Button>
           )}

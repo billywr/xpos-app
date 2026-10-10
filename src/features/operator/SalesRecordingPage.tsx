@@ -50,6 +50,7 @@ import {
   DateInput,
 } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
+import { formatAmount } from "@/utils/formatCurrency";
 import { formatQty, parseQty } from "@/utils/formatQuantity";
 import { rowMatchesSearch } from "@/utils/tableSearchMatch";
 import { sortTableRows } from "@/utils/tableSort";
@@ -550,7 +551,7 @@ export function SalesRecordingPage() {
           </span>
           <span>
             Total (KSH):{" "}
-            <span className="font-semibold">{formatQty(batchSummary.total)}</span>
+            <span className="font-semibold">{formatAmount(batchSummary.total)}</span>
           </span>
           {saveDraftMutation.isPending ? (
             <span className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
@@ -693,7 +694,7 @@ export function SalesRecordingPage() {
                           : "N/A"}
                       </td>
                       <td className={`${tableBodyCellNumDebts} whitespace-nowrap`}>
-                        {formatQty(price)}
+                        {formatAmount(price)}
                       </td>
                       <td className={`${tableBodyCell} min-w-[8.5rem]`}>
                         <div className="flex flex-col gap-1">
@@ -728,14 +729,14 @@ export function SalesRecordingPage() {
                       <td className={`${tableBodyCellNumDebts} whitespace-nowrap`}>
                         <div className="flex items-center gap-1.5">
                           {qty > 0 ? (
-                            <span>{formatQty(lineTotal)}</span>
+                            <span>{formatAmount(lineTotal)}</span>
                           ) : savedValue > 0 ? null : (
                             <span>—</span>
                           )}
                           {savedValue > 0 && (
                             <span className="inline-flex items-center gap-1 whitespace-nowrap font-medium text-emerald-600 dark:text-emerald-400">
                               <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                              {formatQty(savedValue)}
+                              {formatAmount(savedValue)}
                             </span>
                           )}
                         </div>
@@ -796,7 +797,7 @@ function StatsCards({ stats, loading }: StatsProps) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatChip
           label="Total sales (KSH)"
-          value={loading ? "…" : formatQty(total)}
+          value={loading ? "…" : formatAmount(total)}
           tone="sales"
         />
         <StatChip
@@ -906,7 +907,7 @@ function InsightsModal({ top, low, onClose }: InsightsModalProps) {
                     </span>
                     <span className="whitespace-nowrap text-slate-500 dark:text-slate-400">
                       {formatQty(t.qtySold)} &middot;{" "}
-                      {formatQty(t.totalValue)} KSH
+                      {formatAmount(t.totalValue)} KSH
                     </span>
                   </li>
                 ))}

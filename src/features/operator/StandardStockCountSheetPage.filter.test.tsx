@@ -1988,5 +1988,139 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
       vi.useRealTimers();
     }
   });
+
+  it("displays unique item count on Record sales badge instead of total quantity sum (e.g. 2 items for 2 tuskers and 4 best gin)", async () => {
+    vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      totalQtyToRecord: 6,
+      totalValueToRecord: 1200,
+      lines: [
+        {
+          itemId: "item-tusker",
+          name: "Tusker",
+          impliedSold: 2,
+          alreadyRecorded: 0,
+          qtyToRecord: 2,
+          qtyRecorded: null,
+          unitPrice: 200,
+          lineValue: 400,
+          status: null,
+        },
+        {
+          itemId: "item-gin",
+          name: "Best Gin",
+          impliedSold: 4,
+          alreadyRecorded: 0,
+          qtyToRecord: 4,
+          qtyRecorded: null,
+          unitPrice: 200,
+          lineValue: 800,
+          status: null,
+        },
+      ],
+    });
+    vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      itemsAdjusted: 0,
+      itemsAlreadyMatched: 2,
+      lines: [],
+    });
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-tusker",
+          sku: "SKU-TUSKER",
+          name: "Tusker",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 200,
+          closingStock: 8,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+        {
+          itemId: "item-gin",
+          sku: "SKU-GIN",
+          name: "Best Gin",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 200,
+          closingStock: 6,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />, "term-1");
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /record sales/i })).toBeInTheDocument();
+    });
+
+    const recordSalesBtn = screen.getByRole("button", { name: /record sales/i });
+    const badge = recordSalesBtn.querySelector("span.rounded-full");
+    expect(badge).toHaveTextContent("2");
+    expect(recordSalesBtn).toHaveAttribute("aria-label", "Record sales (2 items)");
+  });
+
+  it("displays unique item count badge on Reconcile inventory button", async () => {
+    vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      totalQtyToRecord: 0,
+      totalValueToRecord: 0,
+      lines: [],
+    });
+    vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      itemsAdjusted: 3,
+      itemsAlreadyMatched: 1,
+      lines: [
+        { itemId: "item-1", name: "Product 1", closingStock: 10, onHandQty: 8, variance: 2 },
+        { itemId: "item-2", name: "Product 2", closingStock: 5, onHandQty: 7, variance: -2 },
+        { itemId: "item-3", name: "Product 3", closingStock: 12, onHandQty: 10, variance: 2 },
+      ],
+    });
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU-1",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 10,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />, "term-1");
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /reconcile inventory/i })).toBeInTheDocument();
+    });
+
+    const reconcileBtn = screen.getByRole("button", { name: /reconcile inventory/i });
+    const badge = reconcileBtn.querySelector("span.rounded-full");
+    expect(badge).toHaveTextContent("3");
+    expect(reconcileBtn).toHaveAttribute("aria-label", "Reconcile inventory (3 items)");
+  });
 });
 
