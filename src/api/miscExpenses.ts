@@ -107,3 +107,31 @@ export async function cancelMiscExpense(
     { token, method: "POST" }
   );
 }
+
+export interface MiscExpenseGroupSummaryResponse {
+  groupKey: string;
+  groupLabel: string;
+  count: number;
+  totalAmount: number;
+}
+
+export async function fetchGroupedExpenses(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  params: {
+    groupBy: string;
+    fromDate?: string;
+    toDate?: string;
+  }
+): Promise<MiscExpenseGroupSummaryResponse[]> {
+  const search = new URLSearchParams();
+  search.set("groupBy", params.groupBy);
+  if (params.fromDate) search.set("fromDate", params.fromDate);
+  if (params.toDate) search.set("toDate", params.toDate);
+  const qs = search.toString();
+  return apiFetch<MiscExpenseGroupSummaryResponse[]>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/misc-expenses/grouped${qs ? `?${qs}` : ""}`,
+    { token }
+  );
+}

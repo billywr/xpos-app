@@ -182,3 +182,41 @@ export async function cancelDebt(
     { token, method: "POST" }
   );
 }
+
+export interface CustomerDebtGroupSummaryResponse {
+  groupKey: string;
+  groupLabel: string;
+  count: number;
+  totalAmount: number;
+  totalAmountSettled: number;
+  totalOutstanding: number;
+  customerPhone?: string | null;
+}
+
+export async function fetchGroupedDebts(
+  token: string | null,
+  orgId: string,
+  branchId: string,
+  params: {
+    groupBy: string;
+    status?: string | readonly string[];
+    fromDate?: string;
+    toDate?: string;
+  }
+): Promise<CustomerDebtGroupSummaryResponse[]> {
+  const search = new URLSearchParams();
+  search.set("groupBy", params.groupBy);
+  if (params.status !== undefined && params.status !== "") {
+    const list = typeof params.status === "string" ? [params.status] : params.status;
+    for (const s of list) {
+      if (s) search.append("status", s);
+    }
+  }
+  if (params.fromDate) search.set("fromDate", params.fromDate);
+  if (params.toDate) search.set("toDate", params.toDate);
+  const qs = search.toString();
+  return apiFetch<CustomerDebtGroupSummaryResponse[]>(
+    `/api/v1/operator/orgs/${orgId}/branches/${branchId}/debts/grouped${qs ? `?${qs}` : ""}`,
+    { token }
+  );
+}

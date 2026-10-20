@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken, selectUsername } from "@/store/selectors/authSelectors";
@@ -9,6 +9,7 @@ import {
 } from "@/store/selectors/orgContextSelectors";
 import {
   fetchDebts,
+  fetchGroupedDebts,
   createDebt,
   updateDebt,
   cancelDebt,
@@ -24,6 +25,7 @@ import { fetchAllOrgItems } from "@/api/items";
 import type { Item } from "@/types/catalog";
 import {
   fetchMiscExpenses,
+  fetchGroupedExpenses,
   fetchExpenseCategories,
   createMiscExpense,
   updateMiscExpense,
@@ -79,8 +81,6 @@ import {
   FileDown,
   Check,
   X,
-  ChevronDown,
-  ChevronRight,
 } from "lucide-react";
 import { AdminTabList, AdminTabPanel } from "@/components/ui/AdminTabs";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -249,21 +249,6 @@ const EXPENSE_GROUP_BY_OPTIONS: { value: ExpenseGroupByOption; label: string }[]
   { value: "date", label: "Recorded Date" },
 ];
 
-interface DebtGroup {
-  key: string;
-  label: string;
-  items: CustomerDebtResponse[];
-  totalOriginal: number;
-  totalRepaid: number;
-  totalBalance: number;
-}
-
-interface ExpenseGroup {
-  key: string;
-  label: string;
-  items: MiscExpenseResponse[];
-  totalAmount: number;
-}
 
 
 const PENDING_TOTAL_QUERY_KEY = "operator-debts-pending-total";
@@ -515,18 +500,6 @@ export function DebtsAndExpensesPage({
   );
 
   const [debtGroupBy, setDebtGroupBy] = useState<DebtGroupByOption>("none");
-  const [debtCollapsedGroups, setDebtCollapsedGroups] = useState<Set<string>>(new Set());
-
-  const toggleDebtGroupCollapse = (key: string) => {
-    setDebtCollapsedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
-  const expandAllDebtGroups = () => setDebtCollapsedGroups(new Set());
 
   // -----------------------------------------------------------------------
   // Expenses state
@@ -556,18 +529,6 @@ export function DebtsAndExpensesPage({
   } = useTableSort("expenses");
 
   const [expGroupBy, setExpGroupBy] = useState<ExpenseGroupByOption>("none");
-  const [expCollapsedGroups, setExpCollapsedGroups] = useState<Set<string>>(new Set());
-
-  const toggleExpGroupCollapse = (key: string) => {
-    setExpCollapsedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
-  const expandAllExpGroups = () => setExpCollapsedGroups(new Set());
 
   const handleOnRecordedDateChange = (value: string) => {
     setOnRecordedDate(value);
@@ -635,6 +596,28 @@ export function DebtsAndExpensesPage({
       }),
     enabled: Boolean(token && orgId && branchId),
     staleTime: 60_000,
+  });
+
+  const { data: serverGroupedDebts = [], isLoading: isGroupedDebtsLoading } = useQuery({
+    queryKey: [
+      "operator-debts",
+      "grouped",
+      token,
+      orgId,
+      branchId,
+      debtGroupBy,
+      statusFilter,
+      effectiveFromDate,
+      effectiveToDate,
+    ],
+    queryFn: () =>
+      fetchGroupedDebts(token, orgId!, branchId!, {
+        groupBy: debtGroupBy,
+        status: statusQueryForFilter(statusFilter),
+        fromDate: effectiveFromDate,
+        toDate: effectiveToDate,
+      }),
+    enabled: Boolean(token && orgId && branchId && dateRangeReady && debtGroupBy !== "none"),
   });
 
   const issuedBySelectOptions = useMemo(() => {
@@ -733,6 +716,26 @@ export function DebtsAndExpensesPage({
         toDate: effectiveToDate,
       }),
     enabled: Boolean(token && orgId && branchId && dateRangeReady),
+  });
+
+  const { data: serverGroupedExpenses = [], isLoading: isGroupedExpensesLoading } = useQuery({
+    queryKey: [
+      "operator-misc-expenses",
+      "grouped",
+      token,
+      orgId,
+      branchId,
+      expGroupBy,
+      effectiveFromDate,
+      effectiveToDate,
+    ],
+    queryFn: () =>
+      fetchGroupedExpenses(token, orgId!, branchId!, {
+        groupBy: expGroupBy,
+        fromDate: effectiveFromDate,
+        toDate: effectiveToDate,
+      }),
+    enabled: Boolean(token && orgId && branchId && dateRangeReady && expGroupBy !== "none"),
   });
 
   // -----------------------------------------------------------------------
@@ -1034,70 +1037,20 @@ export function DebtsAndExpensesPage({
   );
   const debtTotalElements = sortedDebts.length;
 
-  const debtColCount =
-    6 +
-    (showDebtPhoneCol ? 1 : 0) +
-    (showDebtDueCol ? 1 : 0) +
-    (showDebtIssuedByCol ? 1 : 0) +
-    (showDebtNotesCol ? 1 : 0);
-
-  const groupedDebts = useMemo<DebtGroup[]>(() => {
-    if (debtGroupBy === "none") return [];
-    const map = new Map<string, { label: string; items: CustomerDebtResponse[] }>();
-
-    for (const d of sortedDebts) {
-      let key = "";
-      let label = "";
-
-      if (debtGroupBy === "customer") {
-        label = d.customerName ? d.customerName.trim() : "Unnamed Customer";
-        key = label.toLowerCase();
-      } else if (debtGroupBy === "issuedBy") {
-        label = d.issuedBy && d.issuedBy.trim() ? d.issuedBy.trim() : "Unassigned / Not specified";
-        key = label.toLowerCase();
-      } else if (debtGroupBy === "status") {
-        label = d.status || "UNKNOWN";
-        key = label;
-      } else if (debtGroupBy === "date") {
-        if (d.createdAt) {
-          const dt = new Date(d.createdAt);
-          label = isNaN(dt.getTime()) ? d.createdAt : dt.toLocaleDateString();
-          key = isNaN(dt.getTime()) ? d.createdAt : dt.toISOString().slice(0, 10);
-        } else {
-          label = "No Date";
-          key = "no-date";
-        }
-      }
-
-      const existing = map.get(key);
-      if (existing) {
-        existing.items.push(d);
-      } else {
-        map.set(key, { label, items: [d] });
-      }
-    }
-
-    return Array.from(map.entries()).map(([key, group]) => {
-      const totalOriginal = group.items.reduce((sum, item) => sum + (item.amount ?? 0), 0);
-      const totalRepaid = group.items.reduce((sum, item) => sum + (item.amountSettled ?? 0), 0);
-      const totalBalance = group.items.reduce((sum, item) => sum + (item.outstanding ?? 0), 0);
-      return {
-        key,
-        label: group.label,
-        items: group.items,
-        totalOriginal,
-        totalRepaid,
-        totalBalance,
-      };
-    });
-  }, [sortedDebts, debtGroupBy]);
+  const filteredGroupedDebts = useMemo(() => {
+    if (!debtSearchActive) return serverGroupedDebts;
+    const q = debtSearchQuery.trim().toLowerCase();
+    return serverGroupedDebts.filter((g) => g.groupLabel.toLowerCase().includes(q));
+  }, [serverGroupedDebts, debtSearchActive, debtSearchQuery]);
 
   const pendingTotalForDateRange = useMemo(
     () =>
-      sortedDebts
-        .filter((d) => d.status !== "CANCELLED")
-        .reduce((sum, d) => sum + (d.outstanding ?? 0), 0),
-    [sortedDebts],
+      debtGroupBy !== "none"
+        ? filteredGroupedDebts.reduce((sum, g) => sum + (g.totalOutstanding ?? 0), 0)
+        : sortedDebts
+            .filter((d) => d.status !== "CANCELLED")
+            .reduce((sum, d) => sum + (d.outstanding ?? 0), 0),
+    [debtGroupBy, filteredGroupedDebts, sortedDebts],
   );
 
   const debtsByCustomer = useMemo(() => {
@@ -1440,59 +1393,19 @@ export function DebtsAndExpensesPage({
     [sortedExpenses]
   );
   const expTotalElements = sortedExpenses.length;
+  const filteredGroupedExpenses = useMemo(() => {
+    if (!expSearchActive) return serverGroupedExpenses;
+    const q = expSearchQuery.trim().toLowerCase();
+    return serverGroupedExpenses.filter((g) => g.groupLabel.toLowerCase().includes(q));
+  }, [serverGroupedExpenses, expSearchActive, expSearchQuery]);
+
   const expTotalAmount = useMemo(
-    () => sortedExpenses.reduce((sum, e) => sum + Number(e.amount ?? 0), 0),
-    [sortedExpenses],
+    () =>
+      expGroupBy !== "none"
+        ? filteredGroupedExpenses.reduce((sum, g) => sum + Number(g.totalAmount ?? 0), 0)
+        : sortedExpenses.reduce((sum, e) => sum + Number(e.amount ?? 0), 0),
+    [expGroupBy, filteredGroupedExpenses, sortedExpenses],
   );
-
-  const expColCount =
-    4 +
-    (showExpIncurredByCol ? 1 : 0) +
-    (showExpReceiptRefCol ? 1 : 0);
-
-  const groupedExpenses = useMemo<ExpenseGroup[]>(() => {
-    if (expGroupBy === "none") return [];
-    const map = new Map<string, { label: string; items: MiscExpenseResponse[] }>();
-
-    for (const e of sortedExpenses) {
-      let key = "";
-      let label = "";
-
-      if (expGroupBy === "category") {
-        label = e.category ? e.category.trim() : "Uncategorized";
-        key = label.toLowerCase();
-      } else if (expGroupBy === "incurredBy") {
-        label = e.incurredBy && e.incurredBy.trim() ? e.incurredBy.trim() : "Unassigned / Not specified";
-        key = label.toLowerCase();
-      } else if (expGroupBy === "date") {
-        if (e.createdAt) {
-          const dt = new Date(e.createdAt);
-          label = isNaN(dt.getTime()) ? e.createdAt : dt.toLocaleDateString();
-          key = isNaN(dt.getTime()) ? e.createdAt : dt.toISOString().slice(0, 10);
-        } else {
-          label = "No Date";
-          key = "no-date";
-        }
-      }
-
-      const existing = map.get(key);
-      if (existing) {
-        existing.items.push(e);
-      } else {
-        map.set(key, { label, items: [e] });
-      }
-    }
-
-    return Array.from(map.entries()).map(([key, group]) => {
-      const totalAmount = group.items.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
-      return {
-        key,
-        label: group.label,
-        items: group.items,
-        totalAmount,
-      };
-    });
-  }, [sortedExpenses, expGroupBy]);
 
   // Per-category subtotals, sorted max → min, for the "TOTAL" breakdown modal.
   const [expBreakdownOpen, setExpBreakdownOpen] = useState(false);
@@ -1743,7 +1656,7 @@ export function DebtsAndExpensesPage({
       {tab === "debts" && (
         <AdminTabPanel panelId="debts-expenses-panel-debts" tabId="debts-expenses-tab-debts">
 
-          {(debtsLoading || activeDebtsBootstrapLoading || !dateRangeReady) && (
+          {(debtsLoading || activeDebtsBootstrapLoading || !dateRangeReady || (debtGroupBy !== "none" && isGroupedDebtsLoading)) && (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-10 w-10 animate-spin text-primary-500" />
             </div>
@@ -1757,7 +1670,7 @@ export function DebtsAndExpensesPage({
             </div>
           )}
 
-          {!debtsLoading && !activeDebtsBootstrapLoading && dateRangeReady && !debtsIsError && (
+          {!debtsLoading && !activeDebtsBootstrapLoading && dateRangeReady && !debtsIsError && !(debtGroupBy !== "none" && isGroupedDebtsLoading) && (
             <>
               <div className="mb-4 flex flex-col gap-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -1797,7 +1710,6 @@ export function DebtsAndExpensesPage({
                       value={debtGroupBy}
                       onChange={(v) => {
                         setDebtGroupBy(v as DebtGroupByOption);
-                        setDebtCollapsedGroups(new Set());
                         setDebtsPage(0);
                       }}
                       aria-label="Group debts by"
@@ -1807,25 +1719,6 @@ export function DebtsAndExpensesPage({
                       controlClassName="border-slate-200 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus:border-primary-400 dark:focus:ring-primary-400"
                     />
                   </div>
-                  {debtGroupBy !== "none" && groupedDebts.length > 0 && (
-                    <div className="hidden xl:flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={expandAllDebtGroups}
-                        className="rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                      >
-                        Expand all
-                      </button>
-                      <span className="text-slate-300 dark:text-slate-600">|</span>
-                      <button
-                        type="button"
-                        onClick={() => setDebtCollapsedGroups(new Set(groupedDebts.map((g) => g.key)))}
-                        className="rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                      >
-                        Collapse all
-                      </button>
-                    </div>
-                  )}
                   <div className="hidden xl:block">
                     <RecordedDateFilters
                       fromDate={fromDate}
@@ -1845,7 +1738,7 @@ export function DebtsAndExpensesPage({
                 ) : null}
               </div>
               <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                {filteredDebts.length === 0 ? (
+                {(debtGroupBy !== "none" ? filteredGroupedDebts.length === 0 : filteredDebts.length === 0) ? (
                   <div className="flex flex-col items-center justify-center py-16">
                     <HandCoins className="h-12 w-12 text-slate-400 dark:text-slate-500" />
                     <p className="mt-4 text-slate-500 dark:text-slate-400">
@@ -1866,7 +1759,7 @@ export function DebtsAndExpensesPage({
                   <>
                     {debtSearchActive && (
                       <p className="px-4 py-2 text-xs text-slate-500 dark:text-slate-400">
-                        Showing {filteredDebts.length} match{filteredDebts.length === 1 ? "" : "es"} across all pages in the selected range.
+                        Showing {debtGroupBy !== "none" ? filteredGroupedDebts.length : filteredDebts.length} match{(debtGroupBy !== "none" ? filteredGroupedDebts.length : filteredDebts.length) === 1 ? "" : "es"}{debtGroupBy === "none" ? " across all pages in the selected range." : "."}
                       </p>
                     )}
                     <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
@@ -1876,388 +1769,180 @@ export function DebtsAndExpensesPage({
                         <thead className="bg-slate-50 dark:bg-slate-700">
                           <tr>
                             <TableRowNumberHead className={`${tableRowNoHead} hidden xl:table-cell`} />
-                            <SortableTableHead
-                              columnKey="customer"
-                              label="Customer"
-                              sortColumn={debtSortColumn}
-                              sortDirection={debtSortDirection}
-                              onSort={toggleDebtSort}
-                              className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
-                            />
-                            {showDebtPhoneCol && (
-                              <SortableTableHead
-                                columnKey="phone"
-                                label="Phone"
-                                sortColumn={debtSortColumn}
-                                sortDirection={debtSortDirection}
-                                onSort={toggleDebtSort}
-                                className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
-                              />
+                            {debtGroupBy !== "none" ? (
+                              <>
+                                <th
+                                  className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
+                                >
+                                  {debtGroupBy === "customer"
+                                    ? "Customer"
+                                    : debtGroupBy === "issuedBy"
+                                      ? "Issued by"
+                                      : debtGroupBy === "status"
+                                        ? "Status"
+                                        : "Date"}
+                                </th>
+                                <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                                  Original (KSH)
+                                </th>
+                                <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                                  Repaid (KSH)
+                                </th>
+                                <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                                  Balance (KSH)
+                                </th>
+                                <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                                  Actions
+                                </th>
+                              </>
+                            ) : (
+                              <>
+                                <SortableTableHead
+                                  columnKey="customer"
+                                  label="Customer"
+                                  sortColumn={debtSortColumn}
+                                  sortDirection={debtSortDirection}
+                                  onSort={toggleDebtSort}
+                                  className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
+                                />
+                                {showDebtPhoneCol && (
+                                  <SortableTableHead
+                                    columnKey="phone"
+                                    label="Phone"
+                                    sortColumn={debtSortColumn}
+                                    sortDirection={debtSortDirection}
+                                    onSort={toggleDebtSort}
+                                    className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                  />
+                                )}
+                                <SortableTableHead
+                                  columnKey="amount"
+                                  label="Original (KSH)"
+                                  sortColumn={debtSortColumn}
+                                  sortDirection={debtSortDirection}
+                                  onSort={toggleDebtSort}
+                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                />
+                                <SortableTableHead
+                                  columnKey="amountSettled"
+                                  label="Repaid (KSH)"
+                                  sortColumn={debtSortColumn}
+                                  sortDirection={debtSortDirection}
+                                  onSort={toggleDebtSort}
+                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                />
+                                <SortableTableHead
+                                  columnKey="outstanding"
+                                  label="Balance (KSH)"
+                                  sortColumn={debtSortColumn}
+                                  sortDirection={debtSortDirection}
+                                  onSort={toggleDebtSort}
+                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                />
+                                <SortableTableHead
+                                  columnKey="status"
+                                  label="Status"
+                                  sortColumn={debtSortColumn}
+                                  sortDirection={debtSortDirection}
+                                  onSort={toggleDebtSort}
+                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                />
+                                {showDebtDueCol && (
+                                  <SortableTableHead
+                                    columnKey="due"
+                                    label="Due"
+                                    sortColumn={debtSortColumn}
+                                    sortDirection={debtSortDirection}
+                                    onSort={toggleDebtSort}
+                                    className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                  />
+                                )}
+                                {showDebtIssuedByCol && (
+                                  <SortableTableHead
+                                    columnKey="issuedBy"
+                                    label="Issued by"
+                                    sortColumn={debtSortColumn}
+                                    sortDirection={debtSortDirection}
+                                    onSort={toggleDebtSort}
+                                    className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                  />
+                                )}
+                                <SortableTableHead
+                                  columnKey="created"
+                                  label="Created"
+                                  sortColumn={debtSortColumn}
+                                  sortDirection={debtSortDirection}
+                                  onSort={toggleDebtSort}
+                                  className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
+                                />
+                                {showDebtNotesCol && (
+                                  <SortableTableHead
+                                    columnKey="notes"
+                                    label="Notes"
+                                    sortColumn={debtSortColumn}
+                                    sortDirection={debtSortDirection}
+                                    onSort={toggleDebtSort}
+                                    className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
+                                  />
+                                )}
+                                <SortableTableHead
+                                  columnKey="actions"
+                                  label="Actions"
+                                  sortColumn={debtSortColumn}
+                                  sortDirection={debtSortDirection}
+                                  onSort={toggleDebtSort}
+                                  sortable={false}
+                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                />
+                              </>
                             )}
-                            <SortableTableHead
-                              columnKey="amount"
-                              label="Original (KSH)"
-                              sortColumn={debtSortColumn}
-                              sortDirection={debtSortDirection}
-                              onSort={toggleDebtSort}
-                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
-                            />
-                            <SortableTableHead
-                              columnKey="amountSettled"
-                              label="Repaid (KSH)"
-                              sortColumn={debtSortColumn}
-                              sortDirection={debtSortDirection}
-                              onSort={toggleDebtSort}
-                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
-                            />
-                            <SortableTableHead
-                              columnKey="outstanding"
-                              label="Balance (KSH)"
-                              sortColumn={debtSortColumn}
-                              sortDirection={debtSortDirection}
-                              onSort={toggleDebtSort}
-                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
-                            />
-                            <SortableTableHead
-                              columnKey="status"
-                              label="Status"
-                              sortColumn={debtSortColumn}
-                              sortDirection={debtSortDirection}
-                              onSort={toggleDebtSort}
-                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
-                            />
-                            {showDebtDueCol && (
-                              <SortableTableHead
-                                columnKey="due"
-                                label="Due"
-                                sortColumn={debtSortColumn}
-                                sortDirection={debtSortDirection}
-                                onSort={toggleDebtSort}
-                                className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
-                              />
-                            )}
-                            {showDebtIssuedByCol && (
-                              <SortableTableHead
-                                columnKey="issuedBy"
-                                label="Issued by"
-                                sortColumn={debtSortColumn}
-                                sortDirection={debtSortDirection}
-                                onSort={toggleDebtSort}
-                                className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
-                              />
-                            )}
-                            <SortableTableHead
-                              columnKey="created"
-                              label="Created"
-                              sortColumn={debtSortColumn}
-                              sortDirection={debtSortDirection}
-                              onSort={toggleDebtSort}
-                              className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
-                            />
-                            {showDebtNotesCol && (
-                              <SortableTableHead
-                                columnKey="notes"
-                                label="Notes"
-                                sortColumn={debtSortColumn}
-                                sortDirection={debtSortDirection}
-                                onSort={toggleDebtSort}
-                                className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
-                              />
-                            )}
-                            <SortableTableHead
-                              columnKey="actions"
-                              label="Actions"
-                              sortColumn={debtSortColumn}
-                              sortDirection={debtSortDirection}
-                              onSort={toggleDebtSort}
-                              sortable={false}
-                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
-                            />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                           {debtGroupBy !== "none" ? (
-                            groupedDebts.map((group) => {
-                              const isCollapsed = debtCollapsedGroups.has(group.key);
-                              return (
-                                <Fragment key={group.key}>
-                                  <tr
-                                    className="cursor-pointer bg-slate-100/80 hover:bg-slate-200/80 dark:bg-slate-700/60 dark:hover:bg-slate-700 font-semibold text-slate-800 dark:text-slate-200 transition-colors"
-                                    onClick={() => toggleDebtGroupCollapse(group.key)}
-                                  >
-                                    <td colSpan={debtColCount} className="px-4 py-2 text-xs sm:text-sm">
-                                      <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                          {isCollapsed ? (
-                                            <ChevronRight className="h-4 w-4 text-slate-500" />
-                                          ) : (
-                                            <ChevronDown className="h-4 w-4 text-slate-500" />
-                                          )}
-                                          <span className="font-bold">{group.label}</span>
-                                          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-600 dark:text-slate-300">
-                                            {group.items.length} {group.items.length === 1 ? "debt" : "debts"}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-4 text-xs font-medium text-slate-600 dark:text-slate-400">
-                                          <span>Original: <span className="tabular-nums font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(group.totalOriginal)}</span></span>
-                                          <span>Repaid: <span className="tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(group.totalRepaid)}</span></span>
-                                          <span>Balance: <span className="tabular-nums font-bold text-red-600 dark:text-red-400">{formatCurrency(group.totalBalance)}</span></span>
-                                        </div>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                  {!isCollapsed &&
-                                    group.items.map((d: CustomerDebtResponse, index) => (
-                                      <tr key={d.id} className={tableBodyRow}>
-                                        <TableRowNumberCell className={`${tableRowNoCell} hidden xl:table-cell`} page={0} pageSize={group.items.length} indexInPage={index} />
-                                        <td
-                                          className={`${tableStickyFirstCell} px-2 py-1.5 text-xs font-bold text-slate-900 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-white ${
-                                            inlineNameDebtId !== d.id
-                                              ? "cursor-pointer hover:underline"
-                                              : ""
-                                          }`}
-                                          onClick={() => {
-                                            if (inlineNameDebtId !== d.id) {
-                                              startInlineName(d);
-                                            }
-                                          }}
-                                          title={
-                                            inlineNameDebtId !== d.id
-                                              ? "Click to fix customer name"
-                                              : undefined
-                                          }
-                                        >
-                                          {inlineNameDebtId === d.id ? (
-                                            (() => {
-                                              const trimmed = inlineNameValue.trim();
-                                              const empty = trimmed === "";
-                                              const unchanged = trimmed === d.customerName;
-                                              return (
-                                                <div
-                                                  className="flex flex-wrap items-center gap-2"
-                                                  onClick={(ev) => ev.stopPropagation()}
-                                                >
-                                                  <div className="flex items-center gap-1.5">
-                                                    <input
-                                                      autoFocus
-                                                      type="text"
-                                                      value={inlineNameValue}
-                                                      disabled={inlineNameSubmitting}
-                                                      onChange={(ev) => setInlineNameValue(ev.target.value)}
-                                                      onFocus={(ev) => ev.currentTarget.select()}
-                                                      onKeyDown={(ev) => {
-                                                        if (ev.key === "Enter") {
-                                                          ev.preventDefault();
-                                                          void submitInlineName(d);
-                                                        } else if (ev.key === "Escape") {
-                                                          ev.preventDefault();
-                                                          cancelInlineName();
-                                                        }
-                                                      }}
-                                                      aria-invalid={empty}
-                                                      aria-label={`Edit customer name for ${d.customerName}`}
-                                                      className={`w-44 rounded border px-2 py-1.5 text-sm focus:outline-none focus:ring-1 ${
-                                                        empty
-                                                          ? "border-red-400 bg-red-50 text-red-900 focus:border-red-500 focus:ring-red-500 dark:border-red-600 dark:bg-red-950/40 dark:text-red-200"
-                                                          : "border-primary-300 bg-white text-slate-900 focus:border-primary-500 focus:ring-primary-500 dark:border-primary-700 dark:bg-slate-900 dark:text-white"
-                                                      }`}
-                                                    />
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => void submitInlineName(d)}
-                                                      disabled={inlineNameSubmitting || empty || unchanged}
-                                                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 dark:hover:bg-emerald-900/50"
-                                                      aria-label="Save name"
-                                                      title="Save (Enter)"
-                                                    >
-                                                      {inlineNameSubmitting ? (
-                                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                                      ) : (
-                                                        <Check className="h-5 w-5" />
-                                                      )}
-                                                    </button>
-                                                    <button
-                                                      type="button"
-                                                      onClick={cancelInlineName}
-                                                      disabled={inlineNameSubmitting}
-                                                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 shadow-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                                                      aria-label="Cancel"
-                                                      title="Cancel (Esc)"
-                                                    >
-                                                      <X className="h-5 w-5" />
-                                                    </button>
-                                                  </div>
-                                                  {empty && (
-                                                    <span className="w-full text-xs text-red-600 dark:text-red-400">
-                                                      Name cannot be empty.
-                                                    </span>
-                                                  )}
-                                                </div>
-                                              );
-                                            })()
-                                          ) : (
-                                            d.customerName
-                                          )}
-                                        </td>
-                                        {showDebtPhoneCol && (
-                                          <td className="px-2 py-1.5 text-xs text-slate-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-400">{d.customerPhone ?? "—"}</td>
-                                        )}
-                                        <td className="px-2 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-400">{formatAmount(d.amount)}</td>
-                                        <td
-                                          className={`px-2 py-1.5 text-left text-xs tabular-nums font-bold text-emerald-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-emerald-400 ${
-                                            canRecordPayment(d) && inlinePayDebtId !== d.id
-                                              ? "cursor-pointer hover:underline"
-                                              : ""
-                                          }`}
-                                          onClick={() => {
-                                            if (canRecordPayment(d) && inlinePayDebtId !== d.id) {
-                                              startInlinePay(d);
-                                            }
-                                          }}
-                                          title={
-                                            canRecordPayment(d) && inlinePayDebtId !== d.id
-                                              ? "Click to record a payment"
-                                              : undefined
-                                          }
-                                        >
-                                          {inlinePayDebtId === d.id ? (
-                                            (() => {
-                                              const err = validateInlinePay(inlinePayValue, d.outstanding);
-                                              const empty = inlinePayValue.trim() === "";
-                                              return (
-                                                <div
-                                                  className="flex flex-wrap items-center gap-2"
-                                                  onClick={(ev) => ev.stopPropagation()}
-                                                >
-                                                  <div className="flex items-center gap-1.5">
-                                                    <input
-                                                      autoFocus
-                                                      type="number"
-                                                      step="0.01"
-                                                      min="0.01"
-                                                      max={d.outstanding}
-                                                      value={inlinePayValue}
-                                                      disabled={inlinePaySubmitting}
-                                                      onChange={(ev) => setInlinePayValue(ev.target.value)}
-                                                      onKeyDown={(ev) => {
-                                                        if (ev.key === "Enter") {
-                                                          ev.preventDefault();
-                                                          void submitInlinePay(d);
-                                                        } else if (ev.key === "Escape") {
-                                                          ev.preventDefault();
-                                                          cancelInlinePay();
-                                                        }
-                                                      }}
-                                                      placeholder={`Max ${d.outstanding.toFixed(2)}`}
-                                                      aria-invalid={!!err}
-                                                      aria-label={`Record payment for ${d.customerName}`}
-                                                      className={`w-32 rounded border px-2 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-1 ${
-                                                        err
-                                                          ? "border-red-400 bg-red-50 text-red-900 focus:border-red-500 focus:ring-red-500 dark:border-red-600 dark:bg-red-950/40 dark:text-red-200"
-                                                          : "border-emerald-300 bg-white text-slate-900 focus:border-emerald-500 focus:ring-emerald-500 dark:border-emerald-700 dark:bg-slate-900 dark:text-white"
-                                                      }`}
-                                                    />
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => void submitInlinePay(d)}
-                                                      disabled={inlinePaySubmitting || !!err || empty}
-                                                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 dark:hover:bg-emerald-900/50"
-                                                      aria-label="Save payment"
-                                                      title="Save payment (Enter)"
-                                                    >
-                                                      {inlinePaySubmitting ? (
-                                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                                      ) : (
-                                                        <Check className="h-5 w-5" />
-                                                      )}
-                                                    </button>
-                                                    <button
-                                                      type="button"
-                                                      onClick={cancelInlinePay}
-                                                      disabled={inlinePaySubmitting}
-                                                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 shadow-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                                                      aria-label="Cancel"
-                                                      title="Cancel (Esc)"
-                                                    >
-                                                      <X className="h-5 w-5" />
-                                                    </button>
-                                                  </div>
-                                                  {err ? (
-                                                    <span className="w-full text-xs text-red-600 dark:text-red-400">
-                                                      {err}
-                                                    </span>
-                                                  ) : !empty ? (
-                                                    <span className="w-full text-xs text-slate-500 dark:text-slate-400">
-                                                      New balance {formatCurrency(d.outstanding - Number.parseFloat(inlinePayValue))}
-                                                    </span>
-                                                  ) : null}
-                                                </div>
-                                              );
-                                            })()
-                                          ) : (
-                                            formatAmount(d.amountSettled ?? 0)
-                                          )}
-                                        </td>
-                                        <td className="px-2 py-1.5 text-left text-xs tabular-nums font-bold text-red-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-red-400">{formatAmount(d.outstanding)}</td>
-                                        <td className="px-2 py-1.5 sm:px-6 sm:py-2.5">
-                                          <span
-                                            className={`inline-flex justify-start rounded-full px-2.5 py-0.5 text-left text-[11px] font-medium sm:text-xs ${
-                                              d.status === "OPEN" || d.status === "PARTIAL"
-                                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                                : d.status === "CLOSED"
-                                                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                                  : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
-                                            }`}
-                                          >
-                                            {d.status === "CLOSED" ? "Closed" : d.status}
-                                          </span>
-                                        </td>
-                                        {showDebtDueCol && (
-                                          <td className="px-2 py-1.5 text-xs text-slate-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-400">{d.dueDate ?? "—"}</td>
-                                        )}
-                                        {showDebtIssuedByCol && (
-                                          <td className="px-2 py-1.5 text-xs text-slate-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-400">{d.issuedBy ?? "—"}</td>
-                                        )}
-                                        <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{new Date(d.createdAt).toLocaleString()}</td>
-                                        {showDebtNotesCol && (
-                                          <td className="hidden max-w-[14rem] px-4 py-2 align-top text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">
-                                            {d.notes?.trim() ? (
-                                              <div className="max-h-24 overflow-y-auto whitespace-pre-wrap break-words">{d.notes}</div>
-                                            ) : (
-                                              "—"
-                                            )}
-                                          </td>
-                                        )}
-                                        <td className="px-2 py-1.5 text-left sm:px-6 sm:py-2.5">
-                                          {canRecordPayment(d) ? (
-                                            <div className="flex flex-wrap justify-start gap-1">
-                                              <button type="button" onClick={() => openSettleForm(d)} className="rounded p-1 text-emerald-600 hover:bg-emerald-50 sm:p-1.5 dark:text-emerald-400 dark:hover:bg-emerald-900/30" title="Record payment">
-                                                <Banknote className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                              </button>
-                                              {canEditDebt(d) && (
-                                                <button type="button" onClick={() => openDebtEditForm(d)} className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 sm:p-1.5 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200" title="Edit customer debt">
-                                                  <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                                </button>
-                                              )}
-                                              {canClearDebt(d) && (
-                                                <button type="button" onClick={() => setClearDialogDebt(d)} className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600 sm:p-1.5 dark:text-slate-400 dark:hover:bg-red-900/30 dark:hover:text-red-400" title="Clear debt">
-                                                  <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                                </button>
-                                              )}
-                                            </div>
-                                          ) : (
-                                            canClearDebt(d) && (
-                                              <button type="button" onClick={() => setClearDialogDebt(d)} className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600 sm:p-1.5 dark:text-slate-400 dark:hover:bg-red-900/30 dark:hover:text-red-400" title="Clear debt">
-                                                <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                              </button>
-                                            )
-                                          )}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                </Fragment>
-                              );
-                            })
+                            filteredGroupedDebts.map((group, index) => (
+                              <tr key={group.groupKey} className={tableBodyRow}>
+                                <TableRowNumberCell
+                                  className={`${tableRowNoCell} hidden xl:table-cell`}
+                                  page={0}
+                                  pageSize={filteredGroupedDebts.length}
+                                  indexInPage={index}
+                                />
+                                <td
+                                  className={`${tableStickyFirstCell} px-2 py-1.5 text-xs font-bold text-slate-900 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-white`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span>{group.groupLabel}</span>
+                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                      {group.count} {group.count === 1 ? "debt" : "debts"}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-2 py-1.5 text-left text-xs font-semibold tabular-nums text-slate-700 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-300">
+                                  {formatAmount(group.totalAmount)}
+                                </td>
+                                <td className="px-2 py-1.5 text-left text-xs font-semibold tabular-nums text-emerald-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-emerald-400">
+                                  {formatAmount(group.totalAmountSettled)}
+                                </td>
+                                <td className="px-2 py-1.5 text-left text-xs font-bold tabular-nums text-red-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-red-400">
+                                  {formatAmount(group.totalOutstanding)}
+                                </td>
+                                <td className="px-2 py-1.5 text-left sm:px-6 sm:py-2.5">
+                                  {debtGroupBy === "customer" && group.totalOutstanding > 0 ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => openCustomerSettleForm(group.groupLabel)}
+                                      className="rounded p-1 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 sm:p-1.5 dark:text-slate-400 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400"
+                                      title={`Record payment for ${group.groupLabel}`}
+                                    >
+                                      <Banknote className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 dark:text-emerald-400" />
+                                    </button>
+                                  ) : (
+                                    <span className="text-slate-400">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))
                           ) : (
                             visibleDebts.map((d: CustomerDebtResponse, index) => (
                               <tr key={d.id} className={tableBodyRow}>
@@ -2553,7 +2238,7 @@ export function DebtsAndExpensesPage({
         <AdminTabPanel panelId="debts-expenses-panel-expenses" tabId="debts-expenses-tab-expenses">
 
 
-          {(expensesLoading || activeDebtsBootstrapLoading || !dateRangeReady) && (
+          {(expensesLoading || activeDebtsBootstrapLoading || !dateRangeReady || (expGroupBy !== "none" && isGroupedExpensesLoading)) && (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-10 w-10 animate-spin text-primary-500" />
             </div>
@@ -2567,7 +2252,7 @@ export function DebtsAndExpensesPage({
             </div>
           )}
 
-          {!expensesLoading && !activeDebtsBootstrapLoading && dateRangeReady && !expensesIsError && (
+          {!expensesLoading && !activeDebtsBootstrapLoading && dateRangeReady && !expensesIsError && !(expGroupBy !== "none" && isGroupedExpensesLoading) && (
             <>
               <div className="mb-4 flex flex-col gap-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -2585,7 +2270,6 @@ export function DebtsAndExpensesPage({
                       value={expGroupBy}
                       onChange={(v) => {
                         setExpGroupBy(v as ExpenseGroupByOption);
-                        setExpCollapsedGroups(new Set());
                         setExpensesPage(0);
                       }}
                       aria-label="Group expenses by"
@@ -2595,25 +2279,6 @@ export function DebtsAndExpensesPage({
                       controlClassName="border-slate-200 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus:border-primary-400 dark:focus:ring-primary-400"
                     />
                   </div>
-                  {expGroupBy !== "none" && groupedExpenses.length > 0 && (
-                    <div className="hidden xl:flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={expandAllExpGroups}
-                        className="rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                      >
-                        Expand all
-                      </button>
-                      <span className="text-slate-300 dark:text-slate-600">|</span>
-                      <button
-                        type="button"
-                        onClick={() => setExpCollapsedGroups(new Set(groupedExpenses.map((g) => g.key)))}
-                        className="rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                      >
-                        Collapse all
-                      </button>
-                    </div>
-                  )}
                   <div className="hidden xl:block">
                     <RecordedDateFilters
                       fromDate={fromDate}
@@ -2633,7 +2298,7 @@ export function DebtsAndExpensesPage({
                 ) : null}
               </div>
               <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                {filteredExpenses.length === 0 ? (
+                {(expGroupBy !== "none" ? filteredGroupedExpenses.length === 0 : filteredExpenses.length === 0) ? (
                   <div className="flex flex-col items-center justify-center py-16">
                     <Receipt className="h-12 w-12 text-slate-400 dark:text-slate-500" />
                     <p className="mt-4 text-slate-500 dark:text-slate-400">
@@ -2654,7 +2319,7 @@ export function DebtsAndExpensesPage({
                   <>
                     {expSearchActive && (
                       <p className="px-4 py-2 text-xs text-slate-500 dark:text-slate-400">
-                        Showing {filteredExpenses.length} match{filteredExpenses.length === 1 ? "" : "es"} across all pages in the selected range.
+                        Showing {expGroupBy !== "none" ? filteredGroupedExpenses.length : filteredExpenses.length} match{(expGroupBy !== "none" ? filteredGroupedExpenses.length : filteredExpenses.length) === 1 ? "" : "es"}{expGroupBy === "none" ? " across all pages in the selected range." : "."}
                       </p>
                     )}
                     <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
@@ -2664,129 +2329,119 @@ export function DebtsAndExpensesPage({
                         <thead className="bg-slate-50 dark:bg-slate-700">
                           <tr>
                             <TableRowNumberHead className={`${tableRowNoHead} hidden xl:table-cell`} />
-                            {showExpIncurredByCol && (
-                              <SortableTableHead
-                                columnKey="incurredBy"
-                                label="Incurred by"
-                                sortColumn={expSortColumn}
-                                sortDirection={expSortDirection}
-                                onSort={toggleExpSort}
-                                className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
-                              />
+                            {expGroupBy !== "none" ? (
+                              <>
+                                <th
+                                  className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
+                                >
+                                  {expGroupBy === "category"
+                                    ? "Category"
+                                    : expGroupBy === "incurredBy"
+                                      ? "Incurred by"
+                                      : "Date"}
+                                </th>
+                                <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                                  Amount (KSH)
+                                </th>
+                                <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                                  Actions
+                                </th>
+                              </>
+                            ) : (
+                              <>
+                                {showExpIncurredByCol && (
+                                  <SortableTableHead
+                                    columnKey="incurredBy"
+                                    label="Incurred by"
+                                    sortColumn={expSortColumn}
+                                    sortDirection={expSortDirection}
+                                    onSort={toggleExpSort}
+                                    className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
+                                  />
+                                )}
+                                <SortableTableHead
+                                  columnKey="amount"
+                                  label="Amount (KSH)"
+                                  sortColumn={expSortColumn}
+                                  sortDirection={expSortDirection}
+                                  onSort={toggleExpSort}
+                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                />
+                                <SortableTableHead
+                                  columnKey="category"
+                                  label="Category"
+                                  sortColumn={expSortColumn}
+                                  sortDirection={expSortDirection}
+                                  onSort={toggleExpSort}
+                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                />
+                                <SortableTableHead
+                                  columnKey="description"
+                                  label="Desc."
+                                  sortColumn={expSortColumn}
+                                  sortDirection={expSortDirection}
+                                  onSort={toggleExpSort}
+                                  className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
+                                />
+                                {showExpReceiptRefCol && (
+                                  <SortableTableHead
+                                    columnKey="receiptRef"
+                                    label="Receipt ref"
+                                    sortColumn={expSortColumn}
+                                    sortDirection={expSortDirection}
+                                    onSort={toggleExpSort}
+                                    className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
+                                  />
+                                )}
+                                <SortableTableHead
+                                  columnKey="created"
+                                  label="Created"
+                                  sortColumn={expSortColumn}
+                                  sortDirection={expSortDirection}
+                                  onSort={toggleExpSort}
+                                  className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
+                                />
+                                <SortableTableHead
+                                  columnKey="actions"
+                                  label="Actions"
+                                  sortColumn={expSortColumn}
+                                  sortDirection={expSortDirection}
+                                  onSort={toggleExpSort}
+                                  sortable={false}
+                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                />
+                              </>
                             )}
-                            <SortableTableHead
-                              columnKey="amount"
-                              label="Amount (KSH)"
-                              sortColumn={expSortColumn}
-                              sortDirection={expSortDirection}
-                              onSort={toggleExpSort}
-                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
-                            />
-                            <SortableTableHead
-                              columnKey="category"
-                              label="Category"
-                              sortColumn={expSortColumn}
-                              sortDirection={expSortDirection}
-                              onSort={toggleExpSort}
-                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
-                            />
-                            <SortableTableHead
-                              columnKey="description"
-                              label="Desc."
-                              sortColumn={expSortColumn}
-                              sortDirection={expSortDirection}
-                              onSort={toggleExpSort}
-                              className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
-                            />
-                            {showExpReceiptRefCol && (
-                              <SortableTableHead
-                                columnKey="receiptRef"
-                                label="Receipt ref"
-                                sortColumn={expSortColumn}
-                                sortDirection={expSortDirection}
-                                onSort={toggleExpSort}
-                                className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
-                              />
-                            )}
-                            <SortableTableHead
-                              columnKey="created"
-                              label="Created"
-                              sortColumn={expSortColumn}
-                              sortDirection={expSortDirection}
-                              onSort={toggleExpSort}
-                              className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
-                            />
-                            <SortableTableHead
-                              columnKey="actions"
-                              label="Actions"
-                              sortColumn={expSortColumn}
-                              sortDirection={expSortDirection}
-                              onSort={toggleExpSort}
-                              sortable={false}
-                              className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
-                            />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                           {expGroupBy !== "none" ? (
-                            groupedExpenses.map((group) => {
-                              const isCollapsed = expCollapsedGroups.has(group.key);
-                              return (
-                                <Fragment key={group.key}>
-                                  <tr
-                                    className="cursor-pointer bg-slate-100/80 hover:bg-slate-200/80 dark:bg-slate-700/60 dark:hover:bg-slate-700 font-semibold text-slate-800 dark:text-slate-200 transition-colors"
-                                    onClick={() => toggleExpGroupCollapse(group.key)}
-                                  >
-                                    <td colSpan={expColCount} className="px-4 py-2 text-xs sm:text-sm">
-                                      <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                          {isCollapsed ? (
-                                            <ChevronRight className="h-4 w-4 text-slate-500" />
-                                          ) : (
-                                            <ChevronDown className="h-4 w-4 text-slate-500" />
-                                          )}
-                                          <span className="font-bold">{group.label}</span>
-                                          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-600 dark:text-slate-300">
-                                            {group.items.length} {group.items.length === 1 ? "expense" : "expenses"}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400">
-                                          <span>Total: <span className="tabular-nums font-bold text-slate-900 dark:text-slate-100">{formatCurrency(group.totalAmount)}</span></span>
-                                        </div>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                  {!isCollapsed &&
-                                    group.items.map((e: MiscExpenseResponse, index) => (
-                                      <tr key={e.id} className={tableBodyRow}>
-                                        <TableRowNumberCell className={`${tableRowNoCell} hidden xl:table-cell`} page={0} pageSize={group.items.length} indexInPage={index} />
-                                        {showExpIncurredByCol && (
-                                          <td className={`${tableStickyFirstCell} px-2 py-1.5 text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-300`}>{e.incurredBy ?? "—"}</td>
-                                        )}
-                                        <td className="px-2 py-1.5 text-left text-xs font-semibold tabular-nums text-slate-700 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-300">{formatAmount(e.amount)}</td>
-                                        <td className="px-2 py-1.5 sm:px-6 sm:py-2.5">
-                                          <span className="inline-flex justify-start rounded-full bg-slate-100 px-2 py-0.5 text-left text-[11px] font-medium text-slate-700 sm:text-xs xl:text-sm dark:bg-slate-700 dark:text-slate-300">{e.category}</span>
-                                        </td>
-                                        <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{e.description || "—"}</td>
-                                        {showExpReceiptRefCol && (
-                                          <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{e.receiptRef ?? "—"}</td>
-                                        )}
-                                        <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{new Date(e.createdAt).toLocaleString()}</td>
-                                        <td className="px-2 py-1.5 text-left sm:px-6 sm:py-2.5">
-                                          <div className="flex justify-start gap-1">
-                                            <button type="button" onClick={() => openExpEditForm(e)} className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 sm:p-1.5 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200" title="Edit">
-                                              <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                            </button>
-                                            <button type="button" onClick={() => setCancelDialogExpense(e)} className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600 sm:p-1.5 dark:text-slate-400 dark:hover:bg-red-900/30 dark:hover:text-red-400" title="Delete">
-                                              <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                            </button>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                </Fragment>
-                              );
-                            })
+                            filteredGroupedExpenses.map((group, index) => (
+                              <tr key={group.groupKey} className={tableBodyRow}>
+                                <TableRowNumberCell
+                                  className={`${tableRowNoCell} hidden xl:table-cell`}
+                                  page={0}
+                                  pageSize={filteredGroupedExpenses.length}
+                                  indexInPage={index}
+                                />
+                                <td
+                                  className={`${tableStickyFirstCell} px-2 py-1.5 text-xs font-bold text-slate-900 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-white`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span>{group.groupLabel}</span>
+                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                      {group.count} {group.count === 1 ? "expense" : "expenses"}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-2 py-1.5 text-left text-xs font-semibold tabular-nums text-slate-700 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-300">
+                                  {formatAmount(group.totalAmount)}
+                                </td>
+                                <td className="px-2 py-1.5 text-left sm:px-6 sm:py-2.5">
+                                  <span className="text-slate-400">—</span>
+                                </td>
+                              </tr>
+                            ))
                           ) : (
                             visibleExpenses.map((e: MiscExpenseResponse, index) => (
                               <tr key={e.id} className={tableBodyRow}>
