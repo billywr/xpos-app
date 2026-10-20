@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import type { MiscExpenseResponse } from "@/api/miscExpenses";
+import type { MiscExpenseGroupSummaryResponse, MiscExpenseResponse } from "@/api/miscExpenses";
 
 function formatAmount(amount: number): string {
   return amount.toLocaleString("en-KE", {
@@ -18,6 +18,7 @@ export interface ExpensesPdfOptions {
   orgName?: string | null;
   /** Label shown in the report header, e.g. "2026-04-01 to 2026-04-21". */
   dateRangeLabel?: string | null;
+  searchQuery?: string | null;
   appName?: string;
   totalAmount?: number | null;
 }
@@ -26,7 +27,7 @@ export function generateExpensesPdf(
   expenses: MiscExpenseResponse[],
   opts: ExpensesPdfOptions = {}
 ): jsPDF {
-  const { branchName, orgName, dateRangeLabel, appName = "XPOS", totalAmount } = opts;
+  const { branchName, orgName, dateRangeLabel, searchQuery, appName = "XPOS", totalAmount } = opts;
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const margin = 12;
   let y = margin;
@@ -44,6 +45,10 @@ export function generateExpensesPdf(
   y += 5;
   if (dateRangeLabel) {
     doc.text(`Date range: ${dateRangeLabel}`, margin, y);
+    y += 5;
+  }
+  if (searchQuery) {
+    doc.text(`Search: "${searchQuery}"`, margin, y);
     y += 5;
   }
   doc.text(`Generated: ${new Date().toLocaleString("en-GB")}`, margin, y);
@@ -241,3 +246,140 @@ export function downloadExpensesPdf(
     .slice(0, 24) || "branch";
   doc.save(`expenses-${branchSlug}-${stamp}.pdf`);
 }
+
+export interface GroupedExpensesPdfOptions {
+  branchName?: string | null;
+  orgName?: string | null;
+  dateRangeLabel?: string | null;
+  groupByLabel?: string | null;
+  searchQuery?: string | null;
+  appName?: string;
+}
+
+export function generateGroupedExpensesPdf(
+  groups: MiscExpenseGroupSummaryResponse[],
+  opts: GroupedExpensesPdfOptions = {}
+): jsPDF {
+  const {
+    branchName,
+    orgName,
+    dateRangeLabel,
+    groupByLabel = "Group",
+    searchQuery,
+    appName = "XPOS",
+  } = opts;
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const margin = 12;
+  let y = margin;
+
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Miscellaneous Expenses Report (Grouped by ${groupByLabel})`, margin, y);
+  y += 8;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(orgName ?? "Organization", margin, y);
+  y += 5;
+  doc.text(`Branch: ${branchName ?? "—"}`, margin, y);
+  y += 5;
+  if (dateRangeLabel) {
+    doc.text(`Date range: ${dateRangeLabel}`, margin, y);
+    y += 5;
+  }
+  doc.text(`Grouped by: ${groupByLabel}`, margin, y);
+  y += 5;
+  if (searchQuery) {
+    doc.text(`Search: "${searchQuery}"`, margin, y);
+    y += 5;
+  }
+  doc.text(`Generated: ${new Date().toLocaleString("en-GB")}`, margin, y);
+  y += 5;
+  doc.text(`Total groups: ${groups.length}`, margin, y);
+  y += 7;
+
+  if (groups.length === 0) {
+    doc.text("No expenses to report.", margin, y);
+  } else {
+    const tableData = groups.map((g, idx) => [
+      String(idx + 1),
+      g.groupLabel,
+      `${g.count} ${g.count === 1 ? "expense" : "expenses"}`,
+      formatAmount(g.totalAmount),
+    ]);
+
+    autoTable(doc, {
+      head: [["#", groupByLabel, "Expenses", "Amount (KSH)"]],
+      body: tableData,
+      startY: y,
+      margin: { left: margin, right: margin },
+      theme: "grid",
+      styles: { fontSize: 9, cellPadding: 2.5, overflow: "linebreak" },
+      headStyles: { fillColor: [17, 50, 100], halign: "left" },
+      columnStyles: {
+        0: { halign: "center", cellWidth: 14 },
+        1: { fontStyle: "bold", textColor: [17, 24, 39] },
+        2: { halign: "center", cellWidth: 30 },
+        3: { halign: "left" },
+      },
+    });
+
+    const meta = (doc as unknown as { lastAutoTable?: { finalY: number } })
+      .lastAutoTable;
+    y = meta?.finalY ?? y;
+
+    const totalAmt = groups.reduce((s, g) => s + Number(g.totalAmount ?? 0), 0);
+    const totalCount = groups.reduce((s, g) => s + Number(g.count ?? 0), 0);
+
+    y += 8;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Summary", margin, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const col1 = margin;
+    const col2 = margin + 65;
+    doc.text("Total expenses count", col1, y);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${totalCount}`, col1, y + 5);
+    doc.setFont("helvetica", "normal");
+
+    doc.text("Total (KSH)", col2, y);
+    doc.setFont("helvetica", "bold");
+    doc.text(formatAmount(totalAmt), col2, y + 5);
+    doc.setFont("helvetica", "normal");
+  }
+
+  const pageHeight = doc.internal.pageSize.getHeight();
+  doc.setFontSize(8);
+  doc.setTextColor(120);
+  doc.text(
+    `${appName} — Grouped Expenses Report · Generated ${new Date().toLocaleString("en-GB")}`,
+    margin,
+    pageHeight - 6
+  );
+  doc.setTextColor(0);
+
+  return doc;
+}
+
+export function downloadGroupedExpensesPdf(
+  groups: MiscExpenseGroupSummaryResponse[],
+  opts: GroupedExpensesPdfOptions = {}
+): void {
+  const doc = generateGroupedExpensesPdf(groups, opts);
+  const stamp =
+    (opts.dateRangeLabel ?? "").replace(/\s+to\s+/i, "_").replace(/[^0-9_-]/g, "") ||
+    new Date().toISOString().slice(0, 10);
+  const branchSlug = (opts.branchName ?? "branch")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24) || "branch";
+  const groupSlug = (opts.groupByLabel ?? "grouped")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-");
+  doc.save(`expenses-${branchSlug}-${groupSlug}-${stamp}.pdf`);
+}
+

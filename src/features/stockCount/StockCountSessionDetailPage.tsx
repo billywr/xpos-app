@@ -257,13 +257,25 @@ export function StockCountSessionDetailPage({
 
   function handleDownloadPdf() {
     if (!session) return;
-    downloadStockCountPdf(session, branchName, orgName, appName);
+    const sessionToExport = {
+      ...session,
+      lines: filteredLines,
+    };
+    downloadStockCountPdf(sessionToExport, branchName, orgName, appName, {
+      searchQuery: searchQuery.trim() || undefined,
+    });
     toast.success("PDF downloaded.", { title: "Stock count" });
   }
 
   function handleSharePdf() {
     if (!session) return;
-    shareStockCountPdf(session, branchName, orgName, appName);
+    const sessionToExport = {
+      ...session,
+      lines: filteredLines,
+    };
+    shareStockCountPdf(sessionToExport, branchName, orgName, appName, {
+      searchQuery: searchQuery.trim() || undefined,
+    });
     toast.success("Report shared or downloaded.", { title: "Stock count" });
   }
 

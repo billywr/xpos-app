@@ -53,7 +53,8 @@ export function downloadStdStockCountPdf(
   branchName?: string | null,
   orgName?: string | null,
   appName = "XPOS",
-  summary?: StdStockCountPdfSummary
+  summary?: StdStockCountPdfSummary,
+  opts?: { searchQuery?: string | null }
 ): void {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const margin = 12;
@@ -71,6 +72,12 @@ export function downloadStdStockCountPdf(
   doc.text(`Branch: ${branchName ?? "—"}`, margin, y);
   y += 5;
   doc.text(`Date: ${dateStr}`, margin, y);
+  y += 5;
+  if (opts?.searchQuery) {
+    doc.text(`Search: "${opts.searchQuery}"`, margin, y);
+    y += 5;
+  }
+  doc.text(`Total items: ${rows.length}`, margin, y);
   y += 8;
 
   if (rows.length > 0) {

@@ -54,6 +54,8 @@ import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { formatAmount } from "@/utils/formatCurrency";
 import { downloadItemsPdf } from "@/utils/itemsPdf";
+import { filterRowsBySearch } from "@/utils/tableSearchMatch";
+import { sortTableRows } from "@/utils/tableSort";
 import { getItemImageUrl, getItemImageName } from "@/utils/itemImage";
 import { resizeImageTo400x400 } from "@/utils/imageResize";
 import { Plus, Pencil, Trash2, Upload, ChevronDown, Download, Loader2 } from "lucide-react";
@@ -766,8 +768,41 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     setDownloadingPdf(true);
     try {
       const allItems = await fetchAllOrgItems(token, selectedOrgId);
+      let exportItems = allItems.filter((i: Item) => i.active);
+      if (selectedCategoryId) {
+        exportItems = exportItems.filter((i: Item) => i.categoryId === selectedCategoryId);
+      }
+      if (searchQuery.trim()) {
+        exportItems = filterRowsBySearch(exportItems, searchQuery, undefined, ITEM_SORT);
+      }
+      if (sortColumn && sortDirection) {
+        exportItems = sortTableRows(
+          exportItems,
+          { column: sortColumn, direction: sortDirection },
+          (row, column) => ITEM_SORT[column as keyof typeof ITEM_SORT]?.(row) ?? null
+        );
+      }
+      if (exportItems.length === 0) {
+        toast.error("No items matching the selected filters to export.");
+        return;
+      }
       const orgName = orgs.find((o) => o.id === selectedOrgId)?.name ?? "Organization";
-      downloadItemsPdf(allItems, { orgName });
+      const pdfOptions: {
+        orgName?: string | null;
+        categoryLabel?: string;
+        searchQuery?: string;
+        preserveOrder?: boolean;
+      } = { orgName };
+      if (selectedCategoryId) {
+        pdfOptions.categoryLabel = selectedCategoryLabel;
+      }
+      if (searchQuery.trim()) {
+        pdfOptions.searchQuery = searchQuery.trim();
+      }
+      if (sortColumn && sortDirection) {
+        pdfOptions.preserveOrder = true;
+      }
+      downloadItemsPdf(exportItems, pdfOptions);
       toast.success("PDF downloaded.", { title: "Items list" });
     } catch (err) {
       toast.error(getApiErrorMessage(err));

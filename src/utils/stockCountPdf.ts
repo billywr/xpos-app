@@ -10,12 +10,19 @@ function formatKsh(amount: number): string {
   })}`;
 }
 
+export interface StockCountPdfOptions {
+  appName?: string;
+  searchQuery?: string | null;
+}
+
 export function generateStockCountPdf(
   session: StockCountSessionResponse,
   branchName?: string | null,
   orgName?: string | null,
-  appName = "XPOS"
+  appName = "XPOS",
+  opts?: StockCountPdfOptions
 ): jsPDF {
+  const effectiveAppName = opts?.appName ?? appName;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const margin = 15;
   let y = margin;
@@ -40,9 +47,14 @@ export function generateStockCountPdf(
   doc.text(`Source: ${session.sourceType}`, margin, y);
   y += 6;
   doc.text(`Status: ${session.status}`, margin, y);
-  y += 10;
-
+  y += 6;
+  if (opts?.searchQuery) {
+    doc.text(`Search: "${opts.searchQuery}"`, margin, y);
+    y += 6;
+  }
   const lines = session.lines ?? [];
+  doc.text(`Total lines: ${lines.length}`, margin, y);
+  y += 10;
   if (lines.length > 0) {
     const tableData: string[][] = lines.map((l: StockCountLineResponse) => [
       l.itemName,
@@ -138,7 +150,7 @@ export function generateStockCountPdf(
   y += 8;
   doc.setFontSize(9);
   doc.text(
-    `Generated ${new Date().toLocaleString("en-GB")} — ${appName} Stock Count`,
+    `Generated ${new Date().toLocaleString("en-GB")} — ${effectiveAppName} Stock Count`,
     margin,
     y
   );
@@ -150,9 +162,10 @@ export function downloadStockCountPdf(
   session: StockCountSessionResponse,
   branchName?: string | null,
   orgName?: string | null,
-  appName = "XPOS"
+  appName = "XPOS",
+  opts?: StockCountPdfOptions
 ): void {
-  const doc = generateStockCountPdf(session, branchName, orgName, appName);
+  const doc = generateStockCountPdf(session, branchName, orgName, appName, opts);
   const date = new Date(session.startedAt).toISOString().slice(0, 10);
   const filename = `stock-count-${date}-${session.id.slice(0, 8)}.pdf`;
   doc.save(filename);
@@ -162,9 +175,10 @@ export function shareStockCountPdf(
   session: StockCountSessionResponse,
   branchName?: string | null,
   orgName?: string | null,
-  appName = "XPOS"
+  appName = "XPOS",
+  opts?: StockCountPdfOptions
 ): void {
-  const doc = generateStockCountPdf(session, branchName, orgName, appName);
+  const doc = generateStockCountPdf(session, branchName, orgName, appName, opts);
   const blob = doc.output("blob");
   const file = new File(
     [blob],
@@ -180,9 +194,10 @@ export function shareStockCountPdf(
         files: [file],
       })
       .catch(() => {
-        downloadStockCountPdf(session, branchName, orgName, appName);
+        downloadStockCountPdf(session, branchName, orgName, appName, opts);
       });
   } else {
-    downloadStockCountPdf(session, branchName, orgName, appName);
+    downloadStockCountPdf(session, branchName, orgName, appName, opts);
   }
 }
+

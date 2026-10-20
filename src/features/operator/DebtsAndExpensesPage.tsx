@@ -60,8 +60,8 @@ import {
 } from "@/utils/allocateCustomerDebtPayment";
 import { useTableSort } from "@/hooks/useTableSort";
 import { sortTableRows } from "@/utils/tableSort";
-import { downloadDebtsPdf } from "@/utils/debtsPdf";
-import { downloadExpensesPdf } from "@/utils/expensesPdf";
+import { downloadDebtsPdf, downloadGroupedDebtsPdf } from "@/utils/debtsPdf";
+import { downloadExpensesPdf, downloadGroupedExpensesPdf } from "@/utils/expensesPdf";
 import { recordedAtToCreatedAt, todayInputValue } from "@/utils/recordedAt";
 import {
   addSavedIssuedByName,
@@ -1499,25 +1499,51 @@ export function DebtsAndExpensesPage({
     if (!orgId || !branchId || !dateRangeReady) return;
     setDebtsPdfLoading(true);
     try {
-      const resp = await fetchDebts(token, orgId, branchId, {
-        page: 0,
-        size: 2000,
-        status: statusQueryForFilter(statusFilter),
-        fromDate: effectiveFromDate,
-        toDate: effectiveToDate,
-      });
-      const rows = [...(resp.content ?? [])].sort(debtByNameAsc);
-      if (rows.length === 0) {
-        toast.error("No debts matching the selected filters to export.");
-        return;
-      }
       const statusLabel =
         STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label ?? "All";
-      downloadDebtsPdf(rows, {
-        branchName,
-        statusFilterLabel: statusLabel,
-        dateRangeLabel,
-      });
+
+      if (debtGroupBy !== "none") {
+        if (filteredGroupedDebts.length === 0) {
+          toast.error("No debts matching the selected filters to export.");
+          return;
+        }
+        const groupByLabel =
+          DEBT_GROUP_BY_OPTIONS.find((o) => o.value === debtGroupBy)?.label ?? debtGroupBy;
+        downloadGroupedDebtsPdf(filteredGroupedDebts, {
+          branchName,
+          statusFilterLabel: statusLabel,
+          dateRangeLabel,
+          groupByLabel,
+          searchQuery: debtSearchActive ? debtSearchQuery.trim() : undefined,
+        });
+      } else {
+        const resp = await fetchDebts(token, orgId, branchId, {
+          page: 0,
+          size: 2000,
+          status: statusQueryForFilter(statusFilter),
+          fromDate: effectiveFromDate,
+          toDate: effectiveToDate,
+        });
+        let rows = [...(resp.content ?? [])];
+        if (debtSearchActive) {
+          rows = filterRowsBySearch(rows, debtSearchQuery, undefined, DEBT_SORT);
+        }
+        rows = sortTableRows(
+          rows,
+          { column: debtSortColumn, direction: debtSortDirection },
+          (row, column) => DEBT_SORT[column]?.(row) ?? null
+        );
+        if (rows.length === 0) {
+          toast.error("No debts matching the selected filters to export.");
+          return;
+        }
+        downloadDebtsPdf(rows, {
+          branchName,
+          statusFilterLabel: statusLabel,
+          dateRangeLabel,
+          searchQuery: debtSearchActive ? debtSearchQuery.trim() : undefined,
+        });
+      }
     } catch (err) {
       toast.error(getApiErrorMessage(err), {
         detail: getApiErrorRequestId(err)
@@ -1533,22 +1559,47 @@ export function DebtsAndExpensesPage({
     if (!orgId || !branchId || !dateRangeReady) return;
     setExpensesPdfLoading(true);
     try {
-      const resp = await fetchMiscExpenses(token, orgId, branchId, {
-        page: 0,
-        size: 2000,
-        fromDate: effectiveFromDate,
-        toDate: effectiveToDate,
-      });
-      const rows = [...(resp.content ?? [])].sort(expenseByNameAsc);
-      if (rows.length === 0) {
-        toast.error("No expenses in the selected date range to export.");
-        return;
+      if (expGroupBy !== "none") {
+        if (filteredGroupedExpenses.length === 0) {
+          toast.error("No expenses in the selected date range to export.");
+          return;
+        }
+        const groupByLabel =
+          EXPENSE_GROUP_BY_OPTIONS.find((o) => o.value === expGroupBy)?.label ?? expGroupBy;
+        downloadGroupedExpensesPdf(filteredGroupedExpenses, {
+          branchName,
+          dateRangeLabel,
+          groupByLabel,
+          searchQuery: expSearchActive ? expSearchQuery.trim() : undefined,
+        });
+      } else {
+        const resp = await fetchMiscExpenses(token, orgId, branchId, {
+          page: 0,
+          size: 2000,
+          fromDate: effectiveFromDate,
+          toDate: effectiveToDate,
+        });
+        let rows = [...(resp.content ?? [])];
+        if (expSearchActive) {
+          rows = filterRowsBySearch(rows, expSearchQuery, undefined, EXPENSE_SORT);
+        }
+        rows = sortTableRows(
+          rows,
+          { column: expSortColumn, direction: expSortDirection },
+          (row, column) => EXPENSE_SORT[column]?.(row) ?? null
+        );
+        if (rows.length === 0) {
+          toast.error("No expenses in the selected date range to export.");
+          return;
+        }
+        const totalAmount = rows.reduce((s, r) => s + Number(r.amount ?? 0), 0);
+        downloadExpensesPdf(rows, {
+          branchName,
+          dateRangeLabel,
+          searchQuery: expSearchActive ? expSearchQuery.trim() : undefined,
+          totalAmount,
+        });
       }
-      downloadExpensesPdf(rows, {
-        branchName,
-        dateRangeLabel,
-        totalAmount: resp.totalAmount,
-      });
     } catch (err) {
       toast.error(getApiErrorMessage(err), {
         detail: getApiErrorRequestId(err)
@@ -1594,13 +1645,19 @@ export function DebtsAndExpensesPage({
         <div className="flex items-center gap-2">
           {tab === "debts" ? (
             <>
-              {debtTotalElements > 0 && (
+              {(debtGroupBy !== "none"
+                ? filteredGroupedDebts.length > 0
+                : debtTotalElements > 0) && (
                 <button
                   type="button"
                   onClick={handleDownloadDebtsPdf}
                   disabled={debtsPdfLoading}
                   className="hidden xl:inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                  title={`Download debts from ${dateRangeLabel}`}
+                  title={
+                    debtGroupBy !== "none"
+                      ? `Download debts report (grouped by ${DEBT_GROUP_BY_OPTIONS.find((o) => o.value === debtGroupBy)?.label ?? debtGroupBy})`
+                      : `Download debts from ${dateRangeLabel}`
+                  }
                 >
                   {debtsPdfLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1621,13 +1678,19 @@ export function DebtsAndExpensesPage({
             </>
           ) : (
             <>
-              {expTotalElements > 0 && (
+              {(expGroupBy !== "none"
+                ? filteredGroupedExpenses.length > 0
+                : expTotalElements > 0) && (
                 <button
                   type="button"
                   onClick={handleDownloadExpensesPdf}
                   disabled={expensesPdfLoading}
                   className="hidden xl:inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                  title={`Download all expenses from ${dateRangeLabel}`}
+                  title={
+                    expGroupBy !== "none"
+                      ? `Download expenses report (grouped by ${EXPENSE_GROUP_BY_OPTIONS.find((o) => o.value === expGroupBy)?.label ?? expGroupBy})`
+                      : `Download all expenses from ${dateRangeLabel}`
+                  }
                 >
                   {expensesPdfLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

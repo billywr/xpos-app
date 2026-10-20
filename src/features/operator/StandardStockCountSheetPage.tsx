@@ -884,7 +884,7 @@ export function StandardStockCountSheetPage({
     );
   }, [computedRows]);
 
-  const allRowsForPdf = allComputedRows;
+  const allRowsForPdf = searchQuery.trim() ? computedRows : allComputedRows;
 
   const pdfTotals = useMemo(
     () =>
@@ -1194,6 +1194,10 @@ export function StandardStockCountSheetPage({
   }
 
   function handleDownloadPdf() {
+    if (allRowsForPdf.length === 0) {
+      toast.error("No items matching the search query to export.");
+      return;
+    }
     downloadStdStockCountPdf(
       dateStr,
       allRowsForPdf.map((r) => ({
@@ -1232,7 +1236,8 @@ export function StandardStockCountSheetPage({
         })),
         allDebtsTotal,
         expensesTotal: analytics?.expenseIntelligence?.todayTotal ?? 0,
-      }
+      },
+      { searchQuery: searchQuery.trim() || undefined }
     );
     toast.success("PDF downloaded.", { title: "Stock Count Sheet" });
   }

@@ -11,6 +11,9 @@ export interface ItemsPdfItem {
 
 export interface ItemsPdfOptions {
   orgName?: string | null;
+  categoryLabel?: string | null;
+  searchQuery?: string | null;
+  preserveOrder?: boolean;
   appName?: string;
 }
 
@@ -18,7 +21,7 @@ export function generateItemsPdf(
   items: (Item | ItemsPdfItem)[],
   opts: ItemsPdfOptions = {}
 ): jsPDF {
-  const { orgName, appName = "XPOS" } = opts;
+  const { orgName, categoryLabel, searchQuery, preserveOrder, appName = "XPOS" } = opts;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const margin = 15;
   let y = margin;
@@ -26,7 +29,7 @@ export function generateItemsPdf(
   // Header Title
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text("All Items Price List", margin, y);
+  doc.text("Items Price List", margin, y);
   y += 8;
 
   // Metadata
@@ -34,6 +37,14 @@ export function generateItemsPdf(
   doc.setFont("helvetica", "normal");
   if (orgName) {
     doc.text(`Organization: ${orgName}`, margin, y);
+    y += 5;
+  }
+  if (categoryLabel) {
+    doc.text(`Category: ${categoryLabel}`, margin, y);
+    y += 5;
+  }
+  if (searchQuery) {
+    doc.text(`Search: "${searchQuery}"`, margin, y);
     y += 5;
   }
   const generatedDate = new Date().toLocaleString("en-GB");
@@ -46,10 +57,12 @@ export function generateItemsPdf(
     doc.setFont("helvetica", "italic");
     doc.text("No items found.", margin, y);
   } else {
-    // Sort items alphabetically by name
-    const sorted = [...items].sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
-    );
+    // Sort items alphabetically by name unless caller provided pre-sorted items
+    const sorted = preserveOrder
+      ? items
+      : [...items].sort((a, b) =>
+          a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+        );
 
     const tableData = sorted.map((item, index) => [
       String(index + 1),

@@ -49,6 +49,7 @@ import { formatQty } from "@/utils/formatQuantity";
 import { useToast } from "@/contexts/ToastContext";
 import { invalidateInventoryQueries } from "@/utils/invalidateInventoryQueries";
 import { downloadItemsPdf } from "@/utils/itemsPdf";
+import { filterRowsBySearch } from "@/utils/tableSearchMatch";
 import { Link } from "react-router-dom";
 import { Plus, PackagePlus, Trash2, Pencil, FileEdit, FileX, RotateCcw, Download, Loader2 } from "lucide-react";
 import { BarcodeCaptureInput } from "@/components/BarcodeCaptureInput";
@@ -660,8 +661,26 @@ export function GoodsReceiptPage({
     setDownloadingItemsPdf(true);
     try {
       const allItems = await fetchAllOrgItems(token, selectedOrgId);
+      let exportItems = allItems.filter((i) => i.active);
+      if (searchQuery.trim()) {
+        exportItems = filterRowsBySearch(exportItems, searchQuery, undefined, {
+          name: (i) => i.name,
+          sku: (i) => i.sku ?? "",
+        });
+      }
+      if (exportItems.length === 0) {
+        toast.error("No items matching the search query to export.");
+        return;
+      }
       const orgName = orgs.find((o) => o.id === selectedOrgId)?.name ?? "Organization";
-      downloadItemsPdf(allItems, { orgName });
+      const pdfOptions: {
+        orgName?: string | null;
+        searchQuery?: string;
+      } = { orgName };
+      if (searchQuery.trim()) {
+        pdfOptions.searchQuery = searchQuery.trim();
+      }
+      downloadItemsPdf(exportItems, pdfOptions);
       toast.success("PDF downloaded.", { title: "Items list" });
     } catch (err) {
       toast.error(getApiErrorMessage(err));
