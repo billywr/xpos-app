@@ -15,12 +15,12 @@ export interface Supplier {
 export async function fetchSuppliers(
   token: string | null,
   orgId: string,
-  params?: { page?: number; size?: number; includeInactive?: boolean }
+  params?: { page?: number; size?: number; includeInactive?: boolean; sort?: string }
 ): Promise<PageResponse<Supplier>> {
   const query = buildPageQuery({
     page: params?.page ?? 0,
     size: params?.size ?? 100,
-    sort: "name,asc",
+    sort: params?.sort ?? "createdAt,desc",
   });
   const includeInactive = params?.includeInactive ? "&includeInactive=true" : "";
   return apiFetch<PageResponse<Supplier>>(

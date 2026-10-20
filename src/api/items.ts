@@ -36,12 +36,12 @@ export async function fetchAllOrgItems(
 export async function fetchItems(
   token: string | null,
   orgId: string,
-  params?: { page?: number; size?: number; categoryId?: string | null }
+  params?: { page?: number; size?: number; categoryId?: string | null; sort?: string }
 ): Promise<PageResponse<Item>> {
   const query = buildPageQuery({
     page: params?.page ?? 0,
     size: params?.size ?? 100,
-    sort: "name,asc",
+    sort: params?.sort ?? "createdAt,desc",
   });
   const categoryParam =
     params?.categoryId && params.categoryId.trim()

@@ -4,12 +4,12 @@ import type { PageResponse } from "@/types/api";
 
 export async function fetchOrgs(
   token: string | null,
-  params?: { page?: number; size?: number }
+  params?: { page?: number; size?: number; sort?: string }
 ): Promise<PageResponse<Org>> {
   const query = buildPageQuery({
     page: params?.page ?? 0,
     size: params?.size ?? 25,
-    sort: "name,asc",
+    sort: params?.sort ?? "createdAt,desc",
   });
   return apiFetch<PageResponse<Org>>(`/api/v1/admin/orgs${query}`, { token });
 }

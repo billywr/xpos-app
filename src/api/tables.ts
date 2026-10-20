@@ -18,12 +18,12 @@ export async function fetchAdminTables(
   token: string | null,
   orgId: string,
   branchId: string,
-  params?: { page?: number; size?: number }
+  params?: { page?: number; size?: number; sort?: string }
 ): Promise<PageResponse<TableEntity>> {
   const query = buildPageQuery({
     page: params?.page ?? 0,
     size: params?.size ?? 25,
-    sort: "name,asc",
+    sort: params?.sort ?? "createdAt,desc",
   });
   return apiFetch<PageResponse<TableEntity>>(
     `/api/v1/admin/orgs/${orgId}/branches/${branchId}/tables${query}`,

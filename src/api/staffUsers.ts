@@ -7,11 +7,12 @@ import type { PageResponse } from "@/types/api";
 export async function fetchStaffUsers(
   token: string | null,
   orgId: string,
-  params?: { page?: number; size?: number }
+  params?: { page?: number; size?: number; sort?: string }
 ): Promise<PageResponse<StaffUser>> {
   const query = buildPageQuery({
     page: params?.page ?? 0,
     size: params?.size ?? 25,
+    sort: params?.sort ?? "createdAt,desc",
   });
   return apiFetch<PageResponse<StaffUser>>(
     `/api/v1/admin/orgs/${orgId}/staff-users${query}`,

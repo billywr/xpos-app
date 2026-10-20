@@ -52,10 +52,11 @@ export async function fetchGoodsReceiptNotes(
   token: string | null,
   orgId: string,
   branchId: string,
-  params?: { page?: number; size?: number; includeInactive?: boolean }
+  params?: { page?: number; size?: number; includeInactive?: boolean; sort?: string }
 ): Promise<PageResponse<GoodsReceiptNoteResponse>> {
   const search = new URLSearchParams();
   search.set("branchId", branchId);
+  search.set("sort", params?.sort ?? "createdAt,desc");
   if (params?.page !== undefined) search.set("page", String(params.page));
   if (params?.size !== undefined) search.set("size", String(params.size));
   if (params?.includeInactive === true) search.set("includeInactive", "true");

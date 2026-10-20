@@ -50,7 +50,7 @@ export async function fetchMiscExpenses(
   const p = params ?? {};
   if (p.page !== undefined) search.set("page", String(p.page));
   if (p.size !== undefined) search.set("size", String(p.size));
-  if (p.sort) search.set("sort", p.sort);
+  search.set("sort", p.sort ?? "createdAt,desc");
   if (p.fromDate) search.set("fromDate", p.fromDate);
   if (p.toDate) search.set("toDate", p.toDate);
   const qs = search.toString();

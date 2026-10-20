@@ -5,12 +5,12 @@ import type { PageResponse } from "@/types/api";
 export async function fetchCategories(
   token: string | null,
   orgId: string,
-  params?: { page?: number; size?: number }
+  params?: { page?: number; size?: number; sort?: string }
 ): Promise<PageResponse<Category>> {
   const query = buildPageQuery({
     page: params?.page ?? 0,
     size: params?.size ?? 100,
-    sort: "name,asc",
+    sort: params?.sort ?? "createdAt,desc",
   });
   return apiFetch<PageResponse<Category>>(
     `/api/v1/admin/orgs/${orgId}/categories${query}`,

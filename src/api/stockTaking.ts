@@ -36,9 +36,13 @@ export interface StockTakingScheduleUpdateRequest {
 export async function fetchStockTakingSchedules(
   token: string | null,
   orgId: string,
-  params?: { page?: number; size?: number }
+  params?: { page?: number; size?: number; sort?: string }
 ): Promise<PageResponse<StockTakingScheduleResponse>> {
-  const query = buildPageQuery(params ?? {});
+  const query = buildPageQuery({
+    page: params?.page ?? 0,
+    size: params?.size ?? 20,
+    sort: params?.sort ?? "createdAt,desc",
+  });
   return apiFetch<PageResponse<StockTakingScheduleResponse>>(
     `/api/v1/admin/orgs/${orgId}/stock-taking-schedules${query}`,
     { token }

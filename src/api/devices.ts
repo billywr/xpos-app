@@ -5,11 +5,12 @@ import type { PageResponse } from "@/types/api";
 export async function fetchDevices(
   token: string | null,
   orgId: string,
-  params?: { page?: number; size?: number }
+  params?: { page?: number; size?: number; sort?: string }
 ): Promise<PageResponse<DeviceRegistration>> {
   const query = buildPageQuery({
     page: params?.page ?? 0,
     size: params?.size ?? 25,
+    sort: params?.sort ?? "createdAt,desc",
   });
   return apiFetch<PageResponse<DeviceRegistration>>(
     `/api/v1/admin/orgs/${orgId}/devices${query}`,

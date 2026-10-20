@@ -6,12 +6,12 @@ export async function fetchTerminals(
   token: string | null,
   orgId: string,
   branchId: string,
-  params?: { page?: number; size?: number }
+  params?: { page?: number; size?: number; sort?: string }
 ): Promise<PageResponse<Terminal>> {
   const query = buildPageQuery({
     page: params?.page ?? 0,
     size: params?.size ?? 25,
-    sort: "terminalCode,asc",
+    sort: params?.sort ?? "createdAt,desc",
   });
   return apiFetch<PageResponse<Terminal>>(
     `/api/v1/admin/orgs/${orgId}/branches/${branchId}/terminals${query}`,
