@@ -62,7 +62,7 @@ public class SupplierAdminController {
       @PathVariable UUID orgId,
       @RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive,
       Pageable pageable) {
-    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("name").ascending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     Page<Supplier> page =
         includeInactive
             ? supplierService.list(orgId, normalized)

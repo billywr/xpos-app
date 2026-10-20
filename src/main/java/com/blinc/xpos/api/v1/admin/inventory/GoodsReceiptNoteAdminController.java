@@ -91,8 +91,7 @@ public class GoodsReceiptNoteAdminController {
       @RequestParam UUID branchId,
       @RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive,
       Pageable pageable) {
-    Pageable normalized =
-        pageRequestFactory.normalize(pageable, Sort.by("receivedAt").descending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     return grnService
         .listByBranch(orgId, branchId, includeInactive, normalized)
         .map(this::toResponse);

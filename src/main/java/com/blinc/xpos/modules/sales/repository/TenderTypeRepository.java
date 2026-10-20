@@ -14,7 +14,7 @@ public interface TenderTypeRepository extends JpaRepository<TenderType, UUID> {
       """
       select t from TenderType t
       where t.org.id = :orgId and t.active = true
-      order by t.code
+      order by t.createdAt desc, t.code asc
       """)
   List<TenderType> findByOrgIdAndActiveTrue(@Param("orgId") UUID orgId);
 
@@ -29,7 +29,7 @@ public interface TenderTypeRepository extends JpaRepository<TenderType, UUID> {
       """
       select t from TenderType t
       where t.org.id = :orgId
-      order by t.code
+      order by t.createdAt desc, t.code asc
       """)
   List<TenderType> findAllByOrgIdOrderByCode(@Param("orgId") UUID orgId);
 

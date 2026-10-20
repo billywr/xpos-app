@@ -50,7 +50,7 @@ public class TableEntityAdminController {
   @GetMapping
   public Page<TableEntityResponse> list(
       @PathVariable UUID orgId, @PathVariable UUID branchId, Pageable pageable) {
-    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("name").ascending());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     return tableEntityService.listByBranch(orgId, branchId, normalized).map(this::toResponse);
   }
 

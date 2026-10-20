@@ -186,7 +186,7 @@ public class CustomerDebtOperatorController {
       Pageable pageable) {
     staffAuthorizationService.requireStaffUserForBranch(
         orgId, branchId, principalResolver.require().iamUserId());
-    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.unsorted());
+    Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     List<CustomerDebtStatus> statuses = parseStatuses(status);
     Instant fromInstant =
         fromDate != null ? fromDate.atStartOfDay().toInstant(java.time.ZoneOffset.UTC) : null;
