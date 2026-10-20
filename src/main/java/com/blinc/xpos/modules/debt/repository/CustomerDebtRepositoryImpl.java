@@ -204,10 +204,10 @@ public class CustomerDebtRepositoryImpl implements CustomerDebtRepositoryCustom 
     String orderByClause;
 
     if ("issuedBy".equalsIgnoreCase(groupBy)) {
-      groupKeyCol = "COALESCE(NULLIF(TRIM(cd.issued_by), ''), 'Unassigned')";
-      groupLabelCol = "COALESCE(NULLIF(TRIM(cd.issued_by), ''), 'Unassigned')";
+      groupKeyCol = "LOWER(COALESCE(NULLIF(TRIM(cd.issued_by), ''), 'Unassigned'))";
+      groupLabelCol = "COALESCE(NULLIF(MAX(TRIM(cd.issued_by)), ''), 'Unassigned')";
       phoneCol = "NULL";
-      groupByClause = "GROUP BY COALESCE(NULLIF(TRIM(cd.issued_by), ''), 'Unassigned')";
+      groupByClause = "GROUP BY LOWER(COALESCE(NULLIF(TRIM(cd.issued_by), ''), 'Unassigned'))";
       orderByClause = "ORDER BY total_outstanding DESC, group_label ASC";
     } else if ("status".equalsIgnoreCase(groupBy)) {
       groupKeyCol = "cd.status::text";
@@ -223,11 +223,11 @@ public class CustomerDebtRepositoryImpl implements CustomerDebtRepositoryCustom 
       groupByClause = "GROUP BY TO_CHAR(cd.created_at, 'YYYY-MM-DD')";
       orderByClause = "ORDER BY group_key DESC";
     } else {
-      groupKeyCol = "cd.customer_id::text";
-      groupLabelCol = "c.name";
-      phoneCol = "c.phone";
-      groupByClause = "GROUP BY cd.customer_id, c.name, c.phone";
-      orderByClause = "ORDER BY total_outstanding DESC, c.name ASC";
+      groupKeyCol = "LOWER(COALESCE(NULLIF(TRIM(c.name), ''), 'Unnamed Customer'))";
+      groupLabelCol = "COALESCE(NULLIF(MAX(TRIM(c.name)), ''), 'Unnamed Customer')";
+      phoneCol = "MAX(c.phone)";
+      groupByClause = "GROUP BY LOWER(COALESCE(NULLIF(TRIM(c.name), ''), 'Unnamed Customer'))";
+      orderByClause = "ORDER BY total_outstanding DESC, group_label ASC";
     }
 
     StringBuilder sql = new StringBuilder();

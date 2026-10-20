@@ -27,9 +27,9 @@ public class MiscExpenseRepositoryImpl implements MiscExpenseRepositoryCustom {
     String orderByClause;
 
     if ("incurredBy".equalsIgnoreCase(groupBy)) {
-      groupKeyCol = "COALESCE(NULLIF(TRIM(e.incurred_by), ''), 'Unassigned')";
-      groupLabelCol = "COALESCE(NULLIF(TRIM(e.incurred_by), ''), 'Unassigned')";
-      groupByClause = "GROUP BY COALESCE(NULLIF(TRIM(e.incurred_by), ''), 'Unassigned')";
+      groupKeyCol = "LOWER(COALESCE(NULLIF(TRIM(e.incurred_by), ''), 'Unassigned'))";
+      groupLabelCol = "COALESCE(NULLIF(MAX(TRIM(e.incurred_by)), ''), 'Unassigned')";
+      groupByClause = "GROUP BY LOWER(COALESCE(NULLIF(TRIM(e.incurred_by), ''), 'Unassigned'))";
       orderByClause = "ORDER BY total_amount DESC, group_label ASC";
     } else if ("date".equalsIgnoreCase(groupBy)) {
       groupKeyCol = "TO_CHAR(e.created_at, 'YYYY-MM-DD')";
@@ -38,9 +38,9 @@ public class MiscExpenseRepositoryImpl implements MiscExpenseRepositoryCustom {
       orderByClause = "ORDER BY group_key DESC";
     } else {
       // Default: category
-      groupKeyCol = "e.category::text";
-      groupLabelCol = "e.category::text";
-      groupByClause = "GROUP BY e.category::text";
+      groupKeyCol = "LOWER(TRIM(e.category::text))";
+      groupLabelCol = "MAX(e.category::text)";
+      groupByClause = "GROUP BY LOWER(TRIM(e.category::text))";
       orderByClause = "ORDER BY total_amount DESC, group_label ASC";
     }
 
