@@ -1791,9 +1791,6 @@ export function DebtsAndExpensesPage({
                                 <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
                                   Balance (KSH)
                                 </th>
-                                <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
-                                  Actions
-                                </th>
                               </>
                             ) : (
                               <>
@@ -1926,20 +1923,6 @@ export function DebtsAndExpensesPage({
                                 </td>
                                 <td className="px-2 py-1.5 text-left text-xs font-bold tabular-nums text-red-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-red-400">
                                   {formatAmount(group.totalOutstanding)}
-                                </td>
-                                <td className="px-2 py-1.5 text-left sm:px-6 sm:py-2.5">
-                                  {debtGroupBy === "customer" && group.totalOutstanding > 0 ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => openCustomerSettleForm(group.groupLabel)}
-                                      className="rounded p-1 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 sm:p-1.5 dark:text-slate-400 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400"
-                                      title={`Record payment for ${group.groupLabel}`}
-                                    >
-                                      <Banknote className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 dark:text-emerald-400" />
-                                    </button>
-                                  ) : (
-                                    <span className="text-slate-400">—</span>
-                                  )}
                                 </td>
                               </tr>
                             ))
@@ -2343,9 +2326,6 @@ export function DebtsAndExpensesPage({
                                 <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
                                   Amount (KSH)
                                 </th>
-                                <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
-                                  Actions
-                                </th>
                               </>
                             ) : (
                               <>
@@ -2436,9 +2416,6 @@ export function DebtsAndExpensesPage({
                                 </td>
                                 <td className="px-2 py-1.5 text-left text-xs font-semibold tabular-nums text-slate-700 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-300">
                                   {formatAmount(group.totalAmount)}
-                                </td>
-                                <td className="px-2 py-1.5 text-left sm:px-6 sm:py-2.5">
-                                  <span className="text-slate-400">—</span>
                                 </td>
                               </tr>
                             ))
