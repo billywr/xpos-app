@@ -172,4 +172,122 @@ public class CustomerDebtRepositoryImpl implements CustomerDebtRepositoryCustom 
 
     return new PageImpl<>(ordered, pageable, total);
   }
+
+  @Override
+  public List<com.blinc.xpos.modules.debt.dto.DebtGroupSummaryProjection> findGroupedDebts(
+      UUID orgId,
+      UUID branchId,
+      String groupBy,
+      List<String> statusNames,
+      Instant from,
+      Instant to) {
+    Query query = buildGroupQuery(orgId, branchId, groupBy, statusNames, from, to);
+    @SuppressWarnings("unchecked")
+    List<Object[]> rows = query.getResultList();
+    return rows.stream().map(CustomerDebtRepositoryImpl::mapDebtGroupRow).toList();
+  }
+
+  private Query buildGroupQuery(
+      UUID orgId,
+      UUID branchId,
+      String groupBy,
+      List<String> statusNames,
+      Instant from,
+      Instant to) {
+    boolean hasStatuses = statusNames != null && !statusNames.isEmpty();
+    boolean hasDates = from != null && to != null;
+
+    String groupKeyCol;
+    String groupLabelCol;
+    String phoneCol;
+    String groupByClause;
+    String orderByClause;
+
+    if ("issuedBy".equalsIgnoreCase(groupBy)) {
+      groupKeyCol = "COALESCE(NULLIF(TRIM(cd.issued_by), ''), 'Unassigned')";
+      groupLabelCol = "COALESCE(NULLIF(TRIM(cd.issued_by), ''), 'Unassigned')";
+      phoneCol = "NULL";
+      groupByClause = "GROUP BY COALESCE(NULLIF(TRIM(cd.issued_by), ''), 'Unassigned')";
+      orderByClause = "ORDER BY total_outstanding DESC, group_label ASC";
+    } else if ("status".equalsIgnoreCase(groupBy)) {
+      groupKeyCol = "cd.status::text";
+      groupLabelCol =
+          "case when cd.status::text = 'SETTLED' then 'CLOSED' else cd.status::text end";
+      phoneCol = "NULL";
+      groupByClause = "GROUP BY cd.status::text";
+      orderByClause = "ORDER BY total_outstanding DESC, group_label ASC";
+    } else if ("date".equalsIgnoreCase(groupBy)) {
+      groupKeyCol = "TO_CHAR(cd.created_at, 'YYYY-MM-DD')";
+      groupLabelCol = "TO_CHAR(cd.created_at, 'YYYY-MM-DD')";
+      phoneCol = "NULL";
+      groupByClause = "GROUP BY TO_CHAR(cd.created_at, 'YYYY-MM-DD')";
+      orderByClause = "ORDER BY group_key DESC";
+    } else {
+      groupKeyCol = "cd.customer_id::text";
+      groupLabelCol = "c.name";
+      phoneCol = "c.phone";
+      groupByClause = "GROUP BY cd.customer_id, c.name, c.phone";
+      orderByClause = "ORDER BY total_outstanding DESC, c.name ASC";
+    }
+
+    StringBuilder sql = new StringBuilder();
+    sql.append("SELECT ")
+        .append(groupKeyCol)
+        .append(" AS group_key, ")
+        .append(groupLabelCol)
+        .append(" AS group_label, ")
+        .append("COUNT(*) AS debt_count, ")
+        .append("COALESCE(SUM(cd.amount), 0) AS total_amount, ")
+        .append("COALESCE(SUM(cd.amount_settled), 0) AS total_settled, ")
+        .append("COALESCE(SUM(cd.amount - cd.amount_settled), 0) AS total_outstanding, ")
+        .append(phoneCol)
+        .append(" AS customer_phone ")
+        .append("FROM customer_debt cd ")
+        .append("JOIN customer c ON c.id = cd.customer_id ")
+        .append("WHERE cd.org_id = :orgId AND cd.branch_id = :branchId ");
+
+    if (hasStatuses) {
+      sql.append("AND cd.status::text IN (:statusNames) ");
+    }
+    if (hasDates) {
+      sql.append("AND cd.created_at >= :fromTs AND cd.created_at < :toTs ");
+    }
+
+    sql.append(groupByClause).append(" ").append(orderByClause);
+
+    Query query = entityManager.createNativeQuery(sql.toString());
+    query.setParameter("orgId", orgId);
+    query.setParameter("branchId", branchId);
+    if (hasStatuses) {
+      query.setParameter("statusNames", statusNames);
+    }
+    if (hasDates) {
+      query.setParameter("fromTs", from);
+      query.setParameter("toTs", to);
+    }
+    return query;
+  }
+
+  private static com.blinc.xpos.modules.debt.dto.DebtGroupSummaryProjection mapDebtGroupRow(
+      Object[] row) {
+    String key = row[0] != null ? row[0].toString() : "";
+    String label = row[1] != null ? row[1].toString() : "";
+    long count = row[2] instanceof Number n ? n.longValue() : 0L;
+    java.math.BigDecimal amount = toBigDecimal(row[3]);
+    java.math.BigDecimal settled = toBigDecimal(row[4]);
+    java.math.BigDecimal outstanding = toBigDecimal(row[5]);
+    String phone = row[6] != null ? row[6].toString() : null;
+    return new com.blinc.xpos.modules.debt.dto.DebtGroupSummaryProjection(
+        key, label, count, amount, settled, outstanding, phone);
+  }
+
+  private static java.math.BigDecimal toBigDecimal(Object val) {
+    if (val instanceof java.math.BigDecimal b) {
+      return b;
+    }
+    if (val instanceof Number n) {
+      return java.math.BigDecimal.valueOf(n.doubleValue());
+    }
+    return java.math.BigDecimal.ZERO;
+  }
 }

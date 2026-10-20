@@ -48,4 +48,8 @@ public interface MiscExpenseService {
 
   /** Returns distinct category values used by this org, sorted alphabetically. */
   List<String> listCategoriesByOrg(UUID orgId);
+
+  /** List expenses aggregated by group (category, incurredBy, date). */
+  List<com.blinc.xpos.modules.cash.dto.ExpenseGroupSummaryProjection> findGroupedExpenses(
+      UUID orgId, UUID branchId, String groupBy, Instant fromInstant, Instant toInstant);
 }

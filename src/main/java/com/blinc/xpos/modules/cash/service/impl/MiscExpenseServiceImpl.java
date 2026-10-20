@@ -190,4 +190,13 @@ public class MiscExpenseServiceImpl implements MiscExpenseService {
   public List<String> listCategoriesByOrg(UUID orgId) {
     return miscExpenseRepository.findDistinctCategoriesByOrgId(orgId);
   }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<com.blinc.xpos.modules.cash.dto.ExpenseGroupSummaryProjection> findGroupedExpenses(
+      UUID orgId, UUID branchId, String groupBy, Instant fromInstant, Instant toInstant) {
+    branchService.require(orgId, branchId);
+    return miscExpenseRepository.findGroupedExpenses(
+        orgId, branchId, groupBy, fromInstant, toInstant);
+  }
 }

@@ -199,6 +199,41 @@ public class CustomerDebtOperatorController {
         .map(CustomerDebtOperatorController::toResponse);
   }
 
+  @GetMapping("/debts/grouped")
+  public List<com.blinc.xpos.api.v1.operator.dto.CustomerDebtGroupSummaryResponse> listGrouped(
+      @PathVariable UUID orgId,
+      @PathVariable UUID branchId,
+      @RequestParam(defaultValue = "customer") String groupBy,
+      @RequestParam(required = false) List<String> status,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate fromDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate toDate) {
+    staffAuthorizationService.requireStaffUserForBranch(
+        orgId, branchId, principalResolver.require().iamUserId());
+    List<CustomerDebtStatus> statuses = parseStatuses(status);
+    Instant fromInstant =
+        fromDate != null ? fromDate.atStartOfDay().toInstant(java.time.ZoneOffset.UTC) : null;
+    Instant toInstant =
+        toDate != null
+            ? toDate.plusDays(1).atStartOfDay().toInstant(java.time.ZoneOffset.UTC)
+            : null;
+    return customerDebtService
+        .findGroupedDebts(orgId, branchId, groupBy, statuses, fromInstant, toInstant)
+        .stream()
+        .map(
+            p ->
+                new com.blinc.xpos.api.v1.operator.dto.CustomerDebtGroupSummaryResponse(
+                    p.groupKey(),
+                    p.groupLabel(),
+                    p.count(),
+                    p.totalAmount(),
+                    p.totalAmountSettled(),
+                    p.totalOutstanding(),
+                    p.customerPhone()))
+        .toList();
+  }
+
   private static List<CustomerDebtStatus> parseStatuses(List<String> status) {
     if (status == null || status.isEmpty()) {
       return null;

@@ -141,6 +141,33 @@ public class MiscExpenseOperatorController {
     return MiscExpenseListResponse.from(page, totalAmount);
   }
 
+  @GetMapping("/misc-expenses/grouped")
+  public List<com.blinc.xpos.api.v1.operator.dto.MiscExpenseGroupSummaryResponse> listGrouped(
+      @PathVariable UUID orgId,
+      @PathVariable UUID branchId,
+      @RequestParam(defaultValue = "category") String groupBy,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate fromDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate toDate) {
+    staffAuthorizationService.requireStaffUserForBranch(
+        orgId, branchId, principalResolver.require().iamUserId());
+    Instant fromInstant =
+        fromDate != null ? fromDate.atStartOfDay().toInstant(java.time.ZoneOffset.UTC) : null;
+    Instant toInstant =
+        toDate != null
+            ? toDate.plusDays(1).atStartOfDay().toInstant(java.time.ZoneOffset.UTC)
+            : null;
+    return miscExpenseService
+        .findGroupedExpenses(orgId, branchId, groupBy, fromInstant, toInstant)
+        .stream()
+        .map(
+            p ->
+                new com.blinc.xpos.api.v1.operator.dto.MiscExpenseGroupSummaryResponse(
+                    p.groupKey(), p.groupLabel(), p.count(), p.totalAmount()))
+        .toList();
+  }
+
   @GetMapping("/misc-expenses/categories")
   public List<String> listCategories(@PathVariable UUID orgId, @PathVariable UUID branchId) {
     staffAuthorizationService.requireStaffUserForBranch(

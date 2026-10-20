@@ -13,7 +13,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface MiscExpenseRepository extends JpaRepository<MiscExpense, UUID> {
+public interface MiscExpenseRepository
+    extends JpaRepository<MiscExpense, UUID>, MiscExpenseRepositoryCustom {
 
   @Query(
       """

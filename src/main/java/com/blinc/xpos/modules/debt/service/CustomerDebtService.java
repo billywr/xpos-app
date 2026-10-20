@@ -80,4 +80,13 @@ public interface CustomerDebtService {
 
   /** Sum of outstanding (amount − settled) for OPEN and PARTIAL debts at this branch. */
   java.math.BigDecimal sumPendingOutstanding(UUID orgId, UUID branchId);
+
+  /** List debts aggregated by group (customer, issuedBy, status, date). */
+  java.util.List<com.blinc.xpos.modules.debt.dto.DebtGroupSummaryProjection> findGroupedDebts(
+      UUID orgId,
+      UUID branchId,
+      String groupBy,
+      java.util.List<com.blinc.xpos.common.constants.enums.CustomerDebtStatus> statuses,
+      Instant fromInstant,
+      Instant toInstant);
 }

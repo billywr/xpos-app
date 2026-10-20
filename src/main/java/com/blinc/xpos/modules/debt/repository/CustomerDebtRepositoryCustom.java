@@ -27,4 +27,13 @@ public interface CustomerDebtRepositoryCustom {
       Instant from,
       Instant to,
       Pageable pageable);
+
+  /** Aggregate debts grouped by customer, issuedBy, status, or date (YYYY-MM-DD). */
+  List<com.blinc.xpos.modules.debt.dto.DebtGroupSummaryProjection> findGroupedDebts(
+      UUID orgId,
+      UUID branchId,
+      String groupBy,
+      List<String> statusNames,
+      Instant from,
+      Instant to);
 }

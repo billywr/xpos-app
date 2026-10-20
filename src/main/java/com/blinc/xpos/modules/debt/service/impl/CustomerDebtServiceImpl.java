@@ -477,4 +477,19 @@ public class CustomerDebtServiceImpl implements CustomerDebtService {
     customerService.require(orgId, customerId);
     return customerDebtRepository.findAllByOrgIdAndCustomerId(orgId, customerId, pageable);
   }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<com.blinc.xpos.modules.debt.dto.DebtGroupSummaryProjection> findGroupedDebts(
+      UUID orgId,
+      UUID branchId,
+      String groupBy,
+      List<CustomerDebtStatus> statuses,
+      Instant fromInstant,
+      Instant toInstant) {
+    branchService.require(orgId, branchId);
+    List<String> statusNames = statuses != null ? statuses.stream().map(Enum::name).toList() : null;
+    return customerDebtRepository.findGroupedDebts(
+        orgId, branchId, groupBy, statusNames, fromInstant, toInstant);
+  }
 }
