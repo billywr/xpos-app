@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/** Summary of revenue for a date range: totals, COGS, and period. */
+/**
+ * Summary of revenue for a date range: totals, COGS, operating expenses, utilities, and net profit.
+ */
 public record RevenueSummaryResponse(
     UUID orgId,
     UUID branchId,
@@ -15,5 +17,6 @@ public record RevenueSummaryResponse(
     BigDecimal discountTotal,
     BigDecimal cogsTotal,
     BigDecimal expenseTotal,
+    BigDecimal utilitiesTotal,
     BigDecimal netProfit,
     int saleCount) {}

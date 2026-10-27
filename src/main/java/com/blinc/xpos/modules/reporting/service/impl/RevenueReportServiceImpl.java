@@ -2,7 +2,10 @@ package com.blinc.xpos.modules.reporting.service.impl;
 
 import com.blinc.xpos.common.constants.enums.SaleStatus;
 import com.blinc.xpos.modules.cash.domain.MiscExpense;
+import com.blinc.xpos.modules.cash.domain.RecurringUtilityApplyTiming;
+import com.blinc.xpos.modules.cash.domain.RecurringUtilityExpense;
 import com.blinc.xpos.modules.cash.repository.MiscExpenseRepository;
+import com.blinc.xpos.modules.cash.repository.RecurringUtilityExpenseRepository;
 import com.blinc.xpos.modules.inventory.domain.StockMovement;
 import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
 import com.blinc.xpos.modules.organization.domain.Branch;
@@ -17,6 +20,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
@@ -37,18 +41,22 @@ public class RevenueReportServiceImpl implements RevenueReportService {
   private final StockMovementRepository stockMovementRepository;
   private final BranchService branchService;
   private final MiscExpenseRepository miscExpenseRepository;
+  private final RecurringUtilityExpenseRepository recurringUtilityRepository;
 
   public RevenueReportServiceImpl(
       SaleRepository saleRepository,
       StockMovementRepository stockMovementRepository,
       BranchService branchService,
-      MiscExpenseRepository miscExpenseRepository) {
+      MiscExpenseRepository miscExpenseRepository,
+      RecurringUtilityExpenseRepository recurringUtilityRepository) {
     this.saleRepository = Objects.requireNonNull(saleRepository, "saleRepository");
     this.stockMovementRepository =
         Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
     this.branchService = Objects.requireNonNull(branchService, "branchService");
     this.miscExpenseRepository =
         Objects.requireNonNull(miscExpenseRepository, "miscExpenseRepository");
+    this.recurringUtilityRepository =
+        Objects.requireNonNull(recurringUtilityRepository, "recurringUtilityRepository");
   }
 
   @Override
@@ -64,13 +72,13 @@ public class RevenueReportServiceImpl implements RevenueReportService {
     List<Sale> sales =
         saleRepository.findListByOrgIdAndBranchIdAndStatusAndCompletedAtBetween(
             orgId, branchId, SaleStatus.COMPLETED, start, end);
-
     List<StockMovement> saleMovements =
         stockMovementRepository.findSaleOutByBranchAndDateRange(orgId, branchId, start, end);
-
     List<MiscExpense> expenses =
         miscExpenseRepository.findListByOrgIdAndBranchIdAndCreatedAtBetween(
             orgId, branchId, start, end);
+    List<RecurringUtilityExpense> utilities =
+        recurringUtilityRepository.findAllActiveByOrgIdAndBranchId(orgId, branchId);
 
     BigDecimal revenueTotal = BigDecimal.ZERO;
     BigDecimal taxTotal = BigDecimal.ZERO;
@@ -81,13 +89,13 @@ public class RevenueReportServiceImpl implements RevenueReportService {
     Map<LocalDate, DailyAggregate> byDate = new TreeMap<>();
     Map<LocalDate, BigDecimal> cogsByDate = new TreeMap<>();
     Map<LocalDate, BigDecimal> expensesByDate = new TreeMap<>();
+    Map<LocalDate, BigDecimal> utilitiesByDate = new TreeMap<>();
 
     for (Sale s : sales) {
       LocalDate d = toLocalDate(s.getCompletedAt(), zone);
       revenueTotal = revenueTotal.add(s.getTotal());
       taxTotal = taxTotal.add(s.getTaxTotal());
       discountTotal = discountTotal.add(s.getDiscountTotal());
-
       byDate.computeIfAbsent(d, k -> new DailyAggregate()).add(s.getTotal(), s.getTaxTotal(), 1);
     }
 
@@ -97,8 +105,7 @@ public class RevenueReportServiceImpl implements RevenueReportService {
               ? m.getQty().multiply(m.getUnitCost()).setScale(SCALE, ROUNDING)
               : BigDecimal.ZERO;
       cogsTotal = cogsTotal.add(cost);
-      LocalDate d = toLocalDate(m.getCreatedAt(), zone);
-      cogsByDate.merge(d, cost, BigDecimal::add);
+      cogsByDate.merge(toLocalDate(m.getCreatedAt(), zone), cost, BigDecimal::add);
     }
 
     for (MiscExpense exp : expenses) {
@@ -109,7 +116,10 @@ public class RevenueReportServiceImpl implements RevenueReportService {
       byDate.computeIfAbsent(d, k -> new DailyAggregate());
     }
 
-    BigDecimal netProfit = revenueTotal.subtract(cogsTotal).subtract(expenseTotal);
+    BigDecimal utilitiesTotal =
+        calculateUtilities(utilities, startDate, endDate, utilitiesByDate, byDate);
+    BigDecimal netProfit =
+        revenueTotal.subtract(cogsTotal).subtract(expenseTotal).subtract(utilitiesTotal);
 
     RevenueSummaryResponse summary =
         new RevenueSummaryResponse(
@@ -122,31 +132,77 @@ public class RevenueReportServiceImpl implements RevenueReportService {
             discountTotal.setScale(SCALE, ROUNDING),
             cogsTotal.setScale(SCALE, ROUNDING),
             expenseTotal.setScale(SCALE, ROUNDING),
+            utilitiesTotal.setScale(SCALE, ROUNDING),
             netProfit.setScale(SCALE, ROUNDING),
             sales.size());
 
     List<RevenueTrendPointResponse> trend =
-        byDate.entrySet().stream()
-            .map(
-                e -> {
-                  BigDecimal dailyCogs = cogsByDate.getOrDefault(e.getKey(), BigDecimal.ZERO);
-                  BigDecimal dailyExpenses =
-                      expensesByDate.getOrDefault(e.getKey(), BigDecimal.ZERO);
-                  BigDecimal dailyNetProfit =
-                      e.getValue().revenue.subtract(dailyCogs).subtract(dailyExpenses);
-                  return new RevenueTrendPointResponse(
-                      e.getKey(),
-                      e.getValue().revenue.setScale(SCALE, ROUNDING),
-                      e.getValue().tax.setScale(SCALE, ROUNDING),
-                      dailyCogs.setScale(SCALE, ROUNDING),
-                      dailyExpenses.setScale(SCALE, ROUNDING),
-                      dailyNetProfit.setScale(SCALE, ROUNDING),
-                      e.getValue().saleCount);
-                })
-            .sorted(Comparator.comparing(RevenueTrendPointResponse::date))
-            .toList();
+        buildTrend(byDate, cogsByDate, expensesByDate, utilitiesByDate);
 
     return new RevenueDashboardResponse(summary, trend);
+  }
+
+  private static BigDecimal calculateUtilities(
+      List<RecurringUtilityExpense> utilities,
+      LocalDate startDate,
+      LocalDate endDate,
+      Map<LocalDate, BigDecimal> utilitiesByDate,
+      Map<LocalDate, DailyAggregate> byDate) {
+    if (utilities == null || utilities.isEmpty()) {
+      return BigDecimal.ZERO;
+    }
+    BigDecimal total = BigDecimal.ZERO;
+    YearMonth currentYm = YearMonth.from(startDate);
+    YearMonth endYm = YearMonth.from(endDate);
+
+    while (!currentYm.isAfter(endYm)) {
+      for (RecurringUtilityExpense util : utilities) {
+        LocalDate applicationDate =
+            util.getApplyTiming() == RecurringUtilityApplyTiming.END_OF_MONTH
+                ? currentYm.atEndOfMonth()
+                : currentYm.atDay(1);
+
+        if (!applicationDate.isBefore(startDate) && !applicationDate.isAfter(endDate)) {
+          BigDecimal amt = util.getAmount() != null ? util.getAmount() : BigDecimal.ZERO;
+          total = total.add(amt);
+          utilitiesByDate.merge(applicationDate, amt, BigDecimal::add);
+          byDate.computeIfAbsent(applicationDate, k -> new DailyAggregate());
+        }
+      }
+      currentYm = currentYm.plusMonths(1);
+    }
+    return total;
+  }
+
+  private static List<RevenueTrendPointResponse> buildTrend(
+      Map<LocalDate, DailyAggregate> byDate,
+      Map<LocalDate, BigDecimal> cogsByDate,
+      Map<LocalDate, BigDecimal> expensesByDate,
+      Map<LocalDate, BigDecimal> utilitiesByDate) {
+    return byDate.entrySet().stream()
+        .map(
+            e -> {
+              BigDecimal dailyCogs = cogsByDate.getOrDefault(e.getKey(), BigDecimal.ZERO);
+              BigDecimal dailyExpenses = expensesByDate.getOrDefault(e.getKey(), BigDecimal.ZERO);
+              BigDecimal dailyUtilities = utilitiesByDate.getOrDefault(e.getKey(), BigDecimal.ZERO);
+              BigDecimal dailyNetProfit =
+                  e.getValue()
+                      .revenue
+                      .subtract(dailyCogs)
+                      .subtract(dailyExpenses)
+                      .subtract(dailyUtilities);
+              return new RevenueTrendPointResponse(
+                  e.getKey(),
+                  e.getValue().revenue.setScale(SCALE, ROUNDING),
+                  e.getValue().tax.setScale(SCALE, ROUNDING),
+                  dailyCogs.setScale(SCALE, ROUNDING),
+                  dailyExpenses.setScale(SCALE, ROUNDING),
+                  dailyUtilities.setScale(SCALE, ROUNDING),
+                  dailyNetProfit.setScale(SCALE, ROUNDING),
+                  e.getValue().saleCount);
+            })
+        .sorted(Comparator.comparing(RevenueTrendPointResponse::date))
+        .toList();
   }
 
   private static LocalDate toLocalDate(Instant instant, ZoneId zone) {

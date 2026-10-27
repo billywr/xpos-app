@@ -10,5 +10,6 @@ public record RevenueTrendPointResponse(
     BigDecimal tax,
     BigDecimal cogs,
     BigDecimal expenses,
+    BigDecimal utilities,
     BigDecimal netProfit,
     int saleCount) {}
