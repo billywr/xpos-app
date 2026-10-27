@@ -2122,5 +2122,96 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
     expect(badge).toHaveTextContent("3");
     expect(reconcileBtn).toHaveAttribute("aria-label", "Reconcile inventory (3 items)");
   });
+
+  it("displays Tot: amount badge in top bar before date filter", async () => {
+    const today = localTodayStr();
+    vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      totalQtyToRecord: 0,
+      totalValueToRecord: 0,
+      lines: [],
+    });
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU-1",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 150,
+          closingStock: 6,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />, "term-1");
+
+    // 4 units sold * 150 = 600
+    await waitFor(() => {
+      const badges = screen.getAllByTitle(/Total sales amount/i);
+      expect(badges.length).toBeGreaterThanOrEqual(1);
+      expect(badges[0]).toHaveTextContent(/Tot:/i);
+      expect(badges[0]).toHaveTextContent(/600/i);
+    });
+  });
+
+  it("does not show Record sales button with ghost count when server preview has 0 remaining and no unsaved changes", async () => {
+    const today = localTodayStr();
+    vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      totalQtyToRecord: 0,
+      totalValueToRecord: 0,
+      lines: [
+        {
+          itemId: "item-1",
+          name: "Product 1",
+          impliedSold: 4,
+          alreadyRecorded: 4,
+          qtyToRecord: 0,
+          qtyRecorded: 4,
+          unitPrice: 150,
+          lineValue: 0,
+          status: "RECORDED",
+        },
+      ],
+    });
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU-1",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 150,
+          closingStock: 6,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />, "term-1");
+
+    await waitFor(() => {
+      expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    // Record sales button should NOT be in the document because remaining to record is 0
+    expect(screen.queryByRole("button", { name: /record sales/i })).not.toBeInTheDocument();
+  });
 });
 

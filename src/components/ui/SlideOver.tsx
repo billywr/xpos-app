@@ -8,8 +8,8 @@ export interface SlideOverProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
-  /** Optional max width class (default max-w-lg) */
-  maxWidth?: "max-w-md" | "max-w-lg" | "max-w-xl";
+  /** Optional max width class (default sm:max-w-xl md:max-w-2xl lg:max-w-[50vw]) */
+  maxWidth?: string;
   /** Optional action element rendered in the header next to close button */
   headerAction?: ReactNode;
 }
@@ -23,7 +23,7 @@ export function SlideOver({
   onClose,
   title,
   children,
-  maxWidth = "max-w-lg",
+  maxWidth = "sm:max-w-xl md:max-w-2xl lg:max-w-[50vw]",
   headerAction,
 }: SlideOverProps) {
   useEffect(() => {

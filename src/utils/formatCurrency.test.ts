@@ -30,16 +30,19 @@ describe("formatCurrency", () => {
 });
 
 describe("formatAmount", () => {
-  it("formats amount strictly with 2 decimal places", () => {
-    expect(formatAmount(100)).toBe("100.00");
+  it("formats whole amounts without cents and decimal amounts with cents", () => {
+    expect(formatAmount(100)).toBe("100");
+    expect(formatAmount(6000)).toBe("6,000");
+    expect(formatAmount(900)).toBe("900");
     expect(formatAmount(100.5)).toBe("100.50");
     expect(formatAmount(100.567)).toBe("100.57");
+    expect(formatAmount(900.25)).toBe("900.25");
   });
 
   it("handles null, undefined, NaN safely", () => {
-    expect(formatAmount(null)).toBe("0.00");
-    expect(formatAmount(undefined)).toBe("0.00");
-    expect(formatAmount(Number.NaN)).toBe("0.00");
+    expect(formatAmount(null)).toBe("0");
+    expect(formatAmount(undefined)).toBe("0");
+    expect(formatAmount(Number.NaN)).toBe("0");
   });
 });
 

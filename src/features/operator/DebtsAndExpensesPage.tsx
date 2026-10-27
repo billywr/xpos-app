@@ -81,9 +81,11 @@ import {
   FileDown,
   Check,
   X,
+  Building2,
 } from "lucide-react";
 import { AdminTabList, AdminTabPanel } from "@/components/ui/AdminTabs";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { UtilitiesTabPanel } from "./UtilitiesTabPanel";
 // ---------------------------------------------------------------------------
 // Shared date helpers (same as StandardStockCountSheetPage)
 // ---------------------------------------------------------------------------
@@ -365,7 +367,7 @@ function RecordedDateFilters(props: {
 // Tab type
 // ---------------------------------------------------------------------------
 
-type TabId = "debts" | "expenses";
+type TabId = "utilities" | "debts" | "expenses";
 
 // ---------------------------------------------------------------------------
 // Main page component
@@ -405,7 +407,9 @@ export function DebtsAndExpensesPage({
     "";
 
   // Shared state
-  const [tab, setTab] = useState<TabId>("debts");
+  const [tab, setTab] = useState<TabId>("utilities");
+  const [isCreateUtilityOpen, setIsCreateUtilityOpen] = useState(false);
+  const downloadUtilitiesPdfRef = useRef<(() => void) | null>(null);
   const [fromDate, setFromDate] = useState<string | null>(null);
   const [toDate, setToDate] = useState(todayStr);
   const [onRecordedDate, setOnRecordedDate] = useState("");
@@ -1635,6 +1639,7 @@ export function DebtsAndExpensesPage({
           tabListId="debts-expenses"
           ariaLabel="Debts and Expenses"
           tabs={[
+            { id: "utilities", label: "Utilities", icon: Building2, enabled: true },
             { id: "debts", label: "Debts", icon: HandCoins, enabled: true },
             { id: "expenses", label: "Expenses", icon: Receipt, enabled: true },
           ]}
@@ -1643,7 +1648,27 @@ export function DebtsAndExpensesPage({
         />
 
         <div className="flex items-center gap-2">
-          {tab === "debts" ? (
+          {tab === "utilities" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => downloadUtilitiesPdfRef.current?.()}
+                className="hidden xl:inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                title="Download recurring utilities report"
+              >
+                <FileDown className="h-4 w-4" />
+                <span className="hidden sm:inline">Download PDF</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsCreateUtilityOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add utility</span>
+              </button>
+            </>
+          ) : tab === "debts" ? (
             <>
               {(debtGroupBy !== "none"
                 ? filteredGroupedDebts.length > 0
@@ -1712,6 +1737,22 @@ export function DebtsAndExpensesPage({
           )}
         </div>
       </div>
+
+      {/* ================================================================= */}
+      {/* UTILITIES TAB                                                     */}
+      {/* ================================================================= */}
+      {tab === "utilities" && (
+        <AdminTabPanel panelId="debts-expenses-panel-utilities" tabId="debts-expenses-tab-utilities">
+          <UtilitiesTabPanel
+            orgId={orgId!}
+            branchId={branchId!}
+            branchName={branchName}
+            isCreateOpen={isCreateUtilityOpen}
+            setIsCreateOpen={setIsCreateUtilityOpen}
+            downloadPdfRef={downloadUtilitiesPdfRef}
+          />
+        </AdminTabPanel>
+      )}
 
       {/* ================================================================= */}
       {/* DEBTS TAB                                                         */}
@@ -2760,7 +2801,6 @@ export function DebtsAndExpensesPage({
           if (!settleSubmitting && !settleBulkMutation.isPending) setSettleAmount("");
         }}
         title="Record payment"
-        maxWidth="max-w-xl"
       >
         {settlingCustomerName.trim() && (
           <form onSubmit={handleSettleSubmit} className="space-y-4">

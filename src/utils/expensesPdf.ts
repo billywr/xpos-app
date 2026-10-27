@@ -1,13 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { MiscExpenseGroupSummaryResponse, MiscExpenseResponse } from "@/api/miscExpenses";
-
-function formatAmount(amount: number): string {
-  return amount.toLocaleString("en-KE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
+import { formatAmount } from "@/utils/formatCurrency";
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("en-GB");

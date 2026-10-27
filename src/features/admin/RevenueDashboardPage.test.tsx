@@ -261,12 +261,19 @@ describe("RevenueDashboardPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Today")).toBeInTheDocument();
+      expect(screen.getByText("This Week")).toBeInTheDocument();
+      expect(screen.getByText("Last Week")).toBeInTheDocument();
       expect(screen.getByText("7 Days")).toBeInTheDocument();
       expect(screen.getByText("This Month")).toBeInTheDocument();
+      expect(screen.getByText("Last Month")).toBeInTheDocument();
+      expect(screen.getByText("30 Days")).toBeInTheDocument();
+      expect(screen.getByText("This Year")).toBeInTheDocument();
+      expect(screen.getByText("Last Year")).toBeInTheDocument();
+      expect(screen.getByText("Custom")).toBeInTheDocument();
     });
 
     const { fireEvent } = await import("@testing-library/react");
-    fireEvent.click(screen.getByText("Today"));
+    fireEvent.click(screen.getByText("This Week"));
 
     // Quick range triggers load dashboard immediately when org and branch are selected
     await waitFor(() => {

@@ -1,13 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { CustomerDebtGroupSummaryResponse, CustomerDebtResponse } from "@/api/debts";
-
-function formatAmount(amount: number): string {
-  return amount.toLocaleString("en-KE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
+import { formatAmount } from "@/utils/formatCurrency";
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("en-GB");

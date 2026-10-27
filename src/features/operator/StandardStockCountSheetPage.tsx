@@ -393,7 +393,7 @@ export function StandardStockCountSheetPage({
   const { isInitialLoad, isRefreshing } = useQueryDisplay(sheetQuery);
 
   const salesPreviewQueryEnabled = Boolean(
-    token && orgId && branchId && terminalId && canEdit && sheet
+    token && orgId && branchId && canEdit && sheet
   );
 
   const {
@@ -745,6 +745,8 @@ export function StandardStockCountSheetPage({
         queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
       });
       void refetchSalesPreview();
+      void refetch();
+      void refetchReconcilePreview();
       setRecordPreview(null);
       if (result.saleIds.length === 0) {
         toast.success("No new sales to record — counts already match recorded sales.", {
@@ -1019,10 +1021,9 @@ export function StandardStockCountSheetPage({
     return sum;
   }, [allComputedRows, alreadyRecordedByItem]);
 
-  const effectiveTotalQtyToRecord =
-    reactiveTotalQtyToRecord > 0
-      ? reactiveTotalQtyToRecord
-      : remainingQtyToRecord;
+  const effectiveTotalQtyToRecord = hasChanges
+    ? (reactiveTotalQtyToRecord > 0 ? reactiveTotalQtyToRecord : remainingQtyToRecord)
+    : remainingQtyToRecord;
 
   const reactiveUniqueItemsToRecord = useMemo(() => {
     let count = 0;
@@ -1040,10 +1041,9 @@ export function StandardStockCountSheetPage({
     return (cachedSalesPreview?.lines ?? []).filter((l) => (l.qtyToRecord ?? 0) > 0).length;
   }, [cachedSalesPreview?.lines]);
 
-  const effectiveUniqueItemsToRecord =
-    reactiveUniqueItemsToRecord > 0
-      ? reactiveUniqueItemsToRecord
-      : cachedUniqueItemsToRecord;
+  const effectiveUniqueItemsToRecord = hasChanges
+    ? (reactiveUniqueItemsToRecord > 0 ? reactiveUniqueItemsToRecord : cachedUniqueItemsToRecord)
+    : cachedUniqueItemsToRecord;
 
   const showRecordSales =
     showRecordSalesButton &&
@@ -1398,10 +1398,10 @@ export function StandardStockCountSheetPage({
             {/* Total Sales pill for small/smaller screens (< xl) */}
             <div
               className="flex xl:hidden shrink-0 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
-              title="Total Sales for today"
+              title="Total sales amount"
             >
               <span className="hidden xs:inline text-[11px] font-medium text-emerald-600 dark:text-emerald-400 mr-1">
-                Sales:
+                Tot:
               </span>
               <span>{formatCurrency(totals.amount)}</span>
             </div>
@@ -1420,6 +1420,17 @@ export function StandardStockCountSheetPage({
         )}
 
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          {/* Desktop total sales badge before date filter */}
+          <div
+            className="hidden xl:flex shrink-0 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+            title="Total sales amount"
+          >
+            <span className="mr-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+              Tot:
+            </span>
+            <span>{formatCurrency(totals.amount)}</span>
+          </div>
+
           {/* Desktop date navigation */}
           <div className="hidden xl:flex items-center gap-1.5 sm:gap-2">
             <button

@@ -303,7 +303,7 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     });
 
     expect(screen.getByText("Total Stock Value")).toBeInTheDocument();
-    expect(screen.getAllByText(/10,000\.00/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/10,000/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/3 receipts/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/35 units/).length).toBeGreaterThanOrEqual(1);
 
@@ -328,7 +328,7 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
 
     // Today's total is 10 * 200 = 2,000
     await waitFor(() => {
-      expect(screen.getAllByText(/2,000\.00/).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/2,000/).length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getAllByText(/1 receipt/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/10 units/).length).toBeGreaterThanOrEqual(1);
@@ -352,7 +352,7 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
 
     // 7 days includes today (2,000) and 5 days ago (5,000) = 7,000
     await waitFor(() => {
-      expect(screen.getAllByText(/7,000\.00/).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/7,000/).length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getAllByText(/2 receipts/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/15 units/).length).toBeGreaterThanOrEqual(1);
@@ -370,12 +370,12 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Today" }));
     await waitFor(() => {
-      expect(screen.getAllByText(/2,000\.00/).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/2,000/).length).toBeGreaterThanOrEqual(1);
     });
 
     fireEvent.click(screen.getByText("Reset filters"));
     await waitFor(() => {
-      expect(screen.getAllByText(/10,000\.00/).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/10,000/).length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getAllByText(/3 receipts/).length).toBeGreaterThanOrEqual(1);
   });
@@ -408,7 +408,7 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
 
     // Only the 20-days-ago receipt (Tusker Lager, 20 * 150 = 3,000) matches
     await waitFor(() => {
-      expect(screen.getAllByText(/3,000\.00/).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/3,000/).length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getByText("Tusker Lager")).toBeInTheDocument();
     expect(screen.queryByText("Guinness bottle")).not.toBeInTheDocument();
@@ -432,7 +432,7 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     fireEvent.click(screen.getByText("Kenya Wine Agencies"));
 
     await waitFor(() => {
-      expect(screen.getAllByText(/5,000\.00/).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/5,000/).length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getByText("Viceroy 750ml")).toBeInTheDocument();
     expect(screen.queryByText("Guinness bottle")).not.toBeInTheDocument();

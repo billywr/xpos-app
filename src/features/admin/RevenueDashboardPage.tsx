@@ -27,11 +27,11 @@ import {
   TrendingUp,
   DollarSign,
   Receipt,
-  Percent,
   Package,
   CircleDollarSign,
   AlertTriangle,
   CreditCard,
+  Building2,
   ChevronRight,
   Search,
   X,
@@ -58,13 +58,38 @@ function toLocalDateStr(isoString: string): string {
   }
 }
 
-type PresetRange = "today" | "7days" | "30days" | "thisMonth" | "custom";
+type PresetRange =
+  | "today"
+  | "thisWeek"
+  | "lastWeek"
+  | "7days"
+  | "thisMonth"
+  | "lastMonth"
+  | "30days"
+  | "thisYear"
+  | "lastYear"
+  | "custom";
 
 function getRangeDates(preset: PresetRange): { start: string; end: string } {
   const now = new Date();
   const today = formatLocalDate(now);
   if (preset === "today") {
     return { start: today, end: today };
+  }
+
+  const dayOfWeek = now.getDay();
+  const diffToMonday = (dayOfWeek + 6) % 7;
+  const thisWeekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday);
+
+  if (preset === "thisWeek") {
+    return { start: formatLocalDate(thisWeekStart), end: today };
+  }
+  if (preset === "lastWeek") {
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+    const lastWeekEnd = new Date(thisWeekStart);
+    lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
+    return { start: formatLocalDate(lastWeekStart), end: formatLocalDate(lastWeekEnd) };
   }
   if (preset === "7days") {
     const s = new Date(now);
@@ -74,6 +99,20 @@ function getRangeDates(preset: PresetRange): { start: string; end: string } {
   if (preset === "thisMonth") {
     const s = new Date(now.getFullYear(), now.getMonth(), 1);
     return { start: formatLocalDate(s), end: today };
+  }
+  if (preset === "lastMonth") {
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    return { start: formatLocalDate(lastMonthStart), end: formatLocalDate(lastMonthEnd) };
+  }
+  if (preset === "thisYear") {
+    const s = new Date(now.getFullYear(), 0, 1);
+    return { start: formatLocalDate(s), end: today };
+  }
+  if (preset === "lastYear") {
+    const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+    const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31);
+    return { start: formatLocalDate(lastYearStart), end: formatLocalDate(lastYearEnd) };
   }
   // 30days default
   const s = new Date(now);
@@ -344,6 +383,10 @@ export function RevenueDashboardPage() {
     return fromApi > 0 ? fromApi : fromDash;
   }, [expensesData?.totalAmount, dashboard?.summary?.expenseTotal]);
 
+  const utilitiesTotal = useMemo(() => {
+    return Number(dashboard?.summary?.utilitiesTotal ?? 0);
+  }, [dashboard?.summary?.utilitiesTotal]);
+
   const grossProfit = useMemo(() => {
     if (!dashboard?.summary) return 0;
     const { revenueTotal, cogsTotal } = dashboard.summary;
@@ -358,8 +401,8 @@ export function RevenueDashboardPage() {
   const netProfit = useMemo(() => {
     if (!dashboard?.summary) return 0;
     const { revenueTotal, cogsTotal } = dashboard.summary;
-    return revenueTotal - cogsTotal - expenseTotal;
-  }, [dashboard, expenseTotal]);
+    return revenueTotal - cogsTotal - expenseTotal - utilitiesTotal;
+  }, [dashboard, expenseTotal, utilitiesTotal]);
 
   const netMargin = useMemo(() => {
     if (!dashboard?.summary || dashboard.summary.revenueTotal <= 0) return 0;
@@ -421,13 +464,15 @@ export function RevenueDashboardPage() {
       const fullDate = t.date;
       const apiExp = dailyExpensesMap[fullDate] ?? 0;
       const finalExp = (t.expenses && t.expenses > 0) ? t.expenses : apiExp;
+      const util = t.utilities ?? 0;
       return {
         date: t.date.slice(5),
         revenue: t.revenue,
         tax: t.tax,
         cogs: t.cogs,
         expenses: finalExp,
-        netProfit: t.netProfit ?? (t.revenue - t.cogs - finalExp),
+        utilities: util,
+        netProfit: t.netProfit ?? (t.revenue - t.cogs - finalExp - util),
         sales: t.saleCount,
       };
     });
@@ -449,15 +494,20 @@ export function RevenueDashboardPage() {
 
       {/* Quick Range Presets */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          Quick Range:
+        <span className="mr-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          Quick range:
         </span>
         {(
           [
             { key: "today", label: "Today" },
+            { key: "thisWeek", label: "This Week" },
+            { key: "lastWeek", label: "Last Week" },
             { key: "7days", label: "7 Days" },
-            { key: "30days", label: "30 Days" },
             { key: "thisMonth", label: "This Month" },
+            { key: "lastMonth", label: "Last Month" },
+            { key: "30days", label: "30 Days" },
+            { key: "thisYear", label: "This Year" },
+            { key: "lastYear", label: "Last Year" },
             { key: "custom", label: "Custom" },
           ] as const
         ).map((p) => {
@@ -589,7 +639,7 @@ export function RevenueDashboardPage() {
           animate="visible"
           className="space-y-6"
         >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-7">
             {/* 0. Revenue */}
             <motion.div
               variants={cardVariants}
@@ -678,15 +728,45 @@ export function RevenueDashboardPage() {
               </div>
             </motion.div>
 
-            {/* 4. Net profit */}
+            {/* 4. Utilities */}
             <motion.div
               variants={cardVariants}
               custom={4}
-              className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-violet-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-violet-950/30 dark:to-slate-800"
+              className="overflow-hidden rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-indigo-950/30 dark:to-slate-800"
+            >
+              <div className="p-4">
+                <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                  <Building2 className="h-5 w-5" />
+                  <span className="text-sm font-medium">Utilities</span>
+                </div>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
+                  <AnimatedNumber value={utilitiesTotal} />
+                </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Monthly recurring</p>
+              </div>
+            </motion.div>
+
+            {/* 5. Net profit */}
+            <motion.div
+              variants={cardVariants}
+              custom={5}
+              className={cn(
+                "overflow-hidden rounded-xl border shadow-sm transition hover:shadow-md",
+                netProfit >= 0
+                  ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-800/60 dark:from-emerald-950/30 dark:to-slate-800"
+                  : "border-rose-200 bg-gradient-to-br from-rose-50 to-white dark:border-rose-800/60 dark:from-rose-950/30 dark:to-slate-800"
+              )}
             >
               <div className="p-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
+                  <div
+                    className={cn(
+                      "flex items-center gap-2",
+                      netProfit >= 0
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-rose-600 dark:text-rose-400"
+                    )}
+                  >
                     <CircleDollarSign className="h-5 w-5" />
                     <span className="text-sm font-medium">Net profit</span>
                   </div>
@@ -694,7 +774,7 @@ export function RevenueDashboardPage() {
                     className={cn(
                       "rounded-full px-2 py-0.5 text-xs font-semibold",
                       netProfit >= 0
-                        ? "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300"
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
                         : "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300"
                     )}
                   >
@@ -704,25 +784,9 @@ export function RevenueDashboardPage() {
                 <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
                   <AnimatedNumber value={netProfit} />
                 </p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Profit - Expenses</p>
-              </div>
-            </motion.div>
-
-            {/* 5. Tax */}
-            <motion.div
-              variants={cardVariants}
-              custom={5}
-              className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-blue-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-blue-950/30 dark:to-slate-800"
-            >
-              <div className="p-4">
-                <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                  <Percent className="h-5 w-5" />
-                  <span className="text-sm font-medium">Tax</span>
-                </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
-                  <AnimatedNumber value={dashboard.summary.taxTotal} />
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {utilitiesTotal > 0 ? "Profit - (Expenses + Utilities)" : "Profit - Expenses"}
                 </p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">VAT / Tax collected</p>
               </div>
             </motion.div>
 
