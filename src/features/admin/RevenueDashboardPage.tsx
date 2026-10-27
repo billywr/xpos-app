@@ -22,7 +22,7 @@ import { fetchRecurringUtilities } from "@/api/recurringUtilities";
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { getApiErrorMessage } from "@/utils/apiError";
-import { formatCurrency, formatPercent } from "@/utils/formatCurrency";
+import { formatCurrency, formatPercent, formatAmount } from "@/utils/formatCurrency";
 import { cn } from "@/utils/cn";
 import {
   TrendingUp,
@@ -54,6 +54,35 @@ function toLocalDateStr(isoString: string): string {
   } catch {
     return isoString.slice(0, 10);
   }
+}
+
+function formatDateShort(isoDate: string): string {
+  if (!isoDate) return "";
+  const parts = isoDate.split("-");
+  if (parts.length !== 3) return isoDate;
+  const [year, month, day] = parts;
+  return `${day}/${month}/${year.slice(-2)}`;
+}
+
+export function isPoliceExpense(exp: {
+  category?: string | null;
+  description?: string | null;
+}): boolean {
+  const cat = (exp.category || "").trim().toLowerCase();
+  const desc = (exp.description || "").trim().toLowerCase();
+  return (
+    cat === "police" ||
+    cat === "p" ||
+    cat.startsWith("police") ||
+    desc === "police" ||
+    desc === "p" ||
+    desc === "p." ||
+    desc.startsWith("police") ||
+    desc.startsWith("p ") ||
+    desc.startsWith("p-") ||
+    desc.startsWith("p/") ||
+    desc.includes("police")
+  );
 }
 
 type PresetRange =
@@ -441,21 +470,72 @@ export function RevenueDashboardPage() {
     return expensesData?.content ?? [];
   }, [expensesData?.content]);
 
-  const filteredExpenses = useMemo(() => {
+  const categorizedExpenses = useMemo(() => {
+    let policeSum = 0;
+    const policeItems: typeof expensesList = [];
+    let dailyBillsSum = 0;
+    const dailyBillsItems: typeof expensesList = [];
+
+    for (const exp of expensesList) {
+      const amt = Number(exp.amount || 0);
+      if (isPoliceExpense(exp)) {
+        policeSum += amt;
+        policeItems.push(exp);
+      } else {
+        dailyBillsSum += amt;
+        dailyBillsItems.push(exp);
+      }
+    }
+
+    const items: Array<{
+      id: string;
+      name: string;
+      amount: number;
+      count: number;
+      items: typeof expensesList;
+    }> = [];
+
+    if (policeItems.length > 0 || policeSum > 0) {
+      items.push({
+        id: "cat-police",
+        name: "Police",
+        amount: policeSum,
+        count: policeItems.length,
+        items: policeItems,
+      });
+    }
+
+    if (dailyBillsItems.length > 0 || dailyBillsSum > 0) {
+      items.push({
+        id: "cat-daily-bills",
+        name: "Daily Bills",
+        amount: dailyBillsSum,
+        count: dailyBillsItems.length,
+        items: dailyBillsItems,
+      });
+    }
+
+    return items;
+  }, [expensesList]);
+
+  const filteredCategorizedExpenses = useMemo(() => {
     if (breakdownTab === "UTILITIES") return [];
-    let list = expensesList;
+    let list = categorizedExpenses;
     if (expenseSearch.trim()) {
-      const q = expenseSearch.toLowerCase();
+      const q = expenseSearch.toLowerCase().trim();
       list = list.filter(
-        (e) =>
-          e.description?.toLowerCase().includes(q) ||
-          e.category?.toLowerCase().includes(q) ||
-          e.incurredBy?.toLowerCase().includes(q) ||
-          e.receiptRef?.toLowerCase().includes(q)
+        (cat) =>
+          cat.name.toLowerCase().includes(q) ||
+          cat.items.some(
+            (e) =>
+              e.description?.toLowerCase().includes(q) ||
+              e.category?.toLowerCase().includes(q) ||
+              e.incurredBy?.toLowerCase().includes(q)
+          )
       );
     }
     return list;
-  }, [expensesList, breakdownTab, expenseSearch]);
+  }, [categorizedExpenses, breakdownTab, expenseSearch]);
 
   const filteredUtilities = useMemo(() => {
     if (breakdownTab === "EXPENSES") return [];
@@ -895,43 +975,35 @@ export function RevenueDashboardPage() {
         scrollable
       >
         <div className="space-y-4">
-          {/* Header summary context */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-800/50">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Selected Period
-              </span>
-              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+          {/* Header summary context - single level */}
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs sm:text-sm dark:border-slate-800 dark:bg-slate-800/50">
+            <div className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
+              <span className="text-slate-500 dark:text-slate-400">Period</span>
+              <span className="font-semibold text-slate-800 dark:text-slate-200">
                 {submittedRange?.start === submittedRange?.end
-                  ? `Today (${submittedRange?.start})`
-                  : `${submittedRange?.start} to ${submittedRange?.end}`}
-              </p>
+                  ? formatDateShort(submittedRange?.start || "")
+                  : `${formatDateShort(submittedRange?.start || "")} - ${formatDateShort(submittedRange?.end || "")}`}
+              </span>
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm">
-              <div>
-                <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  Expenses
-                </span>
-                <span className="font-bold text-amber-700 dark:text-amber-400">
-                  {formatCurrency(expenseTotal)}
+            <div className="flex items-center gap-3 font-medium">
+              <div className="flex items-center gap-1">
+                <span className="text-slate-500 dark:text-slate-400">Exp</span>
+                <span className="font-bold text-amber-700 dark:text-amber-400 tabular-nums">
+                  {formatAmount(expenseTotal)}
                 </span>
               </div>
-              <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
-              <div>
-                <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  Utilities
-                </span>
-                <span className="font-bold text-indigo-700 dark:text-indigo-400">
-                  {formatCurrency(utilitiesTotal)}
+              <div className="h-3.5 w-px bg-slate-300 dark:bg-slate-700" />
+              <div className="flex items-center gap-1">
+                <span className="text-slate-500 dark:text-slate-400">Util</span>
+                <span className="font-bold text-indigo-700 dark:text-indigo-400 tabular-nums">
+                  {formatAmount(utilitiesTotal)}
                 </span>
               </div>
-              <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
-              <div>
-                <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  Tot exp
-                </span>
-                <span className="font-bold text-slate-900 dark:text-white">
-                  {formatCurrency(expenseTotal + utilitiesTotal)}
+              <div className="h-3.5 w-px bg-slate-300 dark:bg-slate-700" />
+              <div className="flex items-center gap-1">
+                <span className="text-slate-500 dark:text-slate-400">tot</span>
+                <span className="font-extrabold text-slate-900 dark:text-white tabular-nums">
+                  {formatAmount(expenseTotal + utilitiesTotal)}
                 </span>
               </div>
             </div>
@@ -950,7 +1022,7 @@ export function RevenueDashboardPage() {
                     : "border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                 )}
               >
-                All ({expensesList.length + utilitiesList.length})
+                All ({categorizedExpenses.length + utilitiesList.length})
               </button>
               <button
                 type="button"
@@ -962,7 +1034,7 @@ export function RevenueDashboardPage() {
                     : "border border-amber-200 bg-amber-50/70 text-amber-900 hover:bg-amber-100 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
                 )}
               >
-                Expenses ({expensesList.length})
+                Expenses ({categorizedExpenses.length})
               </button>
               <button
                 type="button"
@@ -1000,7 +1072,7 @@ export function RevenueDashboardPage() {
 
           {/* Combined Simple List */}
           <div className="max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
-            {filteredExpenses.length === 0 && filteredUtilities.length === 0 ? (
+            {filteredCategorizedExpenses.length === 0 && filteredUtilities.length === 0 ? (
               <div className="p-8 text-center text-slate-500 dark:text-slate-400">
                 <CreditCard className="mx-auto mb-2 h-8 w-8 text-slate-400 opacity-60 dark:text-slate-500" />
                 <p className="font-medium">No expenses or utilities found</p>
@@ -1010,22 +1082,22 @@ export function RevenueDashboardPage() {
               </div>
             ) : (
               <>
-                {/* Expenses */}
-                {filteredExpenses.map((exp) => (
+                {/* Categorized Expenses (Police and Daily Bills) */}
+                {filteredCategorizedExpenses.map((cat) => (
                   <div
-                    key={`exp-${exp.id}`}
+                    key={`exp-${cat.id}`}
                     className="flex items-center justify-between py-2.5 px-3 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-700/40 text-sm"
                   >
                     <div className="flex items-center gap-1.5 min-w-0 pr-3 truncate">
                       <span className="truncate font-medium text-slate-800 dark:text-slate-200">
-                        {exp.description || exp.category || "Expense"}
+                        {cat.name}
                       </span>
                       <span className="shrink-0 text-xs font-semibold text-amber-600 dark:text-amber-400">
                         (E)
                       </span>
                     </div>
                     <span className="shrink-0 font-bold tabular-nums text-slate-900 dark:text-white">
-                      {formatCurrency(exp.amount)}
+                      {formatCurrency(cat.amount)}
                     </span>
                   </div>
                 ))}

@@ -142,12 +142,24 @@ describe("RevenueDashboardPage", () => {
           createdByStaffUserId: "user-1",
           createdAt: "2025-01-15T10:00:00Z",
         },
+        {
+          id: "exp-2",
+          amount: 500,
+          category: "Police",
+          description: "P",
+          incurredBy: null,
+          receiptRef: null,
+          terminalId: null,
+          shiftId: null,
+          createdByStaffUserId: "user-1",
+          createdAt: "2025-01-15T11:00:00Z",
+        },
       ],
-      totalElements: 1,
+      totalElements: 2,
       totalPages: 1,
       size: 500,
       number: 0,
-      totalAmount: 10000,
+      totalAmount: 3500,
     });
     vi.mocked(recurringUtilitiesApi.fetchRecurringUtilities).mockResolvedValue({
       items: [
@@ -281,10 +293,15 @@ describe("RevenueDashboardPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Expenses & Utilities")).toBeInTheDocument();
       expect(screen.getByPlaceholderText(/Search expenses and utilities/i)).toBeInTheDocument();
+      expect(screen.getByText("Period")).toBeInTheDocument();
+      expect(screen.getByText("Exp")).toBeInTheDocument();
+      expect(screen.getByText("Util")).toBeInTheDocument();
+      expect(screen.getByText("tot")).toBeInTheDocument();
       expect(screen.getByText("Electricity")).toBeInTheDocument();
-      expect(screen.getByText(/Fuel/)).toBeInTheDocument();
+      expect(screen.getByText("Police")).toBeInTheDocument();
+      expect(screen.getByText("Daily Bills")).toBeInTheDocument();
       expect(screen.getByText("(U)")).toBeInTheDocument();
-      expect(screen.getByText("(E)")).toBeInTheDocument();
+      expect(screen.getAllByText("(E)").length).toBeGreaterThanOrEqual(1);
     });
   });
 
