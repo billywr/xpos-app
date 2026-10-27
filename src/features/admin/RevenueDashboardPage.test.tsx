@@ -12,11 +12,13 @@ import * as orgsApi from "@/api/orgs";
 import * as branchesApi from "@/api/branches";
 import * as revenueApi from "@/api/revenueDashboard";
 import * as miscExpensesApi from "@/api/miscExpenses";
+import * as recurringUtilitiesApi from "@/api/recurringUtilities";
 
 vi.mock("@/api/orgs");
 vi.mock("@/api/branches");
 vi.mock("@/api/revenueDashboard");
 vi.mock("@/api/miscExpenses");
+vi.mock("@/api/recurringUtilities");
 
 function wrap(component: React.ReactElement) {
   const store = configureStore({
@@ -147,6 +149,32 @@ describe("RevenueDashboardPage", () => {
       number: 0,
       totalAmount: 10000,
     });
+    vi.mocked(recurringUtilitiesApi.fetchRecurringUtilities).mockResolvedValue({
+      items: [
+        {
+          id: "util-1",
+          orgId: "org-1",
+          branchId: "branch-1",
+          name: "Electricity",
+          amount: 5000,
+          applyTiming: "BEGINNING_OF_MONTH",
+          dueDayOfMonth: 5,
+          payee: "Power Co",
+          accountNumber: "ELEC-123",
+          incurredBy: null,
+          notes: "Monthly token",
+          active: true,
+          createdByStaffUserId: "user-1",
+          createdByStaffUserName: "Admin",
+          createdAt: "2025-01-01T00:00:00Z",
+          updatedAt: "2025-01-01T00:00:00Z",
+        },
+      ],
+      page: 0,
+      size: 200,
+      totalElements: 1,
+      totalPages: 1,
+    });
   });
 
   it("shows Revenue & P&L title and load prompt", async () => {
@@ -155,22 +183,22 @@ describe("RevenueDashboardPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/Revenue & P&L/)).toBeInTheDocument();
     });
-    expect(screen.getByText(/Business revenue status/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /load dashboard/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /refresh dashboard/i })).toBeInTheDocument();
   });
 
   it("displays Expenses and Net Profit when dashboard is loaded", async () => {
     wrap(<RevenueDashboardPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /load dashboard/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /refresh dashboard/i })).toBeInTheDocument();
     });
 
     const { fireEvent } = await import("@testing-library/react");
-    fireEvent.click(screen.getByRole("button", { name: /load dashboard/i }));
+    fireEvent.click(screen.getByRole("button", { name: /refresh dashboard/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("Expenses")).toBeInTheDocument();
+      expect(screen.getByText(/Tot exp:/i)).toBeInTheDocument();
+      expect(screen.getByText(/Expense :/i)).toBeInTheDocument();
       expect(screen.getByText("Net profit")).toBeInTheDocument();
     });
   });
@@ -182,12 +210,14 @@ describe("RevenueDashboardPage", () => {
       expect(screen.getByText(/Revenue & P&L/)).toBeInTheDocument();
     });
 
+    const { fireEvent } = await import("@testing-library/react");
+    fireEvent.click(screen.getByText("Custom"));
+
     const inputs = screen.getAllByDisplayValue(/20\d\d-\d\d-\d\d/);
     expect(inputs.length).toBeGreaterThanOrEqual(2);
     const [startInput, endInput] = inputs;
 
     // Set start date to a future date
-    const { fireEvent } = await import("@testing-library/react");
     fireEvent.change(startInput, { target: { value: "2026-05-20" } });
     fireEvent.change(endInput, { target: { value: "2026-05-10" } });
 
@@ -208,20 +238,19 @@ describe("RevenueDashboardPage", () => {
       expect(screen.getByText(/Revenue & P&L/)).toBeInTheDocument();
     });
 
-    // Both the header and load button remain present
-    expect(screen.getByRole("button", { name: /load dashboard/i })).toBeInTheDocument();
-    expect(screen.getByText(/Business revenue status/)).toBeInTheDocument();
+    // Both the header and refresh button remain present
+    expect(screen.getByRole("button", { name: /refresh dashboard/i })).toBeInTheDocument();
   });
 
   it("displays Profit (before expenses) tile alongside Net profit", async () => {
     wrap(<RevenueDashboardPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /load dashboard/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /refresh dashboard/i })).toBeInTheDocument();
     });
 
     const { fireEvent } = await import("@testing-library/react");
-    fireEvent.click(screen.getByRole("button", { name: /load dashboard/i }));
+    fireEvent.click(screen.getByRole("button", { name: /refresh dashboard/i }));
 
     await waitFor(() => {
       expect(screen.getByText("Profit")).toBeInTheDocument();
@@ -235,14 +264,14 @@ describe("RevenueDashboardPage", () => {
     wrap(<RevenueDashboardPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /load dashboard/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /refresh dashboard/i })).toBeInTheDocument();
     });
 
     const { fireEvent } = await import("@testing-library/react");
-    fireEvent.click(screen.getByRole("button", { name: /load dashboard/i }));
+    fireEvent.click(screen.getByRole("button", { name: /refresh dashboard/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("Expenses")).toBeInTheDocument();
+      expect(screen.getByText(/Tot exp:/i)).toBeInTheDocument();
     });
 
     // Click Expenses tile to open modal
@@ -250,9 +279,12 @@ describe("RevenueDashboardPage", () => {
     fireEvent.click(expensesTile);
 
     await waitFor(() => {
-      expect(screen.getByText("Expense Breakdown")).toBeInTheDocument();
-      expect(screen.getByText("Category Distribution")).toBeInTheDocument();
-      expect(screen.getByPlaceholderText(/Search expenses by description/i)).toBeInTheDocument();
+      expect(screen.getByText("Expenses & Utilities")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Search expenses and utilities/i)).toBeInTheDocument();
+      expect(screen.getByText("Electricity")).toBeInTheDocument();
+      expect(screen.getByText(/Fuel/)).toBeInTheDocument();
+      expect(screen.getByText("(U)")).toBeInTheDocument();
+      expect(screen.getByText("(E)")).toBeInTheDocument();
     });
   });
 

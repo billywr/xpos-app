@@ -18,6 +18,7 @@ import { fetchOrgs } from "@/api/orgs";
 import { fetchBranches } from "@/api/branches";
 import { fetchRevenueDashboard } from "@/api/revenueDashboard";
 import { fetchMiscExpenses } from "@/api/miscExpenses";
+import { fetchRecurringUtilities } from "@/api/recurringUtilities";
 import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { getApiErrorMessage } from "@/utils/apiError";
@@ -26,16 +27,13 @@ import { cn } from "@/utils/cn";
 import {
   TrendingUp,
   DollarSign,
-  Receipt,
   Package,
   CircleDollarSign,
   AlertTriangle,
   CreditCard,
-  Building2,
-  ChevronRight,
   Search,
   X,
-  Calendar,
+  RotateCw,
 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { DateInput } from "@/components/ui";
@@ -193,8 +191,8 @@ const chartVariants = {
 export function RevenueDashboardPage() {
   const toast = useToast();
   const token = useAppSelector(selectToken);
-  const [activePreset, setActivePreset] = useState<PresetRange>("30days");
-  const initialDates = useMemo(() => getRangeDates("30days"), []);
+  const [activePreset, setActivePreset] = useState<PresetRange>("today");
+  const initialDates = useMemo(() => getRangeDates("today"), []);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
   const [startDate, setStartDate] = useState(initialDates.start);
@@ -207,7 +205,7 @@ export function RevenueDashboardPage() {
   // Expense breakdown modal & filter state
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expenseSearch, setExpenseSearch] = useState("");
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("ALL");
+  const [breakdownTab, setBreakdownTab] = useState<"ALL" | "EXPENSES" | "UTILITIES">("ALL");
 
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
@@ -224,8 +222,10 @@ export function RevenueDashboardPage() {
   const {
     data: dashboard,
     isLoading,
+    isFetching,
     isError,
     error,
+    refetch: refetchDashboard,
   } = useQuery({
     queryKey: [
       "admin-revenue-dashboard",
@@ -250,7 +250,7 @@ export function RevenueDashboardPage() {
       Boolean(submittedRange),
   });
 
-  const { data: expensesData } = useQuery({
+  const { data: expensesData, refetch: refetchExpenses } = useQuery({
     queryKey: [
       "admin-revenue-expenses",
       token,
@@ -270,6 +270,24 @@ export function RevenueDashboardPage() {
       Boolean(selectedOrgId) &&
       Boolean(selectedBranchId) &&
       Boolean(submittedRange),
+  });
+
+  const { data: utilitiesData, refetch: refetchUtilities } = useQuery({
+    queryKey: [
+      "admin-revenue-utilities",
+      token,
+      selectedOrgId,
+      selectedBranchId,
+    ],
+    queryFn: () =>
+      fetchRecurringUtilities(token, selectedOrgId, selectedBranchId, {
+        active: true,
+        size: 200,
+      }),
+    enabled:
+      Boolean(token) &&
+      Boolean(selectedOrgId) &&
+      Boolean(selectedBranchId),
   });
 
   const orgs = filterActiveOrgs(orgsData?.content ?? []);
@@ -333,7 +351,9 @@ export function RevenueDashboardPage() {
     if (endDate && newStart && newStart > endDate) {
       setStartDate(newStart);
       setEndDate(newStart);
-      setSubmittedRange(null);
+      if (selectedOrgId && selectedBranchId) {
+        setSubmittedRange({ start: newStart, end: newStart });
+      }
       toast.error(
         "Start date cannot be after end date. End date automatically adjusted.",
         { title: "Date Adjusted" }
@@ -341,7 +361,9 @@ export function RevenueDashboardPage() {
       return;
     }
     setStartDate(newStart);
-    setSubmittedRange(null);
+    if (selectedOrgId && selectedBranchId && newStart && endDate) {
+      setSubmittedRange({ start: newStart, end: endDate });
+    }
   };
 
   const handleEndDateChange = (newEnd: string) => {
@@ -349,7 +371,9 @@ export function RevenueDashboardPage() {
     if (startDate && newEnd && newEnd < startDate) {
       setStartDate(newEnd);
       setEndDate(newEnd);
-      setSubmittedRange(null);
+      if (selectedOrgId && selectedBranchId) {
+        setSubmittedRange({ start: newEnd, end: newEnd });
+      }
       toast.error(
         "End date cannot be before start date. Start date automatically adjusted.",
         { title: "Date Adjusted" }
@@ -357,23 +381,23 @@ export function RevenueDashboardPage() {
       return;
     }
     setEndDate(newEnd);
-    setSubmittedRange(null);
+    if (selectedOrgId && selectedBranchId && startDate && newEnd) {
+      setSubmittedRange({ start: startDate, end: newEnd });
+    }
   };
 
-  const handleLoad = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRefresh = () => {
     if (selectedOrgId && selectedBranchId && startDate && endDate) {
       let finalStart = startDate;
       let finalEnd = endDate;
       if (finalEnd < finalStart) {
         finalStart = finalEnd;
         setStartDate(finalEnd);
-        toast.error(
-          "End date cannot be before start date. Dates adjusted automatically.",
-          { title: "Date Adjusted" }
-        );
       }
       setSubmittedRange({ start: finalStart, end: finalEnd });
+      void refetchDashboard();
+      void refetchExpenses();
+      void refetchUtilities();
     }
   };
 
@@ -409,31 +433,17 @@ export function RevenueDashboardPage() {
     return (netProfit / dashboard.summary.revenueTotal) * 100;
   }, [dashboard, netProfit]);
 
-  const expenseCategoriesSummary = useMemo(() => {
-    const list = expensesData?.content ?? [];
-    const map: Record<string, { count: number; total: number }> = {};
-    for (const exp of list) {
-      const cat = exp.category || "General";
-      if (!map[cat]) map[cat] = { count: 0, total: 0 };
-      map[cat].count += 1;
-      map[cat].total += Number(exp.amount || 0);
-    }
-    const total = Number(expensesData?.totalAmount || expenseTotal || 0);
-    return Object.entries(map)
-      .map(([category, data]) => ({
-        category,
-        count: data.count,
-        total: data.total,
-        percentage: total > 0 ? (data.total / total) * 100 : 0,
-      }))
-      .sort((a, b) => b.total - a.total);
-  }, [expensesData?.content, expensesData?.totalAmount, expenseTotal]);
+  const utilitiesList = useMemo(() => {
+    return (utilitiesData?.items ?? []).filter((u) => u.active !== false);
+  }, [utilitiesData?.items]);
+
+  const expensesList = useMemo(() => {
+    return expensesData?.content ?? [];
+  }, [expensesData?.content]);
 
   const filteredExpenses = useMemo(() => {
-    let list = expensesData?.content ?? [];
-    if (selectedCategoryFilter !== "ALL") {
-      list = list.filter((e) => (e.category || "General") === selectedCategoryFilter);
-    }
+    if (breakdownTab === "UTILITIES") return [];
+    let list = expensesList;
     if (expenseSearch.trim()) {
       const q = expenseSearch.toLowerCase();
       list = list.filter(
@@ -445,7 +455,23 @@ export function RevenueDashboardPage() {
       );
     }
     return list;
-  }, [expensesData?.content, selectedCategoryFilter, expenseSearch]);
+  }, [expensesList, breakdownTab, expenseSearch]);
+
+  const filteredUtilities = useMemo(() => {
+    if (breakdownTab === "EXPENSES") return [];
+    let list = utilitiesList;
+    if (expenseSearch.trim()) {
+      const q = expenseSearch.toLowerCase();
+      list = list.filter(
+        (u) =>
+          u.name.toLowerCase().includes(q) ||
+          u.payee?.toLowerCase().includes(q) ||
+          u.notes?.toLowerCase().includes(q) ||
+          u.incurredBy?.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [utilitiesList, breakdownTab, expenseSearch]);
 
   const dailyExpensesMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -481,16 +507,73 @@ export function RevenueDashboardPage() {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
+        <div className="flex items-center gap-3">
           <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
             <TrendingUp className="h-7 w-7 text-emerald-500" />
             Revenue &amp; P&amp;L
           </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Business revenue status, profit and loss tracking with trends.
-          </p>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isLoading || isFetching}
+            title="Refresh dashboard"
+            aria-label="Refresh dashboard"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          >
+            <RotateCw className={cn("h-4 w-4", (isLoading || isFetching) && "animate-spin")} />
+          </button>
         </div>
       </div>
+
+      {(orgs.length > 1 || branches.length > 1) && (
+        <div className="mb-4 flex flex-wrap items-center gap-4">
+          {orgs.length > 1 && (
+            <div className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:flex-initial">
+              <label
+                htmlFor="revenue-dash-org"
+                className="text-xs font-semibold text-slate-500 dark:text-slate-400"
+              >
+                Organization
+              </label>
+              <SearchableSelect
+                id="revenue-dash-org"
+                options={orgSelectOptions}
+                value={selectedOrgId}
+                onChange={(next) => {
+                  setSelectedOrgId(next);
+                  setSelectedBranchId("");
+                  setSubmittedRange(null);
+                }}
+                placeholder="Search organization…"
+                className="min-w-[12rem]"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
+            </div>
+          )}
+          {branches.length > 1 && (
+            <div className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:flex-initial">
+              <label
+                htmlFor="revenue-dash-branch"
+                className="text-xs font-semibold text-slate-500 dark:text-slate-400"
+              >
+                Branch
+              </label>
+              <SearchableSelect
+                id="revenue-dash-branch"
+                options={branchSelectOptions}
+                value={selectedBranchId}
+                onChange={(next) => {
+                  setSelectedBranchId(next);
+                  setSubmittedRange(null);
+                }}
+                placeholder="Search branch…"
+                className="min-w-[12rem]"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Quick Range Presets */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -530,80 +613,31 @@ export function RevenueDashboardPage() {
         })}
       </div>
 
-      <form onSubmit={handleLoad} className="mb-6 flex flex-wrap items-end gap-4">
-        {orgs.length > 1 && (
-          <div className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:flex-initial">
-            <label
-              htmlFor="revenue-dash-org"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Organization
+      {/* Custom Date Range Inputs - only shown when custom is active */}
+      {activePreset === "custom" && (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Start
             </label>
-            <SearchableSelect
-              id="revenue-dash-org"
-              options={orgSelectOptions}
-              value={selectedOrgId}
-              onChange={(next) => {
-                setSelectedOrgId(next);
-                setSelectedBranchId("");
-                setSubmittedRange(null);
-              }}
-              placeholder="Search organization…"
-              className="min-w-[12rem]"
-              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            <DateInput
+              value={startDate}
+              onChange={(e) => handleStartDateChange(e.target.value)}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </div>
-        )}
-        {branches.length > 1 && (
-          <div className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:flex-initial">
-            <label
-              htmlFor="revenue-dash-branch"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Branch
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              End
             </label>
-            <SearchableSelect
-              id="revenue-dash-branch"
-              options={branchSelectOptions}
-              value={selectedBranchId}
-              onChange={(next) => {
-                setSelectedBranchId(next);
-                setSubmittedRange(null);
-              }}
-              placeholder="Search branch…"
-              className="min-w-[12rem]"
-              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+            <DateInput
+              value={endDate}
+              onChange={(e) => handleEndDateChange(e.target.value)}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </div>
-        )}
-        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-initial">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Start date
-          </label>
-          <DateInput
-            value={startDate}
-            onChange={(e) => handleStartDateChange(e.target.value)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-          />
         </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-initial">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            End date
-          </label>
-          <DateInput
-            value={endDate}
-            onChange={(e) => handleEndDateChange(e.target.value)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={!selectedOrgId || !selectedBranchId || !startDate || !endDate}
-          className="w-full rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-500 disabled:opacity-50 sm:w-auto"
-        >
-          Load dashboard
-        </button>
-      </form>
+      )}
 
       {!selectedOrgId || !selectedBranchId ? (
         <div className="rounded-xl border border-sky-200/70 bg-white/90 p-12 text-center text-slate-500 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400">
@@ -639,7 +673,7 @@ export function RevenueDashboardPage() {
           animate="visible"
           className="space-y-6"
         >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-7">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {/* 0. Revenue */}
             <motion.div
               variants={cardVariants}
@@ -654,7 +688,9 @@ export function RevenueDashboardPage() {
                 <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
                   <AnimatedNumber value={dashboard.summary.revenueTotal} />
                 </p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Total gross sales</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Total gross · <AnimatedCount value={dashboard.summary.saleCount} /> sales
+                </p>
               </div>
             </motion.div>
 
@@ -699,7 +735,7 @@ export function RevenueDashboardPage() {
               </div>
             </motion.div>
 
-            {/* 3. Expenses (Interactive Breakdown) */}
+            {/* 3. Combined Tot exp: Expenses + Utilities */}
             <motion.div
               variants={cardVariants}
               custom={3}
@@ -708,48 +744,36 @@ export function RevenueDashboardPage() {
               title="Click to see breakdown of expenses for this period"
             >
               <div className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                    <CreditCard className="h-5 w-5" />
-                    <span className="text-sm font-medium">Expenses</span>
-                  </div>
-                  <span className="flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 transition group-hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:group-hover:bg-amber-900/60">
-                    <span>Breakdown</span>
-                    <ChevronRight className="h-3 w-3" />
+                <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 min-w-0">
+                  <CreditCard className="h-4 w-4 shrink-0" />
+                  <span className="text-xs font-semibold truncate">
+                    Tot exp:{" "}
+                    <span className="font-extrabold text-amber-700 dark:text-amber-300">
+                      <AnimatedNumber value={expenseTotal + utilitiesTotal} />
+                    </span>
                   </span>
                 </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
-                  <AnimatedNumber value={expenseTotal} />
-                </p>
-                <p className="mt-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                  <span>{expensesData?.content?.length ?? 0} items</span>
-                  <span className="text-amber-600 underline group-hover:font-medium dark:text-amber-400">View details</span>
-                </p>
+                <div className="mt-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Expense :</span>
+                    <span className="text-sm font-bold tabular-nums text-slate-900 dark:text-white">
+                      <AnimatedNumber value={expenseTotal} />
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Utilities :</span>
+                    <span className="text-sm font-bold tabular-nums text-slate-900 dark:text-white">
+                      <AnimatedNumber value={utilitiesTotal} />
+                    </span>
+                  </div>
+                </div>
               </div>
             </motion.div>
 
-            {/* 4. Utilities */}
+            {/* 4. Net profit */}
             <motion.div
               variants={cardVariants}
               custom={4}
-              className="overflow-hidden rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-indigo-950/30 dark:to-slate-800"
-            >
-              <div className="p-4">
-                <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
-                  <Building2 className="h-5 w-5" />
-                  <span className="text-sm font-medium">Utilities</span>
-                </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
-                  <AnimatedNumber value={utilitiesTotal} />
-                </p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Monthly recurring</p>
-              </div>
-            </motion.div>
-
-            {/* 5. Net profit */}
-            <motion.div
-              variants={cardVariants}
-              custom={5}
               className={cn(
                 "overflow-hidden rounded-xl border shadow-sm transition hover:shadow-md",
                 netProfit >= 0
@@ -787,24 +811,6 @@ export function RevenueDashboardPage() {
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   {utilitiesTotal > 0 ? "Profit - (Expenses + Utilities)" : "Profit - Expenses"}
                 </p>
-              </div>
-            </motion.div>
-
-            {/* 6. Sales */}
-            <motion.div
-              variants={cardVariants}
-              custom={6}
-              className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-sky-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-sky-950/30 dark:to-slate-800"
-            >
-              <div className="p-4">
-                <div className="flex items-center gap-2 text-sky-600 dark:text-sky-400">
-                  <Receipt className="h-5 w-5" />
-                  <span className="text-sm font-medium">Sales</span>
-                </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
-                  <AnimatedCount value={dashboard.summary.saleCount} />
-                </p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Completed receipts</p>
               </div>
             </motion.div>
           </div>
@@ -876,165 +882,185 @@ export function RevenueDashboardPage() {
         </motion.div>
       ) : null}
 
-      {/* Expense Breakdown Modal */}
+      {/* Expenses & Utilities Breakdown Modal */}
       <Modal
         open={showExpenseModal}
         onClose={() => {
           setShowExpenseModal(false);
           setExpenseSearch("");
-          setSelectedCategoryFilter("ALL");
+          setBreakdownTab("ALL");
         }}
-        title="Expense Breakdown"
+        title="Expenses & Utilities"
         maxWidth="max-w-3xl"
         scrollable
       >
         <div className="space-y-4">
-          {/* Header context */}
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200/70 bg-amber-50/60 p-3.5 dark:border-amber-800/40 dark:bg-amber-950/20">
+          {/* Header summary context */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-800/50">
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                Period Filter
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Selected Period
               </span>
-              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                 {submittedRange?.start === submittedRange?.end
                   ? `Today (${submittedRange?.start})`
                   : `${submittedRange?.start} to ${submittedRange?.end}`}
               </p>
             </div>
-            <div className="text-right">
-              <span className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                Total Expenses
-              </span>
-              <p className="text-lg font-bold text-amber-900 dark:text-amber-200">
-                {formatCurrency(expenseTotal)}
-              </p>
-            </div>
-          </div>
-
-          {/* Category Chips Distribution */}
-          {expenseCategoriesSummary.length > 0 && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Category Distribution
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCategoryFilter("ALL")}
-                  className={cn(
-                    "rounded-lg px-2.5 py-1 text-xs font-medium transition",
-                    selectedCategoryFilter === "ALL"
-                      ? "bg-slate-800 text-white dark:bg-white dark:text-slate-900"
-                      : "border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                  )}
-                >
-                  All ({expensesData?.content?.length ?? 0})
-                </button>
-                {expenseCategoriesSummary.map((cat) => {
-                  const isCatSelected = selectedCategoryFilter === cat.category;
-                  return (
-                    <button
-                      key={cat.category}
-                      type="button"
-                      onClick={() =>
-                        setSelectedCategoryFilter(
-                          isCatSelected ? "ALL" : cat.category
-                        )
-                      }
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition",
-                        isCatSelected
-                          ? "bg-amber-600 text-white shadow-sm dark:bg-amber-500"
-                          : "border border-amber-200 bg-amber-50/70 text-amber-900 hover:bg-amber-100 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
-                      )}
-                    >
-                      <span>{cat.category}</span>
-                      <span className="opacity-80">({formatCurrency(cat.total)})</span>
-                      <span className="rounded bg-black/10 px-1 text-[10px] dark:bg-white/10">
-                        {formatPercent(cat.percentage, 2)}
-                      </span>
-                    </button>
-                  );
-                })}
+            <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm">
+              <div>
+                <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  Expenses
+                </span>
+                <span className="font-bold text-amber-700 dark:text-amber-400">
+                  {formatCurrency(expenseTotal)}
+                </span>
+              </div>
+              <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
+              <div>
+                <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  Utilities
+                </span>
+                <span className="font-bold text-indigo-700 dark:text-indigo-400">
+                  {formatCurrency(utilitiesTotal)}
+                </span>
+              </div>
+              <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
+              <div>
+                <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  Tot exp
+                </span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {formatCurrency(expenseTotal + utilitiesTotal)}
+                </span>
               </div>
             </div>
-          )}
-
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={expenseSearch}
-              onChange={(e) => setExpenseSearch(e.target.value)}
-              placeholder="Search expenses by description, staff, or receipt..."
-              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-8 text-sm text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-            />
-            {expenseSearch && (
-              <button
-                type="button"
-                onClick={() => setExpenseSearch("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
           </div>
 
-          {/* Expense Item List */}
+          {/* Filter tabs and search bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setBreakdownTab("ALL")}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-xs font-medium transition",
+                  breakdownTab === "ALL"
+                    ? "bg-slate-800 text-white dark:bg-white dark:text-slate-900"
+                    : "border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                )}
+              >
+                All ({expensesList.length + utilitiesList.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setBreakdownTab("EXPENSES")}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-xs font-medium transition",
+                  breakdownTab === "EXPENSES"
+                    ? "bg-amber-600 text-white shadow-sm dark:bg-amber-500"
+                    : "border border-amber-200 bg-amber-50/70 text-amber-900 hover:bg-amber-100 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
+                )}
+              >
+                Expenses ({expensesList.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setBreakdownTab("UTILITIES")}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-xs font-medium transition",
+                  breakdownTab === "UTILITIES"
+                    ? "bg-indigo-600 text-white shadow-sm dark:bg-indigo-500"
+                    : "border border-indigo-200 bg-indigo-50/70 text-indigo-900 hover:bg-indigo-100 dark:border-indigo-800/40 dark:bg-indigo-950/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
+                )}
+              >
+                Utilities ({utilitiesList.length})
+              </button>
+            </div>
+            <div className="relative flex-1 sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={expenseSearch}
+                onChange={(e) => setExpenseSearch(e.target.value)}
+                placeholder="Search expenses and utilities..."
+                className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-9 pr-8 text-xs sm:text-sm text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+              {expenseSearch && (
+                <button
+                  type="button"
+                  onClick={() => setExpenseSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Combined Simple List */}
           <div className="max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
-            {filteredExpenses.length === 0 ? (
+            {filteredExpenses.length === 0 && filteredUtilities.length === 0 ? (
               <div className="p-8 text-center text-slate-500 dark:text-slate-400">
                 <CreditCard className="mx-auto mb-2 h-8 w-8 text-slate-400 opacity-60 dark:text-slate-500" />
-                <p className="font-medium">No expenses recorded</p>
+                <p className="font-medium">No expenses or utilities found</p>
                 <p className="mt-1 text-xs text-slate-400">
-                  No expense records match the selected date filter and criteria.
+                  No records match the current filter and search criteria.
                 </p>
               </div>
             ) : (
-              filteredExpenses.map((exp) => (
-                <div
-                  key={exp.id}
-                  className="flex items-center justify-between p-3.5 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-700/40"
-                >
-                  <div className="min-w-0 flex-1 pr-3">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-block rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
-                        {exp.category || "General"}
+              <>
+                {/* Expenses */}
+                {filteredExpenses.map((exp) => (
+                  <div
+                    key={`exp-${exp.id}`}
+                    className="flex items-center justify-between py-2.5 px-3 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-700/40 text-sm"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0 pr-3 truncate">
+                      <span className="truncate font-medium text-slate-800 dark:text-slate-200">
+                        {exp.description || exp.category || "Expense"}
                       </span>
-                      <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                        <Calendar className="h-3 w-3" />
-                        {toLocalDateStr(exp.createdAt)}
+                      <span className="shrink-0 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                        (E)
                       </span>
-                      {exp.receiptRef && (
-                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                          Ref: {exp.receiptRef}
-                        </span>
-                      )}
                     </div>
-                    <p className="mt-1 truncate text-sm font-medium text-slate-900 dark:text-white">
-                      {exp.description || "No description"}
-                    </p>
-                    {exp.incurredBy && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Incurred by: {exp.incurredBy}
-                      </p>
-                    )}
-                  </div>
-                  <div className="whitespace-nowrap text-right">
-                    <span className="text-sm font-bold tabular-nums text-slate-900 dark:text-white">
+                    <span className="shrink-0 font-bold tabular-nums text-slate-900 dark:text-white">
                       {formatCurrency(exp.amount)}
                     </span>
                   </div>
-                </div>
-              ))
+                ))}
+
+                {/* Recurring Utilities */}
+                {filteredUtilities.map((util) => (
+                  <div
+                    key={`util-${util.id}`}
+                    className="flex items-center justify-between py-2.5 px-3 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-700/40 text-sm"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0 pr-3 truncate">
+                      <span className="truncate font-medium text-slate-800 dark:text-slate-200">
+                        {util.name}
+                      </span>
+                      <span className="shrink-0 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                        (U)
+                      </span>
+                    </div>
+                    <span className="shrink-0 font-bold tabular-nums text-slate-900 dark:text-white">
+                      {formatCurrency(util.amount)}(M)
+                    </span>
+                  </div>
+                ))}
+              </>
             )}
           </div>
 
           <div className="flex justify-end pt-2">
             <button
               type="button"
-              onClick={() => setShowExpenseModal(false)}
+              onClick={() => {
+                setShowExpenseModal(false);
+                setExpenseSearch("");
+                setBreakdownTab("ALL");
+              }}
               className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
             >
               Close
