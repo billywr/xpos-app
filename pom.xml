@@ -113,11 +113,6 @@
 			<artifactId>spring-boot-starter-cache</artifactId>
 		</dependency>
 
-		<!-- Kafka (required at runtime when Kafka configured) -->
-		<dependency>
-			<groupId>org.springframework.kafka</groupId>
-			<artifactId>spring-kafka</artifactId>
-		</dependency>
 
 		<!-- MapStruct + Lombok -->
 		<dependency>
@@ -188,12 +183,6 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>org.springframework.kafka</groupId>
-			<artifactId>spring-kafka-test</artifactId>
-			<scope>test</scope>
-			<optional>true</optional>
-		</dependency>
 	</dependencies>
 
 	<build>

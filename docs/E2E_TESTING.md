@@ -132,4 +132,4 @@ mvn test -Psurefire-integration -Dtest=E2EPostmanFlowIT
 - **Generate report:** Run `mvn jacoco:report` after tests, or run `mvn verify` (report is generated in the `verify` phase).
 - **View report:** Open `target/site/jacoco/index.html` in a browser.
 
-Excluded from the report: main class (`XposApplication`), `config` package, `dto` packages, and `outbox/consumer` (optional Kafka). The build enforces a minimum 75% instruction coverage (`mvn verify`). To reach 90%, add tests for more exception-handler paths, sale hold/void flows, Z-report paths, and low-coverage services.
+Excluded from the report: main class (`XposApplication`), `config` package, and `dto` packages. The build enforces a minimum 75% instruction coverage (`mvn verify`). To reach 90%, add tests for more exception-handler paths, sale hold/void flows, Z-report paths, and low-coverage services.

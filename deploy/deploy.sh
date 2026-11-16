@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # XPOS deployment script - runs frontend and backend with Docker
-# Requires: Docker, Docker Compose v2, and external Postgres, Kafka, Keycloak
+# Requires: Docker, Docker Compose v2, and external Postgres, Keycloak
 # Usage: ./deploy.sh [up|down|status|health|logs|check]
 #
 # Prerequisites (must already be running on host):
-#   - PostgreSQL, Kafka, Keycloak
+#   - PostgreSQL, Keycloak
 #   - Configure .env with connection details (see .env.example)
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -77,20 +77,16 @@ cmd_logs() {
 }
 
 cmd_check() {
-  echo "Verifying prerequisites (Postgres, Kafka, Keycloak reachable)..."
+  echo "Verifying prerequisites (Postgres, Keycloak reachable)..."
   local err=0
   # For host-side check: host.docker.internal => localhost (script runs on host)
   local pg_host="${POSTGRES_HOST:-host.docker.internal}"; [[ "$pg_host" == "host.docker.internal" ]] && pg_host="localhost"
   local pg_port="${POSTGRES_PORT:-5432}"
-  local kafka_servers="${KAFKA_BOOTSTRAP_SERVERS:-host.docker.internal:9092}"
-  local kafka_host="${kafka_servers%%:*}"; [[ "$kafka_host" == "host.docker.internal" ]] && kafka_host="localhost"
-  local kafka_port="${kafka_servers##*:}"; [[ "$kafka_port" == "$kafka_servers" ]] && kafka_port=9092
   local keycloak_host="${KEYCLOAK_HOST:-localhost}"
   local keycloak_port="${KEYCLOAK_PORT:-8080}"
 
   if command -v nc >/dev/null 2>&1; then
     (nc -z -w2 "$pg_host" "$pg_port" 2>/dev/null) && echo "  Postgres: OK ($pg_host:$pg_port)" || { echo "  Postgres: FAIL"; err=1; }
-    (nc -z -w2 "$kafka_host" "$kafka_port" 2>/dev/null) && echo "  Kafka: OK ($kafka_host:$kafka_port)" || { echo "  Kafka: FAIL"; err=1; }
   else
     echo "  (install nc/netcat for connectivity checks)"
   fi
@@ -110,7 +106,6 @@ load_env_for_check() {
     [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
     if [[ "$line" =~ ^POSTGRES_HOST= ]]; then POSTGRES_HOST="${line#*=}"; fi
     if [[ "$line" =~ ^POSTGRES_PORT= ]]; then POSTGRES_PORT="${line#*=}"; fi
-    if [[ "$line" =~ ^KAFKA_BOOTSTRAP_SERVERS= ]]; then KAFKA_BOOTSTRAP_SERVERS="${line#*=}"; fi
     if [[ "$line" =~ ^KEYCLOAK_HOST= ]]; then KEYCLOAK_HOST="${line#*=}"; fi
     if [[ "$line" =~ ^KEYCLOAK_PORT= ]]; then KEYCLOAK_PORT="${line#*=}"; fi
   done < "$ENV_FILE" 2>/dev/null || true

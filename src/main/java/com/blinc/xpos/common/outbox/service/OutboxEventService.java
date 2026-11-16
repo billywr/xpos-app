@@ -18,8 +18,8 @@ public interface OutboxEventService {
   Page<OutboxEvent> list(UUID orgId, Pageable pageable);
 
   /**
-   * Updates the status (and optionally syncedAt) of an outbox event. Used by the outbox consumer
-   * when events are sent to Kafka (SENT/ACKED) or fail (FAILED).
+   * Updates the status (and optionally syncedAt) of an outbox event. Used by outbox consumers when
+   * events are synchronized (SENT/ACKED) or fail (FAILED).
    */
   void updateStatus(UUID orgId, UUID eventId, OutboxStatus status, Instant syncedAt);
 }

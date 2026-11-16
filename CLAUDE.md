@@ -95,7 +95,7 @@ REST controllers live in `api/v1/`:
 
 ### Key Patterns
 
-**Outbox pattern** (`common/outbox/`): Write operations create `OutboxEvent` rows (PENDING). A scheduled `OutboxKafkaConsumer` polls and publishes to Kafka topic `xpos-outbox-events` in batches, updating status to ACKED/FAILED. `SyncPriorityQueue` orders events for offline sync scenarios. Consumer is conditional on KafkaTemplate bean presence.
+**Outbox pattern** (`common/outbox/`): Write operations create `OutboxEvent` rows (PENDING) in PostgreSQL for audit and transactional tracking. `SyncPriorityQueue` orders events for offline sync scenarios.
 
 **Security:** OAuth2 Resource Server with Keycloak JWT validation. `CurrentPrincipal` record (iamUserId, subject, username, roles) resolved from `JwtAuthenticationToken` via `CurrentPrincipalResolver`. Method-level auth via `@PreAuthorize`. Public endpoints: `/api/v1/health/**`, `/actuator/health/**`, `/uploads/**`.
 
@@ -109,9 +109,9 @@ REST controllers live in `api/v1/`:
 
 **Profiles:** `dev` (localhost services), `prod` (env vars), `test` (Testcontainers override).
 
-**Infrastructure:** PostgreSQL 16+, Kafka 3.9+, Keycloak 25+.
+**Infrastructure:** PostgreSQL 16+, Keycloak 25+.
 
-**Custom properties** under `xpos.*` namespace: upload dir, outbox (topic, poll interval, batch size), receipt (block size, prefix), shift (blind close, variance threshold), inventory (negative stock, auto-post consumption), offline sync, audit (hash algorithm, chain verification).
+**Custom properties** under `xpos.*` namespace: upload dir, receipt (block size, prefix), shift (blind close, variance threshold), inventory (negative stock, auto-post consumption), offline sync, audit (hash algorithm, chain verification).
 
 **Database migrations:** Flyway, auto-run on startup. Migration files in `src/main/resources/db/migration/V*.sql`.
 

@@ -245,7 +245,6 @@ Tech stack:
 - Spring Boot 4.0+
 - PostgreSQL
 - Flyway migrations only (no JPA auto-ddl)
-- Kafka outbox pattern
 - Keycloak JWT authentication
 
 Related documentation (this repo, docs/):

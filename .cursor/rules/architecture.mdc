@@ -55,7 +55,7 @@ Base: `src/main/java/com/blinc/xpos/modules/`
 
 ## Key Patterns
 
-- **Outbox** (`common/outbox/`): writes create `OutboxEvent` (PENDING) → `OutboxKafkaConsumer` → Kafka `xpos-outbox-events`.
+- **Outbox** (`common/outbox/`): writes create `OutboxEvent` (PENDING) in PostgreSQL for audit and transactional tracking.
 - **Security:** OAuth2 resource server; `CurrentPrincipal` from JWT; `@PreAuthorize`; public: `/api/v1/health/**`, `/actuator/health/**`, `/uploads/**`.
 - **Tracing:** `RequestIdFilter` + MDC for `X-Request-Id`.
 - **Paging:** `PageRequestFactory` (default 25, max 200).
@@ -63,7 +63,7 @@ Base: `src/main/java/com/blinc/xpos/modules/`
 
 ## Configuration
 
-Profiles: `dev`, `prod`, `test`. Infra: PostgreSQL 16+, Kafka 3.9+, Keycloak 25+.
+Profiles: `dev`, `prod`, `test`. Infra: PostgreSQL 16+, Keycloak 25+.
 
 Custom props under `xpos.*`: upload dir, outbox, receipt, shift, inventory, offline sync, audit.
 

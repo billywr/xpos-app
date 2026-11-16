@@ -1,6 +1,6 @@
-# XPOS deployment - assumes Postgres, Kafka, Keycloak already running on host
+# XPOS deployment - assumes Postgres, Keycloak already running on host
 # Run: ./deploy.sh up
-# Prereqs: Docker, and external Postgres, Kafka, Keycloak reachable from host
+# Prereqs: Docker, and external Postgres, Keycloak reachable from host
 
 services:
   xpos:
@@ -12,7 +12,6 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://${POSTGRES_HOST:-host.docker.internal}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-xpos}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-host.docker.internal:9092}
       XPOS_KEYCLOAK_JWK_URI: ${XPOS_KEYCLOAK_JWK_URI}
     extra_hosts:
       - "host.docker.internal:host-gateway"

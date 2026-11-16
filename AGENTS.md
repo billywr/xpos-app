@@ -11,7 +11,6 @@ This is a control + accounting system (anti-leakage, accountability, auditabilit
 - **Spring Boot 4.0+**
 - **PostgreSQL**
 - **Flyway Migrations Only** (no JPA auto-ddl)
-- **Kafka Outbox Pattern**
 - **Keycloak OAuth2 Resource Server (JWT)**
 
 ---
@@ -95,7 +94,7 @@ Run single test:
 - **DTOs & LAZY Fetching**: Request/response DTOs for the API layer with `jakarta.validation`. When entities are mapped to DTOs in controllers and the mapping accesses LAZY associations (`org`, `branch`, `item`, `supplier`, etc.), ALWAYS add `LEFT JOIN FETCH` in repository JPQL queries to prevent `LazyInitializationException` (500).
 - **Pagination**: List endpoints must use `Pageable` and clamp via `PageRequestFactory` (default 25, max 200). Never return unbounded lists.
 - **MapStruct & Lombok**: Use MapStruct (`@Mapper(componentModel = "spring")`) in `mapper/`. Use `@Getter`/`@Setter` on entities (avoid `@Data` on JPA entities); `@Builder` on DTOs; `@Slf4j` for logging.
-- **Outbox Pattern**: Writes emit `OutboxEvent` (PENDING) $\to$ Kafka topic `xpos-outbox-events`.
+- **Outbox Pattern**: Writes emit `OutboxEvent` (PENDING) in PostgreSQL for audit and transactional tracking.
 
 ---
 

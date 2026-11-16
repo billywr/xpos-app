@@ -50,13 +50,6 @@ spring:
       max-file-size: 5MB
       max-request-size: 5MB
 
-  kafka:
-    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
-    consumer:
-      auto-offset-reset: latest
-      enable-auto-commit: false
-    listener:
-      ack-mode: manual
 
 server:
   port: ${SERVER_PORT}
@@ -84,7 +77,6 @@ logging:
     org.springframework.security: WARN
     org.hibernate: WARN
     org.hibernate.SQL: WARN
-    org.apache.kafka: WARN
     com.zaxxer.hikari: WARN
     org.flywaydb: WARN
     com.blinc.xpos: INFO
@@ -100,11 +92,6 @@ springdoc:
 xpos:
   upload:
     dir: ${XPOS_UPLOAD_DIR:/app/uploads}
-  outbox:
-    kafka:
-      topic: xpos-outbox-events
-      poll-interval-ms: 5000
-      batch-size: 50
   api:
     pagination:
       default-size: 25

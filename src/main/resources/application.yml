@@ -10,7 +10,6 @@ logging:
     root: WARN
     org.springframework: WARN
     org.hibernate: WARN
-    org.apache.kafka: WARN
     com.zaxxer.hikari: WARN
     org.flywaydb: WARN
     com.blinc.xpos: INFO
