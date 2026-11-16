@@ -5,9 +5,9 @@ export const buttonBase =
 
 export const buttonVariants = {
   primary:
-    "bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 dark:bg-primary-500 dark:hover:bg-primary-600",
+    "bg-primary-600 text-white shadow-sm hover:bg-primary-700 focus:ring-primary-500 dark:bg-primary-500 dark:hover:bg-primary-600",
   secondary:
-    "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700",
+    "border border-slate-300 bg-slate-100 text-slate-700 shadow-sm hover:bg-slate-200 hover:border-slate-400 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 dark:hover:border-slate-500",
   ghost:
     "text-slate-600 hover:bg-slate-100 focus:ring-slate-500 dark:text-slate-400 dark:hover:bg-slate-700",
   danger:
@@ -31,7 +31,7 @@ export const iconButtonVariants = {
   ghost:
     "rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white dark:disabled:hover:bg-transparent dark:focus:ring-offset-slate-800",
   bordered:
-    "rounded-lg border border-slate-300 bg-white p-1.5 text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:focus:ring-offset-slate-800",
+    "rounded-lg border border-slate-300 bg-slate-100 p-1.5 text-slate-700 shadow-sm hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 dark:focus:ring-offset-slate-800",
   danger:
     "rounded-lg p-2 text-red-600 hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:text-red-400 dark:hover:bg-red-900/30 dark:focus:ring-offset-slate-800",
 } as const;

@@ -47,7 +47,7 @@ import {
   isApiFetchError,
 } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
-import { Plus, Pencil, Power, PowerOff, Trash2 } from "lucide-react";
+import { Plus, Pencil, Power, PowerOff, Trash2, Loader2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
 const DEFAULT_PAGE_SIZE = 25;
@@ -831,9 +831,14 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                       <button
                         type="submit"
                         disabled={!addBranchId || assignLoading}
-                        className="rounded-lg bg-slate-600 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-500 dark:hover:bg-slate-600"
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
                       >
-                        {assignLoading ? "Adding…" : "Add"}
+                        {assignLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Plus className="h-4 w-4" />
+                        )}
+                        <span>{assignLoading ? "Adding…" : "Add"}</span>
                       </button>
                     </form>
                   )}

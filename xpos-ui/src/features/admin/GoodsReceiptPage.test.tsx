@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -273,6 +273,53 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
       last: true,
     });
 
+    vi.mocked(itemsApi.fetchItems).mockResolvedValue({
+      content: [
+        {
+          id: "item-1",
+          orgId: "org-1",
+          sku: "SKU-1",
+          name: "Guinness bottle",
+          itemType: "STOCK",
+          categoryId: null,
+          taxProfileId: null,
+          trackInventory: true,
+          active: true,
+          buyingPrice: 200,
+          defaultSellingPrice: 280,
+          baseUomId: null,
+          visibleInPos: true,
+          primaryImageUrl: null,
+          createdAt: "2024-01-01T00:00:00Z",
+          updatedAt: "2024-01-01T00:00:00Z",
+        },
+        {
+          id: "item-3",
+          orgId: "org-1",
+          sku: "SKU-3",
+          name: "Tusker Lager",
+          itemType: "STOCK",
+          categoryId: null,
+          taxProfileId: null,
+          trackInventory: true,
+          active: true,
+          buyingPrice: 150,
+          defaultSellingPrice: 220,
+          baseUomId: null,
+          visibleInPos: true,
+          primaryImageUrl: null,
+          createdAt: "2024-01-01T00:00:00Z",
+          updatedAt: "2024-01-01T00:00:00Z",
+        },
+      ],
+      totalElements: 2,
+      totalPages: 1,
+      size: 500,
+      number: 0,
+      first: true,
+      last: true,
+    });
+
     vi.mocked(itemsApi.fetchAllOrgItems).mockResolvedValue([
       {
         id: "item-1",
@@ -454,6 +501,72 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     await waitFor(() => {
       expect(itemsApi.fetchAllOrgItems).toHaveBeenCalledWith("test-token", "org-1");
       expect(itemsPdfUtil.downloadItemsPdf).toHaveBeenCalled();
+    });
+  });
+
+  it("dynamically shows saved items in the dropdown subject strictly to the selected receivedAt date", async () => {
+    wrap(<GoodsReceiptPage initialOrgId="org-1" initialBranchId="branch-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
+    });
+
+    // Open Receive Stock slide-over
+    const receiveBtn = screen.getByRole("button", { name: /receive stock/i });
+    fireEvent.click(receiveBtn);
+
+    // Slide-over opens
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Receive stock" })).toBeInTheDocument();
+    });
+
+    const itemCombobox = screen.getByPlaceholderText("Search item name, SKU, barcode…");
+    const dateInput = screen.getByLabelText(/received at/i) as HTMLInputElement;
+
+    // 1. By default, date is today. Supplier is East Africa Breweries (sup-1).
+    // Guinness bottle was received today from sup-1, so it should be excluded.
+    // Tusker Lager was received 20 days ago from sup-1, so it should be available.
+    fireEvent.focus(itemCombobox);
+    fireEvent.click(itemCombobox);
+
+    await waitFor(() => {
+      const listbox = screen.getByRole("listbox");
+      expect(within(listbox).getByText("Tusker Lager")).toBeInTheDocument();
+      expect(within(listbox).queryByText("Guinness bottle")).not.toBeInTheDocument();
+    });
+
+    // 2. Change receivedAt date to 20 days ago
+    const past20 = new Date(now);
+    past20.setDate(past20.getDate() - 20);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+    fireEvent.change(dateInput, { target: { value: fmt(past20) } });
+
+    // Now Guinness bottle (received today) should become AVAILABLE!
+    // And Tusker Lager (received 20 days ago) should be excluded.
+    fireEvent.focus(itemCombobox);
+    fireEvent.click(itemCombobox);
+
+    await waitFor(() => {
+      const listbox = screen.getByRole("listbox");
+      expect(within(listbox).getByText("Guinness bottle")).toBeInTheDocument();
+      expect(within(listbox).queryByText("Tusker Lager")).not.toBeInTheDocument();
+    });
+
+    // 3. Change receivedAt date to 10 days ago (neither item was received on that day)
+    const past10 = new Date(now);
+    past10.setDate(past10.getDate() - 10);
+    fireEvent.change(dateInput, { target: { value: fmt(past10) } });
+
+    fireEvent.focus(itemCombobox);
+    fireEvent.click(itemCombobox);
+
+    // Both items should be available in the dropdown
+    await waitFor(() => {
+      const listbox = screen.getByRole("listbox");
+      expect(within(listbox).getByText("Guinness bottle")).toBeInTheDocument();
+      expect(within(listbox).getByText("Tusker Lager")).toBeInTheDocument();
     });
   });
 });

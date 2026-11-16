@@ -1414,7 +1414,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 <div className="flex flex-wrap items-center gap-3">
                   <label
                     htmlFor="item-image-upload"
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus-within:ring-2 focus-within:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                   >
                     <Upload className="h-4 w-4" />
                     {imageUploading ? "Uploading…" : "Upload image"}
@@ -1466,7 +1466,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                       <button
                         type="button"
                         onClick={() => setFormImageUrl("")}
-                        className="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+                        className="rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-red-50 hover:border-red-300 hover:text-red-600 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                       >
                         Remove
                       </button>
@@ -1535,9 +1535,10 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                         <button
                           type="submit"
                           disabled={!newModifierGroupId}
-                          className="rounded-lg bg-slate-600 px-3 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-500 dark:hover:bg-slate-600"
+                          className="inline-flex items-center gap-1 rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
                         >
-                          Add
+                          <Plus className="h-4 w-4" />
+                          <span>Add</span>
                         </button>
                       </form>
                     )}

@@ -62,7 +62,7 @@ export function SlideOver({
           </h2>
           <div className="flex items-center gap-2">
             {headerAction}
-            <IconButton onClick={onClose} aria-label="Close">
+            <IconButton variant="bordered" onClick={onClose} aria-label="Close">
               <X className="h-5 w-5" />
             </IconButton>
           </div>

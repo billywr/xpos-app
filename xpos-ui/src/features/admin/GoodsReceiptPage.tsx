@@ -542,24 +542,29 @@ export function GoodsReceiptPage({
 
   /**
    * Calendar day used for “one item per branch per day across receipts” rule.
-   * New receipt: today. Edit: form “Received at” date, or original receipt time if invalid.
+   * Dynamically resolves from the form "Received at" date for both new receipts and edits,
+   * falling back to the original receipt time or now.
    */
   const grnDuplicateRuleReferenceDate = useMemo((): Date => {
-    if (editingGrn) {
-      const parsed = parseDateInputToDate(receivedAt);
-      if (parsed) {
-        return parsed;
+    const parsed = parseDateInputToDate(receivedAt);
+    if (parsed) {
+      return parsed;
+    }
+    if (editingGrn?.receivedAt) {
+      const parsedGrnDate = parseDateInputToDate(editingGrn.receivedAt);
+      if (parsedGrnDate) {
+        return parsedGrnDate;
       }
       return new Date(editingGrn.receivedAt);
     }
     return new Date();
-  }, [editingGrn, receivedAt]);
+  }, [editingGrn?.receivedAt, receivedAt]);
 
   /**
-   * Items on another active receipt for the same supplier, same local calendar day as this draft
+   * Items on another active receipt for the same supplier, same local calendar day as this draft's receivedAt
    * (excludes the receipt being edited). Different suppliers may GRN the same item the same day.
    */
-  const itemIdsReceivedTodayOtherGrns = useMemo(() => {
+  const itemIdsReceivedOnSelectedDateOtherGrns = useMemo(() => {
     const ids = new Set<string>();
     const currentGrnId = editingGrn?.id ?? null;
     const ruleSupplierId = (supplierId.trim() || editingGrn?.supplierId || "").trim();
@@ -841,12 +846,12 @@ export function GoodsReceiptPage({
       try {
         const item = await fetchItemByBarcode(token, selectedOrgId, barcode.trim());
         if (
-          itemIdsReceivedTodayOtherGrns.has(item.id) &&
+          itemIdsReceivedOnSelectedDateOtherGrns.has(item.id) &&
           !(editingGrn && originalGrnItemIds.has(item.id))
         ) {
           setBarcodeScanMessage({
             type: "info",
-            text: `"${item.name}" was already received today from this supplier on another receipt with the same received date. Edit that receipt to change it, or use a different calendar day (or another supplier).`,
+            text: `"${item.name}" was already received on this date from this supplier on another receipt. Edit that receipt to change it, or use a different calendar day (or another supplier).`,
           });
           return;
         }
@@ -898,7 +903,7 @@ export function GoodsReceiptPage({
     [
       token,
       selectedOrgId,
-      itemIdsReceivedTodayOtherGrns,
+      itemIdsReceivedOnSelectedDateOtherGrns,
       editingGrn,
       originalGrnItemIds,
     ]
@@ -965,7 +970,7 @@ export function GoodsReceiptPage({
 
       for (const l of mergedForPatch) {
         if (
-          itemIdsReceivedTodayOtherGrns.has(l.itemId) &&
+          itemIdsReceivedOnSelectedDateOtherGrns.has(l.itemId) &&
           !originalGrnItemIds.has(l.itemId)
         ) {
           setFormError(
@@ -1007,9 +1012,9 @@ export function GoodsReceiptPage({
       seenCreateIds.add(l.itemId);
     }
     for (const l of validLines) {
-      if (itemIdsReceivedTodayOtherGrns.has(l.itemId)) {
+      if (itemIdsReceivedOnSelectedDateOtherGrns.has(l.itemId)) {
         setFormError(
-          "One or more items were already received today from this supplier on another stock receipt at this branch."
+          "One or more items were already received on this date from this supplier on another stock receipt at this branch."
         );
         return;
       }
@@ -1669,9 +1674,9 @@ export function GoodsReceiptPage({
                     setReceivedAt(now);
                     saveGoodsReceiptReceivedAt(now, selectedOrgId, selectedBranchId);
                   }}
-                  className="text-xs font-medium text-primary-600 hover:text-primary-500 hover:underline dark:text-primary-400"
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                 >
-                  Set to now
+                  Set to today
                 </button>
               )}
             </div>
@@ -1702,15 +1707,16 @@ export function GoodsReceiptPage({
               <button
                 type="button"
                 onClick={handleAddLine}
-                className="text-sm font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-primary-300 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm transition hover:bg-primary-100 hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-primary-700/80 dark:bg-primary-950/60 dark:text-primary-300 dark:hover:bg-primary-900/60 dark:hover:border-primary-600"
               >
-                + Add line
+                <Plus className="h-3.5 w-3.5" />
+                Add line
               </button>
             ) : null}
           </div>
           {!editingGrn ? (
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Items already on another receipt from the selected supplier received today at this branch are
+              Items already on another receipt from the selected supplier received on this date at this branch are
               hidden. Edit that receipt if you need to change them.
             </p>
           ) : null}
@@ -1755,7 +1761,7 @@ export function GoodsReceiptPage({
                 if (itemIdsOnOtherLines.has(it.id)) {
                   return false;
                 }
-                if (!itemIdsReceivedTodayOtherGrns.has(it.id)) {
+                if (!itemIdsReceivedOnSelectedDateOtherGrns.has(it.id)) {
                   return true;
                 }
                 return Boolean(editingGrn && originalGrnItemIds.has(it.id));
@@ -1834,7 +1840,7 @@ export function GoodsReceiptPage({
                   <button
                     type="button"
                     onClick={() => handleRemoveLine(idx)}
-                    className="rounded p-2 text-slate-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-slate-600 dark:hover:text-red-300"
+                    className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-300"
                     aria-label={`Remove line ${idx + 1}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -1849,14 +1855,14 @@ export function GoodsReceiptPage({
             <button
               type="button"
               onClick={() => setSlideOpen(false)}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitLoading}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-400"
+              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-400"
             >
               {submitLoading
                 ? editingGrn

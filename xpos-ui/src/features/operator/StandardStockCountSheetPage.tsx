@@ -2068,7 +2068,7 @@ export function StandardStockCountSheetPage({
             type="button"
             onClick={handleRefreshPreview}
             disabled={isRefreshingPreview}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
             title="Refresh preview items"
           >
             <RotateCw className={cn("h-3.5 w-3.5", isRefreshingPreview && "animate-spin")} />
@@ -2171,7 +2171,7 @@ export function StandardStockCountSheetPage({
                 <button
                   type="button"
                   onClick={() => setRecordPreview(null)}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                 >
                   Cancel
                 </button>
@@ -2181,7 +2181,7 @@ export function StandardStockCountSheetPage({
                   disabled={
                     recordPreview.totalQtyToRecord <= 0 || recordSalesMutation.isPending
                   }
-                  className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+                  className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
                 >
                   {recordSalesMutation.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

@@ -2674,16 +2674,16 @@ export function DebtsAndExpensesPage({
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button type="button" onClick={() => adjustBorrowedQty(line.itemId, -1)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" aria-label={`Decrease quantity for ${line.itemName}`}>
+                      <button type="button" onClick={() => adjustBorrowedQty(line.itemId, -1)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600" aria-label={`Decrease quantity for ${line.itemName}`}>
                         <Minus className="h-4 w-4" />
                       </button>
                       <span className="min-w-[2rem] text-center text-sm font-semibold tabular-nums text-slate-900 dark:text-white">{line.qty}</span>
-                      <button type="button" onClick={() => adjustBorrowedQty(line.itemId, 1)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" aria-label={`Increase quantity for ${line.itemName}`}>
+                      <button type="button" onClick={() => adjustBorrowedQty(line.itemId, 1)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600" aria-label={`Increase quantity for ${line.itemName}`}>
                         <Plus className="h-4 w-4" />
                       </button>
                     </div>
                     <div className="w-full text-right text-sm font-medium tabular-nums text-slate-800 dark:text-slate-200 sm:w-auto sm:text-left">{formatCurrency(line.qty * line.unitPrice)}</div>
-                    <button type="button" onClick={() => removeBorrowedLine(line.itemId)} className="shrink-0 rounded p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40" aria-label={`Remove ${line.itemName}`}>
+                    <button type="button" onClick={() => removeBorrowedLine(line.itemId)} className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-300" aria-label={`Remove ${line.itemName}`}>
                       <XCircle className="h-4 w-4" />
                     </button>
                   </li>
@@ -2716,8 +2716,8 @@ export function DebtsAndExpensesPage({
             <textarea id="notes" rows={2} value={debtFormNotes} onChange={(e) => setDebtFormNotes(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
           </div>
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setDebtFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
-            <button type="submit" disabled={debtSubmitting} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
+            <button type="button" onClick={() => setDebtFormOpen(false)} className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
+            <button type="submit" disabled={debtSubmitting} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
               {debtSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Record debt
             </button>
@@ -2782,8 +2782,8 @@ export function DebtsAndExpensesPage({
               <textarea id="editDebtNotes" rows={2} value={editDebtNotes} onChange={(e) => setEditDebtNotes(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             </div>
             <div className="flex justify-end gap-3 pt-4">
-              <button type="button" onClick={() => setDebtEditFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
-              <button type="submit" disabled={editDebtSubmitting} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
+              <button type="button" onClick={() => setDebtEditFormOpen(false)} className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
+              <button type="submit" disabled={editDebtSubmitting} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
                 {editDebtSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Pencil className="h-4 w-4" />Save</>}
               </button>
             </div>
@@ -2819,10 +2819,10 @@ export function DebtsAndExpensesPage({
                 <button
                   type="button"
                   onClick={() => setSettleSingleDebtOnly(false)}
-                  className={`rounded-lg px-3 py-1.5 font-medium ${
+                  className={`rounded-lg px-3 py-1.5 font-medium transition ${
                     !settleSingleDebtOnly
-                      ? "bg-primary-600 text-white"
-                      : "border border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300"
+                      ? "bg-primary-600 text-white shadow-sm dark:bg-primary-500"
+                      : "border border-slate-300 bg-slate-100 text-slate-700 shadow-sm hover:bg-slate-200 hover:border-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                   }`}
                 >
                   Lump-sum (oldest first)
@@ -2831,10 +2831,10 @@ export function DebtsAndExpensesPage({
                   <button
                     type="button"
                     onClick={() => setSettleSingleDebtOnly(true)}
-                    className={`rounded-lg px-3 py-1.5 font-medium ${
+                    className={`rounded-lg px-3 py-1.5 font-medium transition ${
                       settleSingleDebtOnly
-                        ? "bg-primary-600 text-white"
-                        : "border border-slate-300 text-slate-700 dark:border-slate-600 dark:text-slate-300"
+                        ? "bg-primary-600 text-white shadow-sm dark:bg-primary-500"
+                        : "border border-slate-300 bg-slate-100 text-slate-700 shadow-sm hover:bg-slate-200 hover:border-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                     }`}
                   >
                     This debt only
@@ -2900,14 +2900,14 @@ export function DebtsAndExpensesPage({
               <button
                 type="button"
                 onClick={() => setSettleFormOpen(false)}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={settleSubmitting || settleBulkMutation.isPending}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
               >
                 {settleSubmitting || settleBulkMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -2998,8 +2998,8 @@ export function DebtsAndExpensesPage({
             <input id="expReceiptRef" type="text" value={expFormReceiptRef} onChange={(e) => setExpFormReceiptRef(e.target.value)} placeholder="Optional" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
           </div>
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={() => setExpFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
-            <button type="submit" disabled={createExpMutation.isPending} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
+            <button type="button" onClick={() => setExpFormOpen(false)} className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
+            <button type="submit" disabled={createExpMutation.isPending} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
               {createExpMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Record expense
             </button>
@@ -3053,8 +3053,8 @@ export function DebtsAndExpensesPage({
               <input id="editExpReceiptRef" type="text" value={editExpReceiptRef} onChange={(e) => setEditExpReceiptRef(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
             </div>
             <div className="flex justify-end gap-3 pt-4">
-              <button type="button" onClick={() => setExpEditFormOpen(false)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Cancel</button>
-              <button type="submit" disabled={editExpSubmitting} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
+              <button type="button" onClick={() => setExpEditFormOpen(false)} className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
+              <button type="submit" disabled={editExpSubmitting} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
                 {editExpSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Pencil className="h-4 w-4" />Save</>}
               </button>
             </div>
