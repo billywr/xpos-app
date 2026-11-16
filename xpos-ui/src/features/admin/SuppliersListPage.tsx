@@ -538,7 +538,7 @@ export function SuppliersListPage({
         onClose={() => setConfirmDeactivate(null)}
         onConfirm={handleDeactivate}
         title="Deactivate supplier"
-        message={`Deactivate "${confirmDeactivate?.name}"? They will be hidden from receive stock. You can reactivate later.`}
+        message={`Deactivate "${confirmDeactivate?.name}"? They will be hidden from add stock. You can reactivate later.`}
         confirmLabel="Deactivate"
         variant="danger"
         loading={deactivateLoading}

@@ -606,7 +606,7 @@ export function DebtsPage() {
             }
           >
             <FileDown className="h-5 w-5" />
-            Download PDF
+            Download
           </button>
           <button
             type="button"

@@ -401,14 +401,14 @@ export function StockCountSessionsPage() {
                               onClick={() => handleDownloadPdf(s)}
                               disabled={pdfLoadingSessionId === s.id}
                               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-600 disabled:opacity-50"
-                              aria-label="Download PDF report"
+                              aria-label="Download"
                             >
                               {pdfLoadingSessionId === s.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <Download className="h-4 w-4" />
                               )}
-                              PDF
+                              Download
                             </button>
                             <button
                               type="button"

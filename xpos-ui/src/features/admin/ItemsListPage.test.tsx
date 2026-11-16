@@ -119,12 +119,12 @@ describe("ItemsListPage Download PDF", () => {
     });
   });
 
-  it("renders Download PDF button and triggers downloadItemsPdf", async () => {
+  it("renders Download button and triggers downloadItemsPdf", async () => {
     wrap(<ItemsListPage initialOrgId="org-1" />);
 
     expect(await screen.findByText("Tusker Lager")).toBeInTheDocument();
 
-    const downloadBtn = await screen.findByRole("button", { name: /download pdf/i });
+    const downloadBtn = await screen.findByRole("button", { name: /^download$/i });
     expect(downloadBtn).toBeInTheDocument();
 
     fireEvent.click(downloadBtn);

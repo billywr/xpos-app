@@ -268,12 +268,12 @@ export function AnalyticsPage() {
             onClick={handleDownloadBiPdf}
             disabled={downloadingPdf}
             className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            aria-label="Download BI report"
+            aria-label="Download"
           >
             <FileDown
               className={`h-4 w-4 ${downloadingPdf ? "animate-spin" : ""}`}
             />
-            BI Report (PDF)
+            Download
           </button>
           <button
             type="button"

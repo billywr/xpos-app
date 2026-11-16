@@ -1657,7 +1657,7 @@ export function DebtsAndExpensesPage({
                 title="Download recurring utilities report"
               >
                 <FileDown className="h-4 w-4" />
-                <span className="hidden sm:inline">Download PDF</span>
+                <span className="hidden sm:inline">Download</span>
               </button>
               <button
                 type="button"
@@ -1689,7 +1689,7 @@ export function DebtsAndExpensesPage({
                   ) : (
                     <FileDown className="h-4 w-4" />
                   )}
-                  <span className="hidden sm:inline">Download PDF</span>
+                  <span className="hidden sm:inline">Download</span>
                 </button>
               )}
               <button
@@ -1722,7 +1722,7 @@ export function DebtsAndExpensesPage({
                   ) : (
                     <FileDown className="h-4 w-4" />
                   )}
-                  <span className="hidden sm:inline">Download PDF</span>
+                  <span className="hidden sm:inline">Download</span>
                 </button>
               )}
               <button

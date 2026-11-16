@@ -1494,11 +1494,11 @@ export function StandardStockCountSheetPage({
               size="md"
               onClick={handleDownloadPdf}
               disabled={!sheet}
-              aria-label="Download PDF"
+              aria-label="Download"
               className="hidden xl:inline-flex px-2.5 py-1.5 sm:px-4 sm:py-2"
             >
               <Download className="h-4 w-4" />
-              <span className="hidden xs:inline">PDF</span>
+              <span className="hidden xs:inline">Download</span>
             </Button>
           )}
 

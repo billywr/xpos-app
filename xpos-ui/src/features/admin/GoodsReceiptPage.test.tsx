@@ -486,14 +486,14 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     expect(screen.queryByText("Tusker Lager")).not.toBeInTheDocument();
   });
 
-  it("renders Download items PDF button and triggers downloadItemsPdf", async () => {
+  it("renders Download button and triggers downloadItemsPdf", async () => {
     wrap(<GoodsReceiptPage initialOrgId="org-1" initialBranchId="branch-1" />);
 
     await waitFor(() => {
       expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
     });
 
-    const downloadBtn = screen.getByRole("button", { name: /download items pdf/i });
+    const downloadBtn = screen.getByRole("button", { name: /^download$/i });
     expect(downloadBtn).toBeInTheDocument();
 
     fireEvent.click(downloadBtn);
@@ -511,13 +511,13 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
       expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
     });
 
-    // Open Receive Stock slide-over
-    const receiveBtn = screen.getByRole("button", { name: /receive stock/i });
+    // Open Add Stock slide-over
+    const receiveBtn = screen.getByRole("button", { name: /add stock/i });
     fireEvent.click(receiveBtn);
 
     // Slide-over opens
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Receive stock" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Add stock" })).toBeInTheDocument();
     });
 
     const itemCombobox = screen.getByPlaceholderText("Search item name, SKU, barcode…");

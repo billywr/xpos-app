@@ -677,7 +677,7 @@ export function AdminSettingsPage() {
           <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
             <div className="space-y-4">
               <MenuOrderVisibilityRow
-                label="Download PDF"
+                label="Download"
                 visible={isStdStockCountButtonVisible(
                   opVisibilityState,
                   STD_STOCK_COUNT_SHOW_PDF
@@ -727,7 +727,7 @@ export function AdminSettingsPage() {
               </h3>
               <div className="space-y-4">
                 <MenuOrderVisibilityRow
-                  label="Receive stock: barcode scan"
+                  label="Add stock: barcode scan"
                   visible={isBarcodeVisible(
                     visibilityState,
                     BARCODE_GOODS_RECEIPT

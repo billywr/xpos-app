@@ -346,7 +346,7 @@ export function InventoryPage({
               ) : (
                 <Download className="h-4 w-4" />
               )}
-              <span>Download items PDF</span>
+              <span>Download</span>
             </Button>
           </div>
           {showAnalytics && (
@@ -420,7 +420,7 @@ export function InventoryPage({
                               to="/admin/inventory?tab=stock"
                               className="font-medium text-primary-600 underline hover:no-underline dark:text-primary-400"
                             >
-                              Receive stock
+                              Add stock
                             </Link>{" "}
                             to add stock.
                           </>

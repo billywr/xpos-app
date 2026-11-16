@@ -967,7 +967,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               ) : (
                 <Download className="h-4 w-4" />
               )}
-              <span>Download PDF</span>
+              <span>Download</span>
             </Button>
             <Button onClick={openCreate}>
               <Plus className="h-4 w-4" />

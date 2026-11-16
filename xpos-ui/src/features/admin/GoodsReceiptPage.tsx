@@ -1119,7 +1119,7 @@ export function GoodsReceiptPage({
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <PageHeader
           title="Stock"
-          subtitle="Receive stock at a branch. Select branch and supplier, then add items with quantities to increase inventory."
+          subtitle="Add stock at a branch. Select branch and supplier, then add items with quantities to increase inventory."
           icon={PackagePlus}
           fallbackTo="/admin"
           noMargin
@@ -1137,7 +1137,7 @@ export function GoodsReceiptPage({
             ) : (
               <Download className="h-4 w-4" />
             )}
-            <span>Download items PDF</span>
+            <span>Download</span>
           </Button>
           <button
             type="button"
@@ -1166,7 +1166,7 @@ export function GoodsReceiptPage({
             className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-500 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
           >
             <Plus className="h-5 w-5" />
-            Receive stock
+            Add stock
           </button>
         </div>
       </div>
@@ -1305,13 +1305,13 @@ export function GoodsReceiptPage({
           >
             Add a supplier
           </Link>{" "}
-          to receive stock.
+          to add stock.
         </div>
       )}
 
       {!selectedOrgId || !selectedBranchId ? (
         <div className="rounded-xl border border-sky-200/70 bg-white/90 p-8 text-center text-slate-500 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400">
-          Select organization and branch to view stock receipts and receive stock.
+          Select organization and branch to view stock receipts and add stock.
         </div>
       ) : (
         <>
@@ -1396,7 +1396,7 @@ export function GoodsReceiptPage({
                         className={tableEmptyCell}
                       >
                         {grns.length === 0 ? (
-                          <>No stock receipts yet. Click &quot;Receive stock&quot; to add inventory.</>
+                          <>No stock receipts yet. Click &quot;Add stock&quot; to add inventory.</>
                         ) : isFilterActive ? (
                           <>No stock receipts match the selected filters or search.</>
                         ) : (
@@ -1623,7 +1623,7 @@ export function GoodsReceiptPage({
             ? editingSingleLineId
               ? "Edit line"
               : "Edit stock receipt"
-            : "Receive stock"
+            : "Add stock"
         }
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -1867,12 +1867,12 @@ export function GoodsReceiptPage({
               {submitLoading
                 ? editingGrn
                   ? "Saving…"
-                  : "Receiving…"
+                  : "Adding…"
                 : editingGrn
                   ? editingSingleLineId
                     ? "Save line"
                     : "Save"
-                  : "Receive stock"}
+                  : "Add stock"}
             </button>
           </div>
         </form>
