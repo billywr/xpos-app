@@ -1,3 +1,4 @@
+# CI/CD pipeline for XPOS API service (xpos-api)
 name: XPOS CI/CD - API
 
 on:

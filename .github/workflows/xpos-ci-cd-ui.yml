@@ -1,3 +1,4 @@
+# CI/CD pipeline for XPOS UI service (xpos-ui)
 name: XPOS CI/CD - UI
 
 on:
