@@ -61,6 +61,12 @@ import {
 import { ItemSearchCombobox } from "@/components/ItemSearchCombobox";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { isSameLocalCalendarDay } from "@/utils/calendarDay";
+import {
+  getSavedGoodsReceiptReceivedAt,
+  saveGoodsReceiptReceivedAt,
+  getSavedGoodsReceiptFilterRange,
+  saveGoodsReceiptFilterRange,
+} from "@/utils/datePersistenceStorage";
 
 const DEFAULT_PAGE_SIZE = 15;
 const GRN_FETCH_PAGE_SIZE = 500;
@@ -285,9 +291,29 @@ export function GoodsReceiptPage({
   );
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [selectedBranchId, setSelectedBranchId] = useState<string>(initialBranchId ?? "");
-  const [activePreset, setActivePreset] = useState<DatePreset>("all");
-  const [customStartDate, setCustomStartDate] = useState<string>("");
-  const [customEndDate, setCustomEndDate] = useState<string>("");
+  const [activePreset, setActivePreset] = useState<DatePreset>(() => {
+    const saved = getSavedGoodsReceiptFilterRange(initialOrgId, initialBranchId);
+    return (saved.preset as DatePreset) || "all";
+  });
+  const [customStartDate, setCustomStartDate] = useState<string>(() => {
+    const saved = getSavedGoodsReceiptFilterRange(initialOrgId, initialBranchId);
+    return saved.startDate || "";
+  });
+  const [customEndDate, setCustomEndDate] = useState<string>(() => {
+    const saved = getSavedGoodsReceiptFilterRange(initialOrgId, initialBranchId);
+    return saved.endDate || "";
+  });
+
+  useEffect(() => {
+    if (!selectedOrgId || !selectedBranchId) return;
+    const saved = getSavedGoodsReceiptFilterRange(selectedOrgId, selectedBranchId);
+    if (saved.preset) {
+      setActivePreset(saved.preset as DatePreset);
+      if (saved.startDate) setCustomStartDate(saved.startDate);
+      if (saved.endDate) setCustomEndDate(saved.endDate);
+    }
+  }, [selectedOrgId, selectedBranchId]);
+
   const [filterSupplierId, setFilterSupplierId] = useState<string>("");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
@@ -296,7 +322,9 @@ export function GoodsReceiptPage({
   /** When set, slide-over edits only this line; save merges with other lines on the receipt. */
   const [editingSingleLineId, setEditingSingleLineId] = useState<string | null>(null);
   const [supplierId, setSupplierId] = useState<string>("");
-  const [receivedAt, setReceivedAt] = useState<string>("");
+  const [receivedAt, setReceivedAt] = useState<string>(
+    () => getSavedGoodsReceiptReceivedAt(initialOrgId, initialBranchId) || ""
+  );
   const [lines, setLines] = useState<GrnLineForm[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -379,6 +407,7 @@ export function GoodsReceiptPage({
     mutationFn: (body: {
       branchId: string;
       supplierId: string;
+      receivedAt?: string | null;
       lines: GrnLineRequest[];
     }) => createGoodsReceiptNote(token, selectedOrgId, body),
     onSuccess: () => {
@@ -620,31 +649,58 @@ export function GoodsReceiptPage({
   const handleSelectPreset = (p: DatePreset) => {
     setActivePreset(p);
     setPage(0);
+    let sDate = customStartDate;
+    let eDate = customEndDate;
     if (p === "custom") {
-      if (!customStartDate || !customEndDate) {
+      if (!sDate || !eDate) {
         const now = new Date();
         const past30 = new Date(now);
         past30.setDate(past30.getDate() - 29);
-        if (!customStartDate) setCustomStartDate(formatLocalDate(past30));
-        if (!customEndDate) setCustomEndDate(formatLocalDate(now));
+        if (!sDate) {
+          sDate = formatLocalDate(past30);
+          setCustomStartDate(sDate);
+        }
+        if (!eDate) {
+          eDate = formatLocalDate(now);
+          setCustomEndDate(eDate);
+        }
       }
     }
+    saveGoodsReceiptFilterRange(
+      { preset: p, startDate: sDate, endDate: eDate },
+      selectedOrgId,
+      selectedBranchId
+    );
   };
 
   const handleCustomStartDateChange = (val: string) => {
     setCustomStartDate(val);
     setPage(0);
-    if (customEndDate && val > customEndDate) {
+    let eDate = customEndDate;
+    if (eDate && val > eDate) {
+      eDate = val;
       setCustomEndDate(val);
     }
+    saveGoodsReceiptFilterRange(
+      { preset: activePreset, startDate: val, endDate: eDate },
+      selectedOrgId,
+      selectedBranchId
+    );
   };
 
   const handleCustomEndDateChange = (val: string) => {
     setCustomEndDate(val);
     setPage(0);
-    if (customStartDate && val < customStartDate) {
+    let sDate = customStartDate;
+    if (sDate && val < sDate) {
+      sDate = val;
       setCustomStartDate(val);
     }
+    saveGoodsReceiptFilterRange(
+      { preset: activePreset, startDate: sDate, endDate: val },
+      selectedOrgId,
+      selectedBranchId
+    );
   };
 
   const handleResetFilters = () => {
@@ -652,6 +708,11 @@ export function GoodsReceiptPage({
     setFilterSupplierId("");
     setSearchQuery("");
     setPage(0);
+    saveGoodsReceiptFilterRange(
+      { preset: "all", startDate: "", endDate: "" },
+      selectedOrgId,
+      selectedBranchId
+    );
   };
 
   const [downloadingItemsPdf, setDownloadingItemsPdf] = useState(false);
@@ -941,10 +1002,12 @@ export function GoodsReceiptPage({
         return;
       }
     }
+    const rt = receivedAt.trim();
     setSubmitLoading(true);
     createMutation.mutate({
       branchId: selectedBranchId,
       supplierId,
+      receivedAt: rt ? toISOReceivedAt(rt) : undefined,
       lines: validLines,
     });
   };
@@ -1066,7 +1129,13 @@ export function GoodsReceiptPage({
               setSlideOpen(true);
               setFormError(null);
               setSupplierId(suppliers[0]?.id ?? "");
-              setReceivedAt(formatDatetimeLocal(new Date().toISOString()));
+              const savedReceivedAt = getSavedGoodsReceiptReceivedAt(
+                selectedOrgId,
+                selectedBranchId
+              );
+              setReceivedAt(
+                savedReceivedAt || formatDatetimeLocal(new Date().toISOString())
+              );
               setLines([{ itemId: "", itemName: "", qty: "", receivedUnitCost: "" }]);
               setBarcodeScanMessage(null);
               setScannedItems([]);
@@ -1573,24 +1642,43 @@ export function GoodsReceiptPage({
             />
           </div>
 
-          {editingGrn && (
-            <div>
+          <div>
+            <div className="mb-1 flex items-center justify-between">
               <label
                 htmlFor="grn-received-at"
-                className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
                 Received at *
               </label>
-              <input
-                id="grn-received-at"
-                type="datetime-local"
-                value={receivedAt}
-                onChange={(e) => setReceivedAt(e.target.value)}
-                required={Boolean(editingGrn)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              />
+              {!editingGrn && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const now = formatDatetimeLocal(new Date().toISOString());
+                    setReceivedAt(now);
+                    saveGoodsReceiptReceivedAt(now, selectedOrgId, selectedBranchId);
+                  }}
+                  className="text-xs font-medium text-primary-600 hover:text-primary-500 hover:underline dark:text-primary-400"
+                >
+                  Set to now
+                </button>
+              )}
             </div>
-          )}
+            <input
+              id="grn-received-at"
+              type="datetime-local"
+              value={receivedAt}
+              onChange={(e) => {
+                const val = e.target.value;
+                setReceivedAt(val);
+                if (!editingGrn) {
+                  saveGoodsReceiptReceivedAt(val, selectedOrgId, selectedBranchId);
+                }
+              }}
+              required
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+            />
+          </div>
 
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">

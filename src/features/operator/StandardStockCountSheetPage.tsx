@@ -46,6 +46,10 @@ import {
   isStdStockCountButtonVisible,
 } from "@/config/stdStockCountVisibility";
 import {
+  getSavedStockCountDate,
+  saveStockCountDate,
+} from "@/utils/datePersistenceStorage";
+import {
   ChevronLeft,
   ChevronRight,
   Maximize2,
@@ -100,11 +104,22 @@ function todayStr(): string {
   return toDateStr(new Date());
 }
 
-function yesterdayStr(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return toDateStr(d);
+const MAX_BACKDATE_DAYS = 14;
+
+function isWithinBackdateWindow(dateStr: string): boolean {
+  try {
+    const target = parseDateStr(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    target.setHours(0, 0, 0, 0);
+    const diffTime = today.getTime() - target.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= MAX_BACKDATE_DAYS;
+  } catch {
+    return false;
+  }
 }
+
 
 interface ComputedRow {
   itemId: string;
@@ -344,8 +359,20 @@ export function StandardStockCountSheetPage({
     operatorVisibility,
     STD_STOCK_COUNT_SHOW_RECORD_SALES
   );
+  const [dateStr, setDateStr] = useState<string>(
+    () => getSavedStockCountDate(orgId, branchId) || todayStr()
+  );
 
-  const [dateStr, setDateStr] = useState(todayStr);
+  // Sync date when orgId or branchId becomes available or changes
+  useEffect(() => {
+    if (!orgId || !branchId) return;
+    const saved = getSavedStockCountDate(orgId, branchId);
+    if (saved && saved !== dateStr) {
+      setLocalClosings({});
+      setLocalComments({});
+      setDateStr(saved);
+    }
+  }, [orgId, branchId]);
   const [localClosings, setLocalClosings] = useState<Record<string, string>>({});
   const [localComments, setLocalComments] = useState<Record<string, string>>({});
   const [savingItemIds, setSavingItemIds] = useState<Set<string>>(new Set());
@@ -379,8 +406,7 @@ export function StandardStockCountSheetPage({
   const pendingFocusIndexRef = useRef<number | null>(null);
 
   const isToday = dateStr === todayStr();
-  const isYesterday = dateStr === yesterdayStr();
-  const canEdit = isToday || isYesterday;
+  const canEdit = isWithinBackdateWindow(dateStr);
 
   const sheetQuery = useQuery({
     queryKey: ["std-stock-count", token, orgId, branchId, dateStr],
@@ -404,7 +430,8 @@ export function StandardStockCountSheetPage({
     queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
     queryFn: () => fetchStdStockCountSalesPreview(token, orgId, branchId, dateStr),
     enabled: salesPreviewQueryEnabled,
-    staleTime: 0,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: analytics } = useQuery({
@@ -625,13 +652,6 @@ export function StandardStockCountSheetPage({
             doAutoSaveRef.current();
           }, remaining);
         }
-      } else {
-        void queryClient.invalidateQueries({
-          queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
-        });
-        void queryClient.invalidateQueries({
-          queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
-        });
       }
     },
   });
@@ -666,13 +686,6 @@ export function StandardStockCountSheetPage({
             doAutoSaveRef.current();
           }, remaining);
         }
-      } else {
-        void queryClient.invalidateQueries({
-          queryKey: ["std-stock-count-sales-preview", token, orgId, branchId, dateStr],
-        });
-        void queryClient.invalidateQueries({
-          queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
-        });
       }
     },
   });
@@ -1072,7 +1085,8 @@ export function StandardStockCountSheetPage({
     queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
     queryFn: () => fetchStdStockCountReconcilePreview(token, orgId, branchId, dateStr),
     enabled: reconcilePreviewQueryEnabled,
-    staleTime: 0,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
@@ -1246,6 +1260,7 @@ export function StandardStockCountSheetPage({
     setLocalClosings({});
     setLocalComments({});
     setDateStr(newDate);
+    saveStockCountDate(newDate, orgId, branchId);
   }
 
   function goPrevDay() {
@@ -1459,6 +1474,16 @@ export function StandardStockCountSheetPage({
             >
               <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
+            {!isToday && (
+              <button
+                type="button"
+                onClick={() => changeDate(todayStr())}
+                className="rounded-lg border border-primary-300 bg-primary-50 px-2 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-100 sm:px-2.5 dark:border-primary-700 dark:bg-primary-950/40 dark:text-primary-300"
+                title="Jump to today"
+              >
+                Today
+              </button>
+            )}
             <span className="mx-0.5 hidden h-4 w-px bg-slate-300 sm:mx-1 sm:block dark:bg-slate-600" aria-hidden />
           </div>
 
@@ -1549,8 +1574,7 @@ export function StandardStockCountSheetPage({
 
       {!canEdit && !tableExpanded && (
         <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
-          Viewing past date. Edits are disabled; only today and yesterday are
-          editable (yesterday for testing).
+          Viewing historical date. Edits are disabled; only dates within the past 14 days (up to 2 weeks ago) are editable.
         </p>
       )}
 

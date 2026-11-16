@@ -45,6 +45,7 @@ export interface CreateGrnBody {
   branchId: string;
   supplierId: string;
   purchaseOrderId?: string | null;
+  receivedAt?: string | null;
   lines: GrnLineRequest[];
 }
 
@@ -92,6 +93,7 @@ export async function createGoodsReceiptNote(
         branchId: body.branchId,
         supplierId: body.supplierId,
         purchaseOrderId: body.purchaseOrderId ?? null,
+        receivedAt: body.receivedAt ?? null,
         lines: body.lines.map((l) => ({
           itemId: l.itemId,
           qty: l.qty,

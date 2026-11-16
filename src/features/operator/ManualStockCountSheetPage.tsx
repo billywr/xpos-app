@@ -26,6 +26,10 @@ import {
 } from "@/utils/formatQuantity";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import {
+  getSavedStockCountDate,
+  saveStockCountDate,
+} from "@/utils/datePersistenceStorage";
 import { generateUuid } from "@/utils/uuid";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -183,8 +187,24 @@ export function ManualStockCountSheetPage() {
   const branchName = useAppSelector(selectBranchName);
   const queryClient = useQueryClient();
   const toast = useToast();
+  const [dateStr, setDateStr] = useState<string>(
+    () => getSavedStockCountDate(orgId, branchId) || todayStr()
+  );
 
-  const [dateStr, setDateStr] = useState(todayStr);
+  const isToday = dateStr === todayStr();
+
+  const changeDate = useCallback((newDate: string) => {
+    setDateStr(newDate);
+    saveStockCountDate(newDate, orgId, branchId);
+  }, [orgId, branchId]);
+
+  useEffect(() => {
+    if (!orgId || !branchId) return;
+    const saved = getSavedStockCountDate(orgId, branchId);
+    if (saved && saved !== dateStr) {
+      setDateStr(saved);
+    }
+  }, [orgId, branchId]);
   const [localRows, setLocalRows] = useState<LocalRow[]>([]);
   const [hydratedForDate, setHydratedForDate] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -436,7 +456,7 @@ export function ManualStockCountSheetPage() {
           </button>
           <button
             type="button"
-            onClick={() => setDateStr(toDateStr(new Date(parseDateStr(dateStr).getTime() - 86400000)))}
+            onClick={() => changeDate(toDateStr(new Date(parseDateStr(dateStr).getTime() - 86400000)))}
             className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             aria-label="Previous day"
           >
@@ -444,19 +464,30 @@ export function ManualStockCountSheetPage() {
           </button>
           <DatePicker
             selected={parseDateStr(dateStr)}
-            onChange={(d: Date | null) => setDateStr(d ? toDateStr(d) : todayStr())}
+            onChange={(d: Date | null) => changeDate(d ? toDateStr(d) : todayStr())}
             maxDate={new Date()}
             dateFormat="dd/MM/yyyy"
             className="w-[6.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm sm:w-32 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
           />
           <button
             type="button"
-            onClick={() => setDateStr(toDateStr(new Date(parseDateStr(dateStr).getTime() + 86400000)))}
-            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            onClick={() => changeDate(toDateStr(new Date(parseDateStr(dateStr).getTime() + 86400000)))}
+            disabled={isToday}
+            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             aria-label="Next day"
           >
             <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
+          {!isToday && (
+            <button
+              type="button"
+              onClick={() => changeDate(todayStr())}
+              className="rounded-lg border border-primary-300 bg-primary-50 px-2 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-100 sm:px-2.5 dark:border-primary-700 dark:bg-primary-950/40 dark:text-primary-300"
+              title="Jump to today"
+            >
+              Today
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
