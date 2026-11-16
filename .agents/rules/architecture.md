@@ -61,7 +61,7 @@ Base: `src/main/java/com/blinc/xpos/modules/`
 
 ## Configuration
 
-Profiles: `dev`, `prod`, `test`. Infra: PostgreSQL 16+, Redis 7+, Kafka 3.9+, Keycloak 25+.
+Profiles: `dev`, `prod`, `test`. Infra: PostgreSQL 16+, Kafka 3.9+, Keycloak 25+.
 
 Custom props under `xpos.*`: upload dir, outbox, receipt, shift, inventory, offline sync, audit.
 

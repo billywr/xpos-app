@@ -6,7 +6,7 @@ This doc describes how to test **all endpoints end-to-end up to the database**, 
 
 ## 1. Test setup (DB-level)
 
-- **Base class:** `AbstractIntegrationTest` starts **PostgreSQL** and **Redis** via **Testcontainers** (real DB, no mocks).
+- **Base class:** `AbstractIntegrationTest` starts **PostgreSQL** via **Testcontainers** (real DB, no mocks).
 - **HTTP:** Tests use **MockMvc** and mock JWT (`jwt().jwt(j -> j.subject("admin"))`), so every request goes through the full stack (controllers, services, repositories, DB).
 - **Tag:** All these tests are tagged `integration` and are **excluded from default** `mvn test` (they need Docker).
 

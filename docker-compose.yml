@@ -1,5 +1,5 @@
-# Local dev/test with Docker. Production would use external Postgres, Redis, Keycloak, Kafka.
-# Run: docker compose up -d postgres redis keycloak && sleep 30 && docker compose up -d xpos
+# Local dev/test with Docker. Production would use external Postgres, Keycloak, Kafka.
+# Run: docker compose up -d postgres keycloak && sleep 30 && docker compose up -d xpos
 # Then: curl -s http://localhost:9003/actuator/health
 services:
   postgres:
@@ -15,16 +15,6 @@ services:
       interval: 2s
       timeout: 5s
       retries: 10
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6380:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 2s
-      timeout: 3s
-      retries: 5
 
   kafka:
     image: apache/kafka:3.9.0
@@ -73,16 +63,12 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/xpos
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: "6379"
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       XPOS_KEYCLOAK_JWK_URI: http://keycloak:8080/realms/master/protocol/openid-connect/certs
     volumes:
       - xpos-uploads:/app/uploads
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
       keycloak:
         condition: service_healthy

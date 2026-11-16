@@ -1,4 +1,4 @@
-# Production profile. Externalized via env vars (SPRING_DATASOURCE_URL, SPRING_DATA_REDIS_HOST, etc.)
+# Production profile. Externalized via env vars (SPRING_DATASOURCE_URL, etc.)
 spring:
   application:
     name: xpos
@@ -37,21 +37,7 @@ spring:
     out-of-order: false
 
   cache:
-    type: redis
-
-  data:
-    redis:
-      repositories:
-        enabled: false
-      host: ${SPRING_DATA_REDIS_HOST}
-      port: ${SPRING_DATA_REDIS_PORT}
-      password: ${SPRING_DATA_REDIS_PASSWORD}
-      timeout: 5s
-      lettuce:
-        pool:
-          max-active: 16
-          max-idle: 8
-          min-idle: 2
+    type: none
 
   security:
     oauth2:
@@ -88,8 +74,6 @@ management:
     health:
       show-details: when-authorized
   health:
-    redis:
-      enabled: true
     db:
       enabled: true
 

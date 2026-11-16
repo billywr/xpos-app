@@ -7,7 +7,7 @@ The app expects the **dev** profile so it loads:
 - PostgreSQL URL: `jdbc:postgresql://localhost:5432/xpos_dev`
 - Hikari pool settings (avoids "Maximum pool size: undefined/unknown")
 - Flyway migrations
-- Redis and other dev settings
+- Dev settings
 
 **Option A – Default (recommended)**  
 The project has a small `application.yml` that sets `spring.profiles.active: dev` when no profile is set. So you can run `XposApplication` from IntelliJ without changing anything.
@@ -46,10 +46,6 @@ If you prefer to set it explicitly:
    Or start the app once with the dev profile and let Spring Boot run Flyway on startup (if the DB is empty, Flyway will create all tables).
 
 3. **PostgreSQL** must be running on `localhost:5432` with user `postgres` and password `root` (or adjust `application-dev.yml` to match your setup).
-
-## 3. Redis (dev)
-
-Dev config expects Redis on `localhost:6379` (password `root`). Start Redis before the app, or disable Redis in dev if you have a no-op cache.
 
 ## Summary
 

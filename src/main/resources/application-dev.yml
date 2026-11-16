@@ -38,21 +38,7 @@ spring:
     out-of-order: false
 
   cache:
-    type: redis
-
-  data:
-    redis:
-      repositories:
-        enabled: false
-      host: localhost
-      port: 6379
-      password: root
-      timeout: 5s
-      lettuce:
-        pool:
-          max-active: 16
-          max-idle: 8
-          min-idle: 2
+    type: none
 
   security:
     oauth2:
@@ -90,8 +76,6 @@ management:
     health:
       show-details: always
   health:
-    redis:
-      enabled: true
     db:
       enabled: true
 

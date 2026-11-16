@@ -1,6 +1,6 @@
-# Run XPOS backend only. Connects to existing postgres, redis, kafka, keycloak.
+# Run XPOS backend only. Connects to existing postgres, kafka, keycloak.
 #
-# Prereq: xpos infra running (docker compose up -d postgres redis kafka keycloak)
+# Prereq: xpos infra running (docker compose up -d postgres kafka keycloak)
 # Run:   docker compose -f compose-backend.yml up -d
 # Health: curl -s http://localhost:9003/actuator/health
 #
@@ -24,8 +24,6 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/xpos
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: "6379"
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       XPOS_KEYCLOAK_JWK_URI: http://keycloak:8080/realms/master/protocol/openid-connect/certs
     networks:

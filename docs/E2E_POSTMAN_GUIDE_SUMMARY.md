@@ -6,7 +6,7 @@ If the full guide does not preview (webview error), use this file to preview. Fu
 
 ## Run the project
 
-- **Prerequisites:** Java 21, Maven, PostgreSQL (`xpos_dev`), Redis, Keycloak
+- **Prerequisites:** Java 21, Maven, PostgreSQL (`xpos_dev`), Keycloak
 - **Start:** `mvn spring-boot:run -Dspring-boot.run.profiles=dev`
 - **Base URL:** http://localhost:9003
 - **Auth:** Bearer JWT (Keycloak). Use JWT `sub` as staff `iamUserId`.

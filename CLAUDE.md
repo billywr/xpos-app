@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build JAR
 ./mvnw clean package -DskipTests
 
-# Run locally (requires PostgreSQL, Redis, Keycloak on default ports)
+# Run locally (requires PostgreSQL, Keycloak on default ports)
 ./mvnw spring-boot:run
 
 # Full stack via Docker
@@ -109,7 +109,7 @@ REST controllers live in `api/v1/`:
 
 **Profiles:** `dev` (localhost services), `prod` (env vars), `test` (Testcontainers override).
 
-**Infrastructure:** PostgreSQL 16+, Redis 7+, Kafka 3.9+, Keycloak 25+.
+**Infrastructure:** PostgreSQL 16+, Kafka 3.9+, Keycloak 25+.
 
 **Custom properties** under `xpos.*` namespace: upload dir, outbox (topic, poll interval, batch size), receipt (block size, prefix), shift (blind close, variance threshold), inventory (negative stock, auto-post consumption), offline sync, audit (hash algorithm, chain verification).
 
@@ -129,7 +129,7 @@ REST controllers live in `api/v1/`:
 ## Testing
 
 - **Unit tests** run by default; integration tests require `-Psurefire-integration` or `-Dsurefire.excludedGroups=`
-- **Integration tests** extend `AbstractIntegrationTest` (Testcontainers: PostgreSQL 16-alpine, Redis 7-alpine), tagged `@Tag("integration")`
+- **Integration tests** extend `AbstractIntegrationTest` (Testcontainers: PostgreSQL 16-alpine), tagged `@Tag("integration")`
 - **JaCoCo** coverage threshold currently disabled (set to 0%); excludes: `XposApplication`, `config/**`, `dto/**`, `outbox/consumer/**`
 - **Clock:** Mock `Clock` bean available for deterministic time-dependent tests
 - **Required test coverage per new endpoint group:** (a) happy-path integration test, (b) validation failure (400) with field details, (c) org-scoping test (404/403 for other org's records), (d) duplicate/constraint test (409) with user-friendly message

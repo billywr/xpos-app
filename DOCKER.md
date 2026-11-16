@@ -21,7 +21,6 @@ docker build -t xpos:latest .
 **Required env** (override defaults):
 - `SPRING_DATASOURCE_URL`
 - `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`
-- `SPRING_DATA_REDIS_HOST`, `SPRING_DATA_REDIS_PORT`
 - `SPRING_KAFKA_BOOTSTRAP_SERVERS`
 - `XPOS_KEYCLOAK_JWK_URI` (e.g. `https://keycloak.example.com/realms/xpos/protocol/openid-connect/certs`)
 
@@ -42,7 +41,7 @@ docker build -t xpos-ui:latest \
 
 ## Local test with Docker Compose
 
-Full stack (Postgres, Redis, Kafka, Keycloak, XPOS):
+Full stack (Postgres, Kafka, Keycloak, XPOS):
 
 ```bash
 docker compose -f docker-compose.yml up -d

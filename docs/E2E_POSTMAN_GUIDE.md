@@ -6,7 +6,7 @@ End-to-end flow in **logical order**: org onboarding to selling one bottle of be
 
 ## 1. Run the project
 
-**Prerequisites:** Java 21, Maven, PostgreSQL (`xpos_dev`), Redis, Keycloak (realm `xpos`).
+**Prerequisites:** Java 21, Maven, PostgreSQL (`xpos_dev`), Keycloak (realm `xpos`).
 
 ```bash
 # Create DB and run migrations (once)

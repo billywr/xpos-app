@@ -9,7 +9,7 @@ This guide explains how to deploy the XPOS frontend and backend so that anyone c
 1. [How deployment works](#1-how-deployment-works)
 2. [Ways to deploy](#2-ways-to-deploy)
 3. [Full compose (Keycloak + xpos in one stack)](#3-full-compose-keycloak--xpos-in-one-stack)
-4. [Deploy stack (external Postgres, Redis, Kafka, Keycloak)](#4-deploy-stack-external-postgres-redis-kafka-keycloak)
+4. [Deploy stack (external Postgres, Kafka, Keycloak)](#4-deploy-stack-external-postgres-kafka-keycloak)
 5. [Custom domain (e.g. xpos.com)](#5-custom-domain-eg-xposcom)
 6. [Troubleshooting](#6-troubleshooting)
 7. [Reference](#7-reference)
@@ -18,7 +18,7 @@ This guide explains how to deploy the XPOS frontend and backend so that anyone c
 
 ## 1. How deployment works
 
-- **Backend (xpos-api):** Spring Boot app. Needs PostgreSQL, Redis, Kafka, and Keycloak. Exposed on a host port (e.g. 9005).
+- **Backend (xpos-api):** Spring Boot app. Needs PostgreSQL, Kafka, and Keycloak. Exposed on a host port (e.g. 9005).
 - **Frontend (xpos-ui):** Static SPA served by nginx. The app calls the backend API and Keycloak for login. Exposed on a host port (e.g. 9011).
 - **Login:** The UI uses Keycloak’s “password” grant. To avoid browser CORS issues, the frontend image can **proxy** Keycloak at `/keycloak`, so the browser only talks to the frontend origin (same-origin). Nginx then forwards `/keycloak/` to the real Keycloak server.
 
@@ -30,8 +30,8 @@ This guide explains how to deploy the XPOS frontend and backend so that anyone c
 
 | Scenario | When to use |
 |----------|-------------|
-| **Full compose** | Keycloak, Postgres, Redis, Kafka, xpos-api, and xpos-ui all in one Docker Compose file. |
-| **Deploy stack** | Postgres, Redis, Kafka, Keycloak already run on the host; you only start xpos and xpos-ui with `deploy/docker-compose.deploy.yml` and `deploy/deploy.sh`. |
+| **Full compose** | Keycloak, Postgres, Kafka, xpos-api, and xpos-ui all in one Docker Compose file. |
+| **Deploy stack** | Postgres, Kafka, Keycloak already run on the host; you only start xpos and xpos-ui with `deploy/docker-compose.deploy.yml` and `deploy/deploy.sh`. |
 
 The rest of this doc covers both and the main pitfalls.
 
@@ -45,7 +45,7 @@ Use this when Keycloak and xpos run as **services in the same Docker Compose** (
 
 - Image: your backend image (e.g. `${XPOS_IMAGE}`).
 - Port: e.g. `9005:9005` (host 9005 → container 9005).
-- Environment: point to Postgres, Redis, Kafka, and Keycloak by **service name** (e.g. `postgres-common:5432`, `redis-common:6379`, `kafka-common:9092`).
+- Environment: point to Postgres, Kafka, and Keycloak by **service name** (e.g. `postgres-common:5432`, `kafka-common:9092`).
 - **Keycloak (JWT validation):** When Keycloak is in the same compose, the backend must use the Keycloak **service name and container port** so it can reach Keycloak from inside its container. This configuration is required for token validation and works in production:
 
   ```bash
@@ -125,9 +125,9 @@ After deploy, open the app at **http://localhost:9011** (or your host/IP and por
 
 ---
 
-## 4. Deploy stack (external Postgres, Redis, Kafka, Keycloak)
+## 4. Deploy stack (external Postgres, Kafka, Keycloak)
 
-Use this when Postgres, Redis, Kafka, and Keycloak already run **on the host** (or elsewhere). Only xpos and xpos-ui are started via the deploy stack.
+Use this when Postgres, Kafka, and Keycloak already run **on the host** (or elsewhere). Only xpos and xpos-ui are started via the deploy stack.
 
 - Copy `deploy/.env.example` to `deploy/.env` and set image names, `POSTGRES_PASSWORD`, `XPOS_KEYCLOAK_JWK_URI`, etc.
 - Run: `./deploy.sh up` (from `xpos/deploy`).
@@ -250,7 +250,7 @@ Problems we hit and how to fix them.
 
 | Issue | Fix |
 |-------|-----|
-| `./deploy.sh check` fails | Ensure Postgres, Redis, Kafka, Keycloak are reachable on the ports in `.env`. Set `KEYCLOAK_HOST` / `KEYCLOAK_PORT` if Keycloak is not on localhost:8080. |
+| `./deploy.sh check` fails | Ensure Postgres, Kafka, Keycloak are reachable on the ports in `.env`. Set `KEYCLOAK_HOST` / `KEYCLOAK_PORT` if Keycloak is not on localhost:8080. |
 | Backend `ClassNotFoundException: KafkaTemplate` | Ensure `spring-kafka` is not `<optional>true</optional>` in `pom.xml`. Rebuild backend image. |
 | Wrong API URL in frontend | API URL is baked in at build time. Rebuild frontend with correct `VITE_API_BASE_URL` (e.g. `http://api.xpos.com:9005`). |
 | `AccessDeniedException: /app/uploads` when uploading item images | The backend runs as a non-root user and needs a writable upload directory. Rebuild the backend image (the Dockerfile creates `/app/uploads` and chowns it to the app user). Or set `XPOS_UPLOAD_DIR` to a path that exists and is writable in the container, or mount a volume at `/app/uploads`. |
@@ -263,7 +263,7 @@ Problems we hit and how to fix them.
 
 | Command | Description |
 |---------|-------------|
-| `./deploy.sh check` | Verify Postgres, Redis, Kafka, Keycloak are reachable |
+| `./deploy.sh check` | Verify Postgres, Kafka, Keycloak are reachable |
 | `./deploy.sh up` | Start xpos + xpos-ui, wait for backend health |
 | `./deploy.sh down` | Stop and remove containers |
 | `./deploy.sh status` | Container status |

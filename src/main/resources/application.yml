@@ -4,10 +4,6 @@ spring:
     active: dev
   main:
     banner-mode: "off"
-  data:
-    redis:
-      repositories:
-        enabled: false
 
 logging:
   level:

@@ -90,7 +90,7 @@ G) Testing:
    - Keep tests deterministic (Clock bean usage where time matters).
    - Integration tests: Extend AbstractIntegrationTest (@Tag("integration")). By default they are
      EXCLUDED; only SimpleSanityTest runs. To run full suite: mvn test -Psurefire-integration.
-     Docker must be running (Testcontainers: Postgres, Redis). CI pipeline runs with this profile.
+     Docker must be running (Testcontainers: Postgres). CI pipeline runs with this profile.
 
 H) PriceListItem / addItemToPriceList:
    - PriceListItemService.add enforces: item must have purchase history (GRN/stock movement with
