@@ -109,29 +109,41 @@ const GRN_SORT = {
     row.line ? row.line.qty * (row.line.receivedUnitCost ?? 0) : 0,
 };
 
-function formatDatetimeLocal(iso: string): string {
-  const d = new Date(iso);
+function formatDateInput(isoOrDate: string | Date): string {
+  const d = typeof isoOrDate === "string" ? new Date(isoOrDate) : isoOrDate;
+  if (Number.isNaN(d.getTime())) {
+    return "";
+  }
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** Parse datetime-local field value; returns null if empty/invalid. */
-function parseDatetimeLocalToDate(datetimeLocal: string): Date | null {
-  const s = datetimeLocal.trim();
+/** Parse date field value; returns null if empty/invalid. */
+function parseDateInputToDate(dateInputVal: string): Date | null {
+  const s = dateInputVal.trim();
   if (!s) {
     return null;
   }
-  const d = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)
-    ? new Date(s + ":00")
-    : new Date(s);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const d = new Date(`${s}T12:00:00`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** Convert datetime-local value to ISO-8601 for API (Instant expects seconds + timezone). */
-function toISOReceivedAt(datetimeLocal: string): string {
-  const s = datetimeLocal.trim();
+/** Convert date picker value (YYYY-MM-DD) to ISO-8601 for API (Instant expects seconds + timezone). */
+function toISOReceivedAt(dateInputVal: string): string {
+  const s = dateInputVal.trim();
   if (!s) {
     return s;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const today = formatDateInput(new Date());
+    if (s === today) {
+      return new Date().toISOString();
+    }
+    return new Date(`${s}T12:00:00Z`).toISOString();
   }
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) {
     return new Date(s + ":00").toISOString();
@@ -534,7 +546,7 @@ export function GoodsReceiptPage({
    */
   const grnDuplicateRuleReferenceDate = useMemo((): Date => {
     if (editingGrn) {
-      const parsed = parseDatetimeLocalToDate(receivedAt);
+      const parsed = parseDateInputToDate(receivedAt);
       if (parsed) {
         return parsed;
       }
@@ -1017,7 +1029,7 @@ export function GoodsReceiptPage({
     setEditingSingleLineId(null);
     setSupplierId(grn.supplierId);
     setReceivedAt(
-      grn.receivedAt ? formatDatetimeLocal(grn.receivedAt) : formatDatetimeLocal(new Date().toISOString())
+      grn.receivedAt ? formatDateInput(grn.receivedAt) : formatDateInput(new Date())
     );
     setLines(
       grn.lines.length > 0
@@ -1041,8 +1053,8 @@ export function GoodsReceiptPage({
     setSupplierId(grn.supplierId);
     setReceivedAt(
       grn.receivedAt
-        ? formatDatetimeLocal(grn.receivedAt)
-        : formatDatetimeLocal(new Date().toISOString())
+        ? formatDateInput(grn.receivedAt)
+        : formatDateInput(new Date())
     );
     setLines([
       {
@@ -1134,7 +1146,7 @@ export function GoodsReceiptPage({
                 selectedBranchId
               );
               setReceivedAt(
-                savedReceivedAt || formatDatetimeLocal(new Date().toISOString())
+                savedReceivedAt ? formatDateInput(savedReceivedAt) : formatDateInput(new Date())
               );
               setLines([{ itemId: "", itemName: "", qty: "", receivedUnitCost: "" }]);
               setBarcodeScanMessage(null);
@@ -1654,7 +1666,7 @@ export function GoodsReceiptPage({
                 <button
                   type="button"
                   onClick={() => {
-                    const now = formatDatetimeLocal(new Date().toISOString());
+                    const now = formatDateInput(new Date());
                     setReceivedAt(now);
                     saveGoodsReceiptReceivedAt(now, selectedOrgId, selectedBranchId);
                   }}
@@ -1664,9 +1676,8 @@ export function GoodsReceiptPage({
                 </button>
               )}
             </div>
-            <input
+            <DateInput
               id="grn-received-at"
-              type="datetime-local"
               value={receivedAt}
               onChange={(e) => {
                 const val = e.target.value;

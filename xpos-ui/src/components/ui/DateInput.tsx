@@ -1,33 +1,45 @@
-import { forwardRef, type InputHTMLAttributes, type MouseEvent } from "react";
+import {
+  forwardRef,
+  type ChangeEvent,
+  type InputHTMLAttributes,
+  type MouseEvent,
+} from "react";
+import { tryShowDatePicker } from "@/utils/setupGlobalDatePicker";
 
-export type DateInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type">;
-
-function tryShowPicker(input: HTMLInputElement) {
-  if (input.disabled) {
-    return;
-  }
-  if (typeof input.showPicker === "function") {
-    try {
-      input.showPicker();
-    } catch {
-      // Already open, unsupported, or not a user gesture — ignore.
-    }
-  }
-}
+export type DateInputProps = Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "type"
+> & {
+  type?: "date" | "datetime-local" | "time" | "month";
+};
 
 export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
-  function DateInput({ className = "", onClick, ...props }, ref) {
+  function DateInput(
+    { className = "", type = "date", onClick, onChange, ...props },
+    ref
+  ) {
     const handleClick = (e: MouseEvent<HTMLInputElement>) => {
-      tryShowPicker(e.currentTarget);
+      tryShowDatePicker(e.currentTarget);
       onClick?.(e);
+    };
+
+    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+      onChange?.(e);
+      // Auto-close calendar and clear segment highlight upon selection
+      try {
+        e.currentTarget.blur();
+      } catch {
+        // Ignored in headless/test environments
+      }
     };
 
     return (
       <input
         ref={ref}
-        type="date"
+        type={type}
         className={`date-input cursor-pointer ${className}`.trim()}
         onClick={handleClick}
+        onChange={handleChange}
         {...props}
       />
     );

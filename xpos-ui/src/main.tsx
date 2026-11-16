@@ -9,6 +9,7 @@ import { Provider } from "react-redux";
 import { BrowserRouter } from "react-router-dom";
 import { store } from "@/store";
 import { setupCrossTabQuerySync } from "@/sync/setupCrossTabQuerySync";
+import { setupGlobalDatePicker } from "@/utils/setupGlobalDatePicker";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import App from "./App";
@@ -32,6 +33,8 @@ setupCrossTabQuerySync(queryClient, () => {
   const { orgId, branchId } = store.getState().orgContext;
   return { orgId, branchId };
 });
+
+setupGlobalDatePicker();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
