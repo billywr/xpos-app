@@ -849,4 +849,41 @@ class GoodsReceiptNoteAdminControllerIT extends AbstractIntegrationTest {
                 .content(objectMapper.writeValueAsString(itemNode)))
         .andExpect(status().isOk());
   }
+
+  @Test
+  void createGrnWithExplicitReceivedAtSetsMovementAndGrnTimestamps() throws Exception {
+    UUID orgId = createOrg("GRN Backdate Org");
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID supplierId = createSupplier(orgId, "Past Supplier");
+    UUID itemId = createItem(orgId);
+
+    java.time.Instant fiveDaysAgo =
+        java.time.Instant.now()
+            .minus(java.time.Duration.ofDays(5))
+            .truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+
+    String createBody =
+        "{\"branchId\":\""
+            + branchId
+            + "\",\"supplierId\":\""
+            + supplierId
+            + "\",\"receivedAt\":\""
+            + fiveDaysAgo
+            + "\",\"lines\":[{\"itemId\":\""
+            + itemId
+            + "\",\"qty\":8,\"receivedUnitCost\":10.00}]}";
+
+    mockMvc
+        .perform(
+            post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
+                .with(adminJwt())
+                .contentType(APPLICATION_JSON)
+                .content(createBody))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.id").exists())
+        .andExpect(jsonPath("$.receivedAt").value(fiveDaysAgo.toString()));
+  }
 }

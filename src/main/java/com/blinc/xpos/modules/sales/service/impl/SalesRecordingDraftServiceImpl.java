@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SalesRecordingDraftServiceImpl implements SalesRecordingDraftService {
 
-  private static final int BACKDATE_MAX_DAYS = 7;
+  private static final int BACKDATE_MAX_DAYS = 14;
   private static final int MAX_ENTRIES = 2_000;
   private static final int MAX_QTY_STRING_LENGTH = 32;
 
@@ -150,7 +150,12 @@ public class SalesRecordingDraftServiceImpl implements SalesRecordingDraftServic
     }
     if (saleDate.isBefore(earliest)) {
       throw new BadRequestException(
-          "SALE_DATE_TOO_OLD", "Sale date cannot be earlier than " + earliest + " (7 days ago).");
+          "SALE_DATE_TOO_OLD",
+          "Sale date cannot be earlier than "
+              + earliest
+              + " ("
+              + BACKDATE_MAX_DAYS
+              + " days ago).");
     }
   }
 

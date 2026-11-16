@@ -102,25 +102,30 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
       UUID supplierId,
       UUID purchaseOrderId,
       UUID receivedByStaffUserId,
+      Instant receivedAt,
       List<GrnLineRequest> lines) {
     var branch = branchService.require(orgId, branchId);
     var supplier = supplierService.require(orgId, supplierId);
     StaffUser staffUser = staffUserService.require(orgId, receivedByStaffUserId);
     Instant now = Instant.now(clock);
+    Instant effectiveReceivedAt = receivedAt != null ? receivedAt : now;
     List<GrnLineRequest> normalized = normalizeDuplicateLineRequests(lines);
 
     if (purchaseOrderId == null && normalized != null && !normalized.isEmpty()) {
-      Instant dayStart = startOfMergeZoneDay(now, GOODS_RECEIPT_MERGE_DAY_ZONE);
-      Instant dayEndExclusive = endOfMergeZoneDayExclusive(now, GOODS_RECEIPT_MERGE_DAY_ZONE);
+      Instant dayStart = startOfMergeZoneDay(effectiveReceivedAt, GOODS_RECEIPT_MERGE_DAY_ZONE);
+      Instant dayEndExclusive =
+          endOfMergeZoneDayExclusive(effectiveReceivedAt, GOODS_RECEIPT_MERGE_DAY_ZONE);
       List<GoodsReceiptNote> mergeTargets =
           grnRepository.findActiveWithoutPoForMergeSameDay(
               orgId, branchId, supplierId, dayStart, dayEndExclusive, PageRequest.of(0, 1));
       if (!mergeTargets.isEmpty()) {
-        return mergeIntoExistingGrn(mergeTargets.getFirst(), normalized, staffUser, now);
+        return mergeIntoExistingGrn(
+            mergeTargets.getFirst(), normalized, staffUser, effectiveReceivedAt, now);
       }
     }
 
-    return createNewGrn(branch, supplier, orgId, purchaseOrderId, staffUser, now, normalized);
+    return createNewGrn(
+        branch, supplier, orgId, purchaseOrderId, staffUser, effectiveReceivedAt, now, normalized);
   }
 
   private static Instant startOfMergeZoneDay(Instant instant, ZoneId zone) {
@@ -367,9 +372,13 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
   }
 
   private GoodsReceiptNote mergeIntoExistingGrn(
-      GoodsReceiptNote grn, List<GrnLineRequest> incoming, StaffUser staffUser, Instant now) {
+      GoodsReceiptNote grn,
+      List<GrnLineRequest> incoming,
+      StaffUser staffUser,
+      Instant effectiveReceivedAt,
+      Instant now) {
     UUID orgId = grn.getOrg().getId();
-    grn.setReceivedAt(now);
+    grn.setReceivedAt(effectiveReceivedAt);
     grnRepository.save(grn);
 
     List<GrnLine> workingLines =
@@ -405,11 +414,11 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
         line.setQty(req.qty());
         line.setUom(uom);
         line.setReceivedUnitCost(unitCost);
-        line.setCreatedAt(now);
+        line.setCreatedAt(effectiveReceivedAt);
         grnLineRepository.save(line);
         workingLines.add(line);
       }
-      persistStockInForGrn(grn, item, uom, req.qty(), unitCost, staffUser, now);
+      persistStockInForGrn(grn, item, uom, req.qty(), unitCost, staffUser, effectiveReceivedAt);
     }
     return require(orgId, grn.getId());
   }
@@ -420,6 +429,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
       UUID orgId,
       UUID purchaseOrderId,
       StaffUser staffUser,
+      Instant effectiveReceivedAt,
       Instant now,
       List<GrnLineRequest> normalized) {
     GoodsReceiptNote grn = new GoodsReceiptNote();
@@ -427,7 +437,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
     grn.setBranch(branch);
     grn.setSupplier(supplier);
     grn.setReceivedBy(staffUser);
-    grn.setReceivedAt(now);
+    grn.setReceivedAt(effectiveReceivedAt);
     grn.setCreatedAt(now);
     if (purchaseOrderId != null) {
       grn.setPurchaseOrder(purchaseOrderService.require(orgId, purchaseOrderId));
@@ -451,9 +461,9 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
         line.setQty(req.qty());
         line.setUom(uom);
         line.setReceivedUnitCost(unitCost);
-        line.setCreatedAt(now);
+        line.setCreatedAt(effectiveReceivedAt);
         grnLineRepository.save(line);
-        persistStockInForGrn(grn, item, uom, req.qty(), unitCost, staffUser, now);
+        persistStockInForGrn(grn, item, uom, req.qty(), unitCost, staffUser, effectiveReceivedAt);
       }
     }
     return grn;

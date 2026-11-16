@@ -26,6 +26,10 @@ spring:
         format_sql: false
         jdbc:
           time_zone: UTC
+          batch_size: 50
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
     show-sql: false
     open-in-view: false
 
@@ -54,6 +58,10 @@ spring:
 server:
   port: ${SERVER_PORT}
   shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/xml,text/plain,application/javascript,text/css
+    min-response-size: 1024
   error:
     include-message: always
     include-binding-errors: always

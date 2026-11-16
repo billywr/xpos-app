@@ -80,6 +80,7 @@ public class GoodsReceiptNoteAdminController {
             request.supplierId(),
             request.purchaseOrderId(),
             staffUser.getId(),
+            request.receivedAt(),
             lineReqs);
     return toResponse(grn);
   }

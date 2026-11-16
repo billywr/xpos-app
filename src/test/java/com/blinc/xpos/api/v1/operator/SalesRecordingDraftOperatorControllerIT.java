@@ -241,7 +241,7 @@ class SalesRecordingDraftOperatorControllerIT extends AbstractIntegrationTest {
 
     String base = draftBase(orgId, branchId, terminalId);
     LocalDate future = LocalDate.now().plusDays(1);
-    LocalDate tooOld = LocalDate.now().minusDays(10);
+    LocalDate tooOld = LocalDate.now().minusDays(16);
 
     mockMvc
         .perform(get(base + "?date=" + future).with(operatorJwt()))

@@ -9,12 +9,23 @@ import org.springframework.data.domain.Pageable;
 
 public interface GoodsReceiptNoteService {
 
+  default GoodsReceiptNote create(
+      UUID orgId,
+      UUID branchId,
+      UUID supplierId,
+      UUID purchaseOrderId,
+      UUID receivedByStaffUserId,
+      List<GrnLineRequest> lines) {
+    return create(orgId, branchId, supplierId, purchaseOrderId, receivedByStaffUserId, null, lines);
+  }
+
   GoodsReceiptNote create(
       UUID orgId,
       UUID branchId,
       UUID supplierId,
       UUID purchaseOrderId,
       UUID receivedByStaffUserId,
+      java.time.Instant receivedAt,
       List<GrnLineRequest> lines);
 
   GoodsReceiptNote require(UUID orgId, UUID grnId);

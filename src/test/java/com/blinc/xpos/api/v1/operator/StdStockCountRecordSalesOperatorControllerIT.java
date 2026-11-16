@@ -304,6 +304,52 @@ class StdStockCountRecordSalesOperatorControllerIT extends AbstractIntegrationTe
         .andExpect(status().isForbidden());
   }
 
+  @Test
+  void backdatedSalesRecordingAllowsUpTo14DaysAndRejectsOlder() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID terminalId = createTerminal(orgId, branchId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate tenDaysAgo = LocalDate.now(zone).minusDays(10);
+    LocalDate sixteenDaysAgo = LocalDate.now(zone).minusDays(16);
+
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 10, tenDaysAgo, zone);
+    saveClosing(orgId, branchId, tenDaysAgo.toString(), itemId, 4);
+
+    String stdBase = stdStockCountBase(orgId, branchId);
+
+    // 10 days ago: preview and record succeed
+    mockMvc
+        .perform(get(stdBase + "/sales-preview?date=" + tenDaysAgo).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalQtyToRecord").value(6));
+
+    mockMvc
+        .perform(
+            post(stdBase + "/record-sales")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"terminalId":"%s","date":"%s"}
+                    """
+                        .formatted(terminalId, tenDaysAgo)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.totalItemsRecorded").value(6));
+
+    // 16 days ago: fails with SALE_DATE_TOO_OLD
+    mockMvc
+        .perform(get(stdBase + "/sales-preview?date=" + sixteenDaysAgo).with(operatorJwt()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("SALE_DATE_TOO_OLD"));
+  }
+
   private static String stdStockCountBase(UUID orgId, UUID branchId) {
     return "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count";
   }

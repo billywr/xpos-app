@@ -20,8 +20,11 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,9 +79,20 @@ public class ManualStockCountServiceImpl implements ManualStockCountService {
             .orElseGet(() -> newManualSheet(branch, request.date(), now));
 
     sheet.getLines().clear();
+    Set<UUID> itemIds =
+        request.rows().stream()
+            .map(ManualStockCountLineSaveDto::itemId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    Map<UUID, Item> itemsById =
+        itemIds.isEmpty()
+            ? Map.of()
+            : itemRepository.findAllByIdInAndOrgId(itemIds, orgId).stream()
+                .collect(Collectors.toMap(Item::getId, i -> i, (a, b) -> a));
+
     int order = 0;
     for (ManualStockCountLineSaveDto dto : request.rows()) {
-      ManualStockCountLine line = buildLine(orgId, branchId, request.date(), dto, now);
+      ManualStockCountLine line = buildLine(orgId, branchId, request.date(), dto, now, itemsById);
       line.setLineOrder(dto.lineOrder() != null ? dto.lineOrder() : order++);
       line.setSheet(sheet);
       sheet.getLines().add(line);
@@ -103,11 +117,12 @@ public class ManualStockCountServiceImpl implements ManualStockCountService {
       UUID branchId,
       LocalDate businessDate,
       ManualStockCountLineSaveDto dto,
-      Instant now) {
+      Instant now,
+      Map<UUID, Item> itemsById) {
     ManualStockCountLine line = new ManualStockCountLine();
     line.setCreatedAt(now);
     line.setUpdatedAt(now);
-    applyItem(orgId, line, dto);
+    applyItem(orgId, line, dto, itemsById);
     int opening =
         dto.openingQty() != null
             ? Math.max(0, dto.openingQty())
@@ -122,12 +137,19 @@ public class ManualStockCountServiceImpl implements ManualStockCountService {
     return line;
   }
 
-  private void applyItem(UUID orgId, ManualStockCountLine line, ManualStockCountLineSaveDto dto) {
+  private void applyItem(
+      UUID orgId,
+      ManualStockCountLine line,
+      ManualStockCountLineSaveDto dto,
+      Map<UUID, Item> itemsById) {
     if (dto.itemId() != null) {
-      Item item =
-          itemRepository
-              .findByIdAndOrgId(dto.itemId(), orgId)
-              .orElseThrow(() -> new NotFoundException("ITEM_NOT_FOUND", "Item not found."));
+      Item item = itemsById.get(dto.itemId());
+      if (item == null) {
+        item =
+            itemRepository
+                .findByIdAndOrgId(dto.itemId(), orgId)
+                .orElseThrow(() -> new NotFoundException("ITEM_NOT_FOUND", "Item not found."));
+      }
       line.setItem(item);
       String name = dto.itemName().isBlank() ? item.getName() : dto.itemName().trim();
       line.setItemName(name);

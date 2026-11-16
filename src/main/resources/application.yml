@@ -1,9 +1,25 @@
-# Default configuration across all profiles
 spring:
   profiles:
     active: dev
   main:
     banner-mode: "off"
+  threads:
+    virtual:
+      enabled: true
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
+          batch_versioned_data: true
+
+server:
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/xml,text/plain,application/javascript,text/css
+    min-response-size: 1024
 
 logging:
   level:

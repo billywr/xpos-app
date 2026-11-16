@@ -110,7 +110,7 @@ class SalesRecordingOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("SALE_DATE_FUTURE"));
 
-    LocalDate tooOld = LocalDate.now().minusDays(10);
+    LocalDate tooOld = LocalDate.now().minusDays(16);
     mockMvc
         .perform(
             post(base)
