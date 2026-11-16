@@ -1,0 +1,64 @@
+---
+description: XPOS UI architecture, routing, state, and coding conventions
+---
+
+# XPOS UI Architecture & Conventions
+
+Product/requirements rules live in `project.md` and `AGENTS.md`.
+
+## Commands
+
+```bash
+npm run dev          # Vite (5173) — verify after meaningful changes
+npm run build        # TypeScript + production build
+npm run lint         # ESLint
+npm run test         # Vitest single run
+npm run test:watch   # Vitest watch
+npm run test:e2e     # Playwright (needs built app)
+npm run test:e2e:smoke
+```
+
+Single test: `npx vitest run src/features/admin/OrgsListPage.test.tsx`
+
+## Environment
+
+See `.env.example`: `VITE_API_BASE_URL`, `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`, `VITE_KEYCLOAK_CLIENT_ID`, `VITE_IDLE_LOGOUT_MINUTES`, `VITE_USE_KEYCLOAK_PROXY`.
+
+## Architecture
+
+- **API:** All HTTP via `apiFetch<T>()` in `src/api/client.ts` (Bearer, `X-Request-Id`, `ApiError`). 401 handler in `App.tsx` → clear auth, redirect `/login`.
+- **Endpoints:** 40+ modules in `src/api/` — `fetchOrgs(token, params)`, `createOrg(token, body)`, etc.
+- **Redux** (`src/store/slices/`): `authSlice`, `orgContextSlice`, `cartSlice` (sessionStorage).
+- **React Query:** server lists/analytics; staleTime 60s, retry 1; invalidate on mutation success.
+- **Context:** `ThemeContext`, `ToastContext`, `NavVisibilityContext`.
+- **Hooks:** `useAppDispatch()`, `useAppSelector()` in `src/hooks/`.
+
+### Routing (`src/App.tsx`)
+
+| Route | Access |
+|-------|--------|
+| `/login` | public |
+| `/select-context` | auth |
+| `/admin/*` | AdminLayout + auth |
+| `/operator/*` | OperatorLayout + auth + org/branch/terminal |
+
+Guards: `ProtectedRoute`, `OperatorContextGuard`, `RestoreContext`.
+
+### Features (`src/features/`)
+
+`auth`, `context`, `home`, `admin` (30+ pages), `operator` (15+ pages), `stockCount`.
+
+### Shared UI
+
+- Layouts: `Layout.tsx`, `AdminLayout.tsx`, `OperatorLayout.tsx`
+- Forms: `SlideOver`, `ConfirmDialog`, `Pagination`, `Toast`, `AdminTabList`/`AdminTabPanel`
+- Dropdowns: `SearchableSelect`, `ItemSearchCombobox`
+
+## Key Conventions
+
+- **Currency:** Tables use `(KSH)` header + `formatAmount()` in cells; `formatCurrency()` for one-off amounts (toasts, badges). Left-align money columns.
+- **Forms:** react-hook-form + Zod; SlideOver for create/edit; inline backend `details` errors.
+- **Errors:** `getApiErrorMessage()`, `getApiErrorRequestId()` from `src/utils/apiError.ts`.
+- **Dark themes:** Four variants (Ocean, Magenta, Midnight, Slate) via `<html data-theme>`. Use remapped Tailwind `dark:bg-slate-*`, `dark:border-slate-*`, `dark:bg-primary-*` — not legacy `dark:bg-darkBg` / `darkSurface` / `darkNav` on new code.
+- **IDs:** UUID strings with `Id` suffix (`orgId`, `branchId`).
+- **Responsive:** Always — `sm:`/`md:`/`lg:`/`xl:`, min 44px touch targets, no fixed widths that break mobile.

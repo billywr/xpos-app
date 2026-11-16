@@ -1,0 +1,161 @@
+import { getSubFromToken } from "@/utils/jwt";
+import { getEnv } from "@/utils/env";
+
+const TOKEN_PATH = "/protocol/openid-connect/token";
+
+export interface KeycloakTokenResponse {
+  access_token: string;
+  expires_in?: number;
+  refresh_token?: string;
+  token_type?: string;
+}
+
+export interface LoginParams {
+  keycloakUrl: string;
+  realm: string;
+  clientId: string;
+  username: string;
+  password: string;
+}
+
+/**
+ * Login via Keycloak password grant. POST x-www-form-urlencoded to
+ * {keycloakUrl}/realms/{realm}/protocol/openid-connect/token.
+ * No client_secret (public/frontend client).
+ * In dev we use the Vite proxy (/keycloak -> Keycloak). In production we use
+ * same-origin /keycloak proxy when VITE_USE_KEYCLOAK_PROXY is set, to avoid CORS.
+ */
+export async function loginWithPassword(params: LoginParams): Promise<{
+  token: string;
+  iamUserId: string;
+  expiresAt: number | null;
+  refreshToken: string | null;
+}> {
+  const useProxy =
+    (typeof window !== "undefined" && window.location?.origin
+      ? String(getEnv("VITE_USE_KEYCLOAK_PROXY") ?? "").toLowerCase() === "true"
+      : false);
+  const baseUrl =
+    typeof import.meta.env.DEV !== "undefined" && import.meta.env.DEV
+      ? typeof window !== "undefined"
+        ? `${window.location.origin}/keycloak`
+        : ""
+      : useProxy && typeof window !== "undefined"
+        ? `${window.location.origin}/keycloak`
+        : params.keycloakUrl.replace(/\/$/, "");
+  const url = `${baseUrl}/realms/${params.realm}${TOKEN_PATH}`;
+  const body = new URLSearchParams({
+    grant_type: "password",
+    client_id: params.clientId,
+    username: params.username,
+    password: params.password,
+  });
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  if (params.keycloakUrl) {
+    headers["x-target-keycloak"] = params.keycloakUrl.replace(/\/$/, "");
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: body.toString(),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    const message =
+      data.error_description ?? data.error ?? res.statusText ?? "Login failed";
+    throw new Error(message);
+  }
+
+  const token = (data as KeycloakTokenResponse).access_token;
+  if (!token) throw new Error("No access_token in response");
+
+  const iamUserId = getSubFromToken(token);
+  if (!iamUserId) throw new Error("Could not read user id from token");
+
+  const expiresIn = (data as KeycloakTokenResponse).expires_in;
+  const expiresAt =
+    typeof expiresIn === "number"
+      ? Date.now() + expiresIn * 1000
+      : null;
+
+  const refreshToken = (data as KeycloakTokenResponse).refresh_token ?? null;
+
+  return { token, iamUserId, expiresAt, refreshToken };
+}
+
+/**
+ * Refresh an access token using the Keycloak refresh_token grant.
+ * Returns the same shape as loginWithPassword so callers can update auth state.
+ */
+export async function refreshAccessToken(params: {
+  keycloakUrl: string;
+  realm: string;
+  clientId: string;
+  refreshToken: string;
+}): Promise<{
+  token: string;
+  iamUserId: string;
+  expiresAt: number | null;
+  refreshToken: string | null;
+}> {
+  const useProxy =
+    typeof window !== "undefined" && window.location?.origin
+      ? String(getEnv("VITE_USE_KEYCLOAK_PROXY") ?? "").toLowerCase() === "true"
+      : false;
+  const baseUrl =
+    typeof import.meta.env.DEV !== "undefined" && import.meta.env.DEV
+      ? typeof window !== "undefined"
+        ? `${window.location.origin}/keycloak`
+        : ""
+      : useProxy && typeof window !== "undefined"
+        ? `${window.location.origin}/keycloak`
+        : params.keycloakUrl.replace(/\/$/, "");
+  const url = `${baseUrl}/realms/${params.realm}${TOKEN_PATH}`;
+
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    client_id: params.clientId,
+    refresh_token: params.refreshToken,
+  });
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  if (params.keycloakUrl) {
+    headers["x-target-keycloak"] = params.keycloakUrl.replace(/\/$/, "");
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: body.toString(),
+  });
+
+  if (!res.ok) {
+    throw new Error("Token refresh failed");
+  }
+
+  const data: KeycloakTokenResponse = await res.json();
+  const token = data.access_token;
+  if (!token) throw new Error("No access_token in refresh response");
+
+  const iamUserId = getSubFromToken(token);
+  if (!iamUserId) throw new Error("Could not read user id from refreshed token");
+
+  const expiresIn = data.expires_in;
+  const expiresAt =
+    typeof expiresIn === "number" ? Date.now() + expiresIn * 1000 : null;
+
+  return {
+    token,
+    iamUserId,
+    expiresAt,
+    refreshToken: data.refresh_token ?? null,
+  };
+}

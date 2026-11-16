@@ -1,0 +1,189 @@
+---
+description: XPOS React frontend — product rules, API contract, UX, operator/admin features (Kenya POS)
+alwaysApply: true
+---
+
+# XPOS Frontend (Production)
+
+> Architecture, routing, state, and conventions: see `architecture.mdc` (synced from `CLAUDE.md`).
+
+You are building the XPOS frontend UI for a control-first POS system used in Kenya (supermarkets, retail shops, pubs & bars, restaurants, hotels).
+This UI must support fast cashier flows, strict accountability, and must show specific backend errors (no vague error messages).
+The backend is a Spring Boot monolith using Flyway migrations and Keycloak for IAM. XPOS is org-scoped and later branch/terminal/device/staff-scoped.
+
+## Tech Stack & Rules
+- React 18+, Vite, TypeScript (strict), Tailwind CSS.
+- Icons: lucide-react only.
+- State: Redux Toolkit (RTK) + RTK Query optional (if used, keep it consistent across app).
+- Router: React Router.
+- No star imports. Keep imports explicit.
+- Prefer small, focused components and hooks.
+- All UUIDs are strings in the UI.
+- Always handle network errors, timeouts, and non-2xx responses.
+- Follow a consistent, professional UI style suitable for retail/hospitality.
+- should support both dark and light themes
+- **Dropdowns:** Prefer `SearchableSelect` (`src/components/SearchableSelect.tsx`, also exported from `src/components/ui/index.ts`) instead of native `<select>` for searchable auto-suggest. Use `ItemSearchCombobox` for catalog items (name, SKU, barcode). Keep keyboard support (↑/↓, Enter, Escape) and `aria-label` / `id` for accessibility.
+
+## Runtime Config
+- `VITE_API_BASE_URL` points to the backend base URL.
+- `VITE_IDLE_LOGOUT_MINUTES` (optional): idle auto-logout delay in minutes; default 5 if unset or invalid. See `src/config/idleLogout.ts`.
+- All API calls must use `src/api/client.ts` wrapper.
+- The client must:
+  - Attach Bearer token (Keycloak access token).
+  - Attach `X-Request-Id` on every request (generate uuid per request).
+  - Read `X-Request-Id` from response headers and store it in error state if present.
+  - Normalize errors into a single typed `ApiError` shape.
+
+## API Client Contract (src/api/client.ts)
+### Required behavior
+- `apiFetch<T>(path, options) -> Promise<T>`:
+  - On success: return parsed JSON.
+  - On non-2xx: parse backend error envelope and throw `ApiError`.
+  - Always prefer backend-provided `message` for user display.
+  - Include `requestId` in thrown errors (from body or header).
+  - Provide a safe fallback when the response isn’t JSON.
+
+### Error handling rules
+- 400 validation: show field-level messages next to inputs (do NOT show only a toast).
+- 401 unauthenticated: clear auth state and redirect to login.
+- 403 forbidden: show “You don’t have permission” screen (no retry loop).
+- 404 not found: show a “not found” or contextual error.
+- 409 conflict: show backend message as-is (common for duplicates / constraints).
+- 5xx: show message + requestId + “Contact support with this requestId”.
+
+## Types (src/types/api.ts)
+Maintain strong types for:
+- `ApiError`:
+  - `code: string`
+  - `message: string`
+  - `requestId?: string`
+  - `details?: Array<{ key: string; value: string }>`
+  - `httpStatus?: number`
+- `PageResponse<T>`:
+  - `content: T[]`
+  - `page: { number: number; size: number; totalElements: number; totalPages: number }`
+  - If backend uses Spring Page, map accordingly.
+- Common models:
+  - Org, Business, Branch, Terminal, DeviceRegistration
+  - StaffUser, StaffProfile, StaffBranchAssignment
+  - (Future) Item, Barcode, Sale, Receipt, Shift, StockMovement
+
+## Auth & Identity (Keycloak)
+- Keycloak is the source of truth for authentication.
+- Use Keycloak access token from login, stored in memory + secure storage strategy:
+  - Prefer in-memory + refresh on reload (or session storage depending on your approach).
+  - Never log tokens.
+- Extract only what is safe from token (e.g., `sub`, `preferred_username`, roles if present).
+- UI must always include org context (orgId) in requests (until backend infers org from device/staff rules later).
+
+## Global UX Requirements (Kenya POS)
+- **Implementation guide §11:** Reusable components; screens grow with content; forms slide in from right; confirm dialog before delete/destructive actions; top-notch state + pagination; idle logout (~5 min); collapsible left sidebar; dark/light theme support. See docs/FRONTEND_IMPLEMENTATION.md §11.
+- Speed matters: cashier UI must be optimized for keyboard/touch.
+- Offline-first is future, but UI must be resilient now:
+  - Show clear “Network offline” state.
+  - Do not lose in-progress forms; keep draft state where appropriate.
+- Use KES currency formatting everywhere:
+  - Display: `KES 1,234.00` (or `KSh` consistent).
+- Taxes: show inclusive/exclusive breakdown clearly (Kenya VAT scenarios like 16%).
+- Always show branch + terminal + user identity in header once selected (accountability).
+- Use consistent empty/loading/error states.
+
+## App Structure (recommended)
+- `src/app/store.ts` (RTK store)
+- `src/app/slices/`
+  - `authSlice.ts` (token, user)
+  - `orgContextSlice.ts` (orgId, branchId, terminalId, deviceId)
+  - `uiSlice.ts` (toasts, modals, global loading)
+- `src/api/`
+  - `client.ts` (apiFetch + error normalization)
+  - `endpoints/` (grouped by module: org.ts, staff.ts, devices.ts, etc.)
+- `src/routes/`
+  - route definitions + lazy loading
+- `src/components/`
+  - shared UI components
+- `src/features/`
+  - domain screens (org, staff, device, terminal, sales, inventory, shifts)
+- `src/utils/`
+  - formatters (KES), uuid, debounce, etc.
+
+## Required Screens (Phase 1)
+### Bootstrap / Setup
+1) Login (Keycloak)
+2) Select Organization
+3) Select Branch (if applicable)
+4) Select Terminal
+5) Device Registration status page
+   - If device not registered: show “Register device” flow (admin approval required)
+   - If inactive: show “Awaiting activation” with refresh
+6) Staff verification (Packet 1B)
+   - If staff not registered: show “Contact admin”
+   - If not assigned to branch: show “Not assigned”
+
+### Admin (Phase 1)
+- Orgs: list/create/update/view
+- Businesses: list/create/update/view (org-scoped)
+- Branches: list/create/update/view (org-scoped)
+- Terminals: list/create/update/view + bind to branch (org-scoped)
+- Devices: list/register/activate/deactivate + bind to terminal (org-scoped)
+- Staff: staff user + profile + branch assignment (org-scoped)
+
+## UI Patterns to enforce
+- Tables:
+  - Pagination + search input + sort
+  - Row actions: view/edit/activate/deactivate
+- Forms:
+  - Use react-hook-form + zod (recommended) OR consistent custom validation.
+  - Show field errors inline from backend validation `details`.
+  - Disable submit button while saving.
+- Notifications:
+  - Toast for success
+  - Toast for non-field errors + show requestId (copy button)
+- Modals:
+  - Confirm dangerous actions (deactivate, remove assignment)
+- Accessibility:
+  - Keyboard navigation for cashier flows
+  - Proper focus management on modals
+
+## Data Safety & Guardrails
+- Never assume the backend accepted a change; only update state after success.
+- Always handle “409 conflict” as a first-class path (duplicate deviceId, duplicate codes).
+- Always show backend message verbatim for operator clarity.
+- Do not swallow errors in catch; route them through centralized error handler.
+
+## Development Workflow
+- New UI work must include:
+  - Types
+  - API endpoint wrapper
+  - Slice changes (if needed)
+  - Screen + component
+  - Basic tests (at least one per feature: rendering + error state)
+- Keep code production-grade: no dead code, no console logs, no TODOs left behind.
+- for every screen that Add button , i should be able to edit and soft delete the records
+
+## Development workflow (verification)
+- After meaningful `xpos-ui` changes, **always confirm with `npm run dev`**: the Vite dev server must start cleanly (no compile/transform errors in the terminal). Use `npm run build` for production parity; **`npm run dev`** catches dev-mode issues `build` alone might miss.
+- Stop the server with Ctrl+C when done checking; in automation, a short run (e.g. wait until “Local:” appears) is enough.
+
+## Operator Features (implemented)
+- **Customer Debts:** Record, edit, settle, clear. Create customer on-the-fly (name, phone). DebtsPage.
+- **Misc Expenses:** Record, edit, soft delete. Incurred-by, total row. MiscExpensesPage.
+- **Payment with debt:** When partial payment, PaymentModal shows customer form (name, phone, due date) and "Complete with balance as debt". POST complete-with-debt.
+- **Receipt debt:** ReceiptModal displays debt amount and due date when sale completed with debt.
+- **Analytics:** Operator + Admin routes. AnalyticsPage with debt/expense KPI cards, charts. Admin nav: /admin/analytics.
+- **Stock Taking:** Admin: Stock Taking Schedules (DAILY/WEEKLY, trigger), Stock Count Sessions. Operator: Stock Count (manual counts at branch). api/stockTaking.ts.
+
+## Docs References
+- Backend E2E API reference: `docs/E2E_FULL_API_REFERENCE.md` (or xpos repo).
+- Frontend: `docs/FRONTEND_IMPLEMENTATION.md`, `docs/FRONTEND_SUGGESTIONS.md`, `docs/UI_IMPLEMENTATION_PHASES.md`.
+- Error contract: Always show `message` and include `requestId` in UI.
+
+## Non-goals (for now)
+- Full offline sync engine (later packet)
+- Payment gateway integrations (manual tenders now)
+- Micro-frontend architecture
+
+When generating code:
+- Prefer explicit types and predictable control flows.
+- Ensure routes and screens are wired end-to-end.
+- Provide the actual files/paths to create or edit.
+- for anything to backend api you add its integration tests and compile the code , esnure nothing breaks 

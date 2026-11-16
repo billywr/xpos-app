@@ -1,0 +1,51 @@
+import { configureStore } from "@reduxjs/toolkit";
+import authReducer from "./slices/authSlice";
+import cartReducer from "./slices/cartSlice";
+import orgContextReducer from "./slices/orgContextSlice";
+import { setOrg, setBranch, setTerminal } from "./slices/orgContextSlice";
+import { getStoredAuth } from "@/utils/authStorage";
+import { getStoredContext, getStoredAdminContext } from "@/utils/contextStorage";
+
+const storedAuth = getStoredAuth();
+
+export const store = configureStore({
+  reducer: {
+    auth: authReducer,
+    orgContext: orgContextReducer,
+    cart: cartReducer,
+  },
+  preloadedState:
+    storedAuth != null
+      ? {
+          auth: {
+            token: storedAuth.token,
+            iamUserId: storedAuth.iamUserId,
+            username: storedAuth.username ?? null,
+            expiresAt: storedAuth.expiresAt,
+            refreshToken: storedAuth.refreshToken ?? null,
+            roles: storedAuth.roles ?? [],
+          },
+        }
+      : undefined,
+});
+
+// Cart persistence is handled by useCartPersistence hook (backend API, not sessionStorage)
+
+// Restore context from sessionStorage so refresh keeps user context (Analytics, Revenue, etc.)
+const storedContext = getStoredContext();
+if (storedContext != null) {
+  store.dispatch(setOrg({ orgId: storedContext.orgId, orgName: storedContext.orgName }));
+  store.dispatch(setBranch({ branchId: storedContext.branchId, branchName: storedContext.branchName }));
+  store.dispatch(
+    setTerminal({ terminalId: storedContext.terminalId, terminalName: storedContext.terminalName })
+  );
+} else {
+  const adminContext = getStoredAdminContext();
+  if (adminContext != null) {
+    store.dispatch(setOrg({ orgId: adminContext.orgId, orgName: adminContext.orgName }));
+    store.dispatch(setBranch({ branchId: adminContext.branchId, branchName: adminContext.branchName }));
+  }
+}
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
