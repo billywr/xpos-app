@@ -1,0 +1,46 @@
+---
+description: XPOS monorepo layout — xpos backend + xpos-ui frontend, cross-repo commands and API contract
+alwaysApply: true
+---
+
+# XPOS Monorepo
+
+| Directory | Role | Stack |
+|-----------|------|-------|
+| `xpos/` | Backend API | Java 21, Spring Boot 4, PostgreSQL, Keycloak |
+| `xpos-ui/` | Frontend SPA | React, TypeScript, Vite, Tailwind |
+
+XPOS is a control + accounting POS for Kenya — anti-leakage, accountability, auditability.
+
+## Full Stack
+
+```bash
+cd xpos && docker compose up -d
+cd xpos-ui && npm run dev    # port 5173
+```
+
+## Per-Project Rules
+
+- Backend: `xpos/.cursor/rules/` (project.mdc + architecture.mdc)
+- Frontend: `xpos-ui/.cursor/rules/` (project.mdc + architecture.mdc)
+
+Source of truth for Claude Code: each repo's `CLAUDE.md` + this file at repo root `CLAUDE.md`.
+
+## Cross-Repo Guidelines
+
+- API contract is the boundary — coordinate DTOs and error codes.
+- Auth: Keycloak only; no custom login in either repo.
+- Org scoping end-to-end: frontend sends orgId/branchId/terminalId; backend enforces ownership.
+- Error codes: UPPER_SNAKE_CASE; frontend shows `message` + `requestId`.
+- Frontend → backend via `VITE_API_BASE_URL` (e.g. `http://localhost:9003`).
+
+## Request Flow
+
+React page → `apiFetch()` (JWT + X-Request-Id) → Spring `/api/v1/...` → service (org validation) → repository → PostgreSQL. Writes may emit `OutboxEvent` in PostgreSQL.
+
+## Docs
+
+- `xpos/docs/E2E_FULL_API_REFERENCE.md`
+- `xpos/docs/IMPLEMENTATION_PLAN.md`
+- `xpos/docs/FRONTEND_IMPLEMENTATION.md`
+- `xpos/docs/TROUBLESHOOTING.md`

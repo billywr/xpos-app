@@ -1,0 +1,284 @@
+x-java-env: &java-common-env
+  JAVA_OPTS: >-
+    -XX:InitialRAMPercentage=30
+    -XX:MaxRAMPercentage=65
+    -XX:+UseG1GC
+    -XX:+HeapDumpOnOutOfMemoryError
+    -XX:HeapDumpPath=/tmp/heap.hprof
+    -XX:+ExitOnOutOfMemoryError
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-spring-boot-common: &spring-boot-common
+  logging: *default-logging
+  restart: unless-stopped
+
+# JVM baseline (container-aware, safe defaults)
+x-java-common-env: &java-common-env
+  JAVA_TOOL_OPTIONS: >-
+    -Dspring.profiles.active=dev
+    -XX:+UseContainerSupport
+    -XX:InitialRAMPercentage=20
+    -XX:MaxRAMPercentage=70
+    -XX:+ExitOnOutOfMemoryError
+    -XX:+HeapDumpOnOutOfMemoryError
+    -XX:HeapDumpPath=/tmp
+    -Djava.security.egd=file:/dev/./urandom
+    -Dfile.encoding=UTF-8
+    -Duser.timezone=Africa/Nairobi
+
+x-config-client-env: &config-client-env
+  SPRING_CLOUD_CONFIG_PROFILE: dev
+  SPRING_CONFIG_IMPORT: "optional:configserver:http://config-server:8888"
+  ENCRYPTION_KEY: "8f26a5c3e9b1d4f7a2b5c8d1e4f7a0b3"
+
+# Reusable healthcheck for Spring Boot apps (tries SERVER_PORT first, then common ports)
+x-spring-healthcheck: &spring-healthcheck
+  test: ["CMD-SHELL", "curl -fsS --max-time 3 http://127.0.0.1:8080/api/v1/actuator/health/readiness | grep -q '\"status\":\"UP\"' || curl -fsS --max-time 3 http://127.0.0.1:8080/api/v1/actuator/health | grep -q '\"status\":\"UP\"'"]
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 90s
+
+x-hikari-common-env: &hikari-common-env
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+  SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "0"
+  SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: "30000"
+  SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT: "600000"
+  SPRING_DATASOURCE_HIKARI_MAX_LIFETIME: "900000"
+
+services:
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped  
+    networks:
+      - internal-srv-network 
+
+  keycloak:
+      env_file:
+        - .env
+      image: quay.io/keycloak/keycloak:26.5.0
+      container_name: keycloak
+      command: ["start"]
+      environment:
+        KC_DB: postgres
+        KC_DB_URL: jdbc:postgresql://postgres-common:5432/${KC_DB_NAME:-keycloak}
+        KC_DB_USERNAME: postgres
+        KC_DB_PASSWORD: root
+        KC_HEALTH_ENABLED: "true"
+        KC_METRICS_ENABLED: "true"
+
+        KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+        KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+
+        # If you run Keycloak behind a gateway/reverse proxy, keep these.
+        KC_PROXY_HEADERS: xforwarded
+        KC_HOSTNAME_STRICT: "false"
+        KC_HTTP_ENABLED: "true"
+
+      
+      networks:
+        - internal-srv-network 
+      depends_on:
+        postgres:
+          condition: service_healthy
+      <<: *spring-boot-common
+      mem_limit: 1200m
+      ports:
+        - "8088:8080"
+        - "9000:9000"
+      healthcheck:
+        test: ["CMD-SHELL", "bash -lc ': > /dev/tcp/127.0.0.1/9000'"]
+        interval: 10s
+        timeout: 5s
+        retries: 18
+        start_period: 90s       
+
+  db:
+    image: mysql:8.4
+    container_name: users-mysql
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - users-mysql-data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+    mem_limit: 700m
+    mem_reservation: 100m  
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} | grep 'mysqld is alive'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - internal-srv-network
+    restart: unless-stopped
+
+  users-api:
+    build:
+      context: ./users-api/users     # path to your Dockerfile
+    container_name: users-api
+    environment:
+      <<: *java-common-env
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/${MYSQL_DB}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: 7000
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "7000:7000"
+    mem_limit: 700m
+    mem_reservation: 100m  
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:7000/actuator/health | grep '\"status\"\\s*:\\s*\"UP\"' >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    networks:
+      - internal-srv-network
+    restart: unless-stopped
+
+  users-frontend: #nginx server
+    build:
+      context: ./admin-dashboard           # ← path to your frontend folder with Dockerfile
+    container_name: users-frontend
+    depends_on:
+      - users-api
+    ports:
+      - "80:80"
+    volumes:
+      - /home/billy/data/dwnloads_&_othr_docs:/home/billy/data/dwnloads_&_othr_docs:ro  
+    mem_limit: 250m
+    mem_reservation: 100m
+    networks:
+      - internal-srv-network                           # browse via http://taxiapp.test or http://localhost
+    restart: unless-stopped
+
+  postgres:
+    env_file:
+      - .env 
+    image: postgres:16-alpine
+    container_name: postgres-common
+    command:
+      - postgres
+      - -c
+      - log_line_prefix=%m [%p] user=%u db=%d remote=%r app=%a
+      - -c
+      - log_connections=on
+      - -c
+      - log_disconnections=on
+      - -c
+      - log_statement=ddl
+      - -c
+      - log_duration=on
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/01-init-multiple-dbs.sh:ro
+    networks:
+      internal-srv-network :
+        aliases:
+          - postgres
+          - postgres-common
+    restart: unless-stopped
+    mem_limit: 2200m
+    shm_size: "256m"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  xpos-api:
+    env_file:
+      - .env
+    pull_policy: always
+    image: ${XPOS_IMAGE}
+    container_name: xpos-api
+    ports:
+      - "9005:9005"
+    environment:
+      SERVER_PORT: 9005
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-common:5432/xpos
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      XPOS_KEYCLOAK_JWK_URI: ${XPOS_KEYCLOAK_JWK_URI}
+      XPOS_KEYCLOAK_ISSUER: ${XPOS_KEYCLOAK_ISSUER}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - internal-srv-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9005/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 90s
+  xpos-ui:
+    image: ghcr.io/billywr/xpos-ui:dev
+    container_name: xpos-ui
+    pull_policy: always
+    ports:
+      - "9011:80"
+    environment:
+      KEYCLOAK_PROXY_PASS: keycloak:8080  
+    depends_on:
+      xpos-api:
+        condition: service_healthy
+    networks:
+      - internal-srv-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  users-mysql-data:
+  postgres-data:
+  rabbitmq_data:
+  uploads:
+
+networks:
+  internal-srv-network:
+    driver: bridge  

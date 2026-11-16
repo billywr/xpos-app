@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vitest *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(tee /tmp/tsc.out)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(grep -r \"key=.*{.*[0-9]\\\\|key=\\\\`.*\\\\$\" /media/data/internals/xpos-app/xpos-ui/src/components --include=\"*.tsx\")",
+      "Bash(grep -n \"canEditDebt\\(d\\) && inlineNameDebtId\\\\|startInlineName\\\\|canEditDebt\\(d\\)\\\\s*$\" /media/data/internals/xpos-app/xpos-ui/src/features/operator/DebtsAndExpensesPage.tsx)",
+      "Bash(docker exec *)",
+      "Bash(grep -B1 \"^} from \\\\\"lucide-react\\\\\";$\" /media/data/internals/xpos-app/xpos-ui/src/features/operator/DebtsAndExpensesPage.tsx)",
+      "Bash(grep -E \"\\\\.tsx$\")",
+      "Bash(./mvnw -q spotless:apply)",
+      "Bash(./mvnw -q clean compile)",
+      "Bash(./mvnw spotless:apply checkstyle:check test -DskipIntegrationTests=true)",
+      "Bash(echo \"LINT=$?\")",
+      "Bash(echo \"SPOTLESS=$?\")",
+      "Bash(echo \"COMPILE=$?\")",
+      "Bash(./mvnw -q checkstyle:check)",
+      "Bash(echo \"CHECKSTYLE=$?\")",
+      "Bash(./mvnw -q test -Dtest=SalesRecordingOperatorControllerIT)",
+      "Bash(echo \"TEST=$?\")",
+      "Bash(./mvnw -q test -Psurefire-integration -Dtest=SalesRecordingOperatorControllerIT)",
+      "Bash(echo \"IT=$?\")",
+      "Bash(echo \"exit:$?\")",
+      "Bash(echo \"tsc-exit:$?\")",
+      "Bash(echo \"eslint-exit:$?\")",
+      "Bash(./mvnw spotless:apply)",
+      "Bash(git -C /media/data/internals/xpos-app/xpos-ui status --short)",
+      "Bash(./mvnw spotless:check checkstyle:check -q)",
+      "Bash(./mvnw spotless:check checkstyle:check)",
+      "Bash(echo \"EXIT2=$?\")"
+    ]
+  }
+}
