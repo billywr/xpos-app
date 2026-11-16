@@ -2063,7 +2063,6 @@ export function StandardStockCountSheetPage({
         open={recordPreview !== null}
         onClose={() => setRecordPreview(null)}
         title="Record sales from stock count"
-        maxWidth="max-w-xl"
         headerAction={
           <button
             type="button"

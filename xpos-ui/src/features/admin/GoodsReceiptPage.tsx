@@ -1620,7 +1620,6 @@ export function GoodsReceiptPage({
               : "Edit stock receipt"
             : "Receive stock"
         }
-        maxWidth="max-w-xl"
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {formError && (

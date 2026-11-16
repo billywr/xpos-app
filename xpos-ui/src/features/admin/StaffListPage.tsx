@@ -671,7 +671,6 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
             open={profileSlideOpen}
             onClose={closeProfile}
             title={editingStaff ? `Profile: ${editingStaff.username}` : "Profile"}
-            maxWidth="max-w-xl"
           >
             {editingStaff && profileLoading && (
               <div className="text-sm text-slate-500 dark:text-slate-400">

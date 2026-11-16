@@ -1244,7 +1244,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
             open={slideOpen}
             onClose={closeSlide}
             title={editingItem ? "Edit item" : "Add item"}
-            maxWidth="max-w-xl"
           >
             <form onSubmit={handleItemSubmit} className="space-y-4">
               {formError && (

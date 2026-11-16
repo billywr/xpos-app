@@ -418,7 +418,6 @@ export function TenderTypesListPage() {
               setFormError(null);
             }}
             title={editingTenderType ? "Edit tender type" : "Add tender type"}
-            maxWidth="max-w-md"
           >
             <form onSubmit={handleSlideSubmit} className="space-y-4">
               {formError && (
