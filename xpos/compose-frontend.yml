@@ -1,0 +1,21 @@
+# Run XPOS frontend only. Backend must already be deployed.
+#
+# Prereq: Backend running (e.g. compose-backend.yml). Frontend image already pushed.
+# Run:   docker compose -f compose-frontend.yml up -d
+# Health: curl -s http://localhost:9011/health
+#
+# Keycloak is proxied via /keycloak (same-origin, no CORS). Requires host.docker.internal.
+
+services:
+  xpos-ui:
+    image: ghcr.io/billywr/xpos-ui:dev
+    ports:
+      - "9011:9011"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped

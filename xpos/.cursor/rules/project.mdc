@@ -1,0 +1,266 @@
+---
+description: XPOS Spring Boot backend — hard constraints, architecture rules, workflow (production POS, Kenya)
+alwaysApply: true
+---
+
+You are working on XPOS: a production-grade multi-vertical POS for Kenya (supermarkets, retail shops, pubs/bars, restaurants, hotels).
+This is a control + accounting system (anti-leakage, accountability, auditability), not just a cashier app.
+
+> Module layout, domain model, build commands, Lombok/MapStruct: see `architecture.mdc` (synced from `CLAUDE.md`).
+
+HARD CONSTRAINTS (non-negotiable)
+1) Checkstyle compliance is mandatory.
+   - No tabs. 4-space indentation.
+   - Newline at EOF.
+   - Max line length 140 characters.
+   - No wildcard/star imports.
+   - No unused imports.
+   - Naming rules apply to methods (camelCase only; no underscores).
+   - Method length <= 100 lines (split logically if needed).
+   - Keep code formatting consistent with existing project style.
+
+2) Database is defined ONLY via Flyway migrations.
+   - Do not enable Hibernate schema generation.
+   - Do not add @GeneratedValue strategies that conflict with DB defaults unless clearly required.
+   - All schema changes must be new Flyway migrations (append-only). Never edit old migrations.
+
+3) Single Spring Boot monolith for now (no microservices).
+   - One service, modular packages.
+   - Splitting can come later, but code must be cleanly modularized.
+
+4) Keycloak is external IAM. Backend is a resource server.
+   - Do not implement login/auth flows in XPOS.
+   - Always treat JWT sub as iamUserId.
+   - Authorization is enforced in XPOS based on staff_user and assignments.
+   - Operator endpoints (shift, cash, day close) resolve current staff via requireStaffUserForBranch(orgId, branchId, iamUserId); fallback by branch assignment when not found by org+iamUserId.
+
+5) Error handling must be user-facing and specific.
+   - No generic “Unhandled error” unless truly unknown 500.
+   - Validation errors must return field-level details.
+   - Database constraint violations must translate to meaningful messages.
+   - Always include requestId in error responses.
+
+6) Repository query methods must be Checkstyle-safe.
+   - Do not use derived method names containing underscore (e.g., findByOrg_Id).
+   - Use JPQL @Query with text blocks correctly:
+     - Opening """ must be followed by a newline.
+   - Keep method names camelCase without underscores.
+
+7) Do not introduce vendor-specific JDBC dependency usage in app logic.
+   - Avoid org.postgresql.util.PSQLException usage.
+   - Translate DB errors via java.sql.SQLException + SQLSTATE + safe parsing.
+
+ARCHITECTURE RULES
+A) Multi-tenant scoping via orgId is mandatory.
+   - Every admin and business operation must be org-scoped.
+   - Repositories must support orgId filtering.
+   - Services must validate org ownership (no cross-org access).
+
+B) “Control system” behavior is mandatory.
+   - No transactions without valid: org → branch → terminal → device → staff assignment (as applicable).
+   - Future packets: shift control, blind close, approvals, audit chain.
+
+C) Packetized development only.
+   - Implement in small packets with clear boundaries.
+   - Each packet must compile, pass Checkstyle, and be testable.
+
+D) Layers are required:
+   - Controller -> DTO -> Service interface -> Service implementation -> Repository.
+   - Services hold transactional boundaries (@Transactional).
+   - Controllers must not contain business logic.
+
+E) DTO strategy:
+   - Use request/response DTOs for API layer.
+   - Validate using jakarta.validation.
+   - Never expose internal entity graph unintentionally (avoid LAZY serialization problems).
+   - If you do return entities temporarily, ensure no cycles and no lazy init errors.
+   - Use Mapstruct where possible
+   - LAZY-loading pitfall: When controllers map entities to DTOs, accessing LAZY associations
+     after the service transaction ends causes LazyInitializationException → 500. ALWAYS add
+     JOIN FETCH in repository queries for associations used in response mapping (org, branch,
+     item, supplier, etc.). Example: left join fetch e.org left join fetch e.branch
+
+F) Pagination:
+   - List endpoints must use Pageable and clamp via PageRequestFactory (max size, default sort).
+   - Never return unbounded lists by default.
+
+G) Testing:
+   - Add at least one integration test for each new controller group.
+   - Validate requestId header behavior for relevant endpoints.
+   - Keep tests deterministic (Clock bean usage where time matters).
+   - Integration tests: Extend AbstractIntegrationTest (@Tag("integration")). By default they are
+     EXCLUDED; only SimpleSanityTest runs. To run full suite: mvn test -Psurefire-integration.
+     Docker must be running (Testcontainers: Postgres). CI pipeline runs with this profile.
+
+H) PriceListItem / addItemToPriceList:
+   - PriceListItemService.add enforces: item must have purchase history (GRN/stock movement with
+     unit cost) and selling price must exceed max unit cost. Without GRN → 400 ITEM_NOT_SUPPLIED.
+   - Tests that add items to price lists MUST first: createSupplier(orgId),
+     createGrnForItem(orgId, branchId, supplierId, itemId), then addItemToPriceList.
+   - Use unit cost in GRN lower than selling price (e.g. 40–80 vs 99.50 or 150).
+
+CODING STANDARDS
+- Prefer explicit, readable code over cleverness.
+- Use Objects.requireNonNull in constructors.
+- No reflection hacks.
+- No star imports.
+- Use final where appropriate.
+- Keep methods small; split if approaching 100 lines.
+- Favor meaningful error codes (UPPER_SNAKE_CASE) and user messages that can be shown to POS operators.
+
+API STANDARDS
+- Use /api/v1 prefix.
+- Admin endpoints must be under /api/v1/admin.
+- Include orgId scoping (path or query) consistently. Prefer path for admin resources.
+- Response errors must include:
+  - code
+  - message (user-facing)
+  - requestId
+  - details (optional key-value list)
+- Always return 409 for conflicts, 404 for missing resources, 400 for validation issues, 403 for forbidden, 401 for auth problems.
+
+COMMON GOTCHAS TO AVOID
+- Do not use @Query("""select ...""") without newline after opening delimiter.
+- Do not import MethodArgumentTypeMismatchException from org.springframework.web.bind (wrong).
+  Use org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.
+- Do not construct ApiErrorDetail with wrong arity. Check record signature.
+- Do not introduce orgId traversal underscores in repository method names.
+- Do not allow Springdoc/OpenAPI dependencies that create Boot auto-config conflicts unless isolated to dev-only and proven compatible.
+- Page list endpoints: JSON has `content` array. In tests use $.content.length() not $.length(); $.content[0].field not $[0].field.
+
+WORKFLOW FOR ANY CHANGE (ROBUST / PRODUCTION-GRADE)
+   0) Define scope + correctness constraints
+      - Write the user story + acceptance criteria (what is “done”).
+      - List invariants impacted (org scoping, device/terminal/branch validity, staff assignment,
+      accounting/audit requirements, idempotency if relevant).
+      - Identify failure modes/edge cases up front (duplicates, missing references, concurrency,
+      stale updates, auth gaps, invalid inputs, partial updates).
+
+   1) Schema-first (Flyway only)
+      - If schema change is needed:
+      a) Create a NEW Flyway migration (append-only; never edit previous migrations).
+      b) Add constraints that enforce control at the DB layer:
+         - NOT NULL where required
+         - FK constraints for ownership/relationships
+         - Unique constraints for identity/codes (branch code, terminal code, deviceId, etc.)
+         - Partial unique indexes for “only one ACTIVE …” invariants (e.g., open shift per terminal)
+         - CHECK constraints for safe business rules (status enums, non-negative quantities)
+      c) Add indexes for all hot filters (org_id, branch_id, status, created_at, code fields).
+      - Validate locally: Flyway migrate must run cleanly on an empty DB and on an existing DB.
+
+   2) Domain modeling (entities match DB exactly)
+      - Update entities to match columns, nullability, enums, JSONB types.
+      - Prefer LAZY for relationships.
+      - Avoid accidental serialization of entity graphs (DTOs preferred).
+      - Keep timestamps consistent (Clock bean).
+      - Do not introduce Hibernate DDL generation.
+
+   3) Repository layer (org-scoped by default, Checkstyle-safe)
+      - Every query that reads/modifies tenant data MUST be org-scoped.
+      - Avoid underscore method names (Checkstyle): use JPQL @Query + camelCase names.
+      - Use correct Java text blocks:
+      - """ must be followed by a newline.
+      - Add explicit methods for:
+      - “findByIdAndOrgId”
+      - paged list by orgId
+      - uniqueness lookup checks (orgId + code/deviceId/etc.)
+      - JOIN FETCH for response mapping: When entities are mapped to DTOs in controllers and the
+        mapping accesses LAZY associations (org, branch, item, supplier, etc.), add
+        left join fetch in the JPQL query to avoid LazyInitializationException (500).
+        For parent entities: fetch org, branch, supplier, createdBy, menuItem, fromBranch,
+        toBranch as needed. For line entities: fetch item, ingredientItem, uom.
+
+   4) Service layer (transactional boundaries + invariants)
+      - Always create a service interface + implementation.
+      - Services own @Transactional boundaries (controllers are thin).
+      - Enforce invariants in service methods:
+      - validate ownership and state (ACTIVE/INACTIVE)
+      - validate cross-entity linkage (branch belongs to org, terminal belongs to branch, etc.)
+      - Concurrency/edge cases:
+      - use optimistic locking where appropriate OR design DB constraints to prevent duplicates
+      - treat DataIntegrityViolationException as expected and translate to Conflict messages
+      - Idempotency (when relevant):
+      - add idempotency key support for “create” operations that can be retried
+      - return same result on duplicate key rather than creating duplicates
+
+   5) API layer (DTOs, validation, safe responses)
+      - Do not expose entities directly unless explicitly intended and safe.
+      - Request DTOs: jakarta.validation annotations, meaningful validation messages.
+      - Response DTOs: stable fields, no lazy-loading surprises.
+      - Pagination required for list endpoints; clamp via PageRequestFactory.
+      - Include requestId propagation via the existing filter.
+      - CORS/security behavior must remain consistent (resource server JWT).
+
+   6) Error handling (user-facing, specific)
+      - Every known failure path must produce a specific error message suitable for UI/Postman.
+      - Extend ConstraintMessageCatalog for any new constraints:
+      - uq_* -> “already exists” user message
+      - *_fkey -> “referenced record not found”
+      - check constraints -> “rule violated”
+      - Avoid vendor-specific exception types (no org.postgresql.util.*).
+      - Ensure errors include: code, message, requestId, details (field errors, constraint, etc.)
+
+   7) Tests (minimum required, edge cases included)
+      - Add at least:
+      a) Happy-path integration test for the main endpoint(s).
+      b) Validation failure test (400) with field details.
+      c) Org-scoping test (404/403 when accessing other org’s record).
+      d) Duplicate/constraint test (409) with user-friendly message.
+      - For concurrency-sensitive flows: add an optimistic-lock or duplicate insert test.
+      - Tests must be deterministic (Clock injection, no reliance on wall-clock).
+
+   8) Verification commands (do not skip)
+      - Format/import hygiene:
+      - IntelliJ Optimize Imports (no star imports)
+      - Build + style:
+      - mvn clean compile
+      - mvn checkstyle:check
+      - Tests:
+      - mvn test (runs only unit/SimpleSanityTest; integration tests excluded by default)
+      - mvn test -Psurefire-integration (runs ALL tests including integration; Docker required)
+      - Before push/CI: run -Psurefire-integration to catch integration failures.
+      - Only then:
+      - mvn clean install
+
+   9) Deliverable checklist (must be true before committing)
+      - Compiles on clean checkout
+      - Checkstyle passes
+      - Tests pass (including mvn test -Psurefire-integration for pipeline parity)
+      - Error messages are specific and actionable (no vague failures)
+      - Org scoping enforced on all reads/writes
+      - DB constraints updated + mapped to friendly messages when introduced
+      - New repository queries that return entities mapped to DTOs: add JOIN FETCH for LAZY
+        associations used in mapping (avoids LazyInitializationException 500)
+
+DELIVERABLE EXPECTATIONS
+- Provide code that compiles immediately.
+- Must pass Checkstyle.
+- Must not degrade error clarity.
+- Must preserve existing package structure and naming conventions.
+- Avoid assumptions; align with existing entities and migrations.
+- for anything to backend api you add its integration tests and compile the code , esnure nothing breaks 
+
+Tech stack:
+- Java 21
+- Spring Boot 4.0+
+- PostgreSQL
+- Flyway migrations only (no JPA auto-ddl)
+- Keycloak JWT authentication
+
+Related documentation (this repo, docs/):
+- E2E_FULL_API_REFERENCE.md – full API surface for implementers and frontend.
+- IMPLEMENTATION_PLAN.md – backend phased plan (catalog, pricing, cash, sales, debt, misc expense, stock taking, etc.).
+- STOCK_TAKING_IMPLEMENTATION.md – stock taking flows, diagram, industry standards.
+- FRONTEND_IMPLEMENTATION.md – frontend guide (auth, API contract, mapping API→screens, Redux).
+- TROUBLESHOOTING.md – common issues and solutions (integration tests, addItemToPriceList, LazyInitializationException, Page JSON paths).
+- E2E_POSTMAN_GUIDE.md – Postman flow for E2E testing.
+
+Recent modules (customer debt, misc expense, payment flow, stock taking):
+- CustomerDebt: create, update, settle, cancel; saleId/terminalId/shiftId linking; operator + admin analytics.
+- MiscExpense: create, update, cancel (soft delete); incurredBy, totalAmount.
+- Sale complete-with-debt: POST .../sales/{saleId}/complete-with-debt (customerName, phone, dueDate) when partial payment; creates debt for remainder.
+- Receipt: debtAmount, debtDueDate in ReceiptDetailResponse when sale completed with debt.
+- Operator analytics: snapshot with debt/expense intelligence; Admin analytics at /admin/analytics.
+- Stock taking: StockTakingSchedule (DAILY/WEEKLY, lastRunAt idempotency), manual trigger, operator manual counts; StockCountSession close → variance → InventoryItem; see docs/STOCK_TAKING_IMPLEMENTATION.md.
+
+Workflow: After every change: mvn clean compile && mvn checkstyle:check && mvn test -Psurefire-integration. 

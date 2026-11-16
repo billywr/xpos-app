@@ -1,0 +1,65 @@
+spring:
+  profiles:
+    active: dev
+  main:
+    banner-mode: "off"
+  threads:
+    virtual:
+      enabled: true
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
+          batch_versioned_data: true
+
+server:
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/xml,text/plain,application/javascript,text/css
+    min-response-size: 1024
+
+logging:
+  level:
+    root: WARN
+    org.springframework: WARN
+    org.hibernate: WARN
+    com.zaxxer.hikari: WARN
+    org.flywaydb: WARN
+    com.blinc.xpos: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+xpos:
+  assistant:
+    rate-limit-per-hour: 30
+    llm:
+      enabled: false
+      api-key: ""
+      base-url: https://api.openai.com/v1
+      model: gpt-4o-mini
+      max-tokens-per-day-per-org: 5000
+    insights:
+      enabled: true
+      cron: "0 0 */4 * * *"
+  mpesa:
+    # Must be a public HTTPS URL (Safaricom rejects localhost). For local dev use ngrok, e.g.
+    # XPOS_MPESA_CALLBACK_URL=https://abc.ngrok-free.app/api/v1/integrations/mpesa/stk/callback
+    callback-url: ${XPOS_MPESA_CALLBACK_URL:https://applause-unused-overcoat.ngrok-free.dev/api/v1/integrations/mpesa/stk/callback}
+    consumer-key: ${XPOS_MPESA_CONSUMER_KEY:bA4YwlVhUA0BSJ7XlUdV2ybiKmZLMFS7klfNukxenIzszbrI}
+    consumer-secret: ${XPOS_MPESA_CONSUMER_SECRET:axRhUpZhK7k9PDd3FnNojqp3ywusWHAVJK46yYVZH5cErlEfy1IVs2cW6uXLBdIz}
+    stk-timeout-seconds: 120
+    oauth-token-cache-seconds: 3300
+    timeout-job-interval-ms: 30000
+    encryption-key: ""
+    sandbox:
+      base-url: https://sandbox.safaricom.co.ke
+    production:
+      base-url: https://api.safaricom.co.ke
+  std-stock-count:
+    auto-sync:
+      enabled: true
+      cron: "0 */15 * * * ?"
+      max-backfill-days: 90

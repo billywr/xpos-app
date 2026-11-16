@@ -1,0 +1,154 @@
+spring:
+  application:
+    name: xpos
+  main:
+    banner-mode: "off"
+  config:
+    import: optional:classpath:application-mpesa-secrets.yml
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/xpos_dev
+    username: postgres
+    password: root
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      pool-name: XposHikariPool
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
+    show-sql: false
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    out-of-order: false
+
+  cache:
+    type: none
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8088/realms/xpos/protocol/openid-connect/certs
+
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+
+server:
+  port: 9003
+  shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/xml,text/plain,application/javascript,text/css
+    min-response-size: 1024
+  error:
+    include-message: always
+    include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  health:
+    db:
+      enabled: true
+
+logging:
+  level:
+    root: WARN
+    org.springframework: WARN
+    org.springframework.security: WARN
+    org.hibernate: WARN
+    org.hibernate.SQL: WARN
+    com.zaxxer.hikari: WARN
+    org.flywaydb: WARN
+    com.blinc.xpos: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+xpos:
+  upload:
+    dir: uploads
+  api:
+    pagination:
+      default-size: 25
+      max-size: 200
+    cors:
+      enabled: true
+      allowed-origins:
+        - http://localhost:5173
+        - http://127.0.0.1:5173
+        - http://localhost:3000
+        - http://127.0.0.1:3000
+        - http://localhost:8081
+        - http://127.0.0.1:8081
+        - http://localhost:19006
+
+  environment: dev
+
+  security:
+    require-device-binding: true
+    require-branch-scope: true
+    issuer: http://localhost:8088/realms/xpos
+    audience: ""
+    roles:
+      admin: xpos-admin
+      operator: xpos-operator
+
+  receipt:
+    block-size: 100
+    prefix: DEV
+
+  shift:
+    blind-close-enabled: true
+    variance-threshold: 100.00
+
+  inventory:
+    allow-negative-stock: false
+    auto-post-consumption: true
+
+  audit:
+    hash-algorithm: SHA-256
+    verify-chain-on-startup: false
+
+  offline:
+    enabled: true
+    max-batch-size: 200
+    priority-order:
+      - SALE
+      - TENDER
+      - STOCK
+      - PROFILE

@@ -1,0 +1,33 @@
+# Run XPOS backend only. Connects to existing postgres, keycloak.
+#
+# Prereq: xpos infra running (docker compose up -d postgres keycloak)
+# Run:   docker compose -f compose-backend.yml up -d
+# Health: curl -s http://localhost:9003/actuator/health
+#
+# Uses network xpos_default (from main docker-compose). If network missing:
+#   docker network ls | grep xpos
+#   docker network create xpos_default  # or start full stack first
+
+services:
+  xpos:
+    image: ghcr.io/billywr/xpos:dev
+    ports:
+      - "9003:9005"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9005/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/xpos
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      XPOS_KEYCLOAK_JWK_URI: http://keycloak:8080/realms/master/protocol/openid-connect/certs
+    networks:
+      - xpos_default
+
+networks:
+  xpos_default:
+    external: true
