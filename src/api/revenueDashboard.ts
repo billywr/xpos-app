@@ -10,6 +10,7 @@ export interface RevenueSummaryResponse {
   discountTotal: number;
   cogsTotal: number;
   expenseTotal?: number;
+  utilitiesTotal?: number;
   netProfit?: number;
   saleCount: number;
 }
@@ -20,6 +21,7 @@ export interface RevenueTrendPointResponse {
   tax: number;
   cogs: number;
   expenses?: number;
+  utilities?: number;
   netProfit?: number;
   saleCount: number;
 }

@@ -9,9 +9,11 @@ import {
   RefreshControl,
   Modal,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useProgressiveList } from "@/hooks/useProgressiveList";
 import { useToast } from "@/context/ToastContext";
 import {
   HandCoins,
@@ -23,6 +25,10 @@ import {
   Phone,
   User,
   RefreshCw,
+  Building2,
+  Power,
+  Pencil,
+  Trash2,
   X,
 } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
@@ -39,10 +45,27 @@ import {
   createMiscExpense,
   fetchExpenseCategories,
 } from "@/api/miscExpenses";
-import type { CustomerDebtResponse, MiscExpenseResponse } from "@/types";
+import {
+  fetchRecurringUtilities,
+  fetchRecurringUtilitySummary,
+  createRecurringUtility,
+  updateRecurringUtility,
+  deleteRecurringUtility,
+} from "@/api/recurringUtilities";
+import type {
+  CustomerDebtResponse,
+  MiscExpenseResponse,
+  RecurringUtilityResponse,
+  RecurringUtilityApplyTiming,
+  RecurringUtilityCreateRequest,
+  RecurringUtilityUpdateRequest,
+} from "@/types";
 import { debtsExpensesRepository } from "@/repositories/debtsExpensesRepository";
+import { recurringUtilitiesRepository } from "@/repositories/recurringUtilitiesRepository";
 import { outboxEngine } from "@/services/outboxEngine";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { UtilityPresetSelector } from "@/components/UtilityPresetSelector";
+import { useSyncStatus } from "@/services/useSyncStatus";
+import { formatCurrency, formatAmountWithCommas } from "@/utils/formatCurrency";
 import { haptics } from "@/utils/haptics";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
@@ -52,6 +75,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { DatePickerModal } from "@/components/ui/DatePickerModal";
 import { AnimatedModalBackdrop } from "@/components/ui/AnimatedModalBackdrop";
+import { SyncStatusDot } from "@/components/SyncStatusDot";
 
 const PAGE_SIZE = 30;
 
@@ -124,17 +148,52 @@ const ExpenseSkeletonCard: React.FC = () => (
   </Card>
 );
 
+// ---------------------------------------------------------------------------
+// Skeleton card — Recurring Utility item (Compact single row)
+// ---------------------------------------------------------------------------
+const UtilitySkeletonCard: React.FC = () => (
+  <Card style={{ paddingVertical: 10, paddingHorizontal: 12, marginBottom: 6 }}>
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+      <View style={{ flex: 1, gap: 5 }}>
+        <SkeletonBlock width={120} height={14} radius={4} />
+        <View style={{ flexDirection: "row", gap: 6 }}>
+          <SkeletonBlock width={48} height={12} radius={4} />
+          <SkeletonBlock width={70} height={12} radius={4} />
+        </View>
+      </View>
+      <View style={{ alignItems: "flex-end", gap: 5 }}>
+        <SkeletonBlock width={65} height={15} radius={4} />
+        <SkeletonBlock width={60} height={18} radius={6} />
+      </View>
+    </View>
+  </Card>
+);
+
 
 export const DebtsExpensesScreen: React.FC = () => {
   const { colors } = useTheme();
   const { token } = useAuth();
   const { orgId, branchId } = useOrg();
+  const { isOnline } = useSyncStatus();
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  const [activeTab, setActiveTab] = useState<"debts" | "expenses">("debts");
+  const [activeTab, setActiveTab] = useState<"debts" | "expenses" | "utilities">("debts");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("OUTSTANDING");
+
+  // Utilities State
+  const [utilityStatusFilter, setUtilityStatusFilter] = useState<"ACTIVE" | "ALL" | "INACTIVE">("ACTIVE");
+  const [recordUtilOpen, setRecordUtilOpen] = useState(false);
+  const [editingUtility, setEditingUtility] = useState<RecurringUtilityResponse | null>(null);
+  const [deleteUtilityItem, setDeleteUtilityItem] = useState<RecurringUtilityResponse | null>(null);
+
+  // Form fields for utility
+  const [utilName, setUtilName] = useState("");
+  const [utilAmount, setUtilAmount] = useState("");
+  const [utilTiming, setUtilTiming] = useState<RecurringUtilityApplyTiming>("BEGINNING_OF_MONTH");
+  const [utilNotes, setUtilNotes] = useState("");
+  const [utilActive, setUtilActive] = useState(true);
 
   // Date Filtering State
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
@@ -187,87 +246,102 @@ export const DebtsExpensesScreen: React.FC = () => {
       ? ["OPEN", "PARTIAL", "CLOSED"]
       : statusFilter;
 
+  // Instant local SQLite debts query (<5ms)
   const {
-    data: debtsPages,
+    data: localDebts,
     isLoading: debtsLoading,
-    isFetchingNextPage: debtsFetchingNext,
-    hasNextPage: debtsHasNext,
-    fetchNextPage: debtsFetchNext,
     isRefetching: debtsRefetching,
     refetch: refetchDebts,
-  } = useInfiniteQuery({
-    queryKey: [
-      "debts-list",
-      token,
-      orgId,
-      branchId,
-      statusFilter,
-      effectiveStartDate,
-      effectiveEndDate,
-    ],
-    queryFn: ({ pageParam = 0 }) =>
-      fetchDebts(token, orgId!, branchId!, {
-        page: pageParam as number,
-        size: PAGE_SIZE,
-        sort: "createdAt,desc",
-        status: statusParam,
-        fromDate: effectiveStartDate,
-        toDate: effectiveEndDate,
-      }),
-    getNextPageParam: (lastPage) =>
-      lastPage.last ? undefined : (lastPage.number ?? 0) + 1,
-    initialPageParam: 0,
-    enabled: Boolean(token && orgId && branchId && activeTab === "debts"),
+  } = useQuery({
+    queryKey: ["local-debts-list", orgId, branchId, statusFilter],
+    queryFn: () => debtsExpensesRepository.getDebts(orgId!, branchId!, statusFilter),
+    enabled: Boolean(orgId && branchId && activeTab === "debts"),
   });
-  const debts = useMemo(
-    () => debtsPages?.pages.flatMap((p) => p.content) ?? [],
-    [debtsPages]
-  );
+  const debts = localDebts ?? [];
 
-  // Queries: Expenses
+  // Instant local SQLite expenses query (<5ms)
   const {
-    data: expensesPages,
+    data: localExpenses,
     isLoading: expensesLoading,
-    isFetchingNextPage: expFetchingNext,
-    hasNextPage: expHasNext,
-    fetchNextPage: expFetchNext,
     isRefetching: expRefetching,
     refetch: refetchExpenses,
-  } = useInfiniteQuery({
-    queryKey: [
-      "expenses-list",
-      token,
-      orgId,
-      branchId,
-      effectiveStartDate,
-      effectiveEndDate,
-    ],
-    queryFn: ({ pageParam = 0 }) =>
-      fetchMiscExpenses(token, orgId!, branchId!, {
-        page: pageParam as number,
-        size: PAGE_SIZE,
-        sort: "createdAt,desc",
-        fromDate: effectiveStartDate,
-        toDate: effectiveEndDate,
-      }),
-    getNextPageParam: (lastPage) =>
-      lastPage.number + 1 >= lastPage.totalPages
-        ? undefined
-        : lastPage.number + 1,
-    initialPageParam: 0,
-    enabled: Boolean(token && orgId && branchId && activeTab === "expenses"),
+  } = useQuery({
+    queryKey: ["local-expenses-list", orgId, branchId, effectiveStartDate, effectiveEndDate],
+    queryFn: () => debtsExpensesRepository.getExpenses(orgId!, branchId!, effectiveStartDate, effectiveEndDate),
+    enabled: Boolean(orgId && branchId && activeTab === "expenses"),
   });
-  const expenses = useMemo(
-    () => expensesPages?.pages.flatMap((p) => p.content) ?? [],
-    [expensesPages]
-  );
+  const expenses = localExpenses ?? [];
+
+  // Instant local SQLite utilities query (<5ms)
+  const activeFilterArg =
+    utilityStatusFilter === "ACTIVE" ? true : utilityStatusFilter === "INACTIVE" ? false : "ALL";
+
+  const {
+    data: localUtilities,
+    isLoading: utilsLoading,
+    isRefetching: utilsRefetching,
+    refetch: refetchUtilities,
+  } = useQuery({
+    queryKey: ["local-recurring-utilities", orgId, branchId, activeFilterArg],
+    queryFn: () => recurringUtilitiesRepository.getUtilities(orgId!, branchId!, activeFilterArg),
+    enabled: Boolean(orgId && branchId && activeTab === "utilities"),
+  });
+  const utilities = localUtilities ?? [];
+
+  const {
+    data: utilitiesSummary,
+    refetch: refetchUtilitySummary,
+  } = useQuery({
+    queryKey: ["local-recurring-utilities-summary", orgId, branchId],
+    queryFn: () => recurringUtilitiesRepository.getUtilitySummary(orgId!, branchId!),
+    enabled: Boolean(orgId && branchId && activeTab === "utilities"),
+  });
+
+  const debtsHasNext = false;
+  const debtsFetchingNext = false;
+  const debtsFetchNext = async () => {};
+
+  const expHasNext = false;
+  const expFetchingNext = false;
+  const expFetchNext = async () => {};
+
+  // Background hydration for debts, expenses, and utilities
+  React.useEffect(() => {
+    if (!token || !orgId || !branchId || !isOnline) return;
+    if (activeTab === "debts") {
+      fetchDebts(token, orgId, branchId, { page: 0, size: 200, sort: "createdAt,desc" })
+        .then(async (res) => {
+          if (!res?.content) return;
+          await debtsExpensesRepository.hydrateDebtsFromRemote(orgId, branchId, res.content);
+          void queryClient.invalidateQueries({ queryKey: ["local-debts-list", orgId, branchId] });
+        })
+        .catch(() => {});
+    } else if (activeTab === "expenses") {
+      fetchMiscExpenses(token, orgId, branchId, { page: 0, size: 200, sort: "createdAt,desc" })
+        .then(async (res) => {
+          if (!res?.content) return;
+          await debtsExpensesRepository.hydrateExpensesFromRemote(orgId, branchId, res.content);
+          void queryClient.invalidateQueries({ queryKey: ["local-expenses-list", orgId, branchId] });
+        })
+        .catch(() => {});
+    } else {
+      fetchRecurringUtilities(token, orgId, branchId, { size: 200 })
+        .then(async (res) => {
+          if (!res?.items) return;
+          await recurringUtilitiesRepository.hydrateFromRemote(orgId, branchId, res.items);
+          void queryClient.invalidateQueries({ queryKey: ["local-recurring-utilities", orgId, branchId] });
+          void queryClient.invalidateQueries({ queryKey: ["local-recurring-utilities-summary", orgId, branchId] });
+        })
+        .catch(() => {});
+    }
+  }, [token, orgId, branchId, activeTab, isOnline, queryClient]);
 
   // Queries: Expense Categories
   const { data: expenseCategories = ["Supplies", "Utilities", "Wages", "Transport", "Other"] } =
     useQuery({
       queryKey: ["expense-categories", token, orgId, branchId],
       queryFn: () => fetchExpenseCategories(token, orgId!, branchId!),
-      enabled: Boolean(token && orgId && branchId),
+      enabled: Boolean(token && orgId && branchId && isOnline),
     });
 
   // Create Debt Mutation (local-first with outbox sync)
@@ -277,7 +351,7 @@ export const DebtsExpensesScreen: React.FC = () => {
         customerId: `temp-${Date.now()}`,
         customerName: debtCustomerName.trim(),
         customerPhone: debtCustomerPhone.trim() || undefined,
-        amount: Number(debtAmount),
+        amount: Number(debtAmount.replace(/,/g, "")),
         dueDate: debtDueDate ? debtDueDate : undefined,
         notes: debtNotes ? debtNotes : undefined,
       }),
@@ -303,7 +377,7 @@ export const DebtsExpensesScreen: React.FC = () => {
   // Settle Debt Mutation (local-first with outbox sync)
   const settleDebtMutation = useMutation({
     mutationFn: () =>
-      debtsExpensesRepository.settleDebt(orgId!, branchId!, settleDebtItem!.id, Number(settleAmount)),
+      debtsExpensesRepository.settleDebt(orgId!, branchId!, settleDebtItem!.id, Number(settleAmount.replace(/,/g, ""))),
     onSuccess: () => {
       haptics.success();
       setSettleDebtItem(null);
@@ -323,7 +397,7 @@ export const DebtsExpensesScreen: React.FC = () => {
   const createExpMutation = useMutation({
     mutationFn: () =>
       debtsExpensesRepository.createExpense(orgId!, branchId!, {
-        amount: Number(expAmount),
+        amount: Number(expAmount.replace(/,/g, "")),
         category: expCategory,
         description: expDescription.trim(),
         incurredBy: expIncurredBy.trim() || undefined,
@@ -346,11 +420,79 @@ export const DebtsExpensesScreen: React.FC = () => {
     },
   });
 
+  // Create Utility Mutation (local-first with outbox sync)
+  const createUtilityMutation = useMutation({
+    mutationFn: () =>
+      recurringUtilitiesRepository.createUtility(orgId!, branchId!, {
+        name: utilName.trim(),
+        amount: Number(utilAmount.replace(/,/g, "")),
+        applyTiming: utilTiming,
+        notes: utilNotes.trim() || undefined,
+      }),
+    onSuccess: () => {
+      haptics.success();
+      setRecordUtilOpen(false);
+      setUtilName("");
+      setUtilAmount("");
+      setUtilTiming("BEGINNING_OF_MONTH");
+      setUtilNotes("");
+      setUtilActive(true);
+      void outboxEngine.processQueue();
+      void refetchUtilities();
+      void refetchUtilitySummary();
+      void queryClient.invalidateQueries({ queryKey: ["mobile-revenue-dashboard"] });
+      toast.success("Utility overhead recorded (queued for sync).");
+    },
+    onError: (err: any) => {
+      haptics.error();
+      toast.error(err?.data?.message ?? err?.message ?? "Failed to record utility.", "Error");
+    },
+  });
+
+  // Update Utility Mutation (local-first with outbox sync)
+  const updateUtilityMutation = useMutation({
+    mutationFn: ({ id, req }: { id: string; req: RecurringUtilityUpdateRequest }) =>
+      recurringUtilitiesRepository.updateUtility(orgId!, branchId!, id, req),
+    onSuccess: () => {
+      haptics.success();
+      setRecordUtilOpen(false);
+      setEditingUtility(null);
+      void outboxEngine.processQueue();
+      void refetchUtilities();
+      void refetchUtilitySummary();
+      void queryClient.invalidateQueries({ queryKey: ["mobile-revenue-dashboard"] });
+      toast.success("Utility overhead updated.");
+    },
+    onError: (err: any) => {
+      haptics.error();
+      toast.error(err?.data?.message ?? err?.message ?? "Failed to update utility.", "Error");
+    },
+  });
+
+  // Delete Utility Mutation (local-first with outbox sync)
+  const deleteUtilityMutation = useMutation({
+    mutationFn: (utilityId: string) =>
+      recurringUtilitiesRepository.deleteUtility(orgId!, branchId!, utilityId),
+    onSuccess: () => {
+      haptics.success();
+      setDeleteUtilityItem(null);
+      void outboxEngine.processQueue();
+      void refetchUtilities();
+      void refetchUtilitySummary();
+      void queryClient.invalidateQueries({ queryKey: ["mobile-revenue-dashboard"] });
+      toast.success("Utility overhead deleted.");
+    },
+    onError: (err: any) => {
+      haptics.error();
+      toast.error(err?.data?.message ?? err?.message ?? "Failed to delete utility.", "Error");
+    },
+  });
+
   // Debts Pending Total query
   const { data: debtPendingTotalData, refetch: refetchPendingTotal } = useQuery({
     queryKey: ["debts-pending-total", token, orgId, branchId],
     queryFn: () => fetchDebtPendingTotal(token, orgId!, branchId!),
-    enabled: Boolean(token && orgId && branchId && activeTab === "debts"),
+    enabled: Boolean(token && orgId && branchId && activeTab === "debts" && isOnline),
   });
 
   // Filtered Debts
@@ -376,6 +518,33 @@ export const DebtsExpensesScreen: React.FC = () => {
     );
   }, [expenses, searchQuery]);
 
+  // Filtered Utilities
+  const filteredUtilities = useMemo(() => {
+    if (!searchQuery.trim()) return utilities;
+    const q = searchQuery.toLowerCase().trim();
+    return utilities.filter(
+      (u) =>
+        u.name.toLowerCase().includes(q) ||
+        (u.notes && u.notes.toLowerCase().includes(q))
+    );
+  }, [utilities, searchQuery]);
+
+  // Progressive chunk-by-chunk windowing for high-performance 60fps rendering
+  const { visibleItems: progressiveDebts, loadMore: loadMoreDebts } = useProgressiveList(
+    filteredDebts,
+    { chunkSize: 20 }
+  );
+
+  const { visibleItems: progressiveExpenses, loadMore: loadMoreExpenses } = useProgressiveList(
+    filteredExpenses,
+    { chunkSize: 25 }
+  );
+
+  const { visibleItems: progressiveUtilities, loadMore: loadMoreUtilities } = useProgressiveList(
+    filteredUtilities,
+    { chunkSize: 25 }
+  );
+
   // Dynamic Total Amount in Toolbar
   const currentTotal = useMemo(() => {
     if (activeTab === "debts") {
@@ -386,25 +555,33 @@ export const DebtsExpensesScreen: React.FC = () => {
         debtPendingTotalData?.totalPending ??
         debts.reduce((sum, d) => sum + (d.outstanding || 0), 0)
       );
-    } else {
+    } else if (activeTab === "expenses") {
       if (searchQuery.trim() || datePreset !== "all") {
         return filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
       }
-      const pageTotal = expensesPages?.pages?.[0]?.totalAmount;
-      return typeof pageTotal === "number"
-        ? pageTotal
-        : expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+      return expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    } else {
+      if (searchQuery.trim() || utilityStatusFilter !== "ALL") {
+        return filteredUtilities.reduce((sum, u) => sum + (u.active ? u.amount : 0), 0);
+      }
+      return (
+        utilitiesSummary?.monthlyTotalAmount ??
+        utilities.reduce((sum, u) => sum + (u.active ? u.amount : 0), 0)
+      );
     }
   }, [
     activeTab,
     searchQuery,
     datePreset,
+    utilityStatusFilter,
     filteredDebts,
     debtPendingTotalData,
     debts,
     filteredExpenses,
-    expensesPages,
     expenses,
+    filteredUtilities,
+    utilitiesSummary,
+    utilities,
   ]);
 
   return (
@@ -415,10 +592,11 @@ export const DebtsExpensesScreen: React.FC = () => {
           options={[
             { id: "debts", label: "Customer Debts", icon: <HandCoins size={16} color={colors.text} /> },
             { id: "expenses", label: "Store Expenses", icon: <Receipt size={16} color={colors.text} /> },
+            { id: "utilities", label: "Utilities", icon: <Building2 size={16} color={colors.text} /> },
           ]}
           activeId={activeTab}
           onChange={(tab) => {
-            setActiveTab(tab);
+            setActiveTab(tab as any);
             setSearchQuery("");
           }}
         />
@@ -431,31 +609,62 @@ export const DebtsExpensesScreen: React.FC = () => {
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder={
-              activeTab === "debts" ? "Search debts…" : "Search expenses…"
+              activeTab === "debts"
+                ? "Search debts…"
+                : activeTab === "expenses"
+                ? "Search expenses…"
+                : "Search utilities…"
             }
             leftIcon={<Search size={15} color={colors.textSubtle} />}
             containerStyle={{ marginBottom: 0 }}
           />
         </View>
 
+        <SyncStatusDot />
+
         <View
           style={[
             styles.totalBadge,
             {
-              backgroundColor: activeTab === "debts" ? colors.warningLight : colors.dangerLight,
-              borderColor: activeTab === "debts" ? colors.warning : colors.danger,
+              backgroundColor:
+                activeTab === "debts"
+                  ? colors.warningLight
+                  : activeTab === "expenses"
+                  ? colors.dangerLight
+                  : colors.primaryLight,
+              borderColor:
+                activeTab === "debts"
+                  ? colors.warning
+                  : activeTab === "expenses"
+                  ? colors.danger
+                  : colors.primary,
             },
           ]}
         >
-          <Text style={[styles.totalLabel, { color: colors.textSubtle }]}>TOTAL</Text>
+          <Text style={[styles.totalLabel, { color: colors.textSubtle }]}>
+            {activeTab === "utilities" ? "ACTIVE/MO" : "TOTAL"}
+          </Text>
           <Text
             style={[
               styles.totalVal,
-              { color: activeTab === "debts" ? colors.warning : colors.danger },
+              {
+                color:
+                  activeTab === "debts"
+                    ? colors.warning
+                    : activeTab === "expenses"
+                    ? colors.danger
+                    : colors.primary,
+              },
             ]}
             numberOfLines={1}
           >
-            {formatCurrency(currentTotal)}
+            {(activeTab === "debts"
+              ? debtsLoading && !localDebts
+              : activeTab === "expenses"
+              ? expensesLoading && !localExpenses
+              : utilsLoading && !localUtilities)
+              ? "—"
+              : formatCurrency(currentTotal)}
           </Text>
         </View>
 
@@ -469,7 +678,7 @@ export const DebtsExpensesScreen: React.FC = () => {
             }}
             style={styles.actionBtn}
           />
-        ) : (
+        ) : activeTab === "expenses" ? (
           <Button
             title="+ Expense"
             size="sm"
@@ -479,18 +688,46 @@ export const DebtsExpensesScreen: React.FC = () => {
             }}
             style={styles.actionBtn}
           />
+        ) : (
+          <Button
+            title="+ Utility"
+            size="sm"
+            onPress={() => {
+              haptics.light();
+              setEditingUtility(null);
+              setUtilName("");
+              setUtilAmount("");
+              setUtilTiming("BEGINNING_OF_MONTH");
+              setUtilNotes("");
+              setUtilActive(true);
+              setRecordUtilOpen(true);
+            }}
+            style={styles.actionBtn}
+          />
         )}
 
         <TouchableOpacity
           onPress={async () => {
             haptics.light();
             if (activeTab === "debts") {
-              await Promise.all([refetchDebts(), refetchPendingTotal()]);
-            } else {
+              if (isOnline) {
+                await Promise.all([refetchDebts(), refetchPendingTotal()]);
+              } else {
+                await refetchDebts();
+              }
+            } else if (activeTab === "expenses") {
               await Promise.all([refetchExpenses()]);
+            } else {
+              await Promise.all([refetchUtilities(), refetchUtilitySummary()]);
             }
           }}
-          disabled={activeTab === "debts" ? debtsRefetching : expRefetching}
+          disabled={
+            activeTab === "debts"
+              ? debtsRefetching
+              : activeTab === "expenses"
+              ? expRefetching
+              : utilsRefetching
+          }
           activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityLabel="Refresh list"
@@ -502,7 +739,11 @@ export const DebtsExpensesScreen: React.FC = () => {
             },
           ]}
         >
-          {(activeTab === "debts" ? debtsRefetching : expRefetching) ? (
+          {(activeTab === "debts"
+            ? debtsRefetching
+            : activeTab === "expenses"
+            ? expRefetching
+            : utilsRefetching) ? (
             <ActivityIndicator size="small" color={colors.primary} />
           ) : (
             <RefreshCw size={15} color={colors.text} />
@@ -510,54 +751,90 @@ export const DebtsExpensesScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Date Filter Chips (Single row under search input) */}
+      {/* Filter Chips: Status filter for Utilities; Date range chips for debts/expenses */}
       <View style={styles.filterBar}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterChipsRow}
         >
-          {(
-            [
-              { key: "all", label: "All" },
-              { key: "today", label: "Today" },
-              { key: "7days", label: "Last 7 Days" },
-              { key: "30days", label: "Last 30 Days" },
-              { key: "custom", label: "Custom" },
-            ] as const
-          ).map((chip) => {
-            const isSelected = datePreset === chip.key;
-            return (
-              <TouchableOpacity
-                key={chip.key}
-                onPress={() => {
-                  haptics.light();
-                  setDatePreset(chip.key);
-                }}
-                style={[
-                  styles.filterChip,
-                  {
-                    backgroundColor: isSelected
-                      ? colors.primaryLight
-                      : colors.surfaceRaised,
-                    borderColor: isSelected ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                <Text
+          {activeTab === "utilities" ? (
+            (["ACTIVE", "ALL", "INACTIVE"] as const).map((filter) => {
+              const isSelected = utilityStatusFilter === filter;
+              return (
+                <TouchableOpacity
+                  key={filter}
+                  onPress={() => {
+                    haptics.light();
+                    setUtilityStatusFilter(filter);
+                  }}
                   style={[
-                    styles.filterChipText,
+                    styles.filterChip,
                     {
-                      color: isSelected ? colors.primary : colors.textMuted,
-                      fontWeight: isSelected ? "700" : "500",
+                      backgroundColor: isSelected
+                        ? colors.primaryLight
+                        : colors.surfaceRaised,
+                      borderColor: isSelected ? colors.primary : colors.border,
                     },
                   ]}
                 >
-                  {chip.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      {
+                        color: isSelected ? colors.primary : colors.textMuted,
+                        fontWeight: isSelected ? "700" : "500",
+                      },
+                    ]}
+                  >
+                    {filter === "ACTIVE" ? "Active" : filter === "ALL" ? "All" : "Inactive"}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })
+          ) : (
+            (
+              [
+                { key: "all", label: "All" },
+                { key: "today", label: "Today" },
+                { key: "7days", label: "Last 7 Days" },
+                { key: "30days", label: "Last 30 Days" },
+                { key: "custom", label: "Custom" },
+              ] as const
+            ).map((chip) => {
+              const isSelected = datePreset === chip.key;
+              return (
+                <TouchableOpacity
+                  key={chip.key}
+                  onPress={() => {
+                    haptics.light();
+                    setDatePreset(chip.key);
+                  }}
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor: isSelected
+                        ? colors.primaryLight
+                        : colors.surfaceRaised,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      {
+                        color: isSelected ? colors.primary : colors.textMuted,
+                        fontWeight: isSelected ? "700" : "500",
+                      },
+                    ]}
+                  >
+                    {chip.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })
+          )}
         </ScrollView>
       </View>
 
@@ -613,7 +890,7 @@ export const DebtsExpensesScreen: React.FC = () => {
 
       {/* Content Lists */}
       {activeTab === "debts" ? (
-        debtsLoading ? (
+        debtsLoading && (!localDebts || debts.length === 0) ? (
           <ScrollView
             style={{ flex: 1 }}
             contentContainerStyle={[styles.listContent, { paddingTop: 8 }]}
@@ -625,7 +902,7 @@ export const DebtsExpensesScreen: React.FC = () => {
           </ScrollView>
         ) : (
           <FlatList
-            data={filteredDebts}
+            data={progressiveDebts}
             keyExtractor={(item) => item.id}
             refreshControl={
               <RefreshControl
@@ -635,19 +912,12 @@ export const DebtsExpensesScreen: React.FC = () => {
               />
             }
             contentContainerStyle={styles.listContent}
-            onEndReachedThreshold={0.3}
-            onEndReached={() => {
-              if (debtsHasNext && !debtsFetchingNext) {
-                void debtsFetchNext();
-              }
-            }}
-            ListFooterComponent={
-              debtsFetchingNext ? (
-                <View style={{ paddingVertical: 12, alignItems: "center" }}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                </View>
-              ) : null
-            }
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS === "android"}
+            onEndReachedThreshold={0.5}
+            onEndReached={loadMoreDebts}
             ListEmptyComponent={
               <View style={styles.emptyBox}>
                 <HandCoins size={36} color={colors.textSubtle} />
@@ -694,7 +964,7 @@ export const DebtsExpensesScreen: React.FC = () => {
                         onPress={() => {
                           haptics.light();
                           setSettleDebtItem(item);
-                          setSettleAmount(String(item.outstanding));
+                          setSettleAmount(formatAmountWithCommas(String(item.outstanding)));
                         }}
                         style={[styles.repayBtn, { backgroundColor: colors.primary }]}
                       >
@@ -722,7 +992,8 @@ export const DebtsExpensesScreen: React.FC = () => {
             )}
           />
         )
-      ) : expensesLoading ? (
+      ) : activeTab === "expenses" ? (
+        expensesLoading && (!localExpenses || expenses.length === 0) ? (
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={[styles.listContent, { paddingTop: 8 }]}
@@ -734,7 +1005,7 @@ export const DebtsExpensesScreen: React.FC = () => {
         </ScrollView>
       ) : (
         <FlatList
-          data={filteredExpenses}
+          data={progressiveExpenses}
           keyExtractor={(item) => item.id}
           refreshControl={
             <RefreshControl
@@ -744,19 +1015,12 @@ export const DebtsExpensesScreen: React.FC = () => {
             />
           }
           contentContainerStyle={styles.listContent}
-          onEndReachedThreshold={0.3}
-          onEndReached={() => {
-            if (expHasNext && !expFetchingNext) {
-              void expFetchNext();
-            }
-          }}
-          ListFooterComponent={
-            expFetchingNext ? (
-              <View style={{ paddingVertical: 12, alignItems: "center" }}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            ) : null
-          }
+          initialNumToRender={12}
+          maxToRenderPerBatch={12}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === "android"}
+          onEndReachedThreshold={0.5}
+          onEndReached={loadMoreExpenses}
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <Receipt size={36} color={colors.textSubtle} />
@@ -796,7 +1060,175 @@ export const DebtsExpensesScreen: React.FC = () => {
             </Card>
           )}
         />
-      )}
+      )
+    ) : (
+        utilsLoading && (!localUtilities || utilities.length === 0) ? (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[styles.listContent, { paddingTop: 8 }]}
+          scrollEnabled={false}
+        >
+          {Array.from({ length: 8 }).map((_, i) => (
+            <UtilitySkeletonCard key={i} />
+          ))}
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={progressiveUtilities}
+          keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={utilsRefetching}
+              onRefresh={async () => {
+                await Promise.all([refetchUtilities(), refetchUtilitySummary()]);
+              }}
+              tintColor={colors.primary}
+            />
+          }
+          contentContainerStyle={styles.listContent}
+          initialNumToRender={15}
+          maxToRenderPerBatch={15}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === "android"}
+          onEndReachedThreshold={0.5}
+          onEndReached={loadMoreUtilities}
+          ListEmptyComponent={
+            <View style={styles.emptyBox}>
+              <Building2 size={36} color={colors.textSubtle} />
+              <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                {searchQuery ? "No utilities match your search." : "No recurring utilities configured."}
+              </Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <Card style={styles.cardItem}>
+              <View style={styles.utilityRow}>
+                <View style={styles.utilityDetails}>
+                  <View style={styles.utilityTitleRow}>
+                    <Text
+                      style={[
+                        styles.utilityTitle,
+                        { color: item.active ? colors.text : colors.textSubtle },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.name}
+                    </Text>
+                    {item.syncStatus === "PENDING" && (
+                      <Badge variant="warning" label="Pending Sync" size="sm" />
+                    )}
+                  </View>
+
+                  <View style={styles.utilityMetaRow}>
+                    <Badge
+                      variant={item.active ? "primary" : "neutral"}
+                      label={item.active ? "Active" : "Inactive"}
+                      size="sm"
+                    />
+                    <View
+                      style={[
+                        styles.timingBadge,
+                        {
+                          backgroundColor: colors.surfaceRaised,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Calendar size={11} color={colors.textSubtle} />
+                      <Text style={[styles.timingText, { color: colors.textMuted }]}>
+                        {item.applyTiming === "BEGINNING_OF_MONTH"
+                          ? "Beginning (1st)"
+                          : "End of month"}
+                      </Text>
+                    </View>
+                    {item.notes ? (
+                      <Text
+                        style={[styles.utilityNotes, { color: colors.textSubtle }]}
+                        numberOfLines={1}
+                      >
+                        {item.notes}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={styles.utilityRightArea}>
+                  <Text
+                    style={[
+                      styles.utilityAmount,
+                      { color: item.active ? colors.primary : colors.textSubtle },
+                    ]}
+                  >
+                    {formatCurrency(item.amount)}
+                  </Text>
+
+                  <View style={styles.utilityActionsRow}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        haptics.light();
+                        updateUtilityMutation.mutate({
+                          id: item.id,
+                          req: { active: !item.active },
+                        });
+                      }}
+                      style={[
+                        styles.utilityIconBtn,
+                        {
+                          backgroundColor: item.active ? colors.successLight : colors.surfaceRaised,
+                        },
+                      ]}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel={item.active ? "Deactivate" : "Activate"}
+                    >
+                      <Power
+                        size={14}
+                        color={item.active ? colors.success : colors.textSubtle}
+                      />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        haptics.light();
+                        setEditingUtility(item);
+                        setUtilName(item.name);
+                        setUtilAmount(formatAmountWithCommas(String(item.amount)));
+                        setUtilTiming(item.applyTiming);
+                        setUtilNotes(item.notes || "");
+                        setUtilActive(item.active);
+                        setRecordUtilOpen(true);
+                      }}
+                      style={[
+                        styles.utilityIconBtn,
+                        { backgroundColor: colors.surfaceRaised },
+                      ]}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Edit utility"
+                    >
+                      <Pencil size={14} color={colors.text} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        haptics.light();
+                        setDeleteUtilityItem(item);
+                      }}
+                      style={[
+                        styles.utilityIconBtn,
+                        { backgroundColor: colors.surfaceRaised },
+                      ]}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Delete utility"
+                    >
+                      <Trash2 size={14} color={colors.danger} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Card>
+          )}
+        />
+      )
+    )}
 
 
       {/* Record Debt Modal */}
@@ -818,7 +1250,7 @@ export const DebtsExpensesScreen: React.FC = () => {
           >
             <View style={styles.modalHeaderRow}>
               <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>
-                Record Customer Debt
+                Record customer debt
               </Text>
               <TouchableOpacity
                 onPress={() => setRecordDebtOpen(false)}
@@ -848,7 +1280,7 @@ export const DebtsExpensesScreen: React.FC = () => {
             <Input
               label="Amount *"
               value={debtAmount}
-              onChangeText={setDebtAmount}
+              onChangeText={(val) => setDebtAmount(formatAmountWithCommas(val))}
               placeholder="0.00"
               keyboardType="numeric"
             />
@@ -869,7 +1301,7 @@ export const DebtsExpensesScreen: React.FC = () => {
               <Button
                 title="Save Debt"
                 loading={createDebtMutation.isPending}
-                disabled={!debtCustomerName.trim() || !debtAmount}
+                disabled={!debtCustomerName.trim() || !debtAmount || Number(debtAmount.replace(/,/g, "")) <= 0}
                 onPress={() => createDebtMutation.mutate()}
                 style={{ flex: 1 }}
               />
@@ -897,7 +1329,7 @@ export const DebtsExpensesScreen: React.FC = () => {
           >
             <View style={styles.modalHeaderRow}>
               <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>
-                Record Debt Payment
+                Record debt payment
               </Text>
               <TouchableOpacity
                 onPress={() => setSettleDebtItem(null)}
@@ -915,7 +1347,7 @@ export const DebtsExpensesScreen: React.FC = () => {
             <Input
               label="Payment Amount *"
               value={settleAmount}
-              onChangeText={setSettleAmount}
+              onChangeText={(val) => setSettleAmount(formatAmountWithCommas(val))}
               placeholder="0.00"
               keyboardType="numeric"
             />
@@ -930,7 +1362,7 @@ export const DebtsExpensesScreen: React.FC = () => {
               <Button
                 title="Confirm Payment"
                 loading={settleDebtMutation.isPending}
-                disabled={!settleAmount || Number(settleAmount) <= 0}
+                disabled={!settleAmount || Number(settleAmount.replace(/,/g, "")) <= 0}
                 onPress={() => settleDebtMutation.mutate()}
                 style={{ flex: 1.4 }}
               />
@@ -958,7 +1390,7 @@ export const DebtsExpensesScreen: React.FC = () => {
           >
             <View style={styles.modalHeaderRow}>
               <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>
-                Record Store Expense
+                Record store expense
               </Text>
               <TouchableOpacity
                 onPress={() => setRecordExpOpen(false)}
@@ -975,7 +1407,7 @@ export const DebtsExpensesScreen: React.FC = () => {
             <Input
               label="Amount *"
               value={expAmount}
-              onChangeText={setExpAmount}
+              onChangeText={(val) => setExpAmount(formatAmountWithCommas(val))}
               placeholder="0.00"
               keyboardType="numeric"
             />
@@ -1014,8 +1446,292 @@ export const DebtsExpensesScreen: React.FC = () => {
               <Button
                 title="Save Expense"
                 loading={createExpMutation.isPending}
-                disabled={!expAmount || !expDescription.trim()}
+                disabled={!expAmount || !expDescription.trim() || Number(expAmount.replace(/,/g, "")) <= 0}
                 onPress={() => createExpMutation.mutate()}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </AnimatedModalBackdrop>
+      </Modal>
+
+      {/* Record / Edit Recurring Utility Modal */}
+      <Modal
+        visible={recordUtilOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          setRecordUtilOpen(false);
+          setEditingUtility(null);
+        }}
+      >
+        <AnimatedModalBackdrop
+          style={styles.modalBackdrop}
+          onPressBackdrop={() => {
+            setRecordUtilOpen(false);
+            setEditingUtility(null);
+          }}
+        >
+          <View
+            style={[
+              styles.modalSheet,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>
+                {editingUtility ? "Edit recurring utility" : "Add recurring utility"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setRecordUtilOpen(false);
+                  setEditingUtility(null);
+                }}
+                style={[styles.closeBtn, { backgroundColor: colors.surfaceRaised }]}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Top row: Utility Name (50%) and Amount (50%) side by side */}
+            <View style={styles.utilityInputsRow}>
+              <View style={styles.utilityHalfCol}>
+                <UtilityPresetSelector
+                  label="Utility name *"
+                  value={utilName}
+                  onChange={setUtilName}
+                  orgId={orgId!}
+                  branchId={branchId!}
+                />
+              </View>
+
+              <View style={styles.utilityHalfCol}>
+                <Input
+                  label="Amount *"
+                  value={utilAmount}
+                  onChangeText={(val) => setUtilAmount(formatAmountWithCommas(val))}
+                  placeholder="0.00"
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            {/* Apply timing: side-by-side radio options without small descriptions */}
+            <View style={styles.fieldContainer}>
+              <Text style={[styles.fieldLabel, { color: colors.text }]}>
+                Apply on *
+              </Text>
+              <View style={styles.timingRadioRow}>
+                <TouchableOpacity
+                  onPress={() => {
+                    haptics.selection();
+                    setUtilTiming("BEGINNING_OF_MONTH");
+                  }}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.timingRadioOption,
+                    {
+                      backgroundColor:
+                        utilTiming === "BEGINNING_OF_MONTH"
+                          ? colors.primaryLight
+                          : colors.surfaceRaised,
+                      borderColor:
+                        utilTiming === "BEGINNING_OF_MONTH"
+                          ? colors.primary
+                          : colors.border,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.radioCircle,
+                      {
+                        borderColor:
+                          utilTiming === "BEGINNING_OF_MONTH"
+                            ? colors.primary
+                            : colors.textSubtle,
+                      },
+                    ]}
+                  >
+                    {utilTiming === "BEGINNING_OF_MONTH" && (
+                      <View
+                        style={[
+                          styles.radioDot,
+                          { backgroundColor: colors.primary },
+                        ]}
+                      />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.timingRadioLabel,
+                      {
+                        color:
+                          utilTiming === "BEGINNING_OF_MONTH"
+                            ? colors.primary
+                            : colors.text,
+                        fontWeight:
+                          utilTiming === "BEGINNING_OF_MONTH" ? "700" : "500",
+                      },
+                    ]}
+                  >
+                    Beginning of month (1st)
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    haptics.selection();
+                    setUtilTiming("END_OF_MONTH");
+                  }}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.timingRadioOption,
+                    {
+                      backgroundColor:
+                        utilTiming === "END_OF_MONTH"
+                          ? colors.primaryLight
+                          : colors.surfaceRaised,
+                      borderColor:
+                        utilTiming === "END_OF_MONTH"
+                          ? colors.primary
+                          : colors.border,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.radioCircle,
+                      {
+                        borderColor:
+                          utilTiming === "END_OF_MONTH"
+                            ? colors.primary
+                            : colors.textSubtle,
+                      },
+                    ]}
+                  >
+                    {utilTiming === "END_OF_MONTH" && (
+                      <View
+                        style={[
+                          styles.radioDot,
+                          { backgroundColor: colors.primary },
+                        ]}
+                      />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.timingRadioLabel,
+                      {
+                        color:
+                          utilTiming === "END_OF_MONTH"
+                            ? colors.primary
+                            : colors.text,
+                        fontWeight:
+                          utilTiming === "END_OF_MONTH" ? "700" : "500",
+                      },
+                    ]}
+                  >
+                    End of month (last day)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <Input
+              label="Notes"
+              value={utilNotes}
+              onChangeText={setUtilNotes}
+              placeholder="Optional notes or account/meter ref"
+            />
+
+            <View style={styles.modalBtns}>
+              <Button
+                title="Cancel"
+                variant="secondary"
+                onPress={() => {
+                  setRecordUtilOpen(false);
+                  setEditingUtility(null);
+                }}
+                style={{ flex: 1, marginRight: 8 }}
+              />
+              <Button
+                title={editingUtility ? "Save changes" : "Save utility"}
+                loading={createUtilityMutation.isPending || updateUtilityMutation.isPending}
+                disabled={!utilName.trim() || !utilAmount || parseFloat(utilAmount.replace(/,/g, "")) <= 0}
+                onPress={() => {
+                  if (editingUtility) {
+                    updateUtilityMutation.mutate({
+                      id: editingUtility.id,
+                      req: {
+                        name: utilName.trim(),
+                        amount: parseFloat(utilAmount.replace(/,/g, "")),
+                        applyTiming: utilTiming,
+                        notes: utilNotes.trim() || undefined,
+                        active: utilActive,
+                      },
+                    });
+                  } else {
+                    createUtilityMutation.mutate();
+                  }
+                }}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </AnimatedModalBackdrop>
+      </Modal>
+
+      {/* Delete Utility Confirmation Modal */}
+      <Modal
+        visible={Boolean(deleteUtilityItem)}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setDeleteUtilityItem(null)}
+      >
+        <AnimatedModalBackdrop
+          style={styles.modalBackdrop}
+          onPressBackdrop={() => setDeleteUtilityItem(null)}
+        >
+          <View
+            style={[
+              styles.modalSheet,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 0 }]}>
+                Delete recurring utility
+              </Text>
+              <TouchableOpacity
+                onPress={() => setDeleteUtilityItem(null)}
+                style={[styles.closeBtn, { backgroundColor: colors.surfaceRaised }]}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
+              Are you sure you want to delete "{deleteUtilityItem?.name}" ({formatCurrency(deleteUtilityItem?.amount)})? This will remove the utility overhead.
+            </Text>
+
+            <View style={styles.modalBtns}>
+              <Button
+                title="Cancel"
+                variant="secondary"
+                onPress={() => setDeleteUtilityItem(null)}
+                style={{ flex: 1, marginRight: 8 }}
+              />
+              <Button
+                title="Delete"
+                variant="danger"
+                loading={deleteUtilityMutation.isPending}
+                onPress={() => {
+                  if (deleteUtilityItem) {
+                    deleteUtilityMutation.mutate(deleteUtilityItem.id);
+                  }
+                }}
                 style={{ flex: 1 }}
               />
             </View>
@@ -1277,8 +1993,9 @@ const styles = StyleSheet.create({
   modalSheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 20,
+    padding: 16,
     borderTopWidth: 1,
+    width: "100%",
   },
   modalTitle: {
     fontSize: 18,
@@ -1307,5 +2024,116 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+  },
+  utilityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  utilityDetails: {
+    flex: 1,
+    gap: 4,
+  },
+  utilityTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  utilityTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    flexShrink: 1,
+  },
+  utilityMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  timingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  timingText: {
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  utilityNotes: {
+    fontSize: 10,
+    fontStyle: "italic",
+    flexShrink: 1,
+  },
+  utilityRightArea: {
+    alignItems: "flex-end",
+    gap: 4,
+  },
+  utilityAmount: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  utilityActionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  utilityIconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fieldContainer: {
+    marginBottom: 12,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+    marginBottom: 6,
+  },
+  utilityInputsRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "flex-start",
+  },
+  utilityHalfCol: {
+    flex: 1,
+  },
+  timingRadioRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  timingRadioOption: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+  },
+  radioCircle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  timingRadioLabel: {
+    fontSize: 12,
+    flexShrink: 1,
   },
 });

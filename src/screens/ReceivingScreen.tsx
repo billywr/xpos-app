@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
@@ -15,6 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useProgressiveList } from "@/hooks/useProgressiveList";
 import {
   PackagePlus,
   Search,
@@ -46,6 +48,7 @@ import { fetchItems } from "@/api/catalog";
 import { receivingRepository } from "@/repositories/receivingRepository";
 import { catalogRepository } from "@/repositories/catalogRepository";
 import { outboxEngine } from "@/services/outboxEngine";
+import { useSyncStatus } from "@/services/useSyncStatus";
 import type { Item } from "@/types";
 import { formatCurrency, formatQty } from "@/utils/formatCurrency";
 import { haptics } from "@/utils/haptics";
@@ -55,6 +58,7 @@ import { Button } from "@/components/ui/Button";
 import { StatCard } from "@/components/ui/StatCard";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { AnimatedModalBackdrop } from "@/components/ui/AnimatedModalBackdrop";
+import { SyncStatusDot } from "@/components/SyncStatusDot";
 
 type GrnFlattenedRow = {
   grn: GoodsReceiptNoteResponse;
@@ -65,6 +69,7 @@ export const ReceivingScreen: React.FC = () => {
   const { colors } = useTheme();
   const { token } = useAuth();
   const { orgId, branchId, branchName } = useOrg();
+  const { isOnline } = useSyncStatus();
   const toast = useToast();
   const queryClient = useQueryClient();
 
@@ -103,7 +108,7 @@ export const ReceivingScreen: React.FC = () => {
 
   // Background hydration
   useEffect(() => {
-    if (!token || !orgId || !branchId) return;
+    if (!token || !orgId || !branchId || !isOnline) return;
     let active = true;
 
     fetchGoodsReceiptNotes(token, orgId, branchId, {
@@ -123,31 +128,37 @@ export const ReceivingScreen: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [token, orgId, branchId, queryClient]);
+  }, [token, orgId, branchId, isOnline, queryClient]);
 
-  const { data: suppliersData } = useQuery({
-    queryKey: ["mobile-suppliers", token, orgId],
-    queryFn: () => fetchSuppliers(token, orgId!, { size: 200, includeInactive: false }),
-    enabled: Boolean(token && orgId),
+  // Instant local SQLite suppliers query (<2ms)
+  const { data: localSuppliers } = useQuery({
+    queryKey: ["local-suppliers", orgId],
+    queryFn: () => receivingRepository.getSuppliers(orgId!),
+    enabled: Boolean(orgId),
   });
 
+  // Background hydration for suppliers
+  useEffect(() => {
+    if (!token || !orgId || !isOnline) return;
+    fetchSuppliers(token, orgId, { size: 200, includeInactive: false })
+      .then(async (res) => {
+        if (!res?.content) return;
+        await receivingRepository.hydrateSuppliersFromRemote(orgId, res.content);
+        void queryClient.invalidateQueries({ queryKey: ["local-suppliers", orgId] });
+      })
+      .catch(() => {});
+  }, [token, orgId, isOnline, queryClient]);
+
+  // Instant local SQLite catalog items query (<5ms)
   const { data: localItems } = useQuery({
     queryKey: ["local-items-all", orgId],
-    queryFn: async () => {
-      const items = await catalogRepository.getItems(orgId!);
-      if (items.length > 0) return items;
-      if (token) {
-        const res = await fetchItems(token, orgId!, { page: 0, size: 400 });
-        return res?.content ?? [];
-      }
-      return [];
-    },
+    queryFn: () => catalogRepository.getItems(orgId!),
     enabled: Boolean(orgId),
   });
 
   const suppliers = useMemo(
-    () => suppliersData?.content ?? [],
-    [suppliersData?.content]
+    () => localSuppliers ?? [],
+    [localSuppliers]
   );
   const allItems = useMemo(
     () => localItems ?? [],
@@ -179,6 +190,12 @@ export const ReceivingScreen: React.FC = () => {
       return matchItem || matchSupplier || matchBarcode;
     });
   }, [flattenedRows, searchQuery]);
+
+  // Progressive chunk-by-chunk windowing for high-performance 60fps rendering
+  const { visibleItems: progressiveRows, loadMore: loadMoreRows } = useProgressiveList(
+    filteredRows,
+    { chunkSize: 20 }
+  );
 
   // Metrics
   const summaryMetrics = useMemo(() => {
@@ -350,10 +367,9 @@ export const ReceivingScreen: React.FC = () => {
       edges={["top", "left", "right"]}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+      <FlatList
+        data={progressiveRows}
+        keyExtractor={(row) => `${row.grn.id}-${row.line.id}`}
         refreshControl={
           <RefreshControl
             refreshing={isGrnRefetching}
@@ -361,203 +377,221 @@ export const ReceivingScreen: React.FC = () => {
             tintColor={colors.primary}
           />
         }
-      >
-        {/* Header Title & Refresh */}
-        <View style={styles.header}>
-          <View style={styles.titleHeaderRow}>
-            <View style={styles.titleRow}>
-              <PackagePlus size={22} color={colors.primary} />
-              <Text style={[styles.title, { color: colors.text }]}>Stock Receiving</Text>
-            </View>
-            <TouchableOpacity
-              onPress={handleRefresh}
-              disabled={isGrnRefetching}
-              activeOpacity={0.7}
-              style={[
-                styles.headerRefreshBtn,
-                {
-                  backgroundColor: colors.surfaceRaised,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              {isGrnRefetching ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <RotateCw size={16} color={colors.text} />
-              )}
-            </TouchableOpacity>
-          </View>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            {branchName ? `${branchName} • ` : ""}Receive stock into inventory and view records
-          </Text>
-        </View>
-
-        {/* Search Bar & Action Button (Same Horizontal Level) */}
-        <View style={styles.searchAndActionRow}>
-          <View
-            style={[
-              styles.searchContainer,
-              { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
-            ]}
-          >
-            <Search size={15} color={colors.textMuted} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Search item, supplier, barcode..."
-              placeholderTextColor={colors.textMuted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery ? (
-              <TouchableOpacity onPress={() => setSearchQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <X size={15} color={colors.textMuted} />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
-          <TouchableOpacity
-            onPress={handleOpenCreate}
-            activeOpacity={0.8}
-            style={[styles.receiveBtnBeside, { backgroundColor: colors.primary }]}
-          >
-            <Plus size={16} color="#fff" />
-            <Text style={styles.receiveBtnBesideText}>Receive</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Summary Metric Cards */}
-        <View style={styles.metricsRow}>
-          <StatCard
-            label="Total Receipts"
-            value={summaryMetrics.receiptsCount}
-            variant="neutral"
-            style={styles.metricCard}
-          />
-          <StatCard
-            label="Items Received"
-            value={formatQty(summaryMetrics.totalItems)}
-            variant="neutral"
-            style={styles.metricCard}
-          />
-          <StatCard
-            label="Total Value"
-            value={formatCurrency(summaryMetrics.totalCost)}
-            variant="primary"
-            style={styles.metricCard}
-          />
-        </View>
-
-        {/* Loading Skeletons */}
-        {isGrnLoading && !localGrns ? (
-          <View style={{ gap: 10, marginTop: 8 }}>
-            {[1, 2, 3, 4].map((i) => (
-              <Card key={i} style={{ padding: 14, gap: 8 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                  <SkeletonBlock width="55%" height={16} radius={6} />
-                  <SkeletonBlock width={70} height={16} radius={6} />
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        decelerationRate={Platform.OS === "ios" ? "normal" : 0.985}
+        bounces={true}
+        alwaysBounceVertical={true}
+        overScrollMode="never"
+        scrollEventThrottle={16}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === "android"}
+        onEndReached={loadMoreRows}
+        onEndReachedThreshold={0.6}
+        ListHeaderComponent={
+          <>
+            {/* Header Title & Refresh */}
+            <View style={styles.header}>
+              <View style={styles.titleHeaderRow}>
+                <View style={styles.titleRow}>
+                  <PackagePlus size={22} color={colors.primary} />
+                  <Text style={[styles.title, { color: colors.text }]}>Stock Receiving</Text>
                 </View>
-                <SkeletonBlock width="40%" height={12} radius={4} />
-                <SkeletonBlock width="70%" height={12} radius={4} />
-              </Card>
-            ))}
-          </View>
-        ) : filteredRows.length === 0 ? (
-          <Card style={styles.emptyCard}>
-            <PackagePlus size={36} color={colors.textMuted} style={{ marginBottom: 10 }} />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              {searchQuery ? "No matching stock receipts" : "No stock received yet"}
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-              {searchQuery
-                ? "Try searching with a different item name or supplier."
-                : "Tap '+ Receive Stock' above to record your first inventory delivery."}
-            </Text>
-          </Card>
-        ) : (
-          /* List of Receipts (Mobile Cards) */
-          <View style={{ gap: 10, marginTop: 6 }}>
-            {filteredRows.map((row) => {
-              const lineCost = (row.line.qty ?? 0) * (row.line.receivedUnitCost ?? 0);
-              const formattedDate = row.grn.receivedAt
-                ? new Date(row.grn.receivedAt).toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "—";
+                <TouchableOpacity
+                  onPress={handleRefresh}
+                  disabled={isGrnRefetching}
+                  activeOpacity={0.7}
+                  style={[
+                    styles.headerRefreshBtn,
+                    {
+                      backgroundColor: colors.surfaceRaised,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  {isGrnRefetching ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <RotateCw size={16} color={colors.text} />
+                  )}
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+                {branchName ? `${branchName} • ` : ""}Receive stock into inventory and view records
+              </Text>
+            </View>
 
-              return (
-                <Card key={`${row.grn.id}-${row.line.id}`} style={styles.receiptCard}>
-                  {/* Line 1: Item Name (Left) & Total + Action Icons (Right) */}
-                  <View style={styles.cardHeaderRow}>
-                    <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={1}>
-                      {row.line.itemName}
-                    </Text>
+            {/* Search Bar & Action Button (Same Horizontal Level) */}
+            <View style={styles.searchAndActionRow}>
+              <View
+                style={[
+                  styles.searchContainer,
+                  { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
+                ]}
+              >
+                <Search size={15} color={colors.textMuted} />
+                <TextInput
+                  style={[styles.searchInput, { color: colors.text }]}
+                  placeholder="Search item, supplier, barcode..."
+                  placeholderTextColor={colors.textMuted}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+                {searchQuery ? (
+                  <TouchableOpacity onPress={() => setSearchQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <X size={15} color={colors.textMuted} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
 
-                    <View style={styles.headerRightGroup}>
-                      <Text style={[styles.itemTotalCost, { color: colors.primary }]}>
-                        {formatCurrency(lineCost)}
-                      </Text>
+              <SyncStatusDot />
 
-                      <View style={styles.iconActionsGroup}>
-                        <TouchableOpacity
-                          onPress={() => handleOpenEdit(row)}
-                          activeOpacity={0.7}
-                          style={[
-                            styles.iconActionBtn,
-                            { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
-                          ]}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                        >
-                          <Pencil size={12} color={colors.primary} />
-                        </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleOpenCreate}
+                activeOpacity={0.8}
+                style={[styles.receiveBtnBeside, { backgroundColor: colors.primary }]}
+              >
+                <Plus size={16} color="#fff" />
+                <Text style={styles.receiveBtnBesideText}>Receive</Text>
+              </TouchableOpacity>
+            </View>
 
-                        <TouchableOpacity
-                          onPress={() => handlePromptDelete(row)}
-                          activeOpacity={0.7}
-                          style={[
-                            styles.iconActionBtn,
-                            { backgroundColor: colors.dangerLight, borderColor: colors.danger },
-                          ]}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                        >
-                          <Trash2 size={12} color={colors.danger} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
+            {/* Summary Metric Cards */}
+            <View style={styles.metricsRow}>
+              <StatCard
+                label="Total Receipts"
+                value={summaryMetrics.receiptsCount}
+                variant="neutral"
+                style={styles.metricCard}
+                isLoading={isGrnLoading && !localGrns}
+              />
+              <StatCard
+                label="Items Received"
+                value={formatQty(summaryMetrics.totalItems)}
+                variant="neutral"
+                style={styles.metricCard}
+                isLoading={isGrnLoading && !localGrns}
+              />
+              <StatCard
+                label="Total Value"
+                value={formatCurrency(summaryMetrics.totalCost)}
+                variant="primary"
+                style={styles.metricCard}
+                isLoading={isGrnLoading && !localGrns}
+              />
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          isGrnLoading ? (
+            <View style={{ gap: 10, marginTop: 8 }}>
+              {[1, 2, 3, 4].map((i) => (
+                <Card key={i} style={{ padding: 14, gap: 8 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <SkeletonBlock width="55%" height={16} radius={6} />
+                    <SkeletonBlock width={70} height={16} radius={6} />
                   </View>
-
-                  {/* Line 2: Quantity & Unit Cost (Left) & Supplier + Date (Right) */}
-                  <View style={styles.cardDetailRow}>
-                    <Text style={[styles.cardSubDetail, { color: colors.textMuted }]} numberOfLines={1}>
-                      Qty: <Text style={{ fontWeight: "700", color: colors.text }}>{formatQty(row.line.qty)}</Text> units
-                      {" · "}
-                      @ {row.line.receivedUnitCost != null ? formatCurrency(row.line.receivedUnitCost) : "0.00"}
-                    </Text>
-
-                    <View style={styles.cardMetaGroup}>
-                      <Building2 size={11} color={colors.textMuted} />
-                      <Text
-                        style={[styles.supplierText, { color: colors.textMuted }]}
-                        numberOfLines={1}
-                      >
-                        {row.grn.supplierName || "Direct"}
-                      </Text>
-                      <Text style={{ color: colors.textMuted, fontSize: 10 }}>•</Text>
-                      <Calendar size={11} color={colors.textMuted} />
-                      <Text style={[styles.dateText, { color: colors.textMuted }]}>
-                        {formattedDate}
-                      </Text>
-                    </View>
-                  </View>
+                  <SkeletonBlock width="40%" height={12} radius={4} />
+                  <SkeletonBlock width="70%" height={12} radius={4} />
                 </Card>
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
+              ))}
+            </View>
+          ) : (
+            <Card style={styles.emptyCard}>
+              <PackagePlus size={36} color={colors.textMuted} style={{ marginBottom: 10 }} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                {searchQuery ? "No matching stock receipts" : "No stock received yet"}
+              </Text>
+              <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
+                {searchQuery
+                  ? "Try searching with a different item name or supplier."
+                  : "Tap '+ Receive Stock' above to record your first inventory delivery."}
+              </Text>
+            </Card>
+          )
+        }
+        renderItem={({ item: row }) => {
+          const lineCost = (row.line.qty ?? 0) * (row.line.receivedUnitCost ?? 0);
+          const formattedDate = row.grn.receivedAt
+            ? new Date(row.grn.receivedAt).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "—";
+
+          return (
+            <Card key={`${row.grn.id}-${row.line.id}`} style={[styles.receiptCard, { marginBottom: 10 }]}>
+              {/* Line 1: Item Name (Left) & Total + Action Icons (Right) */}
+              <View style={styles.cardHeaderRow}>
+                <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={1}>
+                  {row.line.itemName}
+                </Text>
+
+                <View style={styles.headerRightGroup}>
+                  <Text style={[styles.itemTotalCost, { color: colors.primary }]}>
+                    {formatCurrency(lineCost)}
+                  </Text>
+
+                  <View style={styles.iconActionsGroup}>
+                    <TouchableOpacity
+                      onPress={() => handleOpenEdit(row)}
+                      activeOpacity={0.7}
+                      style={[
+                        styles.iconActionBtn,
+                        { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
+                      ]}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Pencil size={12} color={colors.primary} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => handlePromptDelete(row)}
+                      activeOpacity={0.7}
+                      style={[
+                        styles.iconActionBtn,
+                        { backgroundColor: colors.dangerLight, borderColor: colors.danger },
+                      ]}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Trash2 size={12} color={colors.danger} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              {/* Line 2: Quantity & Unit Cost (Left) & Supplier + Date (Right) */}
+              <View style={styles.cardDetailRow}>
+                <Text style={[styles.cardSubDetail, { color: colors.textMuted }]} numberOfLines={1}>
+                  Qty: <Text style={{ fontWeight: "700", color: colors.text }}>{formatQty(row.line.qty)}</Text> units
+                  {" · "}
+                  @ {row.line.receivedUnitCost != null ? formatCurrency(row.line.receivedUnitCost) : "0.00"}
+                </Text>
+
+                <View style={styles.cardMetaGroup}>
+                  <Building2 size={11} color={colors.textMuted} />
+                  <Text
+                    style={[styles.supplierText, { color: colors.textMuted }]}
+                    numberOfLines={1}
+                  >
+                    {row.grn.supplierName || "Direct"}
+                  </Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 10 }}>•</Text>
+                  <Calendar size={11} color={colors.textMuted} />
+                  <Text style={[styles.dateText, { color: colors.textMuted }]}>
+                    {formattedDate}
+                  </Text>
+                </View>
+              </View>
+            </Card>
+          );
+        }}
+      />
 
       {/* ========================================================================= */}
       {/* Receive Stock Modal (+ Receive Stock) */}
@@ -576,7 +610,7 @@ export const ReceivingScreen: React.FC = () => {
             {/* Modal Header */}
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Receive Stock</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Receive stock</Text>
                 <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
                   Add inventory from supplier into {branchName || "branch"}
                 </Text>
@@ -834,7 +868,7 @@ export const ReceivingScreen: React.FC = () => {
           <View style={[styles.modalSheet, { backgroundColor: colors.surfaceCard }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Stock Receipt</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Edit stock receipt</Text>
                 <Text style={[styles.modalSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
                   {editingRow?.line.itemName}
                 </Text>

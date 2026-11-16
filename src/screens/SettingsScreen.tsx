@@ -34,7 +34,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useOrg } from "@/context/OrgContext";
 import { useToast } from "@/context/ToastContext";
 import { useSyncStatus } from "@/services/useSyncStatus";
-import type { OutboxMutation } from "@/services/outboxEngine";
 import { hydrationService } from "@/services/hydrationService";
 import { fetchOrgs, fetchBranches, fetchTerminals } from "@/api/context";
 import { isUuid } from "@/api/auth";
@@ -46,12 +45,17 @@ import { Badge } from "@/components/ui/Badge";
 import { haptics } from "@/utils/haptics";
 import type { Org, Branch, Terminal } from "@/types";
 import { SyncInspectorModal } from "@/components/SyncInspectorModal";
+import { ErrorLogsModal } from "@/components/ErrorLogsModal";
+import { SetOfflinePinModal } from "@/components/SetOfflinePinModal";
+import { systemErrorLogger } from "@/services/systemErrorLogger";
+import { ShieldAlert, KeyRound } from "lucide-react-native";
 
 export const SettingsScreen: React.FC = () => {
   const router = useRouter();
   const { colors, isDark, toggleTheme } = useTheme();
-  const { username, token, logout } = useAuth();
+  const { username, token, logout, hasOfflinePin } = useAuth();
   const toast = useToast();
+  const [pinModalOpen, setPinModalOpen] = useState(false);
   const {
     isOnline,
     pendingCount,
@@ -61,12 +65,10 @@ export const SettingsScreen: React.FC = () => {
     lastError,
     lastSyncedAt,
     syncNow,
-    getRecentMutations,
   } = useSyncStatus();
 
   const [isSyncingNow, setIsSyncingNow] = useState(false);
   const [isFullResyncing, setIsFullResyncing] = useState(false);
-  const [recentMutations, setRecentMutations] = useState<OutboxMutation[]>([]);
 
   const {
     orgId,
@@ -86,57 +88,15 @@ export const SettingsScreen: React.FC = () => {
   const [clientId, setClientId] = useState("");
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [inspectorSelectedId, setInspectorSelectedId] = useState<string | null>(null);
-
-  const loadMutations = useCallback(async () => {
-    try {
-      const list = await getRecentMutations(5);
-      setRecentMutations(list);
-    } catch {}
-  }, [getRecentMutations]);
+  const [errorLogsOpen, setErrorLogsOpen] = useState(false);
+  const [errorLogCount, setErrorLogCount] = useState(0);
 
   useEffect(() => {
-    void loadMutations();
-  }, [pendingCount, syncingCount, committedCount, failedCount, loadMutations]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void loadMutations();
-    }, [loadMutations])
-  );
-
-  const formatMutationTitle = (m: OutboxMutation): string => {
-    try {
-      const payload = m.payload_json ? JSON.parse(m.payload_json) : {};
-      switch (m.entity_type) {
-        case "CATALOG_ITEM_CREATE":
-          return `Add Item: ${payload.name || "Catalog Item"}`;
-        case "CATALOG_ITEM_UPDATE":
-          return `Update Item: ${payload.name || m.entity_id}`;
-        case "STOCK_COUNT_SAVE":
-          return "Saved Stock Closing Count";
-        case "STOCK_COUNT_RECORD_SALES":
-          return "Recorded Stock Sales";
-        case "STOCK_COUNT_RECONCILE":
-          return "Reconciled Inventory";
-        case "GRN_CREATE":
-          return "Received Stock Delivery (GRN)";
-        case "GRN_UPDATE":
-          return "Updated Stock Receipt";
-        case "GRN_DELETE":
-          return "Deleted Stock Receipt";
-        case "DEBT_CREATE":
-          return `Customer Debt: ${payload.customerName || "Customer"}`;
-        case "DEBT_SETTLE":
-          return `Debt Payment: KSh ${payload.paymentAmount || ""}`;
-        case "EXPENSE_CREATE":
-          return `Expense: ${payload.category || "General"} (${payload.description || ""})`;
-        default:
-          return `${m.action} ${m.entity_type}`;
-      }
-    } catch {
-      return `${m.action} ${m.entity_type}`;
-    }
-  };
+    const unsub = systemErrorLogger.subscribe((list) => {
+      setErrorLogCount(list.length);
+    });
+    return () => unsub();
+  }, []);
 
   const formatLastSync = (d: Date | null) => {
     if (!d) return "Not synced yet";
@@ -512,77 +472,8 @@ export const SettingsScreen: React.FC = () => {
             />
           </View>
 
-          {/* Recent changes tracked in outbox queue */}
+          {/* Sync Inspector & Outbox Activity */}
           <View style={[styles.activitySection, { borderTopColor: colors.border }]}>
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <Text style={[styles.activityHeading, { color: colors.textSubtle }]}>
-                RECENT TRACKED CHANGES
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  haptics.selection();
-                  setInspectorSelectedId(null);
-                  setInspectorOpen(true);
-                }}
-                style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-              >
-                <TerminalIcon size={12} color={colors.primary} />
-                <Text style={{ fontSize: 11, color: colors.primary, fontWeight: "700" }}>
-                  Inspect API Logs
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {recentMutations.length === 0 ? (
-              <Text style={[styles.noActivityText, { color: colors.textMuted }]}>
-                No local changes recorded yet.
-              </Text>
-            ) : (
-              recentMutations.map((m) => (
-                <TouchableOpacity
-                  key={m.id}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    haptics.selection();
-                    setInspectorSelectedId(m.id);
-                    setInspectorOpen(true);
-                  }}
-                  style={[
-                    styles.mutationRow,
-                    { borderBottomColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" },
-                  ]}
-                >
-                  <View style={{ flex: 1, marginRight: 8 }}>
-                    <Text style={[styles.mutationTitle, { color: colors.text }]} numberOfLines={1}>
-                      {formatMutationTitle(m)}
-                    </Text>
-                    <Text style={[styles.mutationTime, { color: colors.textMuted }]}>
-                      {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                    </Text>
-                  </View>
-                  <Badge
-                    label={
-                      m.status === "COMMITTED"
-                        ? m.http_status ? `${m.http_status} OK` : "Synced"
-                        : m.status === "SYNCING"
-                        ? "Syncing…"
-                        : m.status === "PENDING"
-                        ? "Queued"
-                        : m.http_status ? `${m.http_status} Fail` : "Failed"
-                    }
-                    variant={
-                      m.status === "COMMITTED"
-                        ? "primary"
-                        : m.status === "FAILED"
-                        ? "danger"
-                        : "warning"
-                    }
-                    size="sm"
-                  />
-                </TouchableOpacity>
-              ))
-            )}
-
             <TouchableOpacity
               onPress={() => {
                 haptics.selection();
@@ -594,6 +485,7 @@ export const SettingsScreen: React.FC = () => {
                 {
                   borderColor: colors.border,
                   backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9",
+                  marginTop: 0,
                 },
               ]}
             >
@@ -601,7 +493,8 @@ export const SettingsScreen: React.FC = () => {
               <Text style={[styles.openInspectorText, { color: colors.text }]}>
                 Open Sync Inspector & API Logs
               </Text>
-              <ChevronRight size={14} color={colors.textMuted} />
+              <Badge label="Last 5" variant="neutral" size="sm" />
+              <ChevronRight size={14} color={colors.textMuted} style={{ marginLeft: 6 }} />
             </TouchableOpacity>
           </View>
         </Card>
@@ -680,6 +573,65 @@ export const SettingsScreen: React.FC = () => {
             }}
             style={{ marginTop: 12 }}
           />
+
+          <TouchableOpacity
+            onPress={() => {
+              haptics.selection();
+              setErrorLogsOpen(true);
+            }}
+            style={[
+              styles.openInspectorBtn,
+              {
+                borderColor: errorLogCount > 0 ? colors.danger : colors.border,
+                backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9",
+                marginTop: 10,
+              },
+            ]}
+          >
+            <ShieldAlert size={14} color={errorLogCount > 0 ? colors.danger : colors.primary} />
+            <Text style={[styles.openInspectorText, { color: colors.text }]}>
+              System Failure & Error Logs
+            </Text>
+            {errorLogCount > 0 ? (
+              <Badge label={`${errorLogCount} Logged`} variant="danger" size="sm" />
+            ) : (
+              <Badge label="0 Failures" variant="neutral" size="sm" />
+            )}
+            <ChevronRight size={14} color={colors.textMuted} style={{ marginLeft: 6 }} />
+          </TouchableOpacity>
+        </Card>
+
+        {/* Offline Security & PIN */}
+        <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>
+          OFFLINE SECURITY & ACCESS PIN
+        </Text>
+        <Card style={styles.card}>
+          <View style={styles.infoRow}>
+            <KeyRound size={16} color={colors.primary} />
+            <Text style={[styles.infoLabel, { color: colors.textMuted }]}>
+              Offline 4-Digit PIN:
+            </Text>
+            {hasOfflinePin ? (
+              <Badge label="Configured" variant="primary" size="sm" />
+            ) : (
+              <Badge label="Not Configured" variant="neutral" size="sm" />
+            )}
+          </View>
+          <Text style={[styles.offlinePinDesc, { color: colors.textSubtle }]}>
+            {hasOfflinePin
+              ? "Your 4-digit PIN is active. When internet is disconnected, you can use this PIN on the login screen to access all features locally."
+              : "Set a 4-digit PIN to allow instant login and access to all features when internet is unavailable."}
+          </Text>
+          <Button
+            title={hasOfflinePin ? "Change Offline PIN" : "Set Offline PIN"}
+            variant={hasOfflinePin ? "outline" : "primary"}
+            icon={<KeyRound size={16} color={hasOfflinePin ? colors.text : "#ffffff"} />}
+            onPress={() => {
+              haptics.light();
+              setPinModalOpen(true);
+            }}
+            style={{ marginTop: 12 }}
+          />
         </Card>
 
         {/* Logout Button */}
@@ -697,6 +649,18 @@ export const SettingsScreen: React.FC = () => {
         visible={inspectorOpen}
         onClose={() => setInspectorOpen(false)}
         initialSelectedId={inspectorSelectedId}
+      />
+
+      {/* System Error Logs Modal */}
+      <ErrorLogsModal
+        visible={errorLogsOpen}
+        onClose={() => setErrorLogsOpen(false)}
+      />
+
+      {/* Set Offline PIN Modal */}
+      <SetOfflinePinModal
+        visible={pinModalOpen}
+        onClose={() => setPinModalOpen(false)}
       />
     </SafeAreaView>
   );
@@ -874,5 +838,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     flex: 1,
     marginLeft: 8,
+  },
+  offlinePinDesc: {
+    fontSize: 13,
+    marginTop: 8,
+    lineHeight: 18,
   },
 });

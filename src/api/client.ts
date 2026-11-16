@@ -4,6 +4,7 @@ import { generateUuid } from "@/utils/uuid";
 import { DEFAULT_CONFIG } from "@/constants/config";
 import { refreshKeycloakToken } from "./auth";
 import type { ApiError } from "@/types";
+import { systemErrorLogger } from "@/services/systemErrorLogger";
 
 const REQUEST_ID_HEADER = "X-Request-Id";
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -140,6 +141,14 @@ export async function apiFetch<T>(
       path,
       requestId,
     };
+    void systemErrorLogger.recordError({
+      errorCode: error.code || "NETWORK_ERROR",
+      message: error.message,
+      status: 0,
+      source: path,
+      requestId,
+      details: error,
+    });
     throw { status: 0, data: error };
   }
 
@@ -185,6 +194,14 @@ export async function apiFetch<T>(
           requestId: res.headers.get(REQUEST_ID_HEADER) ?? requestId,
         };
     console.warn(`[apiFetch] HTTP ${res.status} for ${path}:`, apiError);
+    void systemErrorLogger.recordError({
+      errorCode: apiError.code || `HTTP_${res.status}`,
+      message: apiError.message || `Request failed with status ${res.status}`,
+      status: res.status,
+      source: path,
+      requestId: res.headers.get(REQUEST_ID_HEADER) ?? requestId,
+      details: apiError,
+    });
     throw { status: res.status, data: apiError };
   }
 
@@ -268,6 +285,14 @@ export async function apiFetchDetailed<T = any>(
       path,
       requestId,
     };
+    void systemErrorLogger.recordError({
+      errorCode: error.code || "NETWORK_ERROR",
+      message: error.message,
+      status: 0,
+      source: path,
+      requestId,
+      details: error,
+    });
     throw { status: 0, data: error, rawText: JSON.stringify(error), requestId };
   }
 
@@ -311,6 +336,14 @@ export async function apiFetchDetailed<T = any>(
             path,
             requestId: res.headers.get(REQUEST_ID_HEADER) ?? requestId,
           };
+    void systemErrorLogger.recordError({
+      errorCode: apiError.code || `HTTP_${res.status}`,
+      message: apiError.message || `Request failed with status ${res.status}`,
+      status: res.status,
+      source: path,
+      requestId: res.headers.get(REQUEST_ID_HEADER) ?? requestId,
+      details: apiError,
+    });
     throw { status: res.status, data: apiError, rawText, requestId };
   }
 

@@ -14,7 +14,6 @@ import {
   MONEY_SCALE,
 } from "@/services/mathEngine";
 import { outboxEngine } from "@/services/outboxEngine";
-import { fetchStdStockCountSheet } from "@/api/stdStockCount";
 import type {
   StdStockCountSheetResponse,
   StdStockCountRowResponse,
@@ -25,6 +24,7 @@ import type {
 export interface LocalStockCountRow extends StdStockCountRowResponse {
   syncStatus: "COMMITTED" | "PENDING" | "SYNCING" | "FAILED";
   impliedSold: number | null;
+  alreadyRecordedSold: number;
   qtyToRecord: number;
   lineRevenue: number;
 }
@@ -85,30 +85,79 @@ export class StockCountRepository {
 
     let rawRows = await db.getAllAsync<any>(query, [branchId, dateStr]);
 
-    const hasLocalLines = rawRows.some((r) => r.lineId !== null);
-    const hasMeaningfulStock = rawRows.some(
-      (r) =>
-        (Number(r.openingStock) || 0) > 0 ||
-        (Number(r.addedStock) || 0) > 0 ||
-        (Number(r.addedTodayStock) || 0) > 0 ||
-        (r.closingStock !== null && (Number(r.closingStock) || 0) > 0)
-    );
-
-    // If local database has no stock count lines for this date, OR if all existing lines have zero stock,
-    // fetch and hydrate from remote to ensure fresh, authoritative figures are displayed
-    if (!hasLocalLines || !hasMeaningfulStock) {
-      const effectiveToken = token || (await storage.getAuthToken());
-      if (effectiveToken) {
-        try {
-          const remoteSheet = await fetchStdStockCountSheet(effectiveToken, orgId, branchId, dateStr);
-          if (remoteSheet && remoteSheet.rows && remoteSheet.rows.length > 0) {
-            await this.hydrateFromRemote(orgId, branchId, remoteSheet);
-            rawRows = await db.getAllAsync<any>(query, [branchId, dateStr]);
-          }
-        } catch (err) {
-          console.warn("[stockCountRepository.getSheet] Remote fallback fetch warning:", err);
+    // Local-first: if any items are missing lines on this date, carry forward opening stock
+    // from the latest prior day's closing stock in SQLite (or items.current_stock)
+    const missingLineItems = rawRows.filter((r) => r.lineId === null);
+    if (missingLineItems.length > 0) {
+      // Find latest prior closing stock for items before this date in local SQLite
+      const priorLines = await db.getAllAsync<{ item_id: string; closing_stock: number }>(
+        `SELECT item_id, closing_stock
+         FROM stock_count_lines
+         WHERE branch_id = ? AND business_date < ? AND closing_stock IS NOT NULL
+         ORDER BY business_date DESC`,
+        [branchId, dateStr]
+      );
+      const priorClosingByItem = new Map<string, number>();
+      for (const pl of priorLines) {
+        if (!priorClosingByItem.has(pl.item_id)) {
+          priorClosingByItem.set(pl.item_id, Number(pl.closing_stock) || 0);
         }
       }
+
+      // Check if any local GRNs were received on this date
+      const dateStartIso = `${dateStr}T00:00:00.000Z`;
+      const dateEndIso = `${dateStr}T23:59:59.999Z`;
+      const localGrnRows = await db.getAllAsync<{ item_id: string; total_added: number }>(
+        `SELECT l.item_id, SUM(l.quantity) as total_added
+         FROM grn_lines l
+         JOIN goods_receipt_notes g ON g.id = l.grn_id
+         WHERE g.branch_id = ? AND g.received_at >= ? AND g.received_at <= ?
+         GROUP BY l.item_id`,
+        [branchId, dateStartIso, dateEndIso]
+      );
+      const addedByItem = new Map<string, number>();
+      for (const gr of localGrnRows) {
+        addedByItem.set(gr.item_id, Number(gr.total_added) || 0);
+      }
+
+      const localUpdatedEpoch = Date.now();
+
+      await withTransaction(async (txDb) => {
+        for (const item of missingLineItems) {
+          const priorClosing = priorClosingByItem.get(item.itemId);
+          const opening =
+            priorClosing !== undefined
+              ? priorClosing
+              : item.currentStock !== null && item.currentStock !== undefined
+              ? Number(item.currentStock)
+              : 0;
+          const added = addedByItem.get(item.itemId) ?? 0;
+          const price = Number(item.sellingPrice) || 0;
+          const lineId = generateUuid();
+
+          await txDb.runAsync(
+            `INSERT OR IGNORE INTO stock_count_lines (
+               id, sheet_id, business_date, branch_id, item_id,
+               opening_stock, added_stock, added_today_stock, selling_price,
+               closing_stock, implied_sold, already_recorded_sold, qty_to_record,
+               line_revenue, variance, last_saved_at, sync_status, local_updated_at, comments
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, NULL, 0, 0, 0, 0, 0, NULL, 'COMMITTED', ?, NULL)`,
+            [
+              lineId,
+              sheet.id,
+              dateStr,
+              branchId,
+              item.itemId,
+              opening,
+              added,
+              price,
+              localUpdatedEpoch,
+            ]
+          );
+        }
+      });
+
+      rawRows = await db.getAllAsync<any>(query, [branchId, dateStr]);
     }
 
     const rows: LocalStockCountRow[] = rawRows.map((r) => {
@@ -136,6 +185,7 @@ export class StockCountRepository {
         comments: r.comments,
         syncStatus: r.syncStatus || "COMMITTED",
         impliedSold,
+        alreadyRecordedSold: alreadyRecorded,
         qtyToRecord,
         lineRevenue,
       };
@@ -217,7 +267,7 @@ export class StockCountRepository {
              WHERE id = ?`,
             [
               normalizedClosing,
-              implied,
+              implied ?? 0.0,
               qtyToRecord,
               rev,
               now,
@@ -246,7 +296,7 @@ export class StockCountRepository {
               0,
               price,
               normalizedClosing,
-              implied,
+              implied ?? 0.0,
               0,
               qtyToRecord,
               rev,
@@ -297,7 +347,7 @@ export class StockCountRepository {
     let totalValue = 0;
 
     const lines = sheetData.rows.map((row) => {
-      const already = 0; // Loaded from line alreadyRecordedSold
+      const already = row.alreadyRecordedSold ?? 0;
       const status = resolveSalesLineStatus(
         row.closingStock,
         row.impliedSold,
@@ -330,6 +380,31 @@ export class StockCountRepository {
       totalQtyToRecord: roundHalfUp(totalQty, SCALE),
       totalValueToRecord: roundHalfUp(totalValue, MONEY_SCALE),
     };
+  }
+
+  /**
+   * Hydrates remote sales preview (already-recorded sales) into SQLite stock_count_lines.
+   * Ensures mobile immediately reflects what has already been recorded on the web portal.
+   */
+  public async hydrateSalesPreviewFromRemote(
+    orgId: string,
+    branchId: string,
+    remotePreview: StdStockCountSalesPreviewResponse
+  ): Promise<void> {
+    if (!remotePreview || !remotePreview.lines || remotePreview.lines.length === 0) return;
+    const db = await getDatabase();
+    for (const line of remotePreview.lines) {
+      const already = Number(line.alreadyRecorded) || 0;
+      const unitPrice = Number(line.unitPrice) || 0;
+      await db.runAsync(
+        `UPDATE stock_count_lines 
+         SET already_recorded_sold = MAX(COALESCE(already_recorded_sold, 0), ?),
+             qty_to_record = MAX(0, ROUND((COALESCE(implied_sold, 0) - MAX(COALESCE(already_recorded_sold, 0), ?)), 2)),
+             line_revenue = MAX(0, ROUND((COALESCE(implied_sold, 0) - MAX(COALESCE(already_recorded_sold, 0), ?)) * ?, 2))
+         WHERE branch_id = ? AND business_date = ? AND item_id = ?`,
+        [already, already, already, unitPrice, branchId, remotePreview.date, line.itemId]
+      );
+    }
   }
 
   /**
@@ -500,6 +575,24 @@ export class StockCountRepository {
         } catch {}
       }
 
+      // Pre-load all existing lines for this sheet to avoid per-row getFirstAsync calls
+      const existingLines = await db.getAllAsync<{
+        id: string;
+        item_id: string;
+        sync_status: string;
+        closing_stock: number | null;
+        already_recorded_sold: number | null;
+      }>(
+        `SELECT id, item_id, sync_status, closing_stock, already_recorded_sold 
+         FROM stock_count_lines 
+         WHERE branch_id = ? AND business_date = ?`,
+        [branchId, remoteSheet.date]
+      );
+      const existingMap = new Map<string, typeof existingLines[0]>();
+      for (const line of existingLines) {
+        existingMap.set(line.item_id, line);
+      }
+
       for (const r of remoteSheet.rows) {
         // Ensure item exists in items table to satisfy foreign key constraint
         const nowIso = new Date().toISOString();
@@ -526,12 +619,8 @@ export class StockCountRepository {
           ]
         );
 
-        // Fetch existing line
-        const existing = await db.getFirstAsync<any>(
-          `SELECT id, sync_status, closing_stock, already_recorded_sold FROM stock_count_lines 
-           WHERE branch_id = ? AND business_date = ? AND item_id = ?`,
-          [branchId, remoteSheet.date, r.itemId]
-        );
+        // Fetch existing line from in-memory map
+        const existing = existingMap.get(r.itemId);
 
         // Opening and Added stock are authoritative from the backend
         const opening = Number(r.openingStock) || 0;
@@ -589,7 +678,7 @@ export class StockCountRepository {
               addedToday,
               price,
               closing,
-              implied,
+              implied ?? 0.0,
               qtyToRecord,
               lineRev,
               r.lastSavedAt,
@@ -617,7 +706,7 @@ export class StockCountRepository {
               addedToday,
               price,
               closing,
-              implied,
+              implied ?? 0.0,
               qtyToRecord,
               lineRev,
               r.lastSavedAt,

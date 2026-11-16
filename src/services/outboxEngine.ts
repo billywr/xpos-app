@@ -3,6 +3,7 @@ import { getDatabase, withTransaction } from "@/db/sqlite";
 import { generateUuid } from "@/utils/uuid";
 import { apiFetchDetailed } from "@/api/client";
 import { storage } from "@/utils/storage";
+import { systemErrorLogger } from "@/services/systemErrorLogger";
 
 export type OutboxStatus = "PENDING" | "SYNCING" | "COMMITTED" | "FAILED" | "CONFLICT";
 
@@ -45,9 +46,15 @@ class OutboxEngine {
   private lastError: string | null = null;
   private lastSyncedAt: Date | null = null;
 
+  private onBecameOnline: (() => void) | null = null;
+
   constructor() {
     this.initNetworkListener();
     void this.getLastSyncedAt();
+  }
+
+  public setBecameOnlineHandler(handler: (() => void) | null): void {
+    this.onBecameOnline = handler;
   }
 
   public subscribe(listener: OutboxListener): () => void {
@@ -94,6 +101,13 @@ class OutboxEngine {
   }
 
   private initNetworkListener() {
+    // Immediately fetch real network connectivity on boot
+    void NetInfo.fetch().then((state: NetInfoState) => {
+      const connected = Boolean(state.isConnected && (state.isInternetReachable ?? true));
+      this.isOnline = connected;
+      this.notifyListeners();
+    });
+
     NetInfo.addEventListener((state: NetInfoState) => {
       const connected = Boolean(state.isConnected && (state.isInternetReachable ?? true));
       const becameOnline = !this.isOnline && connected;
@@ -101,6 +115,11 @@ class OutboxEngine {
       this.notifyListeners();
       if (becameOnline) {
         void this.processQueue();
+        if (this.onBecameOnline) {
+          try {
+            this.onBecameOnline();
+          } catch {}
+        }
       }
     });
 
@@ -357,6 +376,14 @@ class OutboxEngine {
           } else if (item.entity_type === "CATALOG_ITEM_CREATE" && res.data?.id && res.data.id !== item.entity_id) {
             // Update local item ID from client temp UUID to canonical server UUID
             await db.runAsync(`UPDATE items SET id = ?, updated_at = ? WHERE id = ?`, [res.data.id, syncedAt, item.entity_id]);
+          } else if (item.entity_type === "UTILITY_CREATE") {
+            if (res.data?.id && res.data.id !== item.entity_id) {
+              await db.runAsync(`UPDATE recurring_utilities SET id = ?, sync_status = 'COMMITTED', updated_at = ? WHERE id = ?`, [res.data.id, syncedAt, item.entity_id]);
+            } else {
+              await db.runAsync(`UPDATE recurring_utilities SET sync_status = 'COMMITTED', updated_at = ? WHERE id = ?`, [syncedAt, item.entity_id]);
+            }
+          } else if (item.entity_type === "UTILITY_UPDATE") {
+            await db.runAsync(`UPDATE recurring_utilities SET sync_status = 'COMMITTED', updated_at = ? WHERE id = ?`, [syncedAt, item.entity_id]);
           }
 
           synced++;
@@ -370,6 +397,19 @@ class OutboxEngine {
           this.lastError = errMsg;
 
           const isUnrecoverable = status >= 400 && status < 500 && status !== 408;
+
+          void systemErrorLogger.recordError({
+            errorCode: isUnrecoverable ? `SYNC_HTTP_${status}` : "SYNC_TRANSIENT_ERROR",
+            message: errMsg,
+            status,
+            source: `${item.action} ${item.endpoint}`,
+            requestId: item.client_request_id,
+            details: {
+              entityType: item.entity_type,
+              entityId: item.entity_id,
+              retryCount: item.retry_count,
+            },
+          });
 
           if (isUnrecoverable) {
             // Bad request or unrecoverable client validation error

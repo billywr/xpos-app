@@ -1,10 +1,14 @@
+import NetInfo from "@react-native-community/netinfo";
 import { getDatabase, withTransaction } from "@/db/sqlite";
 import { catalogRepository } from "@/repositories/catalogRepository";
 import { stockCountRepository } from "@/repositories/stockCountRepository";
 import { receivingRepository } from "@/repositories/receivingRepository";
+import { recurringUtilitiesRepository } from "@/repositories/recurringUtilitiesRepository";
 import { fetchSuppliers } from "@/api/suppliers";
 import { fetchStdStockCountSheet } from "@/api/stdStockCount";
 import { fetchGoodsReceiptNotes } from "@/api/goodsReceiptNotes";
+import { fetchRecurringUtilities } from "@/api/recurringUtilities";
+import { systemErrorLogger } from "@/services/systemErrorLogger";
 
 export interface HydrationProgress {
   isHydrating: boolean;
@@ -53,6 +57,12 @@ class HydrationService {
     branchId: string
   ): Promise<{ success: boolean; error?: string }> {
     if (this.isHydrating) return { success: true };
+
+    const net = await NetInfo.fetch();
+    if (!net.isConnected) {
+      return { success: true };
+    }
+
     this.isHydrating = true;
     this.update({ isHydrating: true, step: "Starting sync…", percent: 5, error: null });
 
@@ -99,7 +109,7 @@ class HydrationService {
           await stockCountRepository.hydrateFromRemote(orgId, branchId, sheetRes);
         }
       } catch (e) {
-        console.warn("[HydrationService] Stock count sync warning:", e);
+        console.error("[HydrationService] Stock count sync error:", e);
       }
 
       // 4. Goods Receipt Notes
@@ -117,7 +127,18 @@ class HydrationService {
         console.warn("[HydrationService] GRN sync warning:", e);
       }
 
-      // 5. Store completed flag in store_settings
+      // 5. Recurring Utilities Overheads
+      this.update({ step: "Synchronizing recurring utilities…", percent: 95 });
+      try {
+        const utilsRes = await fetchRecurringUtilities(token, orgId, branchId, { size: 200 });
+        if (utilsRes?.items) {
+          await recurringUtilitiesRepository.hydrateFromRemote(orgId, branchId, utilsRes.items);
+        }
+      } catch (e) {
+        console.warn("[HydrationService] Recurring utilities sync warning:", e);
+      }
+
+      // 6. Store completed flag in store_settings
       const completedIso = new Date().toISOString();
       await withTransaction(async (db) => {
         await db.runAsync(
@@ -138,6 +159,13 @@ class HydrationService {
       return { success: true };
     } catch (err: any) {
       const errMsg = err?.message || "Sync failed";
+      void systemErrorLogger.recordError({
+        errorCode: "HYDRATION_FAILED",
+        message: errMsg,
+        status: err?.status ?? 0,
+        source: "hydrationService.hydrateAll",
+        details: err,
+      });
       this.update({
         isHydrating: false,
         step: "Sync failed",

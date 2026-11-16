@@ -15,7 +15,10 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      staleTime: 10_000,
+      staleTime: Infinity,
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours persistent in-memory cache
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
   },
 });

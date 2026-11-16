@@ -189,6 +189,168 @@ export class DebtsExpensesRepository {
       createdAt: now,
     };
   }
+
+  /**
+   * Retrieves customer debts from local SQLite (<5ms).
+   */
+  public async getDebts(
+    orgId: string,
+    branchId: string,
+    statusFilter?: string
+  ): Promise<CustomerDebtResponse[]> {
+    const db = await getDatabase();
+    let query = `SELECT * FROM customer_debts WHERE org_id = ? AND branch_id = ?`;
+    const params: any[] = [orgId, branchId];
+    if (statusFilter && statusFilter !== "ALL") {
+      if (statusFilter === "OUTSTANDING") {
+        query += ` AND status IN ('OPEN', 'PARTIAL', 'UNPAID')`;
+      } else {
+        query += ` AND status = ?`;
+        params.push(statusFilter);
+      }
+    }
+    query += ` ORDER BY created_at DESC`;
+    const rows = await db.getAllAsync<any>(query, params);
+    return rows.map((r) => ({
+      id: r.id,
+      customerId: r.id,
+      customerName: r.customer_name,
+      customerPhone: r.phone,
+      saleId: null,
+      amount: r.amount,
+      amountSettled: r.settled_amount || 0,
+      outstanding: r.outstanding,
+      currency: "KES",
+      status: r.status,
+      notes: r.notes,
+      dueDate: null,
+      issuedBy: null,
+      createdByStaffUserId: "",
+      createdAt: r.created_at,
+    }));
+  }
+
+  /**
+   * Retrieves miscellaneous expenses from local SQLite (<5ms).
+   */
+  public async getExpenses(
+    orgId: string,
+    branchId: string,
+    fromDate?: string,
+    toDate?: string
+  ): Promise<MiscExpenseResponse[]> {
+    const db = await getDatabase();
+    let query = `SELECT * FROM misc_expenses WHERE org_id = ? AND branch_id = ?`;
+    const params: any[] = [orgId, branchId];
+    if (fromDate) {
+      query += ` AND created_at >= ?`;
+      params.push(fromDate);
+    }
+    if (toDate) {
+      query += ` AND created_at <= ?`;
+      params.push(toDate + "T23:59:59.999Z");
+    }
+    query += ` ORDER BY created_at DESC`;
+    const rows = await db.getAllAsync<any>(query, params);
+    return rows.map((r) => ({
+      id: r.id,
+      amount: r.amount,
+      category: r.category,
+      description: r.description,
+      incurredBy: r.incurred_by,
+      receiptRef: r.receipt_ref,
+      terminalId: null,
+      shiftId: null,
+      createdByStaffUserId: "",
+      createdAt: r.created_at,
+    }));
+  }
+
+  /**
+   * Hydrates remote debts into local SQLite without clobbering pending local drafts.
+   */
+  public async hydrateDebtsFromRemote(
+    orgId: string,
+    branchId: string,
+    remoteDebts: CustomerDebtResponse[]
+  ): Promise<void> {
+    if (!remoteDebts || remoteDebts.length === 0) return;
+    await withTransaction(async (db) => {
+      for (const d of remoteDebts) {
+        const dt = d.createdAt || new Date().toISOString();
+        await db.runAsync(
+          `INSERT INTO customer_debts (
+             id, org_id, branch_id, customer_name, phone, amount,
+             settled_amount, outstanding, status, notes, created_at, updated_at, sync_status
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMMITTED')
+           ON CONFLICT(id) DO UPDATE SET
+             customer_name = excluded.customer_name,
+             phone = excluded.phone,
+             amount = excluded.amount,
+             settled_amount = excluded.settled_amount,
+             outstanding = excluded.outstanding,
+             status = excluded.status,
+             notes = excluded.notes,
+             updated_at = excluded.updated_at
+           WHERE sync_status != 'PENDING'`,
+          [
+            d.id,
+            orgId,
+            branchId,
+            d.customerName || "Customer",
+            d.customerPhone || null,
+            d.amount,
+            d.amountSettled || 0,
+            d.outstanding,
+            d.status,
+            d.notes || null,
+            dt,
+            dt,
+          ]
+        );
+      }
+    });
+  }
+
+  /**
+   * Hydrates remote expenses into local SQLite without clobbering pending local drafts.
+   */
+  public async hydrateExpensesFromRemote(
+    orgId: string,
+    branchId: string,
+    remoteExpenses: MiscExpenseResponse[]
+  ): Promise<void> {
+    if (!remoteExpenses || remoteExpenses.length === 0) return;
+    await withTransaction(async (db) => {
+      for (const e of remoteExpenses) {
+        const dt = e.createdAt || new Date().toISOString();
+        await db.runAsync(
+          `INSERT INTO misc_expenses (
+             id, org_id, branch_id, amount, category, description, incurred_by, receipt_ref, created_at, sync_status
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMMITTED')
+           ON CONFLICT(id) DO UPDATE SET
+             amount = excluded.amount,
+             category = excluded.category,
+             description = excluded.description,
+             incurred_by = excluded.incurred_by,
+             receipt_ref = excluded.receipt_ref
+           WHERE sync_status != 'PENDING'`,
+          [
+            e.id,
+            orgId,
+            branchId,
+            e.amount,
+            e.category,
+            e.description,
+            e.incurredBy || null,
+            e.receiptRef || null,
+            dt,
+          ]
+        );
+      }
+    });
+  }
 }
 
 export const debtsExpensesRepository = new DebtsExpensesRepository();
+

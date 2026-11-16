@@ -2,25 +2,32 @@ import React from "react";
 import { View, Text, StyleSheet, type ViewStyle } from "react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { ScalePressable } from "./ScalePressable";
+import { SkeletonBlock } from "./SkeletonBlock";
 
 interface StatCardProps {
-  label: string;
-  value: string | number;
+  label: React.ReactNode;
+  labelColor?: string;
+  value?: string | number;
   subtitle?: string;
   icon?: React.ReactNode;
   variant?: "primary" | "warning" | "danger" | "accent" | "neutral";
   style?: ViewStyle;
   onPress?: () => void;
+  isLoading?: boolean;
+  children?: React.ReactNode;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
   label,
+  labelColor,
   value,
   subtitle,
   icon,
   variant = "neutral",
   style,
   onPress,
+  isLoading = false,
+  children,
 }) => {
   const { colors } = useTheme();
 
@@ -44,11 +51,17 @@ export const StatCard: React.FC<StatCardProps> = ({
   const cardContent = (
     <>
       <View style={styles.topRow}>
-        <Text style={[styles.label, { color: colors.textMuted }]}>{label}</Text>
+        <Text style={[styles.label, { color: labelColor ?? colors.textMuted }]}>{label}</Text>
         {icon ? <View style={styles.icon}>{icon}</View> : null}
       </View>
-      <Text style={[styles.value, { color: accentColor }]}>{value}</Text>
-      {subtitle ? (
+      {isLoading ? (
+        <SkeletonBlock width={64} height={20} radius={4} style={{ marginVertical: 3 }} />
+      ) : children ? (
+        children
+      ) : (
+        <Text style={[styles.value, { color: accentColor }]}>{value}</Text>
+      )}
+      {subtitle && !isLoading ? (
         <Text style={[styles.subtitle, { color: colors.textSubtle }]}>
           {subtitle}
         </Text>

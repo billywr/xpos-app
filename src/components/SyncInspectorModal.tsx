@@ -59,7 +59,7 @@ export const SyncInspectorModal: React.FC<SyncInspectorModalProps> = ({
   const loadMutations = useCallback(async () => {
     setIsLoading(true);
     try {
-      const items = await outboxEngine.getRecentMutations(100);
+      const items = await outboxEngine.getRecentMutations(5);
       setMutations(items);
       if (initialSelectedId) {
         setExpandedIds((prev) => new Set([...prev, initialSelectedId]));
@@ -191,7 +191,7 @@ export const SyncInspectorModal: React.FC<SyncInspectorModalProps> = ({
               <Text style={[styles.title, { color: colors.text }]}>Sync API Inspector</Text>
             </View>
             <Text style={[styles.subtitle, { color: colors.textSubtle }]}>
-              Live audit of local-first sync queue & backend API responses
+              Last 5 sync events & backend API audit trail
             </Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>

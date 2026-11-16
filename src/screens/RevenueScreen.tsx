@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   TrendingUp,
   DollarSign,
@@ -23,14 +23,19 @@ import {
   RotateCw,
   Percent,
   CreditCard,
+  Building2,
   X,
 } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useOrg } from "@/context/OrgContext";
-import { fetchRevenueDashboard, type RevenueTrendPointResponse } from "@/api/revenueDashboard";
-import { fetchMiscExpenses } from "@/api/miscExpenses";
-import { formatCurrency, formatPercent } from "@/utils/formatCurrency";
+import { type RevenueTrendPointResponse } from "@/api/revenueDashboard";
+import { revenueRepository } from "@/repositories/revenueRepository";
+import { debtsExpensesRepository } from "@/repositories/debtsExpensesRepository";
+import { recurringUtilitiesRepository } from "@/repositories/recurringUtilitiesRepository";
+import { fetchRecurringUtilities } from "@/api/recurringUtilities";
+import { useSyncStatus } from "@/services/useSyncStatus";
+import { formatCurrency, formatPercent, formatAmount } from "@/utils/formatCurrency";
 import { haptics } from "@/utils/haptics";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
@@ -40,6 +45,7 @@ import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { DatePickerModal } from "@/components/ui/DatePickerModal";
 import { AnimatedModalBackdrop } from "@/components/ui/AnimatedModalBackdrop";
 import { Button } from "@/components/ui/Button";
+import { SyncStatusDot } from "@/components/SyncStatusDot";
 
 // ---------------------------------------------------------------------------
 // Skeleton layout for the Revenue dashboard (6 stat cards + trend rows)
@@ -100,7 +106,17 @@ const RevenueSkeleton: React.FC = () => {
   );
 };
 
-type PresetRange = "today" | "7days" | "30days" | "thisMonth" | "custom";
+type PresetRange =
+  | "today"
+  | "thisWeek"
+  | "lastWeek"
+  | "7days"
+  | "thisMonth"
+  | "lastMonth"
+  | "30days"
+  | "thisYear"
+  | "lastYear"
+  | "custom";
 
 function formatLocalDate(d: Date): string {
   const y = d.getFullYear();
@@ -118,12 +134,56 @@ function toLocalDateStr(isoString: string): string {
   }
 }
 
+function formatDateShort(isoDate: string): string {
+  if (!isoDate) return "";
+  const parts = isoDate.split("-");
+  if (parts.length !== 3) return isoDate;
+  const [year, month, day] = parts;
+  return `${day}/${month}/${year.slice(-2)}`;
+}
+
+function isPoliceExpense(exp: {
+  category?: string | null;
+  description?: string | null;
+}): boolean {
+  const cat = (exp.category || "").trim().toLowerCase();
+  const desc = (exp.description || "").trim().toLowerCase();
+  return (
+    cat === "police" ||
+    cat === "p" ||
+    cat.startsWith("police") ||
+    desc === "police" ||
+    desc === "p" ||
+    desc === "p." ||
+    desc.startsWith("police") ||
+    desc.startsWith("p ") ||
+    desc.startsWith("p-") ||
+    desc.startsWith("p/") ||
+    desc.includes("police")
+  );
+}
+
 function getRangeDates(preset: PresetRange): { start: string; end: string } {
   const now = new Date();
   const today = formatLocalDate(now);
 
   if (preset === "today") {
     return { start: today, end: today };
+  }
+
+  const dayOfWeek = now.getDay();
+  const diffToMonday = (dayOfWeek + 6) % 7;
+  const thisWeekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday);
+
+  if (preset === "thisWeek") {
+    return { start: formatLocalDate(thisWeekStart), end: today };
+  }
+  if (preset === "lastWeek") {
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+    const lastWeekEnd = new Date(thisWeekStart);
+    lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
+    return { start: formatLocalDate(lastWeekStart), end: formatLocalDate(lastWeekEnd) };
   }
   if (preset === "7days") {
     const s = new Date(now);
@@ -133,6 +193,20 @@ function getRangeDates(preset: PresetRange): { start: string; end: string } {
   if (preset === "thisMonth") {
     const s = new Date(now.getFullYear(), now.getMonth(), 1);
     return { start: formatLocalDate(s), end: today };
+  }
+  if (preset === "lastMonth") {
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    return { start: formatLocalDate(lastMonthStart), end: formatLocalDate(lastMonthEnd) };
+  }
+  if (preset === "thisYear") {
+    const s = new Date(now.getFullYear(), 0, 1);
+    return { start: formatLocalDate(s), end: today };
+  }
+  if (preset === "lastYear") {
+    const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+    const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31);
+    return { start: formatLocalDate(lastYearStart), end: formatLocalDate(lastYearEnd) };
   }
   // 30days default
   const s = new Date(now);
@@ -144,9 +218,10 @@ export const RevenueScreen: React.FC = () => {
   const { colors } = useTheme();
   const { token } = useAuth();
   const { orgId, branchId, branchName } = useOrg();
+  const { isOnline } = useSyncStatus();
 
-  const [activePreset, setActivePreset] = useState<PresetRange>("30days");
-  const initialDates = useMemo(() => getRangeDates("30days"), []);
+  const [activePreset, setActivePreset] = useState<PresetRange>("today");
+  const initialDates = useMemo(() => getRangeDates("today"), []);
 
   const [startDate, setStartDate] = useState(initialDates.start);
   const [endDate, setEndDate] = useState(initialDates.end);
@@ -156,7 +231,7 @@ export const RevenueScreen: React.FC = () => {
   // Expense breakdown modal & filter states
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expenseSearch, setExpenseSearch] = useState("");
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("ALL");
+  const [breakdownTab, setBreakdownTab] = useState<"ALL" | "EXPENSES" | "UTILITIES">("ALL");
 
   const selectPreset = (preset: PresetRange) => {
     haptics.light();
@@ -195,6 +270,8 @@ export const RevenueScreen: React.FC = () => {
     setEndDate(trimmed);
   };
 
+  const queryClient = useQueryClient();
+
   const {
     data: dashboard,
     isLoading: isDashLoading,
@@ -205,16 +282,38 @@ export const RevenueScreen: React.FC = () => {
   } = useQuery({
     queryKey: [
       "mobile-revenue-dashboard",
-      token,
       orgId,
       branchId,
       startDate,
       endDate,
     ],
-    queryFn: () =>
-      fetchRevenueDashboard(token, orgId!, branchId!, startDate, endDate),
-    enabled: Boolean(token && orgId && branchId && startDate && endDate),
+    queryFn: async () => {
+      const cached = await revenueRepository.getCachedDashboard(orgId!, branchId!, startDate, endDate);
+      if (cached) return cached;
+      if (token && orgId && branchId && isOnline) {
+        return await revenueRepository.hydrateDashboard(token, orgId, branchId, startDate, endDate);
+      }
+      return null;
+    },
+    enabled: Boolean(orgId && branchId && startDate && endDate),
   });
+
+  // Background non-blocking hydration of revenue dashboard
+  useEffect(() => {
+    if (!token || !orgId || !branchId || !startDate || !endDate || !isOnline) return;
+    let active = true;
+    revenueRepository.hydrateDashboard(token, orgId, branchId, startDate, endDate).then((fresh) => {
+      if (active && fresh) {
+        void queryClient.setQueryData(
+          ["mobile-revenue-dashboard", orgId, branchId, startDate, endDate],
+          fresh
+        );
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [token, orgId, branchId, startDate, endDate, isOnline, queryClient]);
 
   const {
     data: expensesData,
@@ -224,19 +323,29 @@ export const RevenueScreen: React.FC = () => {
   } = useQuery({
     queryKey: [
       "mobile-revenue-expenses",
-      token,
       orgId,
       branchId,
       startDate,
       endDate,
     ],
-    queryFn: () =>
-      fetchMiscExpenses(token, orgId!, branchId!, {
-        fromDate: startDate,
-        toDate: endDate,
-        size: 500,
-      }),
-    enabled: Boolean(token && orgId && branchId && startDate && endDate),
+    queryFn: async () => {
+      const list = await debtsExpensesRepository.getExpenses(orgId!, branchId!, startDate, endDate);
+      const totalAmount = list.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+      return { content: list, totalAmount };
+    },
+    enabled: Boolean(orgId && branchId && startDate && endDate),
+  });
+
+  const {
+    data: utilitiesList = [],
+    refetch: refetchUtilities,
+  } = useQuery({
+    queryKey: ["mobile-revenue-utilities", orgId, branchId],
+    queryFn: async () => {
+      if (!orgId || !branchId) return [];
+      return await recurringUtilitiesRepository.getUtilities(orgId, branchId, true);
+    },
+    enabled: Boolean(orgId && branchId),
   });
 
   const isLoading = isDashLoading || isExpLoading;
@@ -244,7 +353,18 @@ export const RevenueScreen: React.FC = () => {
 
   const handleRefreshAll = async () => {
     haptics.light();
-    await Promise.all([refetchDashboard(), refetchExpenses()]);
+    if (isOnline && token && orgId && branchId) {
+      if (startDate && endDate) {
+        await revenueRepository.hydrateDashboard(token, orgId, branchId, startDate, endDate);
+      }
+      try {
+        const remoteUtils = await fetchRecurringUtilities(token, orgId, branchId, { size: 200 });
+        if (remoteUtils?.items) {
+          await recurringUtilitiesRepository.hydrateFromRemote(orgId, branchId, remoteUtils.items);
+        }
+      } catch {}
+    }
+    await Promise.all([refetchDashboard(), refetchExpenses(), refetchUtilities()]);
   };
 
   const expenseTotal = useMemo(() => {
@@ -252,6 +372,10 @@ export const RevenueScreen: React.FC = () => {
     const fromDash = Number(dashboard?.summary?.expenseTotal ?? 0);
     return fromApi > 0 ? fromApi : fromDash;
   }, [expensesData?.totalAmount, dashboard?.summary?.expenseTotal]);
+
+  const utilitiesTotal = useMemo(() => {
+    return Number(dashboard?.summary?.utilitiesTotal ?? 0);
+  }, [dashboard?.summary?.utilitiesTotal]);
 
   const grossProfit = useMemo(() => {
     if (!dashboard?.summary) return 0;
@@ -267,51 +391,98 @@ export const RevenueScreen: React.FC = () => {
   const netProfit = useMemo(() => {
     if (!dashboard?.summary) return 0;
     const { revenueTotal, cogsTotal } = dashboard.summary;
-    return revenueTotal - cogsTotal - expenseTotal;
-  }, [dashboard, expenseTotal]);
+    return revenueTotal - cogsTotal - expenseTotal - utilitiesTotal;
+  }, [dashboard, expenseTotal, utilitiesTotal]);
 
   const marginPercent = useMemo(() => {
     if (!dashboard?.summary || dashboard.summary.revenueTotal <= 0) return 0;
     return (netProfit / dashboard.summary.revenueTotal) * 100;
   }, [dashboard, netProfit]);
 
-  const expenseCategoriesSummary = useMemo(() => {
-    const list = expensesData?.content ?? [];
-    const map: Record<string, { count: number; total: number }> = {};
-    for (const exp of list) {
-      const cat = exp.category || "General";
-      if (!map[cat]) map[cat] = { count: 0, total: 0 };
-      map[cat].count += 1;
-      map[cat].total += Number(exp.amount || 0);
-    }
-    const total = Number(expensesData?.totalAmount || expenseTotal || 0);
-    return Object.entries(map)
-      .map(([category, data]) => ({
-        category,
-        count: data.count,
-        total: data.total,
-        percentage: total > 0 ? (data.total / total) * 100 : 0,
-      }))
-      .sort((a, b) => b.total - a.total);
-  }, [expensesData?.content, expensesData?.totalAmount, expenseTotal]);
+  const expensesList = useMemo(() => {
+    return expensesData?.content ?? [];
+  }, [expensesData?.content]);
 
-  const filteredExpenses = useMemo(() => {
-    let list = expensesData?.content ?? [];
-    if (selectedCategoryFilter !== "ALL") {
-      list = list.filter((e) => (e.category || "General") === selectedCategoryFilter);
+  const categorizedExpenses = useMemo(() => {
+    let policeSum = 0;
+    const policeItems: typeof expensesList = [];
+    let dailyBillsSum = 0;
+    const dailyBillsItems: typeof expensesList = [];
+
+    for (const exp of expensesList) {
+      const amt = Number(exp.amount || 0);
+      if (isPoliceExpense(exp)) {
+        policeSum += amt;
+        policeItems.push(exp);
+      } else {
+        dailyBillsSum += amt;
+        dailyBillsItems.push(exp);
+      }
     }
+
+    const items: Array<{
+      id: string;
+      name: string;
+      amount: number;
+      count: number;
+      items: typeof expensesList;
+    }> = [];
+
+    if (policeItems.length > 0 || policeSum > 0) {
+      items.push({
+        id: "cat-police",
+        name: "Police",
+        amount: policeSum,
+        count: policeItems.length,
+        items: policeItems,
+      });
+    }
+
+    if (dailyBillsItems.length > 0 || dailyBillsSum > 0) {
+      items.push({
+        id: "cat-daily-bills",
+        name: "Daily Bills",
+        amount: dailyBillsSum,
+        count: dailyBillsItems.length,
+        items: dailyBillsItems,
+      });
+    }
+
+    return items;
+  }, [expensesList]);
+
+  const filteredCategorizedExpenses = useMemo(() => {
+    if (breakdownTab === "UTILITIES") return [];
+    let list = categorizedExpenses;
     if (expenseSearch.trim()) {
-      const q = expenseSearch.toLowerCase();
+      const q = expenseSearch.toLowerCase().trim();
       list = list.filter(
-        (e) =>
-          e.description?.toLowerCase().includes(q) ||
-          e.category?.toLowerCase().includes(q) ||
-          e.incurredBy?.toLowerCase().includes(q) ||
-          e.receiptRef?.toLowerCase().includes(q)
+        (cat) =>
+          cat.name.toLowerCase().includes(q) ||
+          cat.items.some(
+            (e) =>
+              e.description?.toLowerCase().includes(q) ||
+              e.category?.toLowerCase().includes(q) ||
+              e.incurredBy?.toLowerCase().includes(q)
+          )
       );
     }
     return list;
-  }, [expensesData?.content, selectedCategoryFilter, expenseSearch]);
+  }, [categorizedExpenses, breakdownTab, expenseSearch]);
+
+  const filteredUtilities = useMemo(() => {
+    if (breakdownTab === "EXPENSES") return [];
+    let list = utilitiesList;
+    if (expenseSearch.trim()) {
+      const q = expenseSearch.toLowerCase();
+      list = list.filter(
+        (u) =>
+          u.name.toLowerCase().includes(q) ||
+          u.notes?.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [utilitiesList, breakdownTab, expenseSearch]);
 
   const dailyExpensesMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -386,26 +557,29 @@ export const RevenueScreen: React.FC = () => {
               <TrendingUp size={22} color={colors.primary} />
               <Text style={[styles.title, { color: colors.text }]}>Revenue & P&L</Text>
             </View>
-            <TouchableOpacity
-              onPress={handleRefreshAll}
-              disabled={isRefetching}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Refresh revenue data"
-              style={[
-                styles.headerRefreshBtn,
-                {
-                  backgroundColor: colors.surfaceRaised,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              {isRefetching ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <RotateCw size={16} color={colors.text} />
-              )}
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <SyncStatusDot />
+              <TouchableOpacity
+                onPress={handleRefreshAll}
+                disabled={isRefetching}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Refresh revenue data"
+                style={[
+                  styles.headerRefreshBtn,
+                  {
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                {isRefetching ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <RotateCw size={16} color={colors.text} />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
             {branchName ? `${branchName} • ` : ""}Profit & loss tracking with daily trends
@@ -417,9 +591,14 @@ export const RevenueScreen: React.FC = () => {
           {(
             [
               { key: "today", label: "Today" },
+              { key: "thisWeek", label: "This Week" },
+              { key: "lastWeek", label: "Last Week" },
               { key: "7days", label: "7 Days" },
-              { key: "30days", label: "30 Days" },
               { key: "thisMonth", label: "This Month" },
+              { key: "lastMonth", label: "Last Month" },
+              { key: "30days", label: "30 Days" },
+              { key: "thisYear", label: "This Year" },
+              { key: "lastYear", label: "Last Year" },
               { key: "custom", label: "Custom" },
             ] as const
           ).map((item) => {
@@ -559,6 +738,7 @@ export const RevenueScreen: React.FC = () => {
                 <StatCard
                   label="Revenue"
                   value={formatCurrency(dashboard.summary.revenueTotal)}
+                  subtitle={`Total gross · ${dashboard.summary.saleCount} sales`}
                   variant="primary"
                   icon={<DollarSign size={18} color={colors.primary} />}
                   style={styles.halfCard}
@@ -582,44 +762,52 @@ export const RevenueScreen: React.FC = () => {
                   style={styles.halfCard}
                 />
                 <StatCard
-                  label="Expenses"
-                  value={formatCurrency(expenseTotal)}
-                  subtitle="Tap for breakdown"
-                  variant="warning"
+                  label={
+                    <>
+                      Tot exp:{" "}
+                      <Text style={{ fontWeight: "800" }}>
+                        {formatCurrency(expenseTotal + utilitiesTotal)}
+                      </Text>
+                    </>
+                  }
+                  labelColor={colors.warning}
                   icon={<CreditCard size={18} color={colors.warning} />}
+                  variant="warning"
                   onPress={() => {
                     haptics.light();
                     setShowExpenseModal(true);
                   }}
                   style={styles.halfCard}
-                />
+                >
+                  <View style={styles.combinedExpCol}>
+                    <View style={styles.combinedExpRow}>
+                      <Text style={[styles.combinedExpLabel, { color: colors.textMuted }]}>
+                        Expense :
+                      </Text>
+                      <Text style={[styles.combinedExpVal, { color: colors.text }]}>
+                        {formatCurrency(expenseTotal)}
+                      </Text>
+                    </View>
+                    <View style={styles.combinedExpRow}>
+                      <Text style={[styles.combinedExpLabel, { color: colors.textMuted }]}>
+                        Utilities :
+                      </Text>
+                      <Text style={[styles.combinedExpVal, { color: colors.text }]}>
+                        {formatCurrency(utilitiesTotal)}
+                      </Text>
+                    </View>
+                  </View>
+                </StatCard>
               </View>
 
               <View style={styles.kpiRow}>
                 <StatCard
                   label="Net profit"
+                  labelColor={netProfit >= 0 ? colors.primary : colors.danger}
                   value={formatCurrency(netProfit)}
                   subtitle={`Margin: ${formatPercent(marginPercent, 2)}`}
                   variant={netProfit >= 0 ? "primary" : "danger"}
                   icon={<TrendingUp size={18} color={netProfit >= 0 ? colors.primary : colors.danger} />}
-                  style={styles.halfCard}
-                />
-                <StatCard
-                  label="Tax collected"
-                  value={formatCurrency(dashboard.summary.taxTotal)}
-                  variant="neutral"
-                  icon={<Receipt size={18} color={colors.textMuted} />}
-                  style={styles.halfCard}
-                />
-              </View>
-
-              <View style={styles.kpiRow}>
-                <StatCard
-                  label="Total Sales"
-                  value={`${dashboard.summary.saleCount}`}
-                  subtitle="Completed orders"
-                  variant="neutral"
-                  icon={<ShoppingBag size={18} color={colors.accent} />}
                   style={styles.fullCard}
                 />
               </View>
@@ -642,8 +830,9 @@ export const RevenueScreen: React.FC = () => {
             ) : (
               sortedTrend.map((point) => {
                 const dayExpenses = point.expenses ?? 0;
+                const dayUtilities = point.utilities ?? 0;
                 const dayProfit =
-                  point.netProfit ?? point.revenue - point.cogs - dayExpenses;
+                  point.netProfit ?? point.revenue - point.cogs - dayExpenses - dayUtilities;
                 return (
                   <Card key={point.date} style={styles.dayCard}>
                     <View style={styles.dayTopRow}>
@@ -729,7 +918,7 @@ export const RevenueScreen: React.FC = () => {
         }}
       />
 
-      {/* Expense Breakdown Modal */}
+      {/* Expenses & Utilities Breakdown Modal */}
       <Modal
         visible={showExpenseModal}
         animationType="slide"
@@ -737,7 +926,7 @@ export const RevenueScreen: React.FC = () => {
         onRequestClose={() => {
           setShowExpenseModal(false);
           setExpenseSearch("");
-          setSelectedCategoryFilter("ALL");
+          setBreakdownTab("ALL");
         }}
       >
         <AnimatedModalBackdrop
@@ -745,7 +934,7 @@ export const RevenueScreen: React.FC = () => {
           onPressBackdrop={() => {
             setShowExpenseModal(false);
             setExpenseSearch("");
-            setSelectedCategoryFilter("ALL");
+            setBreakdownTab("ALL");
           }}
         >
           <View style={[styles.modalSheet, { backgroundColor: colors.surfaceCard }]}>
@@ -753,7 +942,7 @@ export const RevenueScreen: React.FC = () => {
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  Expense Breakdown
+                  Expenses & utilities
                 </Text>
                 <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
                   {startDate === endDate ? `Today (${startDate})` : `${startDate} → ${endDate}`}
@@ -764,7 +953,7 @@ export const RevenueScreen: React.FC = () => {
                   haptics.light();
                   setShowExpenseModal(false);
                   setExpenseSearch("");
-                  setSelectedCategoryFilter("ALL");
+                  setBreakdownTab("ALL");
                 }}
                 style={[styles.modalCloseBtn, { backgroundColor: colors.surfaceRaised }]}
               >
@@ -772,140 +961,194 @@ export const RevenueScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Total Summary Banner */}
+            {/* Total Summary Banner - single level */}
             <View
               style={[
                 styles.expSummaryBanner,
                 { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
               ]}
             >
-              <View>
-                <Text style={[styles.expBannerLabel, { color: colors.textMuted }]}>
-                  Total Incurred
+              <View style={styles.bannerRowLeft}>
+                <Text style={[styles.bannerPeriodLabel, { color: colors.textMuted }]}>
+                  Period
                 </Text>
-                <Text style={[styles.expBannerAmount, { color: colors.warning }]}>
-                  {formatCurrency(expenseTotal)}
+                <Text style={[styles.bannerPeriodVal, { color: colors.text }]}>
+                  {startDate === endDate
+                    ? formatDateShort(startDate)
+                    : `${formatDateShort(startDate)} - ${formatDateShort(endDate)}`}
                 </Text>
               </View>
-              <Badge variant="warning" label={`${expensesData?.content?.length ?? 0} items`} />
+              <View style={styles.bannerRowRight}>
+                <Text style={[styles.bannerItemLabel, { color: colors.textMuted }]}>Exp</Text>
+                <Text style={[styles.bannerItemVal, { color: colors.warning }]}>
+                  {formatAmount(expenseTotal)}
+                </Text>
+                <View style={[styles.bannerDivider, { backgroundColor: colors.border }]} />
+                <Text style={[styles.bannerItemLabel, { color: colors.textMuted }]}>Util</Text>
+                <Text style={[styles.bannerItemVal, { color: colors.primary }]}>
+                  {formatAmount(utilitiesTotal)}
+                </Text>
+                <View style={[styles.bannerDivider, { backgroundColor: colors.border }]} />
+                <Text style={[styles.bannerItemLabel, { color: colors.textMuted }]}>tot</Text>
+                <Text style={[styles.bannerItemVal, { color: colors.text, fontWeight: "800" }]}>
+                  {formatAmount(expenseTotal + utilitiesTotal)}
+                </Text>
+              </View>
             </View>
 
-            {/* Category Chips Scroll */}
-            {expenseCategoriesSummary.length > 0 && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.expCatScroll}
-                style={{ maxHeight: 42, marginVertical: 6 }}
+            {/* Filter Tabs */}
+            <View style={styles.filterTabsRow}>
+              <TouchableOpacity
+                onPress={() => {
+                  haptics.light();
+                  setBreakdownTab("ALL");
+                }}
+                style={[
+                  styles.expCatChip,
+                  {
+                    backgroundColor:
+                      breakdownTab === "ALL" ? colors.primary : colors.surfaceRaised,
+                    borderColor: breakdownTab === "ALL" ? colors.primary : colors.border,
+                  },
+                ]}
               >
-                <TouchableOpacity
-                  onPress={() => setSelectedCategoryFilter("ALL")}
+                <Text
                   style={[
-                    styles.expCatChip,
-                    {
-                      backgroundColor:
-                        selectedCategoryFilter === "ALL" ? colors.primary : colors.surfaceRaised,
-                      borderColor:
-                        selectedCategoryFilter === "ALL" ? colors.primary : colors.border,
-                    },
+                    styles.expCatChipText,
+                    { color: breakdownTab === "ALL" ? "#fff" : colors.text },
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.expCatChipText,
-                      { color: selectedCategoryFilter === "ALL" ? "#fff" : colors.text },
-                    ]}
-                  >
-                    All ({expensesData?.content?.length ?? 0})
-                  </Text>
-                </TouchableOpacity>
-                {expenseCategoriesSummary.map((cat) => {
-                  const isSelected = selectedCategoryFilter === cat.category;
-                  return (
-                    <TouchableOpacity
-                      key={cat.category}
-                      onPress={() =>
-                        setSelectedCategoryFilter(isSelected ? "ALL" : cat.category)
-                      }
-                      style={[
-                        styles.expCatChip,
-                        {
-                          backgroundColor: isSelected ? colors.warning : colors.surfaceRaised,
-                          borderColor: isSelected ? colors.warning : colors.border,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.expCatChipText,
-                          { color: isSelected ? "#fff" : colors.text },
-                        ]}
-                      >
-                        {cat.category} • {formatCurrency(cat.total)} ({formatPercent(cat.percentage, 2)})
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
+                  All ({categorizedExpenses.length + utilitiesList.length})
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  haptics.light();
+                  setBreakdownTab("EXPENSES");
+                }}
+                style={[
+                  styles.expCatChip,
+                  {
+                    backgroundColor:
+                      breakdownTab === "EXPENSES" ? colors.warning : colors.surfaceRaised,
+                    borderColor: breakdownTab === "EXPENSES" ? colors.warning : colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.expCatChipText,
+                    { color: breakdownTab === "EXPENSES" ? "#fff" : colors.text },
+                  ]}
+                >
+                  Expenses ({categorizedExpenses.length})
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  haptics.light();
+                  setBreakdownTab("UTILITIES");
+                }}
+                style={[
+                  styles.expCatChip,
+                  {
+                    backgroundColor:
+                      breakdownTab === "UTILITIES" ? colors.primary : colors.surfaceRaised,
+                    borderColor: breakdownTab === "UTILITIES" ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.expCatChipText,
+                    { color: breakdownTab === "UTILITIES" ? "#fff" : colors.text },
+                  ]}
+                >
+                  Utilities ({utilitiesList.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Search Input */}
-            <View style={{ paddingHorizontal: 16, marginVertical: 6 }}>
+            <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
               <Input
-                placeholder="Search description, staff, receipt..."
+                placeholder="Search expenses and utilities..."
                 value={expenseSearch}
                 onChangeText={setExpenseSearch}
                 containerStyle={{ marginBottom: 0 }}
               />
             </View>
 
-            {/* Scrollable list of expenses */}
+            {/* Scrollable list of expenses and utilities */}
             <ScrollView
               style={styles.expList}
               contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, paddingTop: 4 }}
               showsVerticalScrollIndicator={true}
             >
-              {filteredExpenses.length === 0 ? (
+              {filteredCategorizedExpenses.length === 0 && filteredUtilities.length === 0 ? (
                 <View style={styles.emptyExpContainer}>
                   <CreditCard size={32} color={colors.textMuted} style={{ marginBottom: 8 }} />
                   <Text style={[styles.emptyExpTitle, { color: colors.text }]}>
-                    No expenses found
+                    No records found
                   </Text>
                   <Text style={[styles.emptyExpDesc, { color: colors.textMuted }]}>
-                    No expense records recorded for this filter period.
+                    No expenses or utilities match your criteria.
                   </Text>
                 </View>
               ) : (
-                filteredExpenses.map((exp) => (
-                  <View
-                    key={exp.id}
-                    style={[
-                      styles.expItemCard,
-                      { backgroundColor: colors.surface, borderColor: colors.border },
-                    ]}
-                  >
-                    <View style={styles.expItemTop}>
-                      <Badge variant="warning" label={exp.category || "General"} />
-                      <Text style={[styles.expItemAmount, { color: colors.text }]}>
-                        {formatCurrency(exp.amount)}
-                      </Text>
-                    </View>
-                    <Text style={[styles.expItemDesc, { color: colors.text }]}>
-                      {exp.description || "No description"}
-                    </Text>
-                    <View style={styles.expItemBottom}>
-                      <Text style={[styles.expItemMeta, { color: colors.textMuted }]}>
-                        {toLocalDateStr(exp.createdAt)}
-                        {exp.incurredBy ? ` • By ${exp.incurredBy}` : ""}
-                      </Text>
-                      {exp.receiptRef ? (
-                        <Text style={[styles.expItemMeta, { color: colors.textMuted }]}>
-                          Ref: {exp.receiptRef}
+                <>
+                  {/* Categorized Expenses (Police and Daily Bills) */}
+                  {filteredCategorizedExpenses.map((cat) => (
+                    <View
+                      key={`exp-${cat.id}`}
+                      style={[
+                        styles.expItemRow,
+                        { borderBottomColor: colors.border },
+                      ]}
+                    >
+                      <View style={styles.expItemLeft}>
+                        <Text
+                          style={[styles.expItemName, { color: colors.text }]}
+                          numberOfLines={1}
+                        >
+                          {cat.name}
                         </Text>
-                      ) : null}
+                        <Text style={[styles.expItemTag, { color: colors.warning }]}>
+                          (E)
+                        </Text>
+                      </View>
+                      <Text style={[styles.expItemAmountText, { color: colors.text }]}>
+                        {formatCurrency(cat.amount)}
+                      </Text>
                     </View>
-                  </View>
-                ))
+                  ))}
+
+                  {/* Utilities */}
+                  {filteredUtilities.map((util) => (
+                    <View
+                      key={`util-${util.id}`}
+                      style={[
+                        styles.expItemRow,
+                        { borderBottomColor: colors.border },
+                      ]}
+                    >
+                      <View style={styles.expItemLeft}>
+                        <Text
+                          style={[styles.expItemName, { color: colors.text }]}
+                          numberOfLines={1}
+                        >
+                          {util.name}
+                        </Text>
+                        <Text style={[styles.expItemTag, { color: colors.primary }]}>
+                          (U)
+                        </Text>
+                      </View>
+                      <Text style={[styles.expItemAmountText, { color: colors.text }]}>
+                        {formatCurrency(util.amount)}(M)
+                      </Text>
+                    </View>
+                  ))}
+                </>
               )}
             </ScrollView>
 
@@ -916,7 +1159,7 @@ export const RevenueScreen: React.FC = () => {
                 onPress={() => {
                   setShowExpenseModal(false);
                   setExpenseSearch("");
-                  setSelectedCategoryFilter("ALL");
+                  setBreakdownTab("ALL");
                 }}
                 style={{ width: "100%" }}
               />
@@ -1082,6 +1325,23 @@ const styles = StyleSheet.create({
   fullCard: {
     padding: 14,
   },
+  combinedExpCol: {
+    gap: 4,
+    marginTop: 2,
+  },
+  combinedExpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  combinedExpLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  combinedExpVal: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
   salesStatRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1195,22 +1455,49 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 6,
-    padding: 12,
-    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1,
   },
-  expBannerLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+  bannerRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
-  expBannerAmount: {
-    fontSize: 18,
-    fontWeight: "800",
-    marginTop: 2,
+  bannerPeriodLabel: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  bannerPeriodVal: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  bannerRowRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  bannerItemLabel: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  bannerItemVal: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  bannerDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 14,
+    marginHorizontal: 2,
+  },
+  filterTabsRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    marginVertical: 8,
+    gap: 8,
   },
   expCatScroll: {
     paddingHorizontal: 16,
@@ -1245,33 +1532,31 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 4,
   },
-  expItemCard: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  expItemTop: {
+  expItemRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 4,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  expItemAmount: {
-    fontSize: 14,
-    fontWeight: "700",
+  expItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    paddingRight: 12,
+    gap: 4,
   },
-  expItemDesc: {
+  expItemName: {
     fontSize: 13,
     fontWeight: "500",
-    marginBottom: 4,
+    flexShrink: 1,
   },
-  expItemBottom: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  expItemTag: {
+    fontSize: 12,
+    fontWeight: "700",
   },
-  expItemMeta: {
-    fontSize: 11,
+  expItemAmountText: {
+    fontSize: 13,
+    fontWeight: "700",
   },
 });

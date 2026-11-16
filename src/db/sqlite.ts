@@ -17,10 +17,11 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 
   initPromise = (async () => {
     const db = await SQLite.openDatabaseAsync(DB_NAME);
-    // Enable Write-Ahead Logging for high-concurrency read/writes and enforce foreign key constraints
+    // Enable Write-Ahead Logging for high-concurrency read/writes.
+    // Turn off rigid client foreign key enforcement to allow reliable out-of-order replication from server.
     await db.execAsync(`
       PRAGMA journal_mode = WAL;
-      PRAGMA foreign_keys = ON;
+      PRAGMA foreign_keys = OFF;
     `);
 
     // Initialize tables and indexes
@@ -33,16 +34,33 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return initPromise;
 }
 
+let transactionQueue: Promise<void> = Promise.resolve();
+
 /**
  * Execute an atomic transaction callback with the SQLite database.
+ * Uses an asynchronous promise queue (mutex) to strictly serialize transactions,
+ * preventing 'cannot start a transaction within a transaction' or 'database is locked' errors.
  */
 export async function withTransaction<T>(
   callback: (db: SQLite.SQLiteDatabase) => Promise<T>
 ): Promise<T> {
   const db = await getDatabase();
-  let result: T;
-  await db.withTransactionAsync(async () => {
-    result = await callback(db);
+  return new Promise<T>((resolve, reject) => {
+    transactionQueue = transactionQueue
+      .then(async () => {
+        try {
+          let result: T;
+          await db.withTransactionAsync(async () => {
+            result = await callback(db);
+          });
+          resolve(result!);
+        } catch (err) {
+          reject(err);
+        }
+      })
+      .catch(() => {
+        // Prevent queue breakage if a preceding transaction rejects
+      });
   });
-  return result!;
 }
+

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { generateSalt, hashPin } from "@/utils/crypto";
 
 const KEYS = {
   AUTH_TOKEN: "@xpos:auth_token",
@@ -17,6 +18,9 @@ const KEYS = {
   THEME_MODE: "@xpos:theme_mode",
   USERNAME: "@xpos:username",
   CUSTOM_SERVERS: "@xpos:custom_servers",
+  OFFLINE_PIN_HASH: "@xpos:offline_pin_hash",
+  OFFLINE_PIN_SALT: "@xpos:offline_pin_salt",
+  OFFLINE_SESSION_CACHE: "@xpos:offline_session_cache",
 };
 
 export interface CustomServer {
@@ -26,6 +30,18 @@ export interface CustomServer {
   keycloakUrl: string;
   realm: string;
   clientId: string;
+}
+
+export interface OfflineSessionData {
+  username: string | null;
+  orgId: string | null;
+  orgName: string | null;
+  branchId: string | null;
+  branchName: string | null;
+  terminalId: string | null;
+  terminalName: string | null;
+  lastToken: string | null;
+  savedAt: string;
 }
 
 export const storage = {
@@ -172,5 +188,45 @@ export const storage = {
       KEYS.USERNAME,
     ];
     await Promise.all(keys.map((k) => AsyncStorage.removeItem(k)));
+  },
+  async setOfflinePin(pin: string, sessionData: OfflineSessionData): Promise<void> {
+    const salt = generateSalt();
+    const hash = hashPin(pin, salt);
+    await Promise.all([
+      AsyncStorage.setItem(KEYS.OFFLINE_PIN_HASH, hash),
+      AsyncStorage.setItem(KEYS.OFFLINE_PIN_SALT, salt),
+      AsyncStorage.setItem(KEYS.OFFLINE_SESSION_CACHE, JSON.stringify(sessionData)),
+    ]);
+  },
+  async verifyOfflinePin(pin: string): Promise<boolean> {
+    const [hash, salt] = await Promise.all([
+      AsyncStorage.getItem(KEYS.OFFLINE_PIN_HASH),
+      AsyncStorage.getItem(KEYS.OFFLINE_PIN_SALT),
+    ]);
+    if (!hash || !salt) return false;
+    return hashPin(pin, salt) === hash;
+  },
+  async hasOfflinePin(): Promise<boolean> {
+    const hash = await AsyncStorage.getItem(KEYS.OFFLINE_PIN_HASH);
+    return Boolean(hash);
+  },
+  async clearOfflinePin(): Promise<void> {
+    await Promise.all([
+      AsyncStorage.removeItem(KEYS.OFFLINE_PIN_HASH),
+      AsyncStorage.removeItem(KEYS.OFFLINE_PIN_SALT),
+      AsyncStorage.removeItem(KEYS.OFFLINE_SESSION_CACHE),
+    ]);
+  },
+  async getOfflineSession(): Promise<OfflineSessionData | null> {
+    const raw = await AsyncStorage.getItem(KEYS.OFFLINE_SESSION_CACHE);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as OfflineSessionData;
+    } catch {
+      return null;
+    }
+  },
+  async saveOfflineSession(sessionData: OfflineSessionData): Promise<void> {
+    await AsyncStorage.setItem(KEYS.OFFLINE_SESSION_CACHE, JSON.stringify(sessionData));
   },
 };

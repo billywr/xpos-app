@@ -67,7 +67,7 @@ export async function initSchema(db: SQLiteDatabase): Promise<void> {
       org_id TEXT NOT NULL,
       branch_id TEXT NOT NULL,
       grn_number TEXT NOT NULL UNIQUE,
-      supplier_id TEXT REFERENCES suppliers(id) ON DELETE SET NULL,
+      supplier_id TEXT,
       status TEXT NOT NULL DEFAULT 'COMPLETED',
       notes TEXT,
       received_at TEXT NOT NULL,
@@ -80,7 +80,7 @@ export async function initSchema(db: SQLiteDatabase): Promise<void> {
     CREATE TABLE IF NOT EXISTS grn_lines (
       id TEXT PRIMARY KEY,
       grn_id TEXT NOT NULL REFERENCES goods_receipt_notes(id) ON DELETE CASCADE,
-      item_id TEXT NOT NULL REFERENCES items(id) ON DELETE RESTRICT,
+      item_id TEXT NOT NULL,
       quantity REAL NOT NULL,
       unit_cost REAL NOT NULL,
       total_cost REAL NOT NULL
@@ -116,7 +116,7 @@ export async function initSchema(db: SQLiteDatabase): Promise<void> {
       added_today_stock REAL NOT NULL DEFAULT 0.0,
       selling_price REAL NOT NULL DEFAULT 0.0,
       closing_stock REAL,
-      implied_sold REAL NOT NULL DEFAULT 0.0,
+      implied_sold REAL DEFAULT 0.0,
       already_recorded_sold REAL NOT NULL DEFAULT 0.0,
       qty_to_record REAL NOT NULL DEFAULT 0.0,
       line_revenue REAL NOT NULL DEFAULT 0.0,
@@ -202,6 +202,45 @@ export async function initSchema(db: SQLiteDatabase): Promise<void> {
     );
 
     CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_mutations(status, created_at);
+
+    -- 11. Offline Dashboard & Metrics Cache
+    CREATE TABLE IF NOT EXISTS dashboard_cache (
+      key TEXT PRIMARY KEY,
+      json_data TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    -- 12. Persistent System Failure & Error Logs (capped at 10 most recent)
+    CREATE TABLE IF NOT EXISTS system_error_logs (
+      id TEXT PRIMARY KEY,
+      error_code TEXT NOT NULL,
+      message TEXT NOT NULL,
+      status INTEGER NOT NULL DEFAULT 0,
+      source TEXT,
+      request_id TEXT,
+      details_json TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_error_logs_created ON system_error_logs(created_at DESC);
+
+    -- 13. Recurring Utilities Overheads
+    CREATE TABLE IF NOT EXISTS recurring_utilities (
+      id TEXT PRIMARY KEY,
+      org_id TEXT NOT NULL,
+      branch_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      amount REAL NOT NULL,
+      apply_timing TEXT NOT NULL DEFAULT 'BEGINNING_OF_MONTH',
+      notes TEXT,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      sync_status TEXT NOT NULL DEFAULT 'COMMITTED'
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_utilities_branch ON recurring_utilities(branch_id);
+    CREATE INDEX IF NOT EXISTS idx_utilities_active ON recurring_utilities(branch_id, active);
   `);
 
   // Safe schema migrations for existing databases
@@ -210,5 +249,42 @@ export async function initSchema(db: SQLiteDatabase): Promise<void> {
   } catch {}
   try {
     await db.execAsync(`ALTER TABLE outbox_mutations ADD COLUMN response_json TEXT;`);
+  } catch {}
+  try {
+    await db.execAsync(`CREATE TABLE IF NOT EXISTS dashboard_cache (
+      key TEXT PRIMARY KEY,
+      json_data TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );`);
+  } catch {}
+  try {
+    await db.execAsync(`CREATE TABLE IF NOT EXISTS system_error_logs (
+      id TEXT PRIMARY KEY,
+      error_code TEXT NOT NULL,
+      message TEXT NOT NULL,
+      status INTEGER NOT NULL DEFAULT 0,
+      source TEXT,
+      request_id TEXT,
+      details_json TEXT,
+      created_at TEXT NOT NULL
+    );`);
+    await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_error_logs_created ON system_error_logs(created_at DESC);`);
+  } catch {}
+  try {
+    await db.execAsync(`CREATE TABLE IF NOT EXISTS recurring_utilities (
+      id TEXT PRIMARY KEY,
+      org_id TEXT NOT NULL,
+      branch_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      amount REAL NOT NULL,
+      apply_timing TEXT NOT NULL DEFAULT 'BEGINNING_OF_MONTH',
+      notes TEXT,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      sync_status TEXT NOT NULL DEFAULT 'COMMITTED'
+    );`);
+    await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_utilities_branch ON recurring_utilities(branch_id);`);
+    await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_utilities_active ON recurring_utilities(branch_id, active);`);
   } catch {}
 }

@@ -75,11 +75,22 @@ export const OrgProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let isMounted = true;
     async function autoSelect() {
       try {
-        let currentOrgId = orgId;
-        let currentOrgName = orgName;
-        let currentBranchId = branchId;
-        let currentBranchName = branchName;
-        let currentTerminalId = terminalId;
+        const stored = await storage.getOrgContext();
+        let currentOrgId = orgId || stored.orgId;
+        let currentOrgName = orgName || stored.orgName;
+        let currentBranchId = branchId || stored.branchId;
+        let currentBranchName = branchName || stored.branchName;
+        let currentTerminalId = terminalId || stored.terminalId;
+
+        // If we already have stored org and branch, ensure state reflects them immediately
+        if (stored.orgId && !orgId && isMounted) {
+          setOrgId(stored.orgId);
+          setOrgName(stored.orgName);
+          setBranchId(stored.branchId);
+          setBranchName(stored.branchName);
+          setTerminalId(stored.terminalId);
+          setTerminalName(stored.terminalName);
+        }
 
         // Fetch organizations available to this authenticated user in this environment
         const orgsRes = await fetchOrgs(token);
@@ -107,10 +118,6 @@ export const OrgProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             terminalId: null,
             terminalName: null,
           });
-        }
-
-        if (token && currentOrgId) {
-          void catalogRepository.hydrateCatalog(token, currentOrgId);
         }
 
         // Validate or select branch
@@ -154,6 +161,9 @@ export const OrgProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (token && currentOrgId && currentBranchId) {
             void hydrationService.hydrateAll(token, currentOrgId, currentBranchId);
           }
+        } else if (token && currentOrgId && isMounted) {
+          // If no branch is selected yet, hydrate catalog items
+          void catalogRepository.hydrateCatalog(token, currentOrgId);
         }
       } catch {
         // Silently continue if network fails

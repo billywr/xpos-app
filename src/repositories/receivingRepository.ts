@@ -6,6 +6,44 @@ import type { GoodsReceiptNoteResponse, GrnLineResponse, GrnUpdateBody } from "@
 
 export class ReceivingRepository {
   /**
+   * Retrieves suppliers from local SQLite (<2ms).
+   */
+  public async getSuppliers(
+    orgId: string
+  ): Promise<{ id: string; name: string; phone: string | null; email: string | null }[]> {
+    const db = await getDatabase();
+    return await db.getAllAsync<any>(
+      `SELECT id, name, phone, email FROM suppliers WHERE org_id = ? ORDER BY name ASC`,
+      [orgId]
+    );
+  }
+
+  /**
+   * Hydrates remote suppliers into local SQLite.
+   */
+  public async hydrateSuppliersFromRemote(
+    orgId: string,
+    remoteSuppliers: { id: string; name: string; phone?: string | null; email?: string | null; createdAt?: string; updatedAt?: string }[]
+  ): Promise<void> {
+    if (!remoteSuppliers || remoteSuppliers.length === 0) return;
+    await withTransaction(async (db) => {
+      for (const s of remoteSuppliers) {
+        const dt = new Date().toISOString();
+        await db.runAsync(
+          `INSERT INTO suppliers (id, org_id, name, phone, email, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             name = excluded.name,
+             phone = excluded.phone,
+             email = excluded.email,
+             updated_at = excluded.updated_at`,
+          [s.id, orgId, s.name, s.phone || null, s.email || null, s.createdAt || dt, s.updatedAt || dt]
+        );
+      }
+    });
+  }
+
+  /**
    * Retrieves all goods receipt notes and lines from local SQLite (<5ms).
    */
   public async getReceiptNotes(
@@ -23,45 +61,48 @@ export class ReceivingRepository {
       [orgId, branchId]
     );
 
-    const result: GoodsReceiptNoteResponse[] = [];
+    if (grnRows.length === 0) return [];
 
-    for (const g of grnRows) {
-      const lineRows = await db.getAllAsync<any>(
-        `SELECT l.*, i.name as itemName, i.sku as itemSku
-         FROM grn_lines l
-         JOIN items i ON i.id = l.item_id
-         WHERE l.grn_id = ?`,
-        [g.id]
-      );
+    const grnIds = grnRows.map((g) => g.id);
+    const placeholders = grnIds.map(() => "?").join(",");
+    const allLines = await db.getAllAsync<any>(
+      `SELECT l.*, COALESCE(i.name, 'Item ' || SUBSTR(l.item_id, 1, 8)) as itemName, i.sku as itemSku
+       FROM grn_lines l
+       LEFT JOIN items i ON i.id = l.item_id
+       WHERE l.grn_id IN (${placeholders})`,
+      grnIds
+    );
 
-      const lines: GrnLineResponse[] = lineRows.map((l) => ({
+    const linesByGrnId = new Map<string, GrnLineResponse[]>();
+    for (const l of allLines) {
+      const arr = linesByGrnId.get(l.grn_id) || [];
+      arr.push({
         id: l.id,
-        grnId: g.id,
+        grnId: l.grn_id,
         itemId: l.item_id,
-        itemName: l.itemName,
+        itemName: l.itemName || "Item",
         barcode: null,
         qty: Number(l.quantity) || 0,
         uomId: null,
         receivedUnitCost: Number(l.unit_cost) || 0,
-        createdAt: g.created_at,
-      }));
-
-      result.push({
-        id: g.id,
-        orgId: g.org_id,
-        branchId: g.branch_id,
-        supplierId: g.supplier_id || "",
-        supplierName: g.supplierName || "Direct / Internal",
-        purchaseOrderId: null,
-        receivedByStaffUserId: "",
-        receivedAt: g.received_at,
-        createdAt: g.created_at,
-        active: true,
-        lines,
+        createdAt: l.created_at || "",
       });
+      linesByGrnId.set(l.grn_id, arr);
     }
 
-    return result;
+    return grnRows.map((g) => ({
+      id: g.id,
+      orgId: g.org_id,
+      branchId: g.branch_id,
+      supplierId: g.supplier_id || "",
+      supplierName: g.supplierName || "Direct / Internal",
+      purchaseOrderId: null,
+      receivedByStaffUserId: "",
+      receivedAt: g.received_at,
+      createdAt: g.created_at,
+      active: true,
+      lines: linesByGrnId.get(g.id) || [],
+    }));
   }
 
   /**
@@ -172,7 +213,7 @@ export class ReceivingRepository {
   }
 
   /**
-   * Hydrates remote GRNs into local SQLite.
+   * Hydrates remote GRNs into local SQLite (<10ms bulk upsert).
    */
   public async hydrateFromRemote(
     orgId: string,
@@ -182,45 +223,49 @@ export class ReceivingRepository {
     if (!remoteNotes || remoteNotes.length === 0) return;
 
     await withTransaction(async (db) => {
+      const now = new Date().toISOString();
       for (const grn of remoteNotes) {
-        const existing = await db.getFirstAsync<{ id: string }>(
-          `SELECT id FROM goods_receipt_notes WHERE id = ?`,
-          [grn.id]
+        const supplierId = grn.supplierId?.trim() ? grn.supplierId.trim() : null;
+        const grnNumber = (grn as any).grnNumber || grn.id;
+
+        await db.runAsync(
+          `INSERT INTO goods_receipt_notes (
+             id, org_id, branch_id, grn_number, supplier_id, status, notes, received_at, created_at, sync_status
+           ) VALUES (?, ?, ?, ?, ?, 'COMPLETED', ?, ?, ?, 'COMMITTED')
+           ON CONFLICT(id) DO UPDATE SET
+             supplier_id = excluded.supplier_id,
+             received_at = excluded.received_at,
+             created_at = excluded.created_at`,
+          [
+            grn.id,
+            orgId,
+            branchId,
+            grnNumber,
+            supplierId,
+            null,
+            grn.receivedAt,
+            grn.createdAt || now,
+          ]
         );
 
-        if (!existing) {
-          const now = new Date().toISOString();
-          await db.runAsync(
-            `INSERT INTO goods_receipt_notes (
-               id, org_id, branch_id, grn_number, supplier_id, status, notes, received_at, created_at, sync_status
-             ) VALUES (?, ?, ?, ?, ?, 'COMPLETED', ?, ?, ?, 'COMMITTED')`,
-            [
-              grn.id,
-              orgId,
-              branchId,
-              grn.id,
-              grn.supplierId,
-              null,
-              grn.receivedAt,
-              grn.createdAt || now,
-            ]
-          );
-
-          if (grn.lines) {
-            for (const line of grn.lines) {
-              await db.runAsync(
-                `INSERT INTO grn_lines (id, grn_id, item_id, quantity, unit_cost, total_cost)
-                 VALUES (?, ?, ?, ?, ?, ?)`,
-                [
-                  line.id,
-                  grn.id,
-                  line.itemId,
-                  line.qty,
-                  line.receivedUnitCost || 0,
-                  roundHalfUp((line.qty || 0) * (line.receivedUnitCost || 0), MONEY_SCALE),
-                ]
-              );
-            }
+        if (grn.lines && grn.lines.length > 0) {
+          for (const line of grn.lines) {
+            await db.runAsync(
+              `INSERT INTO grn_lines (id, grn_id, item_id, quantity, unit_cost, total_cost)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(id) DO UPDATE SET
+                 quantity = excluded.quantity,
+                 unit_cost = excluded.unit_cost,
+                 total_cost = excluded.total_cost`,
+              [
+                line.id,
+                grn.id,
+                line.itemId,
+                line.qty,
+                line.receivedUnitCost || 0,
+                roundHalfUp((line.qty || 0) * (line.receivedUnitCost || 0), MONEY_SCALE),
+              ]
+            );
           }
         }
       }

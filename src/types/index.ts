@@ -209,3 +209,49 @@ export interface Terminal {
   name: string;
   code: string;
 }
+
+// Recurring Utility Overheads types
+export type RecurringUtilityApplyTiming = "BEGINNING_OF_MONTH" | "END_OF_MONTH";
+
+export interface RecurringUtilityResponse {
+  id: string;
+  orgId: string;
+  branchId: string;
+  name: string;
+  amount: number;
+  applyTiming: RecurringUtilityApplyTiming;
+  notes?: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  syncStatus?: "COMMITTED" | "PENDING" | "FAILED";
+}
+
+export interface RecurringUtilityCreateRequest {
+  name: string;
+  amount: number;
+  applyTiming?: RecurringUtilityApplyTiming;
+  notes?: string;
+}
+
+export interface RecurringUtilityUpdateRequest {
+  name?: string;
+  amount?: number;
+  applyTiming?: RecurringUtilityApplyTiming;
+  active?: boolean;
+  notes?: string;
+}
+
+export interface RecurringUtilityListResponse {
+  items: RecurringUtilityResponse[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface RecurringUtilitySummaryResponse {
+  activeCount: number;
+  monthlyTotalAmount: number;
+}
+
