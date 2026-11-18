@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { RecurringUtility } from "@/api/recurringUtilities";
 import { formatAmount } from "@/utils/formatCurrency";
+import { formatDateTime } from "@/utils/formatDate";
 
 export interface UtilitiesPdfOptions {
   branchName?: string | null;
@@ -40,7 +41,7 @@ export function generateUtilitiesPdf(
     doc.text(`Search: "${searchQuery}"`, margin, y);
     y += 5;
   }
-  doc.text(`Generated: ${new Date().toLocaleString("en-GB")}`, margin, y);
+  doc.text(`Generated: ${formatDateTime(new Date())}`, margin, y);
   y += 5;
   doc.text(`Total utilities: ${utilities.length}`, margin, y);
   y += 7;

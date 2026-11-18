@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import { formatDateTime } from "@/utils/formatDate";
 import {
   formatQty,
   formatQtyVariance,
@@ -342,7 +343,7 @@ export function StockCountSessionDetailPage({
         >
           {!isInitialLoad && session && (
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              {`${branchName ?? "Branch"} · Started ${new Date(session.startedAt).toLocaleString("en-GB")} · ${session.sourceType}`}
+              {`${branchName ?? "Branch"} · Started ${formatDateTime(session.startedAt)} · ${session.sourceType}`}
             </p>
           )}
         </PageHeader>

@@ -9,6 +9,7 @@ import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { formatDate } from "@/utils/formatDate";
 import { FileText } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { DateInput } from "@/components/ui";
@@ -186,7 +187,7 @@ export function ZReportPage() {
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-600 dark:bg-slate-800">
             <h2 className="font-semibold text-slate-800 dark:text-white">
-              Z-Report · {selectedBranch?.name ?? "Branch"} · {report.businessDate}
+              Z-Report · {selectedBranch?.name ?? "Branch"} · {formatDate(report.businessDate)}
             </h2>
           </div>
           <dl className="grid grid-cols-1 gap-px sm:grid-cols-2 lg:grid-cols-3">

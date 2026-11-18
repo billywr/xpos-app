@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Item } from "@/types/catalog";
 import { formatAmount } from "@/utils/formatCurrency";
+import { formatDateTime } from "@/utils/formatDate";
 
 export interface ItemsPdfItem {
   name: string;
@@ -47,7 +48,7 @@ export function generateItemsPdf(
     doc.text(`Search: "${searchQuery}"`, margin, y);
     y += 5;
   }
-  const generatedDate = new Date().toLocaleString("en-GB");
+  const generatedDate = formatDateTime(new Date());
   doc.text(`Generated: ${generatedDate}`, margin, y);
   y += 5;
   doc.text(`Total Items: ${items.length}`, margin, y);

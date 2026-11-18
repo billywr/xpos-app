@@ -4,7 +4,9 @@ import {
   type InputHTMLAttributes,
   type MouseEvent,
 } from "react";
+import { Calendar } from "lucide-react";
 import { tryShowDatePicker } from "@/utils/setupGlobalDatePicker";
+import { formatDate } from "@/utils/formatDate";
 
 export type DateInputProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
@@ -15,7 +17,17 @@ export type DateInputProps = Omit<
 
 export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
   function DateInput(
-    { className = "", type = "date", onClick, onChange, ...props },
+    {
+      className = "",
+      type = "date",
+      value,
+      placeholder = "dd/mm/yyyy",
+      disabled,
+      readOnly,
+      onClick,
+      onChange,
+      ...props
+    },
     ref
   ) {
     const handleClick = (e: MouseEvent<HTMLInputElement>) => {
@@ -33,15 +45,57 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
       }
     };
 
+    if (type !== "date") {
+      return (
+        <input
+          ref={ref}
+          type={type}
+          value={value}
+          disabled={disabled}
+          readOnly={readOnly}
+          className={`date-input cursor-pointer ${className}`.trim()}
+          onClick={handleClick}
+          onChange={handleChange}
+          {...props}
+        />
+      );
+    }
+
+    const stringValue =
+      typeof value === "string" ? value : value != null ? String(value) : "";
+    const displayFormatted = stringValue ? formatDate(stringValue, "") : "";
+
     return (
-      <input
-        ref={ref}
-        type={type}
-        className={`date-input cursor-pointer ${className}`.trim()}
-        onClick={handleClick}
-        onChange={handleChange}
-        {...props}
-      />
+      <div
+        className={`relative inline-flex items-center select-none focus-within:ring-1 focus-within:ring-primary-500 focus-within:border-primary-500 ${
+          disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+        } ${className}`.trim()}
+      >
+        <span
+          className={`truncate flex-1 pointer-events-none ${
+            displayFormatted
+              ? ""
+              : "text-slate-400 dark:text-slate-500 font-normal"
+          }`}
+        >
+          {displayFormatted || placeholder}
+        </span>
+        <Calendar
+          className="pointer-events-none ml-2 h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500"
+          aria-hidden="true"
+        />
+        <input
+          ref={ref}
+          type="date"
+          value={value}
+          disabled={disabled}
+          readOnly={readOnly}
+          className="date-input absolute inset-0 h-full w-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+          onClick={handleClick}
+          onChange={handleChange}
+          {...props}
+        />
+      </div>
     );
   }
 );

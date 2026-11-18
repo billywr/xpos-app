@@ -28,6 +28,7 @@ import {
 import { selectToken, selectUsername } from "@/store/selectors/authSelectors";
 import { fetchMe } from "@/api/me";
 import { autoSyncStdStockCount } from "@/api/stdStockCount";
+import { formatDateTime } from "@/utils/formatDate";
 import { invalidateInventoryQueries } from "@/utils/invalidateInventoryQueries";
 import { clearCredentials } from "@/store/slices/authSlice";
 import { clearContext } from "@/store/slices/orgContextSlice";
@@ -381,13 +382,7 @@ export function OperatorLayout() {
             </NavLink>
           </div>
           <span className="hidden text-sm text-slate-500 md:inline dark:text-white/70">
-            {new Date().toLocaleDateString("en-GB", {
-              weekday: "short",
-              day: "numeric",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            {formatDateTime(new Date())}
           </span>
           <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-2 py-1.5 sm:px-3 sm:py-2 dark:bg-darkSurface">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-300 text-xs font-medium text-slate-600 sm:h-8 sm:w-8 sm:text-sm dark:bg-white/20 dark:text-white">

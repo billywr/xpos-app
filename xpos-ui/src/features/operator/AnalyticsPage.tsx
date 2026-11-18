@@ -41,6 +41,7 @@ import {
   downloadBiReportPdf,
 } from "@/api/operatorAnalytics";
 import { formatCurrency, formatPercent } from "@/utils/formatCurrency";
+import { formatDate, formatDateTime } from "@/utils/formatDate";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { DateInput } from "@/components/ui";
@@ -207,7 +208,7 @@ export function AnalyticsPage() {
   }));
 
   const lastUpdated = dataUpdatedAt
-    ? new Date(dataUpdatedAt).toLocaleTimeString()
+    ? formatDateTime(dataUpdatedAt)
     : "";
 
   return (
@@ -457,7 +458,7 @@ export function AnalyticsPage() {
                 <Tooltip
                   formatter={(value: number | undefined) =>
                     [value != null ? formatCurrency(value) : "—", "Revenue"]}
-                  labelFormatter={(d) => new Date(d).toLocaleDateString()}
+                  labelFormatter={(d) => formatDate(d)}
                   contentStyle={{
                     borderRadius: "8px",
                     border: "1px solid rgb(203 213 225)",

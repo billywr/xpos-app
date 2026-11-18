@@ -1,3 +1,5 @@
+import { formatDate, formatDateTime } from "./formatDate";
+
 const SEARCH_SKIP_KEYS = new Set(["imageUrl", "imageData", "password", "refreshToken"]);
 
 const DEFAULT_MAX_DEPTH = 3;
@@ -65,6 +67,8 @@ function appendValueParts(
   if (value instanceof Date) {
     parts.push(value.toISOString());
     parts.push(value.toLocaleString());
+    parts.push(formatDate(value));
+    parts.push(formatDateTime(value));
     return;
   }
   if (Array.isArray(value)) {
@@ -123,7 +127,7 @@ function accessorValueToString(value: unknown): string | null {
     return null;
   }
   if (value instanceof Date) {
-    return `${value.toISOString()} ${value.toLocaleString()}`;
+    return `${value.toISOString()} ${value.toLocaleString()} ${formatDate(value)} ${formatDateTime(value)}`;
   }
   if (typeof value === "object") {
     return deepObjectToSearchableText(value as Record<string, unknown>);

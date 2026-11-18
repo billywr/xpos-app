@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatQty } from "@/utils/formatQuantity";
+import { formatDate, formatDateTime } from "@/utils/formatDate";
 
 interface StdStockCountPdfRow {
   sku: string;
@@ -71,7 +72,7 @@ export function downloadStdStockCountPdf(
   y += 5;
   doc.text(`Branch: ${branchName ?? "—"}`, margin, y);
   y += 5;
-  doc.text(`Date: ${dateStr}`, margin, y);
+  doc.text(`Date: ${formatDate(dateStr)}`, margin, y);
   y += 5;
   if (opts?.searchQuery) {
     doc.text(`Search: "${opts.searchQuery}"`, margin, y);
@@ -151,7 +152,7 @@ export function downloadStdStockCountPdf(
     if (summary.dayDebts.length > 0) {
       doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
-      doc.text(`Debtors — ${dateStr}`, margin, y);
+      doc.text(`Debtors — ${formatDate(dateStr)}`, margin, y);
       y += 2;
 
       autoTable(doc, {
@@ -161,8 +162,8 @@ export function downloadStdStockCountPdf(
           d.customerPhone ?? "—",
           d.issuedBy ?? "—",
           formatPlainAmount(d.outstanding),
-          d.dueDate ?? "—",
-          d.createdAt?.slice(0, 10) ?? "—",
+          formatDate(d.dueDate),
+          formatDate(d.createdAt),
         ]),
         startY: y,
         margin: { left: margin, right: margin },
@@ -193,8 +194,8 @@ export function downloadStdStockCountPdf(
           d.customerPhone ?? "—",
           d.issuedBy ?? "—",
           formatPlainAmount(d.outstanding),
-          d.dueDate ?? "—",
-          d.createdAt?.slice(0, 10) ?? "—",
+          formatDate(d.dueDate),
+          formatDate(d.createdAt),
         ]),
         startY: y,
         margin: { left: margin, right: margin },
@@ -216,7 +217,7 @@ export function downloadStdStockCountPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.text(
-    `Generated ${new Date().toLocaleString("en-GB")} — ${appName} Standard Stock Count`,
+    `Generated ${formatDateTime(new Date())} — ${appName} Standard Stock Count`,
     margin,
     y
   );

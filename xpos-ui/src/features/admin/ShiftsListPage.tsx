@@ -29,6 +29,7 @@ import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatAmount } from "@/utils/formatCurrency";
+import { formatDateTime } from "@/utils/formatDate";
 import { Wallet } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -324,13 +325,11 @@ export function ShiftsListPage() {
                       >
                     <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
                         <td className={tableStickyFirstBody}>
-                          {new Date(shift.openedAt).toLocaleString()}
+                          {formatDateTime(shift.openedAt)}
                         </td>
                         {showClosedCol && (
                           <td className={tableBodyCell}>
-                            {shift.closedAt
-                              ? new Date(shift.closedAt).toLocaleString()
-                              : "—"}
+                            {formatDateTime(shift.closedAt)}
                           </td>
                         )}
                         <td className={tableBodyCell}>

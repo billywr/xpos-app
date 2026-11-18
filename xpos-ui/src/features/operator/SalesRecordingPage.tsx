@@ -51,6 +51,7 @@ import {
 } from "@/components/ui";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatAmount } from "@/utils/formatCurrency";
+import { formatDateTime } from "@/utils/formatDate";
 import { formatQty, parseQty } from "@/utils/formatQuantity";
 import { rowMatchesSearch } from "@/utils/tableSearchMatch";
 import { sortTableRows } from "@/utils/tableSort";
@@ -569,7 +570,7 @@ export function SalesRecordingPage() {
           ) : lastSavedAt ? (
             <span
               className="inline-flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400"
-              title={lastSavedAt.toLocaleString()}
+              title={formatDateTime(lastSavedAt)}
             >
               <CheckCircle2 className="h-4 w-4" />
               Draft saved · {formatRelativeTime(lastSavedAt, nowMs)}

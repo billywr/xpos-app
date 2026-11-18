@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { Printer, RotateCcw, X } from "lucide-react";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { formatDate } from "@/utils/formatDate";
 import type { ReceiptDetailResponse } from "@/types/sales";
 
 const RECEIPT_SEPARATOR = "********************";
@@ -141,7 +142,7 @@ function ReceiptBody({
           {receipt.debtDueDate && (
             <div className="r-row r-sub">
               <span>Due date</span>
-              <span className="r-num">{receipt.debtDueDate}</span>
+              <span className="r-num">{formatDate(receipt.debtDueDate)}</span>
             </div>
           )}
         </>

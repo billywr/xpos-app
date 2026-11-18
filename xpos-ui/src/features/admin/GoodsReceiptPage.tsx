@@ -61,6 +61,7 @@ import {
 import { ItemSearchCombobox } from "@/components/ItemSearchCombobox";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { isSameLocalCalendarDay } from "@/utils/calendarDay";
+import { formatDate, formatDateTime, formatDateInput } from "@/utils/formatDate";
 import {
   getSavedGoodsReceiptReceivedAt,
   saveGoodsReceiptReceivedAt,
@@ -83,7 +84,8 @@ function grnFlattenedRowSearchText(row: GrnFlattenedRow): string {
   const parts: string[] = [row.grn.supplierName ?? "", row.grn.receivedAt ?? ""];
   if (row.grn.receivedAt) {
     try {
-      parts.push(new Date(row.grn.receivedAt).toLocaleString());
+      parts.push(formatDate(row.grn.receivedAt));
+      parts.push(formatDateTime(row.grn.receivedAt));
     } catch {
       // ignore invalid dates in search haystack
     }
@@ -108,15 +110,6 @@ const GRN_SORT = {
   total: (row: GrnFlattenedRow) =>
     row.line ? row.line.qty * (row.line.receivedUnitCost ?? 0) : 0,
 };
-
-function formatDateInput(isoOrDate: string | Date): string {
-  const d = typeof isoOrDate === "string" ? new Date(isoOrDate) : isoOrDate;
-  if (Number.isNaN(d.getTime())) {
-    return "";
-  }
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 /** Parse date field value; returns null if empty/invalid. */
 function parseDateInputToDate(dateInputVal: string): Date | null {
@@ -1422,7 +1415,7 @@ export function GoodsReceiptPage({
                           >
                     <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
                             <td className={tableStickyFirstBody}>
-                              {new Date(grn.receivedAt).toLocaleString()}
+                              {formatDateTime(grn.receivedAt)}
                             </td>
                             <td className={tableBodyCell}>
                               {line?.itemName ?? "—"}

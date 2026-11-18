@@ -38,6 +38,7 @@ import {
 import { useDataTable } from "@/hooks/useDataTable";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import { formatDateTime } from "@/utils/formatDate";
 import {
   CalendarClock,
   Plus,
@@ -67,12 +68,7 @@ const DAYS = [
 ];
 
 function formatLastRun(lastRunAt: string | null): string {
-  if (!lastRunAt) return "—";
-  const d = new Date(lastRunAt);
-  return d.toLocaleString("en-GB", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  return formatDateTime(lastRunAt);
 }
 
 function formatSchedule(s: StockTakingScheduleResponse): string {

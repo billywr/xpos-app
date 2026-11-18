@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { StockCountSessionResponse, StockCountLineResponse } from "@/api/stockTaking";
 import { formatQty, formatQtyVariance } from "@/utils/formatQuantity";
+import { formatDateTime } from "@/utils/formatDate";
 
 function formatKsh(amount: number): string {
   return `Ksh ${amount.toLocaleString("en-KE", {
@@ -39,7 +40,7 @@ export function generateStockCountPdf(
   doc.text(`Branch: ${branchName ?? "—"}`, margin, y);
   y += 6;
   doc.text(
-    `Started: ${new Date(session.startedAt).toLocaleString("en-GB")}`,
+    `Started: ${formatDateTime(session.startedAt)}`,
     margin,
     y
   );
@@ -150,7 +151,7 @@ export function generateStockCountPdf(
   y += 8;
   doc.setFontSize(9);
   doc.text(
-    `Generated ${new Date().toLocaleString("en-GB")} — ${effectiveAppName} Stock Count`,
+    `Generated ${formatDateTime(new Date())} — ${effectiveAppName} Stock Count`,
     margin,
     y
   );

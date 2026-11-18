@@ -12,6 +12,7 @@ import {
 } from "@/store/selectors/orgContextSelectors";
 import { getCurrentShift, openShift, closeShift } from "@/api/shifts";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { formatDateTime } from "@/utils/formatDate";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -148,7 +149,7 @@ export function OperatorDashboard() {
                   Open
                 </span>{" "}
                 since{" "}
-                {new Date(currentShift.openedAt).toLocaleString()} · Opening
+                {formatDateTime(currentShift.openedAt)} · Opening
                 float: {formatCurrency(currentShift.openingFloatAmount)}
               </p>
               <form

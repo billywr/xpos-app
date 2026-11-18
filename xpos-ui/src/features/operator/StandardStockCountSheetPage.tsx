@@ -28,6 +28,7 @@ import {
 import { fetchOperatorAnalyticsSnapshot } from "@/api/operatorAnalytics";
 import { fetchDebts } from "@/api/debts";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import { formatDate, formatDateTime } from "@/utils/formatDate";
 import { formatQty, formatQtyVariance, isValidQtyInput, roundQty } from "@/utils/formatQuantity";
 import {
   getApiErrorMessage,
@@ -1426,7 +1427,7 @@ export function StandardStockCountSheetPage({
               </span>
             ) : latestSavedAt ? (
               <span className="hidden shrink-0 text-xs text-slate-500 xl:inline dark:text-slate-400">
-                Last saved: {new Date(latestSavedAt).toLocaleString()}
+                Last saved: {formatDateTime(latestSavedAt)}
               </span>
             ) : null}
           </div>
@@ -1917,8 +1918,8 @@ export function StandardStockCountSheetPage({
                     <div className="min-w-0">
                       <p className="font-semibold text-slate-900 dark:text-white">{d.customerName}</p>
                       <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {d.customerPhone ?? "—"} · Issued by: {d.issuedBy ?? "—"} · Due: {d.dueDate ?? "—"}
-                        {debtModal === "all" ? ` · Recorded: ${d.createdAt?.slice(0, 10) ?? "—"}` : ""}
+                        {d.customerPhone ?? "—"} · Issued by: {d.issuedBy ?? "—"} · Due: {formatDate(d.dueDate)}
+                        {debtModal === "all" ? ` · Recorded: ${formatDate(d.createdAt)}` : ""}
                       </p>
                     </div>
                     <span className="shrink-0 text-lg font-bold tabular-nums text-amber-600 dark:text-amber-400">

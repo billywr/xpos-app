@@ -2,10 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { MiscExpenseGroupSummaryResponse, MiscExpenseResponse } from "@/api/miscExpenses";
 import { formatAmount } from "@/utils/formatCurrency";
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB");
-}
+import { formatDateTime } from "@/utils/formatDate";
 
 export interface ExpensesPdfOptions {
   branchName?: string | null;
@@ -45,7 +42,7 @@ export function generateExpensesPdf(
     doc.text(`Search: "${searchQuery}"`, margin, y);
     y += 5;
   }
-  doc.text(`Generated: ${new Date().toLocaleString("en-GB")}`, margin, y);
+  doc.text(`Generated: ${formatDateTime(new Date())}`, margin, y);
   y += 5;
   doc.text(`Total rows: ${expenses.length}`, margin, y);
   y += 7;
@@ -216,7 +213,7 @@ export function generateExpensesPdf(
   doc.setFontSize(8);
   doc.setTextColor(120);
   doc.text(
-    `${appName} — Expenses Report · Generated ${new Date().toLocaleString("en-GB")}`,
+    `${appName} — Expenses Report · Generated ${formatDateTime(new Date())}`,
     margin,
     pageHeight - 6
   );
@@ -287,7 +284,7 @@ export function generateGroupedExpensesPdf(
     doc.text(`Search: "${searchQuery}"`, margin, y);
     y += 5;
   }
-  doc.text(`Generated: ${new Date().toLocaleString("en-GB")}`, margin, y);
+  doc.text(`Generated: ${formatDateTime(new Date())}`, margin, y);
   y += 5;
   doc.text(`Total groups: ${groups.length}`, margin, y);
   y += 7;
@@ -349,7 +346,7 @@ export function generateGroupedExpensesPdf(
   doc.setFontSize(8);
   doc.setTextColor(120);
   doc.text(
-    `${appName} — Grouped Expenses Report · Generated ${new Date().toLocaleString("en-GB")}`,
+    `${appName} — Grouped Expenses Report · Generated ${formatDateTime(new Date())}`,
     margin,
     pageHeight - 6
   );

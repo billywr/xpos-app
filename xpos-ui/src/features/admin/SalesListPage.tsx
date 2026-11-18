@@ -32,6 +32,7 @@ import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import { formatDateTime } from "@/utils/formatDate";
 import { Receipt, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -484,9 +485,7 @@ export function SalesListPage() {
                           )}
                           {showCompletedCol && (
                             <td className={tableBodyCell}>
-                              {sale.completedAt
-                                ? new Date(sale.completedAt).toLocaleString()
-                                : "—"}
+                              {formatDateTime(sale.completedAt)}
                             </td>
                           )}
                           {showCashierCol && (

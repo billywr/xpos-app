@@ -23,6 +23,7 @@ import type { Org, Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { formatCurrency, formatPercent, formatAmount } from "@/utils/formatCurrency";
+import { formatDate } from "@/utils/formatDate";
 import { cn } from "@/utils/cn";
 import {
   TrendingUp,
@@ -57,11 +58,7 @@ function toLocalDateStr(isoString: string): string {
 }
 
 function formatDateShort(isoDate: string): string {
-  if (!isoDate) return "";
-  const parts = isoDate.split("-");
-  if (parts.length !== 3) return isoDate;
-  const [year, month, day] = parts;
-  return `${day}/${month}/${year.slice(-2)}`;
+  return formatDate(isoDate, "");
 }
 
 export function isPoliceExpense(exp: {

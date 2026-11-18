@@ -2,15 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { CustomerDebtGroupSummaryResponse, CustomerDebtResponse } from "@/api/debts";
 import { formatAmount } from "@/utils/formatCurrency";
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB");
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-GB");
-}
+import { formatDate, formatDateTime } from "@/utils/formatDate";
 
 function statusLabel(status: string): string {
   if (status === "CLOSED" || status === "SETTLED") return "Closed";
@@ -69,7 +61,7 @@ export function generateDebtsPdf(
     doc.text(`Search: "${searchQuery}"`, margin, y);
     y += 6;
   }
-  doc.text(`Generated: ${new Date().toLocaleString("en-GB")}`, margin, y);
+  doc.text(`Generated: ${formatDateTime(new Date())}`, margin, y);
   y += 6;
   doc.text(`Total rows: ${debts.length}`, margin, y);
   y += 8;
@@ -280,7 +272,7 @@ export function generateDebtsPdf(
   doc.setFontSize(8);
   doc.setTextColor(120);
   doc.text(
-    `${appName} — Debts Report · Generated ${new Date().toLocaleString("en-GB")}`,
+    `${appName} — Debts Report · Generated ${formatDateTime(new Date())}`,
     margin,
     pageHeight - 6
   );
@@ -357,7 +349,7 @@ export function generateGroupedDebtsPdf(
     doc.text(`Search: "${searchQuery}"`, margin, y);
     y += 6;
   }
-  doc.text(`Generated: ${new Date().toLocaleString("en-GB")}`, margin, y);
+  doc.text(`Generated: ${formatDateTime(new Date())}`, margin, y);
   y += 6;
   doc.text(`Total groups: ${groups.length}`, margin, y);
   y += 8;
@@ -459,7 +451,7 @@ export function generateGroupedDebtsPdf(
   doc.setFontSize(8);
   doc.setTextColor(120);
   doc.text(
-    `${appName} — Grouped Debts Report · Generated ${new Date().toLocaleString("en-GB")}`,
+    `${appName} — Grouped Debts Report · Generated ${formatDateTime(new Date())}`,
     margin,
     pageHeight - 6
   );

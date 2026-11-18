@@ -66,6 +66,18 @@ describe("DateInput", () => {
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(blurSpy).toHaveBeenCalledTimes(1);
   });
+
+  it("displays dd/mm/yyyy formatted text when value is provided", () => {
+    const { container } = render(
+      <DateInput aria-label="Selected date" value="2026-12-17" readOnly />
+    );
+    expect(container).toHaveTextContent("17/12/2026");
+  });
+
+  it("displays placeholder dd/mm/yyyy when value is empty", () => {
+    const { container } = render(<DateInput aria-label="Empty date" />);
+    expect(container).toHaveTextContent("dd/mm/yyyy");
+  });
 });
 
 describe("setupGlobalDatePicker", () => {

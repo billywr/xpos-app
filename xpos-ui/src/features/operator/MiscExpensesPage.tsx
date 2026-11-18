@@ -35,6 +35,7 @@ import {
 } from "@/components/ui";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import { formatDateTime } from "@/utils/formatDate";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { downloadExpensesPdf } from "@/utils/expensesPdf";
 import { recordedAtToCreatedAt, todayInputValue } from "@/utils/recordedAt";
@@ -482,7 +483,7 @@ export function MiscExpensesPage() {
                           </td>
                         )}
                         <td className={tableBodyCell}>
-                          {new Date(e.createdAt).toLocaleString()}
+                          {formatDateTime(e.createdAt)}
                         </td>
                         <td className={tableBodyCell}>
                           <div className="flex justify-start gap-1">

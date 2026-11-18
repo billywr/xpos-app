@@ -51,6 +51,7 @@ import {
   tableRowNoCell,
 } from "@/components/ui";
 import { formatCurrency, formatAmount, formatPercent } from "@/utils/formatCurrency";
+import { formatDate, formatDateTime } from "@/utils/formatDate";
 import { filterRowsBySearch } from "@/utils/tableSearchMatch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import {
@@ -2237,12 +2238,12 @@ export function DebtsAndExpensesPage({
                                   </span>
                                 </td>
                                 {showDebtDueCol && (
-                                  <td className="px-2 py-1.5 text-xs text-slate-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-400">{d.dueDate ?? "—"}</td>
+                                  <td className="px-2 py-1.5 text-xs text-slate-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-400">{formatDate(d.dueDate)}</td>
                                 )}
                                 {showDebtIssuedByCol && (
                                   <td className="px-2 py-1.5 text-xs text-slate-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-400">{d.issuedBy ?? "—"}</td>
                                 )}
-                                <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{new Date(d.createdAt).toLocaleString()}</td>
+                                <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{formatDateTime(d.createdAt)}</td>
                                 {showDebtNotesCol && (
                                   <td className="hidden max-w-[14rem] px-4 py-2 align-top text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">
                                     {d.notes?.trim() ? (
@@ -2538,7 +2539,7 @@ export function DebtsAndExpensesPage({
                                 {showExpReceiptRefCol && (
                                   <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{e.receiptRef ?? "—"}</td>
                                 )}
-                                <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{new Date(e.createdAt).toLocaleString()}</td>
+                                <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{formatDateTime(e.createdAt)}</td>
                                 <td className="px-2 py-1.5 text-left sm:px-6 sm:py-2.5">
                                   <div className="flex justify-start gap-1">
                                     <button type="button" onClick={() => openExpEditForm(e)} className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 sm:p-1.5 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200" title="Edit">
@@ -2878,7 +2879,7 @@ export function DebtsAndExpensesPage({
                       {allocationPreview.allocations.map((line) => (
                         <tr key={line.debtId}>
                           <td className="px-3 py-2 tabular-nums text-slate-600 dark:text-slate-400">
-                            {new Date(line.createdAt).toLocaleDateString()}
+                            {formatDate(line.createdAt)}
                           </td>
                           <td className="px-3 py-2 text-left tabular-nums">
                             {formatAmount(line.outstandingBefore)}

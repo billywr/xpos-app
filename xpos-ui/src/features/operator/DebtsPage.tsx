@@ -38,6 +38,7 @@ import {
 } from "@/components/ui";
 import { useDataTable } from "@/hooks/useDataTable";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import { formatDate, formatDateTime } from "@/utils/formatDate";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { downloadDebtsPdf } from "@/utils/debtsPdf";
 import { recordedAtToCreatedAt, todayInputValue } from "@/utils/recordedAt";
@@ -760,11 +761,11 @@ export function DebtsPage() {
                         </td>
                         {showDueCol && (
                           <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
-                            {d.dueDate ?? "—"}
+                            {formatDate(d.dueDate)}
                           </td>
                         )}
                         <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
-                          {new Date(d.createdAt).toLocaleString()}
+                          {formatDateTime(d.createdAt)}
                         </td>
                         {showNotesCol && (
                           <td className="max-w-[14rem] px-4 py-2 align-top text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">

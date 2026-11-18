@@ -33,6 +33,7 @@ import {
 } from "@/components/ui";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { formatAmount } from "@/utils/formatCurrency";
+import { formatDateTime } from "@/utils/formatDate";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { Receipt, Printer } from "lucide-react";
@@ -343,9 +344,7 @@ export function ReceiptsPage() {
                       </td>
                       {showCompletedCol && (
                         <td className={tableBodyCell}>
-                          {sale.completedAt
-                            ? new Date(sale.completedAt).toLocaleString()
-                            : "—"}
+                          {formatDateTime(sale.completedAt)}
                         </td>
                       )}
                       <td className={`${tableBodyCellNum} font-semibold text-slate-700 dark:text-slate-300`}>

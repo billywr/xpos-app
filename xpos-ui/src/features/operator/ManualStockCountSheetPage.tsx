@@ -17,6 +17,7 @@ import {
 } from "@/api/manualStockCount";
 import { fetchAllOrgItems } from "@/api/items";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import { formatDateTime } from "@/utils/formatDate";
 import {
   formatQty,
   formatQtyVariance,
@@ -433,7 +434,7 @@ export function ManualStockCountSheetPage() {
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search all columns…" />
           {sheet?.lastSavedAt && (
             <span className="hidden shrink-0 text-xs text-slate-500 md:inline dark:text-slate-400">
-              Saved: {new Date(sheet.lastSavedAt).toLocaleString()}
+              Saved: {formatDateTime(sheet.lastSavedAt)}
             </span>
           )}
         </div>

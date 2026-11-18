@@ -29,6 +29,7 @@ import {
   tableBodyCell,
   tableStickyFirstBody,
 } from "@/components/ui";
+import { formatDateTime } from "@/utils/formatDate";
 import { useDataTable } from "@/hooks/useDataTable";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -376,7 +377,7 @@ export function StockCountSessionsPage() {
                       >
                     <TableRowNumberCell page={page} pageSize={PAGE_SIZE} indexInPage={index} />
                         <td className={tableStickyFirstBody}>
-                          {new Date(s.startedAt).toLocaleString("en-GB")}
+                          {formatDateTime(s.startedAt)}
                         </td>
                         <td className={tableBodyCell}>
                           {s.sourceType}
@@ -447,9 +448,9 @@ export function StockCountSessionsPage() {
                 title="Delete this stock count session?"
                 message={
                   sessionToDelete
-                    ? `Remove session from ${new Date(
+                    ? `Remove session from ${formatDateTime(
                         sessionToDelete.startedAt
-                      ).toLocaleString()}? This cannot be undone.`
+                      )}? This cannot be undone.`
                     : ""
                 }
                 confirmLabel="Delete"
