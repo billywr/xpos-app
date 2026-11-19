@@ -34,6 +34,7 @@ import {
 } from "@/api/salesRecordingDraft";
 import { Pagination } from "@/components/ui/Pagination";
 import {
+  Badge,
   Button,
   SortableTableHead,
   TableRowNumberHead,
@@ -640,7 +641,7 @@ export function SalesRecordingPage() {
                   sortColumn={sortColumn}
                   sortDirection={sortDirection}
                   onSort={toggleSort}
-                  className={`${tableHeadCell} min-w-[8.5rem] whitespace-nowrap`}
+                  className={`${tableHeadCell} min-w-[10rem] whitespace-nowrap`}
                 />
                 <SortableTableHead
                   columnKey="lineTotal"
@@ -697,31 +698,36 @@ export function SalesRecordingPage() {
                       <td className={`${tableBodyCellNumDebts} whitespace-nowrap`}>
                         {formatAmount(price)}
                       </td>
-                      <td className={`${tableBodyCell} min-w-[8.5rem]`}>
+                      <td className={`${tableBodyCell} min-w-[10rem]`}>
                         <div className="flex flex-col gap-1">
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={qtyRaw}
-                            onChange={(e) =>
-                              handleQtyChange(item.id, e.target.value)
-                            }
-                            placeholder="0"
-                            aria-label={`Draft quantity for ${item.name}`}
-                            className={`w-[4.5rem] max-w-full rounded border bg-white px-2 py-1 text-left text-lg tabular-nums focus:outline-none sm:text-xl dark:bg-slate-700 ${
-                                err
-                                  ? "border-red-400 text-red-700 focus:border-red-500 dark:border-red-500 dark:text-red-300"
-                                  : hasDraft
-                                    ? "border-amber-400 text-amber-700 focus:border-amber-500 dark:border-amber-500 dark:text-amber-300"
-                                    : "border-slate-300 focus:border-primary dark:border-slate-600 dark:text-white"
-                              }`}
-                            />
-                          {savedQty > 0 && (
-                            <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                              {formatQty(savedQty)}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={qtyRaw}
+                              onChange={(e) =>
+                                handleQtyChange(item.id, e.target.value)
+                              }
+                              placeholder="0"
+                              aria-label={`Draft quantity for ${item.name}`}
+                              className={`w-[4.5rem] max-w-full rounded border bg-white px-2 py-1 text-left text-lg tabular-nums focus:outline-none sm:text-xl dark:bg-slate-700 ${
+                                  err
+                                    ? "border-red-400 text-red-700 focus:border-red-500 dark:border-red-500 dark:text-red-300"
+                                    : hasDraft
+                                      ? "border-amber-400 text-amber-700 focus:border-amber-500 dark:border-amber-500 dark:text-amber-300"
+                                      : "border-slate-300 focus:border-primary dark:border-slate-600 dark:text-white"
+                                }`}
+                              />
+                            {savedQty > 0 && (
+                              <Badge
+                                variant="success"
+                                title={`Recorded sold: ${formatQty(savedQty)}`}
+                                className="shrink-0"
+                              >
+                                {formatQty(savedQty)}
+                              </Badge>
+                            )}
+                          </div>
                           {err && (
                             <p className="text-sm text-red-500">{err}</p>
                           )}

@@ -11,12 +11,13 @@ export interface BadgeProps {
   status?: string;
   children: ReactNode;
   className?: string;
+  title?: string;
 }
 
-export function Badge({ variant, status, children, className }: BadgeProps) {
+export function Badge({ variant, status, children, className, title }: BadgeProps) {
   const resolvedVariant = variant ?? (status ? getStatusBadgeVariant(status) : "neutral");
   return (
-    <span className={cn(badgeBase, badgeVariants[resolvedVariant], className)}>
+    <span title={title} className={cn(badgeBase, badgeVariants[resolvedVariant], className)}>
       {children}
     </span>
   );

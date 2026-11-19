@@ -156,15 +156,15 @@ export function AdminLayout() {
             aria-hidden="true"
           />
           <aside
-            className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-sidebar shadow-xl"
+            className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-slate-200 bg-white shadow-xl dark:border-white/10 dark:bg-darkNav"
             style={{ top: 0 }}
           >
-            <div className="flex items-center justify-between border-b border-slate-200/60 px-3 py-3 dark:border-white/10">
+            <div className="flex items-center justify-between border-b border-slate-200 px-3 py-3 dark:border-white/10">
               <h2 className="font-semibold text-slate-800 dark:text-white">Admin</h2>
               <button
                 type="button"
                 onClick={closeMobile}
-                className="rounded-lg p-2 text-slate-500 hover:bg-primary-100 hover:text-primary-700 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
                 aria-label="Close sidebar"
               >
                 <X className="h-5 w-5" />
@@ -177,17 +177,16 @@ export function AdminLayout() {
 
       {/* Desktop sidebar: fixed so it always extends to bottom regardless of page length */}
       <aside
-        className={`fixed left-0 z-10 hidden flex-col bg-sidebar transition-[width] duration-200 md:flex ${
+        className={`fixed left-0 z-10 hidden flex-col border-r border-slate-200 bg-white transition-[width] duration-200 md:flex dark:border-white/10 dark:bg-darkNav ${
           collapsed ? "w-[4.25rem]" : "w-56"
         }`}
         style={{
           top: HEADER_HEIGHT,
           bottom: 0,
-          boxShadow: "2px 0 16px -4px var(--sidebar-edge)",
         }}
       >
         <div
-          className={`flex items-center border-b border-slate-200/60 px-3 py-3 dark:border-white/10 ${
+          className={`flex items-center border-b border-slate-200 px-3 py-3 dark:border-white/10 ${
             collapsed ? "justify-end" : "justify-between"
           }`}
         >
@@ -197,7 +196,7 @@ export function AdminLayout() {
           <button
             type="button"
             onClick={toggle}
-            className="rounded-lg p-2 text-slate-500 hover:bg-primary-100 hover:text-primary-700 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (
