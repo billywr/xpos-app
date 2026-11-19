@@ -19,6 +19,7 @@ import { set401Handler } from "@/api/client";
 import { clearStoredAuth } from "@/utils/authStorage";
 import { clearStoredContext } from "@/utils/contextStorage";
 import { clearAllStoredTableSearch } from "@/utils/tableSearchStorage";
+import { clearAllStoredDatePersistence } from "@/utils/datePersistenceStorage";
 import { useActiveOrgs } from "@/hooks/useActiveOrgs";
 
 const HEADER_NAV_LINKS = [
@@ -56,6 +57,7 @@ export function Layout() {
       clearStoredAuth();
       clearStoredContext();
       clearAllStoredTableSearch();
+      clearAllStoredDatePersistence();
       dispatch(clearCredentials());
       dispatch(clearContext());
       navigate("/login", { replace: true });
@@ -69,6 +71,7 @@ export function Layout() {
     clearStoredAuth();
     clearStoredContext();
     clearAllStoredTableSearch();
+    clearAllStoredDatePersistence();
     dispatch(clearCredentials());
     dispatch(clearContext());
     navigate("/login", { replace: true, state: { from: "idle" } });
@@ -83,6 +86,7 @@ export function Layout() {
     clearStoredAuth();
     clearStoredContext();
     clearAllStoredTableSearch();
+    clearAllStoredDatePersistence();
     dispatch(clearCredentials());
     dispatch(clearContext());
     const returnTo = location.pathname + location.search || "/";

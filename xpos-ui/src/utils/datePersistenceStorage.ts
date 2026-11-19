@@ -96,3 +96,25 @@ export function saveGoodsReceiptFilterRange(
     localStorage.setItem(GRN_FILTER_RANGE_KEY, json);
   } catch {}
 }
+
+/** Clear all stored date persistence keys (for stock taking and stock receipts). */
+export function clearAllStoredDatePersistence(): void {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        (key.startsWith(STD_STOCK_COUNT_DATE_KEY) ||
+          key.startsWith(GRN_RECEIVED_AT_KEY) ||
+          key.startsWith(GRN_FILTER_RANGE_KEY))
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+    for (const key of keysToRemove) {
+      localStorage.removeItem(key);
+    }
+  } catch {}
+}
+

@@ -8,7 +8,11 @@ import orgContextReducer from "@/store/slices/orgContextSlice";
 import cartReducer from "@/store/slices/cartSlice";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { StandardStockCountSheetPage } from "./StandardStockCountSheetPage";
-import { getSavedStockCountDate, saveStockCountDate } from "@/utils/datePersistenceStorage";
+import {
+  getSavedStockCountDate,
+  saveStockCountDate,
+  clearAllStoredDatePersistence,
+} from "@/utils/datePersistenceStorage";
 import { MemoryRouter } from "react-router-dom";
 
 // Mock the APIs
@@ -135,4 +139,17 @@ describe("StandardStockCountSheetPage date persistence", () => {
       expect(screen.queryByRole("button", { name: /today/i })).not.toBeInTheDocument();
     });
   });
+
+  it("defaults to today after clearAllStoredDatePersistence is called", async () => {
+    saveStockCountDate("2026-11-10", "org-1", "branch-1");
+    clearAllStoredDatePersistence();
+
+    renderSheet();
+
+    // Since date is today, Today button should not be in the document
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /today/i })).not.toBeInTheDocument();
+    });
+  });
 });
+

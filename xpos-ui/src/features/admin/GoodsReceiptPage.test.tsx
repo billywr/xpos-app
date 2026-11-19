@@ -342,17 +342,18 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     ]);
   });
 
-  it("renders stock receiving with initial 'All' range and calculates grand total KPI", async () => {
+  it("renders stock receiving with initial 'Today' range and switches to 'All' to calculate grand total KPI", async () => {
     wrap(<GoodsReceiptPage initialOrgId="org-1" initialBranchId="branch-1" />);
 
     await waitFor(() => {
       expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
     });
 
+    // Default is Today: 1 receipt, 10 units, 2,000 value
     expect(screen.getByText("Total Stock Value")).toBeInTheDocument();
-    expect(screen.getAllByText(/10,000/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/3 receipts/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/35 units/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/2,000/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/1 receipt/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/10 units/).length).toBeGreaterThanOrEqual(1);
 
     // Presets exist
     expect(screen.getByRole("button", { name: "All" })).toBeInTheDocument();
@@ -361,6 +362,14 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     expect(screen.getByRole("button", { name: "30 Days" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "This Month" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Custom" })).toBeInTheDocument();
+
+    // Click "All" to view all receipts
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    await waitFor(() => {
+      expect(screen.getAllByText(/10,000/).length).toBeGreaterThanOrEqual(1);
+    });
+    expect(screen.getAllByText(/3 receipts/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/35 units/).length).toBeGreaterThanOrEqual(1);
   });
 
   it("filters to 'Today' and dynamically updates total value to today's receipts only", async () => {
@@ -469,6 +478,12 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
       expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
     });
 
+    // Switch to All range first so receipts from 5 days ago are included
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    await waitFor(() => {
+      expect(screen.getAllByText(/10,000/).length).toBeGreaterThanOrEqual(1);
+    });
+
     // Select Kenya Wine Agencies (sup-2) which has only Viceroy 750ml (5 * 1000 = 5,000)
     const supplierSelect = screen.getByPlaceholderText("Filter by supplier…");
     fireEvent.change(supplierSelect, { target: { value: "Kenya Wine Agencies" } });
@@ -567,6 +582,195 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
       const listbox = screen.getByRole("listbox");
       expect(within(listbox).getByText("Guinness bottle")).toBeInTheDocument();
       expect(within(listbox).getByText("Tusker Lager")).toBeInTheDocument();
+    });
+  });
+
+  it("preserves exact receivedAt timestamp when editing single line without changing date", async () => {
+    const multiLineGrn = {
+      id: "grn-multi",
+      orgId: "org-1",
+      branchId: "branch-1",
+      supplierId: "sup-1",
+      supplierName: "East Africa Breweries",
+      purchaseOrderId: null,
+      receivedByStaffUserId: "user-1",
+      receivedAt: "2026-11-18T10:15:30Z",
+      createdAt: "2026-11-18T10:15:30Z",
+      active: true,
+      lines: [
+        {
+          id: "line-a",
+          grnId: "grn-multi",
+          itemId: "item-1",
+          itemName: "Guinness bottle",
+          barcode: "123456",
+          qty: 10,
+          uomId: null,
+          receivedUnitCost: 200,
+          createdAt: "2026-11-18T10:15:30Z",
+        },
+        {
+          id: "line-b",
+          grnId: "grn-multi",
+          itemId: "item-3",
+          itemName: "Tusker Lager",
+          barcode: "345678",
+          qty: 20,
+          uomId: null,
+          receivedUnitCost: 150,
+          createdAt: "2026-11-18T10:15:30Z",
+        },
+      ],
+    };
+
+    vi.mocked(grnApi.fetchGoodsReceiptNotes).mockResolvedValue({
+      content: [multiLineGrn],
+      totalElements: 1,
+      totalPages: 1,
+      size: 500,
+      number: 0,
+      first: true,
+      last: true,
+    });
+
+    vi.mocked(grnApi.updateGoodsReceiptNote).mockResolvedValue(multiLineGrn);
+
+    wrap(<GoodsReceiptPage initialOrgId="org-1" initialBranchId="branch-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
+    });
+
+    // Click edit on line-a
+    const editLineBtn = screen.getByLabelText("Edit line Guinness bottle");
+    fireEvent.click(editLineBtn);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Edit line" })).toBeInTheDocument();
+    });
+
+    // Change qty from 10 to 12 without changing date
+    const qtyInput = screen.getByDisplayValue("10");
+    fireEvent.change(qtyInput, { target: { value: "12" } });
+
+    // Submit
+    const saveBtn = screen.getByRole("button", { name: /save line/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(grnApi.updateGoodsReceiptNote).toHaveBeenCalledWith(
+        "test-token",
+        "org-1",
+        "grn-multi",
+        expect.objectContaining({
+          receivedAt: "2026-11-18T10:15:30Z", // exact timestamp preserved!
+          lines: expect.arrayContaining([
+            expect.objectContaining({ itemId: "item-1", qty: 12 }),
+            expect.objectContaining({ itemId: "item-3", qty: 20 }),
+          ]),
+        })
+      );
+    });
+  });
+
+  it("splits item into a new receipt when editing single line and changing receiving date", async () => {
+    const multiLineGrn = {
+      id: "grn-multi",
+      orgId: "org-1",
+      branchId: "branch-1",
+      supplierId: "sup-1",
+      supplierName: "East Africa Breweries",
+      purchaseOrderId: null,
+      receivedByStaffUserId: "user-1",
+      receivedAt: "2026-11-17T15:00:00Z",
+      createdAt: "2026-11-17T15:00:00Z",
+      active: true,
+      lines: [
+        {
+          id: "line-a",
+          grnId: "grn-multi",
+          itemId: "item-1",
+          itemName: "Guinness bottle",
+          barcode: "123456",
+          qty: 10,
+          uomId: null,
+          receivedUnitCost: 200,
+          createdAt: "2026-11-17T15:00:00Z",
+        },
+        {
+          id: "line-b",
+          grnId: "grn-multi",
+          itemId: "item-3",
+          itemName: "Tusker Lager",
+          barcode: "345678",
+          qty: 20,
+          uomId: null,
+          receivedUnitCost: 150,
+          createdAt: "2026-11-17T15:00:00Z",
+        },
+      ],
+    };
+
+    vi.mocked(grnApi.fetchGoodsReceiptNotes).mockResolvedValue({
+      content: [multiLineGrn],
+      totalElements: 1,
+      totalPages: 1,
+      size: 500,
+      number: 0,
+      first: true,
+      last: true,
+    });
+
+    vi.mocked(grnApi.updateGoodsReceiptNote).mockResolvedValue(multiLineGrn);
+    vi.mocked(grnApi.createGoodsReceiptNote).mockResolvedValue({ ...multiLineGrn, id: "grn-new" });
+
+    wrap(<GoodsReceiptPage initialOrgId="org-1" initialBranchId="branch-1" />);
+
+    // Switch to All range so yesterday's receipt is visible
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
+    });
+
+    // Click edit on line-a
+    const editLineBtn = screen.getByLabelText("Edit line Guinness bottle");
+    fireEvent.click(editLineBtn);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Edit line" })).toBeInTheDocument();
+    });
+
+    // Change receivedAt to a new date (2026-11-10)
+    const dateInput = screen.getByLabelText(/received at/i);
+    fireEvent.change(dateInput, { target: { value: "2026-11-10" } });
+
+    // Submit
+    const saveBtn = screen.getByRole("button", { name: /save line/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      // 1. Original receipt is updated with ONLY remaining line (line-b), preserving original date
+      expect(grnApi.updateGoodsReceiptNote).toHaveBeenCalledWith(
+        "test-token",
+        "org-1",
+        "grn-multi",
+        expect.objectContaining({
+          receivedAt: "2026-11-17T15:00:00Z",
+          lines: [expect.objectContaining({ itemId: "item-3", qty: 20 })],
+        })
+      );
+
+      // 2. New receipt is created for line-a on the new date
+      expect(grnApi.createGoodsReceiptNote).toHaveBeenCalledWith(
+        "test-token",
+        "org-1",
+        expect.objectContaining({
+          branchId: "branch-1",
+          supplierId: "sup-1",
+          lines: [expect.objectContaining({ itemId: "item-1", qty: 10 })],
+        })
+      );
     });
   });
 });

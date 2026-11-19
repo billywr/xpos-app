@@ -1,10 +1,6 @@
 import type { ApiError } from "@/types/api";
 import { generateUuid } from "@/utils/uuid";
 import { getEnv } from "@/utils/env";
-import {
-  incrementNetworkActivity,
-  decrementNetworkActivity,
-} from "@/utils/networkActivity";
 
 const REQUEST_ID_HEADER = "X-Request-Id";
 
@@ -79,69 +75,64 @@ export async function apiFetch<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  incrementNetworkActivity();
+  let res: Response;
   try {
-    let res: Response;
-    try {
-      res = await fetch(url, {
-        ...init,
-        headers,
-        body:
-          body !== undefined && body !== null ? JSON.stringify(body) : undefined,
-      });
-    } catch (err) {
-      const isTimeout =
-        err instanceof Error &&
-        (err.name === "TimeoutError" || err.name === "AbortError");
-      const message = isTimeout
-        ? "Request timed out. Please check your network connection."
-        : err instanceof Error && err.message === "Failed to fetch"
-          ? NETWORK_ERROR_MESSAGE
-          : err instanceof Error
-            ? err.message
-            : "Network error";
-      const apiError: ApiError = {
-        timestamp: new Date().toISOString(),
-        status: 0,
-        error: isTimeout ? "TIMEOUT_ERROR" : "NETWORK_ERROR",
-        code: isTimeout ? "TIMEOUT_ERROR" : "NETWORK_ERROR",
-        message,
-        path,
-        requestId,
-      };
-      throw { status: 0, data: apiError };
-    }
-
-    if (res.status === 204) {
-      return undefined as T;
-    }
-
-    const contentType = res.headers.get("Content-Type") ?? "";
-    const isJson = contentType.includes("application/json");
-    const data = isJson ? await res.json() : await res.text();
-
-    if (!res.ok) {
-      const apiError: ApiError = isJson
-        ? data
-        : {
-            timestamp: new Date().toISOString(),
-            status: res.status,
-            error: res.statusText,
-            code: "UNKNOWN",
-            message: typeof data === "string" ? data : "Request failed",
-            path,
-            requestId: res.headers.get(REQUEST_ID_HEADER) ?? requestId,
-          };
-      if (res.status === 401 && on401) {
-        on401();
-      }
-      throw { status: res.status, data: apiError };
-    }
-
-    return data as T;
-  } finally {
-    decrementNetworkActivity();
+    res = await fetch(url, {
+      ...init,
+      headers,
+      body:
+        body !== undefined && body !== null ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    const isTimeout =
+      err instanceof Error &&
+      (err.name === "TimeoutError" || err.name === "AbortError");
+    const message = isTimeout
+      ? "Request timed out. Please check your network connection."
+      : err instanceof Error && err.message === "Failed to fetch"
+        ? NETWORK_ERROR_MESSAGE
+        : err instanceof Error
+          ? err.message
+          : "Network error";
+    const apiError: ApiError = {
+      timestamp: new Date().toISOString(),
+      status: 0,
+      error: isTimeout ? "TIMEOUT_ERROR" : "NETWORK_ERROR",
+      code: isTimeout ? "TIMEOUT_ERROR" : "NETWORK_ERROR",
+      message,
+      path,
+      requestId,
+    };
+    throw { status: 0, data: apiError };
   }
+
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
+  const contentType = res.headers.get("Content-Type") ?? "";
+  const isJson = contentType.includes("application/json");
+  const data = isJson ? await res.json() : await res.text();
+
+  if (!res.ok) {
+    const apiError: ApiError = isJson
+      ? data
+      : {
+          timestamp: new Date().toISOString(),
+          status: res.status,
+          error: res.statusText,
+          code: "UNKNOWN",
+          message: typeof data === "string" ? data : "Request failed",
+          path,
+          requestId: res.headers.get(REQUEST_ID_HEADER) ?? requestId,
+        };
+    if (res.status === 401 && on401) {
+      on401();
+    }
+    throw { status: res.status, data: apiError };
+  }
+
+  return data as T;
 }
 
 

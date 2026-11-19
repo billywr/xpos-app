@@ -4,6 +4,7 @@ import { useAppDispatch } from "@/hooks/useAppDispatch";
 import { setCredentials } from "@/store/slices/authSlice";
 import { loginWithPassword } from "@/api/auth";
 import { setStoredAuth } from "@/utils/authStorage";
+import { clearAllStoredDatePersistence } from "@/utils/datePersistenceStorage";
 import { getStoredBranding } from "@/utils/brandingStorage";
 import { getEnv } from "@/utils/env";
 import { getRolesFromToken, getUsernameFromToken } from "@/utils/jwt";
@@ -58,6 +59,7 @@ export function LoginPage() {
       });
       const roles = getRolesFromToken(token);
       const keycloakUsername = getUsernameFromToken(token);
+      clearAllStoredDatePersistence();
       dispatch(setCredentials({ token, iamUserId, username: keycloakUsername ?? undefined, expiresAt: expiresAt ?? undefined, refreshToken, roles }));
       setStoredAuth({ token, iamUserId, username: keycloakUsername, expiresAt: expiresAt ?? null, refreshToken, roles });
       navigate(returnTo, { replace: true });

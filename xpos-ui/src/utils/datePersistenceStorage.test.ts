@@ -6,11 +6,28 @@ import {
   saveGoodsReceiptReceivedAt,
   getSavedGoodsReceiptFilterRange,
   saveGoodsReceiptFilterRange,
+  clearAllStoredDatePersistence,
 } from "./datePersistenceStorage";
 
 describe("datePersistenceStorage", () => {
   beforeEach(() => {
     localStorage.clear();
+  });
+
+  describe("clearAllStoredDatePersistence", () => {
+    it("clears all stock count and goods receipt persisted dates but leaves unrelated items intact", () => {
+      saveStockCountDate("2026-11-10", "org-1", "branch-1");
+      saveGoodsReceiptReceivedAt("2026-11-10T14:30", "org-1", "branch-1");
+      saveGoodsReceiptFilterRange({ preset: "7days", startDate: "", endDate: "" }, "org-1", "branch-1");
+      localStorage.setItem("unrelated_theme", "dark");
+
+      clearAllStoredDatePersistence();
+
+      expect(getSavedStockCountDate("org-1", "branch-1")).toBeNull();
+      expect(getSavedGoodsReceiptReceivedAt("org-1", "branch-1")).toBeNull();
+      expect(getSavedGoodsReceiptFilterRange("org-1", "branch-1")).toEqual({ preset: null, startDate: null, endDate: null });
+      expect(localStorage.getItem("unrelated_theme")).toBe("dark");
+    });
   });
 
   describe("Stock Count Date", () => {

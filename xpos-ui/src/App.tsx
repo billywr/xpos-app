@@ -7,6 +7,7 @@ import { clearContext } from "@/store/slices/orgContextSlice";
 import { clearStoredAuth } from "@/utils/authStorage";
 import { clearStoredContext } from "@/utils/contextStorage";
 import { clearAllStoredTableSearch } from "@/utils/tableSearchStorage";
+import { clearAllStoredDatePersistence } from "@/utils/datePersistenceStorage";
 import { Layout } from "@/components/Layout";
 import { AdminLayout } from "@/components/AdminLayout";
 import { TopProgressBar } from "@/components/ui/TopProgressBar";
@@ -70,6 +71,7 @@ function App() {
       clearStoredAuth();
       clearStoredContext();
       clearAllStoredTableSearch();
+      clearAllStoredDatePersistence();
       dispatch(clearCredentials());
       dispatch(clearContext());
       navigate("/login");

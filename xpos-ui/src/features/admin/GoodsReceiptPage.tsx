@@ -298,7 +298,7 @@ export function GoodsReceiptPage({
   const [selectedBranchId, setSelectedBranchId] = useState<string>(initialBranchId ?? "");
   const [activePreset, setActivePreset] = useState<DatePreset>(() => {
     const saved = getSavedGoodsReceiptFilterRange(initialOrgId, initialBranchId);
-    return (saved.preset as DatePreset) || "all";
+    return (saved.preset as DatePreset) || "today";
   });
   const [customStartDate, setCustomStartDate] = useState<string>(() => {
     const saved = getSavedGoodsReceiptFilterRange(initialOrgId, initialBranchId);
@@ -328,7 +328,7 @@ export function GoodsReceiptPage({
   const [editingSingleLineId, setEditingSingleLineId] = useState<string | null>(null);
   const [supplierId, setSupplierId] = useState<string>("");
   const [receivedAt, setReceivedAt] = useState<string>(
-    () => getSavedGoodsReceiptReceivedAt(initialOrgId, initialBranchId) || ""
+    () => getSavedGoodsReceiptReceivedAt(initialOrgId, initialBranchId) || formatDateInput(new Date())
   );
   const [lines, setLines] = useState<GrnLineForm[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
@@ -906,7 +906,7 @@ export function GoodsReceiptPage({
     setLines((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     if (!supplierId) {
@@ -929,11 +929,12 @@ export function GoodsReceiptPage({
       const mapFormToReq = (l: (typeof validLines)[number]): GrnLineRequest => ({
         itemId: l.itemId,
         qty: parseFloat(l.qty),
-
         receivedUnitCost: l.receivedUnitCost ? parseFloat(l.receivedUnitCost) : null,
       });
 
-      let mergedForPatch: GrnLineRequest[];
+      const isDateChanged = formatDateInput(rt) !== formatDateInput(editingGrn.receivedAt);
+      const isSupplierChanged = supplierId !== editingGrn.supplierId;
+
       if (editingSingleLineId) {
         if (validLines.length !== 1) {
           setFormError("Edit one line at a time.");
@@ -948,7 +949,91 @@ export function GoodsReceiptPage({
           setFormError("Another line on this receipt already uses this item.");
           return;
         }
-        mergedForPatch = [...otherLines, updated];
+
+        // If editing a single line on a multi-item receipt and date or supplier changed,
+        // split this line to its own receipt so other lines keep their original date/supplier!
+        if (editingGrn.lines.length > 1 && (isDateChanged || isSupplierChanged)) {
+          if (
+            itemIdsReceivedOnSelectedDateOtherGrns.has(updated.itemId) &&
+            !originalGrnItemIds.has(updated.itemId)
+          ) {
+            setFormError(
+              "Cannot add items that already appear on another stock receipt from this supplier at this branch with the same received date."
+            );
+            return;
+          }
+
+          setSubmitLoading(true);
+          try {
+            // 1. Remove this line from original receipt, preserving original date & supplier untouched!
+            await updateGoodsReceiptNote(token, selectedOrgId, editingGrn.id, {
+              supplierId: editingGrn.supplierId,
+              receivedAt: editingGrn.receivedAt,
+              lines: otherLines,
+            });
+
+            // 2. Create new receipt with the modified line on the new date/supplier
+            await createGoodsReceiptNote(token, selectedOrgId, {
+              branchId: selectedBranchId,
+              supplierId,
+              receivedAt: toISOReceivedAt(rt),
+              lines: [updated],
+            });
+
+            queryClient.invalidateQueries({
+              queryKey: ["admin-grns", token, selectedOrgId, selectedBranchId],
+            });
+            queryClient.invalidateQueries({
+              queryKey: [
+                "admin-grns-receive-context",
+                token,
+                selectedOrgId,
+                selectedBranchId,
+              ],
+            });
+            void invalidateInventoryQueries(queryClient);
+            setSlideOpen(false);
+            setEditingGrn(null);
+            setEditingSingleLineId(null);
+            setConfirmDeleteLine(null);
+            setFormError(null);
+            setSubmitLoading(false);
+            toast.success("Stock receipt updated.", { title: "Saved" });
+          } catch (err) {
+            setSubmitLoading(false);
+            const requestId = getApiErrorRequestId(err);
+            toast.error(getApiErrorMessage(err), {
+              detail: requestId ? `Reference: ${requestId}` : undefined,
+            });
+          }
+          return;
+        }
+
+        const mergedForPatch = [...otherLines, updated];
+        for (const l of mergedForPatch) {
+          if (
+            itemIdsReceivedOnSelectedDateOtherGrns.has(l.itemId) &&
+            !originalGrnItemIds.has(l.itemId)
+          ) {
+            setFormError(
+              "Cannot add items that already appear on another stock receipt from this supplier at this branch with the same received date."
+            );
+            return;
+          }
+        }
+
+        // When date didn't change, keep the exact original receivedAt timestamp
+        const effectiveReceivedAt = isDateChanged ? toISOReceivedAt(rt) : editingGrn.receivedAt;
+        const effectiveSupplierId = isSupplierChanged ? supplierId : editingGrn.supplierId;
+
+        setSubmitLoading(true);
+        updateMutation.mutate({
+          grnId: editingGrn.id,
+          supplierId: effectiveSupplierId,
+          receivedAt: effectiveReceivedAt,
+          lines: mergedForPatch,
+        });
+        return;
       } else {
         const seenIds = new Set<string>();
         for (const l of validLines) {
@@ -958,29 +1043,30 @@ export function GoodsReceiptPage({
           }
           seenIds.add(l.itemId);
         }
-        mergedForPatch = validLines.map(mapFormToReq);
-      }
-
-      for (const l of mergedForPatch) {
-        if (
-          itemIdsReceivedOnSelectedDateOtherGrns.has(l.itemId) &&
-          !originalGrnItemIds.has(l.itemId)
-        ) {
-          setFormError(
-            "Cannot add items that already appear on another stock receipt from this supplier at this branch with the same received date."
-          );
-          return;
+        const mergedForPatch = validLines.map(mapFormToReq);
+        for (const l of mergedForPatch) {
+          if (
+            itemIdsReceivedOnSelectedDateOtherGrns.has(l.itemId) &&
+            !originalGrnItemIds.has(l.itemId)
+          ) {
+            setFormError(
+              "Cannot add items that already appear on another stock receipt from this supplier at this branch with the same received date."
+            );
+            return;
+          }
         }
-      }
 
-      setSubmitLoading(true);
-      updateMutation.mutate({
-        grnId: editingGrn.id,
-        supplierId,
-        receivedAt: toISOReceivedAt(rt),
-        lines: mergedForPatch,
-      });
-      return;
+        const effectiveReceivedAt = isDateChanged ? toISOReceivedAt(rt) : editingGrn.receivedAt;
+
+        setSubmitLoading(true);
+        updateMutation.mutate({
+          grnId: editingGrn.id,
+          supplierId,
+          receivedAt: effectiveReceivedAt,
+          lines: mergedForPatch,
+        });
+        return;
+      }
     }
     const validLines = lines
       .filter((l) => l.itemId && l.qty && parseFloat(l.qty) > 0)

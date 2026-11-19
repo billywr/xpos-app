@@ -22,7 +22,7 @@ export function TopProgressBar() {
       timer = setTimeout(() => {
         setVisible(false);
         setClosing(false);
-      }, 350);
+      }, 150);
     }
     return () => {
       if (timer) clearTimeout(timer);
@@ -35,7 +35,7 @@ export function TopProgressBar() {
     <div
       aria-hidden="true"
       className={cn(
-        "pointer-events-none fixed left-0 right-0 top-0 z-[9999] h-0.5 overflow-hidden bg-transparent transition-opacity duration-300 sm:h-1",
+        "pointer-events-none fixed left-0 right-0 top-0 z-[9999] h-0.5 overflow-hidden bg-transparent transition-opacity duration-150 sm:h-1",
         closing ? "opacity-0" : "opacity-100"
       )}
     >
