@@ -10,6 +10,7 @@ import cartReducer from "@/store/slices/cartSlice";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { StandardStockCountSheetPage } from "./StandardStockCountSheetPage";
 import * as stdApi from "@/api/stdStockCount";
+import type { StdStockCountRowResponse } from "@/api/stdStockCount";
 import * as debtsApi from "@/api/debts";
 import * as analyticsApi from "@/api/operatorAnalytics";
 

@@ -595,6 +595,17 @@ export function GoodsReceiptPage({
     return new Set(editingGrn.lines.map((line) => line.itemId));
   }, [editingGrn?.id, editingGrn?.lines]);
 
+  const linesTotalCost = useMemo(() => {
+    return lines.reduce((sum, l) => {
+      const q = parseFloat(l.qty);
+      const c = parseFloat(l.receivedUnitCost);
+      if (!Number.isNaN(q) && !Number.isNaN(c) && q > 0 && c > 0) {
+        return sum + q * c;
+      }
+      return sum;
+    }, 0);
+  }, [lines]);
+
   const grns = grnsData?.content ?? [];
 
   const filteredGrns = useMemo(() => {
@@ -1774,14 +1785,25 @@ export function GoodsReceiptPage({
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              {editingGrn
-                ? editingSingleLineId
-                  ? "Line on receipt"
-                  : "Receipt lines"
-                : "Items to receive as stock"}
-            </label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                {editingGrn
+                  ? editingSingleLineId
+                    ? "Line on receipt"
+                    : "Receipt lines"
+                  : "Receive"}
+              </label>
+              <span
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100/80 px-2 py-0.5 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                aria-label={`Total cost: ${formatCurrency(linesTotalCost)}`}
+              >
+                <span>Total cost:</span>
+                <span className="font-semibold tabular-nums text-slate-900 dark:text-white">
+                  {formatCurrency(linesTotalCost)}
+                </span>
+              </span>
+            </div>
             {!editingSingleLineId ? (
               <button
                 type="button"
@@ -1793,12 +1815,6 @@ export function GoodsReceiptPage({
               </button>
             ) : null}
           </div>
-          {!editingGrn ? (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Items already on another receipt from the selected supplier received on this date at this branch are
-              hidden. Edit that receipt if you need to change them.
-            </p>
-          ) : null}
           {showBarcode && !editingSingleLineId && (
             <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-600 dark:bg-slate-800/50">
               <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">

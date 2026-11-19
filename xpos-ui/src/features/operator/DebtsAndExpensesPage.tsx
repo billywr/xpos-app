@@ -376,12 +376,14 @@ export interface DebtsAndExpensesPageProps {
   orgId?: string;
   branchId?: string;
   branchName?: string;
+  defaultTab?: TabId;
 }
 
 export function DebtsAndExpensesPage({
   orgId: propOrgId,
   branchId: propBranchId,
   branchName: propBranchName,
+  defaultTab = "expenses",
 }: DebtsAndExpensesPageProps = {}) {
   const token = useAppSelector(selectToken);
   const keycloakUsername = useAppSelector(selectUsername);
@@ -408,7 +410,7 @@ export function DebtsAndExpensesPage({
     "";
 
   // Shared state
-  const [tab, setTab] = useState<TabId>("utilities");
+  const [tab, setTab] = useState<TabId>(defaultTab);
   const [isCreateUtilityOpen, setIsCreateUtilityOpen] = useState(false);
   const downloadUtilitiesPdfRef = useRef<(() => void) | null>(null);
   const [fromDate, setFromDate] = useState<string | null>(null);
@@ -1640,9 +1642,9 @@ export function DebtsAndExpensesPage({
           tabListId="debts-expenses"
           ariaLabel="Debts and Expenses"
           tabs={[
-            { id: "utilities", label: "Utilities", icon: Building2, enabled: true },
-            { id: "debts", label: "Debts", icon: HandCoins, enabled: true },
             { id: "expenses", label: "Expenses", icon: Receipt, enabled: true },
+            { id: "debts", label: "Debts", icon: HandCoins, enabled: true },
+            { id: "utilities", label: "Utilities", icon: Building2, enabled: true },
           ]}
           activeTab={tab}
           onTabChange={(id) => setTab(id as TabId)}

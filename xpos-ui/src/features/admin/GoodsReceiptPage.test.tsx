@@ -533,6 +533,9 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     // Slide-over opens
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Add stock" })).toBeInTheDocument();
+      expect(screen.getByText("Receive")).toBeInTheDocument();
+      expect(screen.getByText(/Total cost:/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Items already on another receipt/i)).not.toBeInTheDocument();
     });
 
     const itemCombobox = screen.getByPlaceholderText("Search item name, SKU, barcode…");
@@ -582,6 +585,41 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
       const listbox = screen.getByRole("listbox");
       expect(within(listbox).getByText("Guinness bottle")).toBeInTheDocument();
       expect(within(listbox).getByText("Tusker Lager")).toBeInTheDocument();
+    });
+  });
+
+  it("displays Receive title and calculates dynamic total cost at top of lines", async () => {
+    wrap(<GoodsReceiptPage initialOrgId="org-1" initialBranchId="branch-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
+    });
+
+    // Open Add Stock slide-over
+    fireEvent.click(screen.getByRole("button", { name: /add stock/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Receive")).toBeInTheDocument();
+      expect(screen.getByText(/Total cost:/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Items already on another receipt/i)).not.toBeInTheDocument();
+    });
+
+    // Select Tusker Lager (item-3, buyingPrice 150)
+    const itemCombobox = screen.getByPlaceholderText("Search item name, SKU, barcode…");
+    fireEvent.focus(itemCombobox);
+    fireEvent.click(itemCombobox);
+
+    await waitFor(() => {
+      const listbox = screen.getByRole("listbox");
+      fireEvent.click(within(listbox).getByText("Tusker Lager"));
+    });
+
+    // Set qty to 4. Total cost should be 4 * 150 = 600
+    const qtyInput = screen.getByPlaceholderText("0");
+    fireEvent.change(qtyInput, { target: { value: "4" } });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Total cost: KSh\s*600/i)).toBeInTheDocument();
     });
   });
 
@@ -636,6 +674,9 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     vi.mocked(grnApi.updateGoodsReceiptNote).mockResolvedValue(multiLineGrn);
 
     wrap(<GoodsReceiptPage initialOrgId="org-1" initialBranchId="branch-1" />);
+
+    // Switch to All range so receipt is visible
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
 
     await waitFor(() => {
       expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
