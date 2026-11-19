@@ -53,6 +53,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const add = useCallback(
     (variant: ToastVariant, message: string, options?: ToastOptions) => {
+      // Clear any pending exit timeouts
+      exitTimeoutsRef.current.forEach((t) => clearTimeout(t));
+      exitTimeoutsRef.current.clear();
+
       const id = generateUuid();
       const title = options?.title ?? (variant === "success" ? "Success" : "Error");
       const duration =
@@ -69,7 +73,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         duration,
       };
 
-      setEntries((prev) => [...prev, { toast, isExiting: false }]);
+      // Close previous toast before displaying current (no stacking)
+      setEntries([{ toast, isExiting: false }]);
       return id;
     },
     []

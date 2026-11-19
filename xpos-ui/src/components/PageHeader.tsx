@@ -48,7 +48,7 @@ export function PageHeader({
         <ChevronLeft className="h-6 w-6" />
       </button>
       <div className="min-w-0 flex-1">
-        <h1 className="flex items-center gap-2 text-xl font-bold text-slate-800 sm:text-2xl dark:text-white">
+        <h1 className="flex items-center gap-2 text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
           {Icon && <Icon className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />}
           {title}
         </h1>

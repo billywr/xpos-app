@@ -1968,7 +1968,7 @@ function PaymentModal({
                   type="tel"
                   value={debtCustomerPhone}
                   onChange={(e) => setDebtCustomerPhone(e.target.value)}
-                  placeholder="Phone (optional)"
+                  placeholder="Phone"
                   className="min-h-[72px] w-full rounded-xl border border-slate-300 bg-white px-5 py-3 text-2xl font-semibold text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:min-h-[80px] sm:text-3xl dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   aria-label="Customer phone"
                 />

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { SlideOver } from "./SlideOver";
+import { SlideOver, SlideOverFooter } from "./SlideOver";
 
 describe("SlideOver", () => {
   it("renders when open with default ~50% width classes", () => {
@@ -85,5 +85,21 @@ describe("SlideOver", () => {
     );
 
     expect(screen.getByText("Extra Action")).toBeInTheDocument();
+  });
+
+  it("renders SlideOverFooter with grid grid-cols-2 for 50/50 side by side buttons", () => {
+    const { container } = render(
+      <SlideOverFooter>
+        <button type="button">Cancel</button>
+        <button type="submit">Save</button>
+      </SlideOverFooter>
+    );
+
+    const footer = container.firstElementChild;
+    expect(footer).toHaveClass("grid");
+    expect(footer).toHaveClass("grid-cols-2");
+    expect(footer).toHaveClass("gap-3");
+    expect(screen.getByText("Cancel")).toBeInTheDocument();
+    expect(screen.getByText("Save")).toBeInTheDocument();
   });
 });

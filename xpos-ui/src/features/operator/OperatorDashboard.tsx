@@ -122,7 +122,7 @@ export function OperatorDashboard() {
 
   return (
     <div className="p-6">
-      <PageHeader title="Operator Dashboard" fallbackTo="/" />
+      <PageHeader title="Operator dashboard" fallbackTo="/" />
       <InlineCopilot
         screen="shift"
         label="Why is my drawer off?"
@@ -195,7 +195,7 @@ export function OperatorDashboard() {
             >
               <label className="flex flex-col gap-1">
                 <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Opening float (optional)
+                  Opening float
                 </span>
                 <input
                   type="number"

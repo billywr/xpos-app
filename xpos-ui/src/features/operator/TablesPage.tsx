@@ -60,9 +60,9 @@ export function TablesPage() {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden p-4">
       <div className="mb-4 flex shrink-0 items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
           Tables
-        </h2>
+        </h1>
       </div>
       <div className="mb-4 flex shrink-0 gap-2">
         {TABS.map(({ path, label }) => (

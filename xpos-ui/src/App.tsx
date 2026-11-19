@@ -8,9 +8,9 @@ import { clearStoredAuth } from "@/utils/authStorage";
 import { clearStoredContext } from "@/utils/contextStorage";
 import { clearAllStoredTableSearch } from "@/utils/tableSearchStorage";
 import { clearAllStoredDatePersistence } from "@/utils/datePersistenceStorage";
+import { clearPersistedQueryCache } from "@/sync/queryPersister";
 import { Layout } from "@/components/Layout";
 import { AdminLayout } from "@/components/AdminLayout";
-import { TopProgressBar } from "@/components/ui/TopProgressBar";
 import { NavVisibilityProvider } from "@/components/NavVisibilityProvider";
 
 import { OperatorLayout } from "@/components/OperatorLayout";
@@ -72,6 +72,7 @@ function App() {
       clearStoredContext();
       clearAllStoredTableSearch();
       clearAllStoredDatePersistence();
+      void clearPersistedQueryCache();
       dispatch(clearCredentials());
       dispatch(clearContext());
       navigate("/login");
@@ -80,9 +81,7 @@ function App() {
   }, [dispatch, navigate]);
 
   return (
-    <>
-      <TopProgressBar />
-      <Routes>
+    <Routes>
         <Route path="/login" element={<LoginPage />} />
 
       <Route
@@ -180,7 +179,6 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
-  </>
   );
 }
 

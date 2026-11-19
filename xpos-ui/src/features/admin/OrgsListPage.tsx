@@ -384,42 +384,59 @@ export function OrgsListPage() {
               {formError}
             </p>
           )}
-          <div>
-            <FormLabel htmlFor="org-name" className="mb-1">
-              Name
-            </FormLabel>
-            <input
-              id="org-name"
-              type="text"
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              placeholder="Organization name"
-              autoFocus
-            />
-          </div>
-          {editingOrg && (
+          {editingOrg ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <FormLabel htmlFor="org-name" className="mb-1">
+                  Name
+                </FormLabel>
+                <input
+                  id="org-name"
+                  type="text"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  placeholder="Organization name"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <FormLabel htmlFor="org-status" className="mb-1">
+                  Status
+                </FormLabel>
+                <SearchableSelect
+                  id="org-status"
+                  options={ORG_STATUS_OPTIONS}
+                  value={formStatus}
+                  onChange={setFormStatus}
+                  placeholder="Search status…"
+                  className="w-full"
+                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                />
+              </div>
+            </div>
+          ) : (
             <div>
-              <FormLabel htmlFor="org-status" className="mb-1">
-                Status
+              <FormLabel htmlFor="org-name" className="mb-1">
+                Name
               </FormLabel>
-              <SearchableSelect
-                id="org-status"
-                options={ORG_STATUS_OPTIONS}
-                value={formStatus}
-                onChange={setFormStatus}
-                placeholder="Search status…"
-                className="w-full"
-                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              <input
+                id="org-name"
+                type="text"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                placeholder="Organization name"
+                autoFocus
               />
             </div>
           )}
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="secondary" size="md" onClick={() => setSlideOpen(false)}>
+          <div className="grid grid-cols-2 gap-3 pt-4">
+            <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setSlideOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" size="md" disabled={submitLoading}>
-              {submitLoading ? "Saving…" : editingOrg ? "Save" : "Create"}
+            <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
+              {submitLoading ? "Saving…" : "Save"}
             </Button>
           </div>
         </form>

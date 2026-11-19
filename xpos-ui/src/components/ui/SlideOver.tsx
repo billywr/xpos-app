@@ -1,7 +1,25 @@
 import { useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { cn } from "@/utils/cn";
 import { IconButton } from "./IconButton";
 import { modalOverlay } from "./styles";
+
+export interface SlideOverFooterProps {
+  children: ReactNode;
+  className?: string;
+}
+
+/**
+ * Standard footer container for slide-over sheet action buttons.
+ * Renders a 2-column grid so Cancel and Add/Save occupy 50% width each side by side.
+ */
+export function SlideOverFooter({ children, className }: SlideOverFooterProps) {
+  return (
+    <div className={cn("grid grid-cols-2 gap-3 pt-4", className)}>
+      {children}
+    </div>
+  );
+}
 
 export interface SlideOverProps {
   open: boolean;

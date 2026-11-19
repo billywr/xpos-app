@@ -77,7 +77,7 @@ export function PageLoadingShell({
                 <thead className="bg-slate-50 dark:bg-slate-700">{tableHead}</thead>
               )}
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                <TableSkeleton columns={columns} />
+                <TableSkeleton columns={columns} withSpinner />
               </tbody>
             </table>
           </div>

@@ -4,7 +4,6 @@ import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import { fetchOrgs } from "@/api/orgs";
 import { fetchCategories } from "@/api/categories";
-import { fetchTaxProfiles } from "@/api/taxProfiles";
 import { fetchModifierGroups } from "@/api/modifierGroups";
 import {
   fetchItems,
@@ -58,7 +57,7 @@ import { filterRowsBySearch } from "@/utils/tableSearchMatch";
 import { sortTableRows } from "@/utils/tableSort";
 import { getItemImageUrl, getItemImageName } from "@/utils/itemImage";
 import { resizeImageTo400x400 } from "@/utils/imageResize";
-import { Plus, Pencil, Trash2, Upload, ChevronDown, Download, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Upload, ChevronDown, Download, Loader2, Info } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { BARCODE_ITEMS, isBarcodeVisible } from "@/config/barcodeVisibility";
@@ -245,12 +244,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     queryKey: ["admin-categories", token, selectedOrgId],
     queryFn: () => fetchCategories(token, selectedOrgId, { size: 500 }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
-  });
-
-  const { data: taxProfilesData } = useQuery({
-    queryKey: ["admin-tax-profiles", token, selectedOrgId],
-    queryFn: () => fetchTaxProfiles(token, selectedOrgId, { size: 200 }),
-    enabled: Boolean(token) && Boolean(selectedOrgId) && slideOpen,
   });
 
   const { data: modifierGroupsData } = useQuery({
@@ -479,7 +472,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     [pagedItems]
   );
   const categories = categoriesData?.content ?? [];
-  const taxProfiles = taxProfilesData?.content ?? [];
   const modifierGroups = modifierGroupsData?.content ?? [];
   const barcodes = barcodesData ?? [];
   const itemModifierGroups = itemModifierGroupsData ?? [];
@@ -509,17 +501,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
       ...categories.map((c: Category) => ({ value: c.id, label: c.name })),
     ],
     [categories]
-  );
-
-  const itemTaxProfileOptions = useMemo(
-    () => [
-      { value: "", label: "None" },
-      ...taxProfiles.map((t: { id: string; name: string }) => ({
-        value: t.id,
-        label: t.name,
-      })),
-    ],
-    [taxProfiles]
   );
 
   const modifierGroupAddOptions = useMemo(
@@ -638,18 +619,27 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
       setFormError("Name is required.");
       return;
     }
+    const trimmedSku = formSku.trim();
+    if (!trimmedSku) {
+      setFormError("SKU is required.");
+      return;
+    }
     const sellingPriceNum = formSellingPrice ? parseFloat(formSellingPrice) : null;
     const buyingPriceNum = formBuyingPrice ? parseFloat(formBuyingPrice) : null;
+    if (buyingPriceNum == null || isNaN(buyingPriceNum) || buyingPriceNum < 0) {
+      setFormError("Buying price is required and must be a valid amount.");
+      return;
+    }
     if (sellingPriceNum == null || isNaN(sellingPriceNum) || sellingPriceNum <= 0) {
       setFormError("Selling price is required and must be greater than 0.");
       return;
     }
-    if (buyingPriceNum != null && !isNaN(buyingPriceNum) && sellingPriceNum <= buyingPriceNum) {
+    if (sellingPriceNum <= buyingPriceNum) {
       setFormError("Selling price must be greater than buying price.");
       return;
     }
     const payload = {
-      sku: formSku.trim() || null,
+      sku: trimmedSku,
       name: trimmed,
       itemType: formItemType,
       categoryId: formCategoryId || null,
@@ -657,7 +647,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
       taxProfileId: formTaxProfileId || null,
       trackInventory: formTrackInventory,
       active: formActive,
-      buyingPrice: buyingPriceNum ?? null,
+      buyingPrice: buyingPriceNum,
       defaultSellingPrice: sellingPriceNum,
 
       visibleInPos: formVisibleInPos,
@@ -838,123 +828,129 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
         fallbackTo="/admin"
       />
 
-      <div className="mb-4 flex flex-wrap items-end gap-4">
-        {orgs.length > 1 && (
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="item-org-select"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Organization
-            </label>
-            <SearchableSelect
-              id="item-org-select"
-              options={orgSelectOptions}
-              value={selectedOrgId}
-              onChange={(next) => {
-                setSelectedOrgId(next);
-                setSelectedCategoryId("");
-                setPage(0);
-                onOrgChange?.(next);
-              }}
-              placeholder="Search organization…"
-              className="w-full sm:w-56"
-              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-            />
-          </div>
-        )}
-        {selectedOrgId && (
-          <>
-            <div ref={categoryFilterRef} className="relative">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end gap-3">
+          {orgs.length > 1 && (
+            <div className="flex flex-col gap-1">
               <label
-                htmlFor="item-category-filter"
-                className="sr-only"
+                htmlFor="item-org-select"
+                className="text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Category filter
+                Organization
               </label>
-              <input
-                id="item-category-filter"
-                type="text"
-                value={categoryFilterOpen ? categoryFilterQuery : selectedCategoryLabel}
-                onChange={(e) => setCategoryFilterQuery(e.target.value)}
-                onFocus={() => {
-                  setCategoryFilterOpen(true);
-                  setCategoryFilterQuery("");
+              <SearchableSelect
+                id="item-org-select"
+                options={orgSelectOptions}
+                value={selectedOrgId}
+                onChange={(next) => {
+                  setSelectedOrgId(next);
+                  setSelectedCategoryId("");
+                  setPage(0);
+                  onOrgChange?.(next);
                 }}
-                readOnly={!categoryFilterOpen}
-                placeholder="Filter by category…"
-                autoComplete="off"
-                data-form-type="other"
-                className="w-48 rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                placeholder="Search organization…"
+                className="w-full sm:w-56"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
               />
-              <button
-                type="button"
-                onClick={() =>
-                  setCategoryFilterOpen((o) => !o)
-                }
-                className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-600"
-                aria-label="Toggle category filter"
-              >
-                <ChevronDown
-                  className={`h-4 w-4 transition ${categoryFilterOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-              {categoryFilterOpen && (
-                <ul
-                  className="absolute left-0 top-full z-20 mt-1 max-h-60 w-48 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-600 dark:bg-slate-800"
-                  role="listbox"
+            </div>
+          )}
+          {selectedOrgId && (
+            <>
+              <div ref={categoryFilterRef} className="relative">
+                <label
+                  htmlFor="item-category-filter"
+                  className="sr-only"
                 >
-                  <li
-                    role="option"
-                    aria-selected={!selectedCategoryId}
-                    onClick={() => {
-                      setSelectedCategoryId("");
-                      setCategoryFilterOpen(false);
-                      setCategoryFilterQuery("");
-                      setPage(0);
-                    }}
-                    className={`cursor-pointer px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 ${
-                      !selectedCategoryId
-                        ? "bg-primary-50 font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
-                        : "text-slate-700 dark:text-slate-300"
-                    }`}
+                  Category filter
+                </label>
+                <input
+                  id="item-category-filter"
+                  type="text"
+                  value={categoryFilterOpen ? categoryFilterQuery : selectedCategoryLabel}
+                  onChange={(e) => setCategoryFilterQuery(e.target.value)}
+                  onFocus={() => {
+                    setCategoryFilterOpen(true);
+                    setCategoryFilterQuery("");
+                  }}
+                  readOnly={!categoryFilterOpen}
+                  placeholder="Filter by category…"
+                  autoComplete="off"
+                  data-form-type="other"
+                  className="w-48 rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCategoryFilterOpen((o) => !o)
+                  }
+                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-600"
+                  aria-label="Toggle category filter"
+                >
+                  <ChevronDown
+                    className={`h-4 w-4 transition ${categoryFilterOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {categoryFilterOpen && (
+                  <ul
+                    className="absolute left-0 top-full z-20 mt-1 max-h-60 w-48 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-600 dark:bg-slate-800"
+                    role="listbox"
                   >
-                    All categories
-                  </li>
-                  {filteredCategoriesForDropdown.map((c: Category) => (
                     <li
-                      key={c.id}
                       role="option"
-                      aria-selected={selectedCategoryId === c.id}
+                      aria-selected={!selectedCategoryId}
                       onClick={() => {
-                        setSelectedCategoryId(c.id);
+                        setSelectedCategoryId("");
                         setCategoryFilterOpen(false);
                         setCategoryFilterQuery("");
                         setPage(0);
                       }}
                       className={`cursor-pointer px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 ${
-                        selectedCategoryId === c.id
+                        !selectedCategoryId
                           ? "bg-primary-50 font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
                           : "text-slate-700 dark:text-slate-300"
                       }`}
                     >
-                      {c.name}
+                      All categories
                     </li>
-                  ))}
-                  {filteredCategoriesForDropdown.length === 0 && (
-                    <li className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">
-                      No categories match
-                    </li>
-                  )}
-                </ul>
-              )}
-            </div>
-            <TableSearchInput
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search items…"
-              className="w-full sm:w-64"
-            />
+                    {filteredCategoriesForDropdown.map((c: Category) => (
+                      <li
+                        key={c.id}
+                        role="option"
+                        aria-selected={selectedCategoryId === c.id}
+                        onClick={() => {
+                          setSelectedCategoryId(c.id);
+                          setCategoryFilterOpen(false);
+                          setCategoryFilterQuery("");
+                          setPage(0);
+                        }}
+                        className={`cursor-pointer px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 ${
+                          selectedCategoryId === c.id
+                            ? "bg-primary-50 font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
+                            : "text-slate-700 dark:text-slate-300"
+                        }`}
+                      >
+                        {c.name}
+                      </li>
+                    ))}
+                    {filteredCategoriesForDropdown.length === 0 && (
+                      <li className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">
+                        No categories match
+                      </li>
+                    )}
+                  </ul>
+                )}
+              </div>
+              <TableSearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search items…"
+                className="w-full sm:w-64"
+              />
+            </>
+          )}
+        </div>
+        {selectedOrgId && (
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <Button
               variant="outline"
               onClick={handleDownloadPdf}
@@ -973,7 +969,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               <Plus className="h-4 w-4" />
               Add item
             </Button>
-          </>
+          </div>
         )}
       </div>
 
@@ -1191,7 +1187,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                                 inlineFileInputRef.current?.click();
                               }}
                               className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/30"
-                              title={item.primaryImageUrl ? "Change image" : "Upload image"}
+                              title={item.primaryImageUrl ? `Image: ${item.primaryImageUrl}` : "Upload image"}
                             >
                               {inlineUploadingItemId === item.id ? (
                                 <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-300 border-t-primary-600" />
@@ -1251,112 +1247,124 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                   {formError}
                 </p>
               )}
-              <div>
-                <FormLabel htmlFor="item-name" className="mb-1">
-                  Name
-                </FormLabel>
-                <input
-                  id="item-name"
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  placeholder="e.g. Coca Cola 500ml"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <FormLabel htmlFor="item-sku" className="mb-1">
-                  SKU (optional)
-                </FormLabel>
-                <input
-                  id="item-sku"
-                  type="text"
-                  value={formSku}
-                  onChange={(e) => setFormSku(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                />
-              </div>
-              {showBarcode && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <FormLabel htmlFor="item-barcode" className="mb-1">
-                    Barcode (optional)
+                  <FormLabel htmlFor="item-name" className="mb-1" required>
+                    Name
                   </FormLabel>
                   <input
-                    id="item-barcode"
+                    id="item-name"
                     type="text"
-                    value={formBarcode}
-                    onChange={(e) => setFormBarcode(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") e.preventDefault();
-                    }}
+                    required
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                    placeholder="e.g. 5901234123457 or scan"
-                    autoComplete="off"
+                    placeholder="e.g. Coca Cola 500ml"
+                    autoFocus
                   />
                 </div>
-              )}
-              <div>
-                <FormLabel htmlFor="item-type" className="mb-1">
-                  Type
-                </FormLabel>
-                <SearchableSelect
-                  id="item-type"
-                  options={itemTypeOptions}
-                  value={formItemType}
-                  onChange={setFormItemType}
-                  placeholder="Search type…"
-                  className="w-full"
-                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                />
+                <div>
+                  <FormLabel htmlFor="item-sku" className="mb-1" required>
+                    SKU
+                  </FormLabel>
+                  <input
+                    id="item-sku"
+                    type="text"
+                    required
+                    value={formSku}
+                    onChange={(e) => setFormSku(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  />
+                </div>
               </div>
-              <div>
-                <FormLabel htmlFor="item-category" className="mb-1">
-                  Category
-                </FormLabel>
-                <SearchableSelect
-                  id="item-category"
-                  options={itemCategoryOptions}
-                  value={formCategoryId}
-                  onChange={setFormCategoryId}
-                  placeholder="Search category…"
-                  className="w-full"
-                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                />
-              </div>
-              <div>
-                <FormLabel htmlFor="item-tax" className="mb-1">
-                  Tax profile
-                </FormLabel>
-                <SearchableSelect
-                  id="item-tax"
-                  options={itemTaxProfileOptions}
-                  value={formTaxProfileId}
-                  onChange={setFormTaxProfileId}
-                  placeholder="Search tax profile…"
-                  className="w-full"
-                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                />
+
+              {showBarcode ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <FormLabel htmlFor="item-barcode" className="mb-1">
+                      Barcode
+                    </FormLabel>
+                    <input
+                      id="item-barcode"
+                      type="text"
+                      value={formBarcode}
+                      onChange={(e) => setFormBarcode(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.preventDefault();
+                      }}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                      placeholder="e.g. 5901234123457 or scan"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div>
+                    <FormLabel htmlFor="item-type" className="mb-1">
+                      Type
+                    </FormLabel>
+                    <SearchableSelect
+                      id="item-type"
+                      options={itemTypeOptions}
+                      value={formItemType}
+                      onChange={setFormItemType}
+                      placeholder="Search type…"
+                      className="w-full"
+                      controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {!showBarcode ? (
+                  <div>
+                    <FormLabel htmlFor="item-type" className="mb-1">
+                      Type
+                    </FormLabel>
+                    <SearchableSelect
+                      id="item-type"
+                      options={itemTypeOptions}
+                      value={formItemType}
+                      onChange={setFormItemType}
+                      placeholder="Search type…"
+                      className="w-full"
+                      controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                    />
+                  </div>
+                ) : null}
+                <div>
+                  <FormLabel htmlFor="item-category" className="mb-1">
+                    Category
+                  </FormLabel>
+                  <SearchableSelect
+                    id="item-category"
+                    options={itemCategoryOptions}
+                    value={formCategoryId}
+                    onChange={setFormCategoryId}
+                    placeholder="Search category…"
+                    className="w-full"
+                    controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <FormLabel htmlFor="item-buying-price" className="mb-1">
-                    Buying price (KES)
+                  <FormLabel htmlFor="item-buying-price" className="mb-1" required>
+                    Buying price
                   </FormLabel>
                   <input
                     id="item-buying-price"
                     type="number"
                     step="0.01"
                     min="0"
+                    required
                     value={formBuyingPrice}
                     onChange={(e) => setFormBuyingPrice(e.target.value)}
-                    placeholder="Optional"
                     className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   />
                 </div>
                 <div>
                   <FormLabel htmlFor="item-selling-price" className="mb-1" required>
-                    Selling price (KES)
+                    Selling price
                   </FormLabel>
                   <input
                     id="item-selling-price"
@@ -1375,112 +1383,121 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                   {priceWarning}
                 </p>
               )}
-              <div className="flex flex-wrap gap-4">
-                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={formTrackInventory}
-                    onChange={(e) => setFormTrackInventory(e.target.checked)}
-                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
-                  />
-                  Track inventory
-                </label>
-                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={formVisibleInPos}
-                    onChange={(e) => setFormVisibleInPos(e.target.checked)}
-                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
-                  />
-                  Visible in POS
-                </label>
-                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={formActive}
-                    onChange={(e) => setFormActive(e.target.checked)}
-                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
-                  />
-                  Active
-                </label>
-              </div>
-              <div>
-                <FormLabel className="mb-1">
-                  Item image (optional)
-                </FormLabel>
-                <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-                  Auto-resized to 400×400 px. JPEG, PNG or WebP, max 5MB.
-                </p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <label
-                    htmlFor="item-image-upload"
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus-within:ring-2 focus-within:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                  >
-                    <Upload className="h-4 w-4" />
-                    {imageUploading ? "Uploading…" : "Upload image"}
-                    <input
-                      id="item-image-upload"
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      className="sr-only"
-                      disabled={imageUploading || !selectedOrgId}
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file || !selectedOrgId) return;
-                        setImageUploading(true);
-                        try {
-                          const resized = await resizeImageTo400x400(file);
-                          const { url } = await uploadItemImage(
-                            token,
-                            selectedOrgId,
-                            resized
-                          );
-                          setFormImageUrl(url);
-                          toast.success("Image uploaded.", { title: "Uploaded" });
-                        } catch (err: unknown) {
-                          const data = err && typeof err === "object" && "data" in err
-                            ? (err as { data?: { message?: string } }).data
-                            : undefined;
-                          toast.error(
-                            (data?.message as string) ?? "Image upload failed"
-                          );
-                        } finally {
-                          setImageUploading(false);
-                          e.target.value = "";
-                        }
-                      }}
-                    />
-                  </label>
-                  {formImageUrl && (
-                    <div className="flex items-center gap-2">
-                      <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-600 dark:bg-slate-700">
-                        <img
-                          src={getItemImageUrl(formImageUrl) ?? formImageUrl}
-                          alt="Item"
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setFormImageUrl("")}
-                        className="rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-red-50 hover:border-red-300 hover:text-red-600 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-red-950/40 dark:hover:text-red-400"
-                      >
-                        Remove
-                      </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                <div>
+                  <div className="group relative inline-flex items-center gap-1 cursor-help mb-1">
+                    <FormLabel
+                      className="mb-0 cursor-help"
+                      title="Auto-resized to 400×400 px. JPEG, PNG or WebP, max 5MB."
+                    >
+                      Image
+                    </FormLabel>
+                    <span
+                      className="text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300"
+                      title="Auto-resized to 400×400 px. JPEG, PNG or WebP, max 5MB."
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                    </span>
+                    <div
+                      role="tooltip"
+                      className="pointer-events-none absolute bottom-full left-0 z-20 mb-1.5 hidden w-64 rounded-lg border border-slate-200 bg-slate-800 px-2.5 py-1.5 text-xs text-slate-200 shadow-lg group-hover:block dark:border-slate-600 dark:bg-slate-900"
+                    >
+                      Auto-resized to 400×400 px. JPEG, PNG or WebP, max 5MB.
                     </div>
-                  )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 min-h-[38px]">
+                    <label
+                      htmlFor="item-image-upload"
+                      className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus-within:ring-2 focus-within:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                    >
+                      <Upload className="h-4 w-4" />
+                      {imageUploading ? "Uploading…" : "Upload image"}
+                      <input
+                        id="item-image-upload"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        disabled={imageUploading || !selectedOrgId}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file || !selectedOrgId) return;
+                          setImageUploading(true);
+                          try {
+                            const resized = await resizeImageTo400x400(file);
+                            const { url } = await uploadItemImage(
+                              token,
+                              selectedOrgId,
+                              resized
+                            );
+                            setFormImageUrl(url);
+                            toast.success("Image uploaded.", { title: "Uploaded" });
+                          } catch (err: unknown) {
+                            const data = err && typeof err === "object" && "data" in err
+                              ? (err as { data?: { message?: string } }).data
+                              : undefined;
+                            toast.error(
+                              (data?.message as string) ?? "Image upload failed"
+                            );
+                          } finally {
+                            setImageUploading(false);
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                    </label>
+                    {formImageUrl && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-600 dark:bg-slate-700">
+                          <img
+                            src={getItemImageUrl(formImageUrl) ?? formImageUrl}
+                            alt="Item"
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFormImageUrl("")}
+                          className="rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-red-50 hover:border-red-300 hover:text-red-600 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <input
-                  type="text"
-                  value={formImageUrl}
-                  onChange={(e) => setFormImageUrl(e.target.value)}
-                  className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  placeholder="Or paste image URL…"
-                  aria-label="Image URL (optional)"
-                />
+
+                <div className="flex flex-wrap items-center gap-4 min-h-[38px] pb-1">
+                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={formTrackInventory}
+                      onChange={(e) => setFormTrackInventory(e.target.checked)}
+                      className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+                    />
+                    Track inventory
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={formVisibleInPos}
+                      onChange={(e) => setFormVisibleInPos(e.target.checked)}
+                      className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+                    />
+                    Visible in POS
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={formActive}
+                      onChange={(e) => setFormActive(e.target.checked)}
+                      className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
+                    />
+                    Active
+                  </label>
+                </div>
               </div>
 
               {editingItem && (
@@ -1534,7 +1551,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                         />
                         <button
                           type="submit"
-                          disabled={!newModifierGroupId}
                           className="inline-flex items-center gap-1 rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
                         >
                           <Plus className="h-4 w-4" />
@@ -1546,16 +1562,12 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 </>
               )}
 
-              <div className="flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
-                <Button type="button" variant="secondary" size="md" onClick={closeSlide}>
+              <div className="grid grid-cols-2 gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+                <Button type="button" variant="secondary" size="md" className="w-full" onClick={closeSlide}>
                   Cancel
                 </Button>
-                <Button type="submit" size="md" disabled={submitLoading}>
-                  {submitLoading
-                    ? "Saving…"
-                    : editingItem
-                      ? "Save"
-                      : "Create"}
+                <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
+                  {submitLoading ? "Saving…" : "Save"}
                 </Button>
               </div>
             </form>

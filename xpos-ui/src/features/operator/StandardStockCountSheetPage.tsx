@@ -1267,7 +1267,7 @@ export function StandardStockCountSheetPage({
       },
       { searchQuery: searchQuery.trim() || undefined }
     );
-    toast.success("PDF downloaded.", { title: "Stock Count Sheet" });
+    toast.success("PDF downloaded.", { title: "Stock taking sheet" });
   }
 
   function changeDate(newDate: string) {
@@ -1393,7 +1393,7 @@ export function StandardStockCountSheetPage({
       {!tableExpanded && (
         <div className="hidden xl:block">
           <PageHeader
-            title="Stock Count Sheet"
+            title="Stock taking sheet"
             subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = latest saved Closing before this date (0 if never saved). Added = GRN receipts on this date. Total Stock = Opening + Added + Added today. Closing = physical count (defaults to Total Stock for unsaved rows so Units Sold starts at 0; editable); Units Sold = Total Stock − Closing.`}
             subtitleRevealOnTitleHover
             icon={FileSpreadsheet}
@@ -1798,19 +1798,32 @@ export function StandardStockCountSheetPage({
                       )}
                     </td>
                     <td className="px-1.5 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400">
-                      <div>{formatQty(r.unitsSold)}</div>
-                      {(() => {
-                        const already = alreadyRecordedByItem[r.itemId] ?? 0;
-                        const toRecord = Math.max(0, (r.unitsSold ?? 0) - already);
-                        if (already <= 0) return null;
-                        return (
-                          <div className="text-[10px] font-normal text-slate-400 dark:text-slate-500">
-                            {toRecord > 0
-                              ? `(${formatQty(already)} rec · ${formatQty(toRecord)} new)`
-                              : "(all rec)"}
-                          </div>
-                        );
-                      })()}
+                      <div className="flex items-center gap-1 sm:gap-1.5">
+                        <span>{formatQty(r.unitsSold)}</span>
+                        {(() => {
+                          const already = alreadyRecordedByItem[r.itemId] ?? 0;
+                          if (already <= 0) return null;
+                          const toRecord = Math.max(0, roundQty((r.unitsSold ?? 0) - already));
+                          const isFullyRecorded = toRecord <= 0;
+                          return (
+                            <span
+                              className={cn(
+                                "inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-xs sm:text-sm font-bold leading-none shrink-0",
+                                isFullyRecorded
+                                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300"
+                                  : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
+                              )}
+                              title={
+                                isFullyRecorded
+                                  ? `Recorded: ${formatQty(already)}`
+                                  : `${formatQty(already)} recorded · ${formatQty(toRecord)} new`
+                              }
+                            >
+                              S
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </td>
                     <td className={`${tableBodyCellNumDebts} hidden xl:table-cell`}>{formatAmount(r.sellingPrice)}</td>
                     <td className="px-1.5 py-1.5 text-left text-xs tabular-nums font-bold text-slate-700 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-300">
@@ -2167,8 +2180,8 @@ export function StandardStockCountSheetPage({
                 </table>
               </div>
             )}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-600">
-              <div className="text-sm text-slate-600 dark:text-slate-300">
+            <div className="border-t border-slate-200 pt-4 dark:border-slate-600">
+              <div className="mb-3 text-sm text-slate-600 dark:text-slate-300">
                 <span className="font-semibold text-slate-900 dark:text-white">
                   {recordPreviewLinesWithQty} product(s) to record
                 </span>
@@ -2181,11 +2194,11 @@ export function StandardStockCountSheetPage({
                   {formatCurrency(recordPreview.totalValueToRecord)}
                 </span>
               </div>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setRecordPreview(null)}
-                  className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                 >
                   Cancel
                 </button>
@@ -2195,7 +2208,7 @@ export function StandardStockCountSheetPage({
                   disabled={
                     recordPreview.totalQtyToRecord <= 0 || recordSalesMutation.isPending
                   }
-                  className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
                 >
                   {recordSalesMutation.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

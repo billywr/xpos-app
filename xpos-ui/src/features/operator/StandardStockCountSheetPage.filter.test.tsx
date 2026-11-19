@@ -2310,5 +2310,93 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
     // Record sales button should NOT be in the document because remaining to record is 0
     expect(screen.queryByRole("button", { name: /record sales/i })).not.toBeInTheDocument();
   });
+
+  it("displays small s badge inline next to sold qty in one level after stock is recorded", async () => {
+    const today = localTodayStr();
+    vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      totalQtyToRecord: 0,
+      totalValueToRecord: 0,
+      lines: [
+        {
+          itemId: "item-1",
+          name: "Recorded Item",
+          impliedSold: 2.79,
+          alreadyRecorded: 2.79,
+          qtyToRecord: 0,
+          qtyRecorded: null,
+          unitPrice: 100,
+          lineValue: 0,
+          status: "RECORDED",
+        },
+        {
+          itemId: "item-2",
+          name: "Unrecorded Item",
+          impliedSold: 1,
+          alreadyRecorded: 0,
+          qtyToRecord: 1,
+          qtyRecorded: null,
+          unitPrice: 50,
+          lineValue: 50,
+          status: null,
+        },
+      ],
+    });
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU-1",
+          name: "Recorded Item",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 7.21,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+        {
+          itemId: "item-2",
+          sku: "SKU-2",
+          name: "Unrecorded Item",
+          openingStock: 5,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 50,
+          closingStock: 4,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />, "term-1");
+
+    await waitFor(() => {
+      expect(screen.getByText("Recorded Item")).toBeInTheDocument();
+      expect(screen.getByText("Unrecorded Item")).toBeInTheDocument();
+    });
+
+    // Check Recorded Item row: sold qty is 2.79 and has a small "s" badge with title
+    const recordedRow = screen.getByText("Recorded Item").closest("tr");
+    expect(recordedRow).not.toBeNull();
+    const sBadge = recordedRow?.querySelector("span.rounded-full");
+    expect(sBadge).not.toBeNull();
+    expect(sBadge).toHaveTextContent("S");
+    expect(sBadge).toHaveAttribute("title", "Recorded: 2.79");
+
+    // Check Unrecorded Item row: sold qty is 1 and has NO "s" badge
+    const unrecordedRow = screen.getByText("Unrecorded Item").closest("tr");
+    expect(unrecordedRow).not.toBeNull();
+    const noBadge = unrecordedRow?.querySelector("span.rounded-full");
+    expect(noBadge).toBeNull();
+  });
 });
+
 

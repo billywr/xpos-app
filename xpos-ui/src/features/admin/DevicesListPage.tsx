@@ -295,29 +295,39 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
         fallbackTo="/admin"
       />
 
-      <div className="mb-4 flex flex-wrap items-end gap-4">
-        {orgs.length > 1 && (
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="device-org-select"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Organization
-            </label>
-            <SearchableSelect
-              id="device-org-select"
-              options={orgSelectOptions}
-              value={selectedOrgId}
-              onChange={(next) => {
-                setSelectedOrgId(next);
-                setPage(0);
-              }}
-              placeholder="Search organization…"
-              className="w-full sm:w-56"
-              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end gap-4">
+          {orgs.length > 1 && (
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="device-org-select"
+                className="text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Organization
+              </label>
+              <SearchableSelect
+                id="device-org-select"
+                options={orgSelectOptions}
+                value={selectedOrgId}
+                onChange={(next) => {
+                  setSelectedOrgId(next);
+                  setPage(0);
+                }}
+                placeholder="Search organization…"
+                className="w-full sm:w-56"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
+            </div>
+          )}
+          {selectedOrgId && (
+            <TableSearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search devices…"
+              className="w-full sm:w-64"
             />
-          </div>
-        )}
+          )}
+        </div>
         {selectedOrgId && (
           <Button onClick={openRegister}>
             <Plus className="h-4 w-4" />
@@ -348,7 +358,6 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
               )}
             </div>
           )}
-          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search devices…" className="mb-4" />
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="min-h-0 flex-1 overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -471,42 +480,44 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                   {formError}
                 </p>
               )}
-              <div>
-                <FormLabel htmlFor="register-branch" className="mb-1">
-                  Branch
-                </FormLabel>
-                <SearchableSelect
-                  id="register-branch"
-                  options={branchRegisterOptions}
-                  value={formBranchId}
-                  onChange={setFormBranchId}
-                  placeholder="Search branch…"
-                  className="w-full"
-                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                />
-                {branches.length === 0 && (
-                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                    Create a branch for this org first.
-                  </p>
-                )}
-              </div>
-              <div>
-                <FormLabel htmlFor="register-device-id" className="mb-1">
-                  Device ID
-                </FormLabel>
-                <input
-                  id="register-device-id"
-                  type="text"
-                  value={formDeviceId}
-                  onChange={(e) => setFormDeviceId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  placeholder="e.g. device-001"
-                  autoFocus
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <FormLabel htmlFor="register-branch" className="mb-1">
+                    Branch
+                  </FormLabel>
+                  <SearchableSelect
+                    id="register-branch"
+                    options={branchRegisterOptions}
+                    value={formBranchId}
+                    onChange={setFormBranchId}
+                    placeholder="Search branch…"
+                    className="w-full"
+                    controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                  />
+                  {branches.length === 0 && (
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                      Create a branch for this org first.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <FormLabel htmlFor="register-device-id" className="mb-1">
+                    Device ID
+                  </FormLabel>
+                  <input
+                    id="register-device-id"
+                    type="text"
+                    value={formDeviceId}
+                    onChange={(e) => setFormDeviceId(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    placeholder="e.g. device-001"
+                    autoFocus
+                  />
+                </div>
               </div>
               <div>
                 <FormLabel htmlFor="register-fingerprint" className="mb-1">
-                  Device fingerprint (optional)
+                  Device fingerprint
                 </FormLabel>
                 <input
                   id="register-fingerprint"
@@ -517,12 +528,12 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                   placeholder="Leave empty if not used"
                 />
               </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="secondary" size="md" onClick={() => setSlideOpen(false)}>
+              <div className="grid grid-cols-2 gap-3 pt-4">
+                <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setSlideOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" size="md" disabled={submitLoading}>
-                  {submitLoading ? "Registering…" : "Register"}
+                <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
+                  {submitLoading ? "Saving…" : "Save"}
                 </Button>
               </div>
             </form>

@@ -16,10 +16,10 @@ import {
   type GrnLineResponse,
   type GoodsReceiptNoteResponse,
 } from "@/api/goodsReceiptNotes";
-import type { Branch } from "@/types/org";
 import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import type { Item } from "@/types/catalog";
 import type { Supplier } from "@/api/suppliers";
+import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { PageHeader } from "@/components/PageHeader";
 import {
   Button,
@@ -49,15 +49,15 @@ import { formatQty } from "@/utils/formatQuantity";
 import { useToast } from "@/contexts/ToastContext";
 import { invalidateInventoryQueries } from "@/utils/invalidateInventoryQueries";
 import { downloadItemsPdf } from "@/utils/itemsPdf";
-import { filterRowsBySearch } from "@/utils/tableSearchMatch";
 import { Link } from "react-router-dom";
-import { Plus, PackagePlus, Trash2, Pencil, FileEdit, FileX, RotateCcw, Download, Loader2 } from "lucide-react";
-import { BarcodeCaptureInput } from "@/components/BarcodeCaptureInput";
+import { Plus, PackagePlus, Trash2, Pencil, FileEdit, FileX, RotateCcw, Download, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import {
   BARCODE_GOODS_RECEIPT,
   isBarcodeVisible,
 } from "@/config/barcodeVisibility";
+import { BarcodeCaptureInput } from "@/components/BarcodeCaptureInput";
+import { filterRowsBySearch } from "@/utils/tableSearchMatch";
 import { ItemSearchCombobox } from "@/components/ItemSearchCombobox";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { isSameLocalCalendarDay } from "@/utils/calendarDay";
@@ -166,27 +166,51 @@ function formatLocalDate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+export function getDayOffsetLabel(offset: number, now: Date = new Date()): string {
+  if (offset <= 0) return "Today";
+  if (offset === 1) return "Yesterday";
+  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() - offset);
+  const dayName = target.toLocaleDateString("en-US", { weekday: "short" });
+  const monthDay = target.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${dayName}, ${monthDay}`;
+}
+
 export function isReceiptInDateRange(
   receivedAtIso: string,
   preset: DatePreset,
   customStart?: string,
   customEnd?: string,
-  now: Date = new Date()
+  now: Date = new Date(),
+  dayOffset: number = 0
 ): boolean {
   if (preset === "all") return true;
 
   const date = new Date(receivedAtIso);
   if (Number.isNaN(date.getTime())) return false;
 
-  const todayStart = new Date(
+  const targetDayStart = new Date(
     now.getFullYear(),
     now.getMonth(),
-    now.getDate(),
+    now.getDate() - dayOffset,
     0,
     0,
     0,
     0
   );
+  const targetDayEnd = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - dayOffset,
+    23,
+    59,
+    59,
+    999
+  );
+
+  if (preset === "today") {
+    return date >= targetDayStart && date <= targetDayEnd;
+  }
+
   const todayEnd = new Date(
     now.getFullYear(),
     now.getMonth(),
@@ -196,10 +220,6 @@ export function isReceiptInDateRange(
     59,
     999
   );
-
-  if (preset === "today") {
-    return date >= todayStart && date <= todayEnd;
-  }
 
   if (preset === "7days") {
     const start = new Date(
@@ -300,6 +320,7 @@ export function GoodsReceiptPage({
     const saved = getSavedGoodsReceiptFilterRange(initialOrgId, initialBranchId);
     return (saved.preset as DatePreset) || "today";
   });
+  const [todayOffset, setTodayOffset] = useState<number>(0);
   const [customStartDate, setCustomStartDate] = useState<string>(() => {
     const saved = getSavedGoodsReceiptFilterRange(initialOrgId, initialBranchId);
     return saved.startDate || "";
@@ -389,7 +410,7 @@ export function GoodsReceiptPage({
       slideOpen,
   });
 
-  const { data: grnsData, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const grnsQuery = useQuery({
     queryKey: [
       "admin-grns",
       token,
@@ -407,6 +428,9 @@ export function GoodsReceiptPage({
       Boolean(selectedOrgId) &&
       Boolean(selectedBranchId),
   });
+
+  const { data: grnsData, isError, error, refetch, isFetching } = grnsQuery;
+  const { isInitialLoad, isRefreshing } = useQueryDisplay(grnsQuery);
 
   const createMutation = useMutation({
     mutationFn: (body: {
@@ -606,6 +630,22 @@ export function GoodsReceiptPage({
     }, 0);
   }, [lines]);
 
+  const isFormValid = useMemo(() => {
+    if (!supplierId || !receivedAt.trim()) {
+      return false;
+    }
+    if (lines.length === 0) {
+      return false;
+    }
+    return lines.every((l) => {
+      if (!l.itemId || !l.qty) {
+        return false;
+      }
+      const parsed = parseFloat(l.qty);
+      return !Number.isNaN(parsed) && parsed > 0;
+    });
+  }, [supplierId, receivedAt, lines]);
+
   const grns = grnsData?.content ?? [];
 
   const filteredGrns = useMemo(() => {
@@ -617,10 +657,12 @@ export function GoodsReceiptPage({
         grn.receivedAt,
         activePreset,
         customStartDate,
-        customEndDate
+        customEndDate,
+        undefined,
+        activePreset === "today" ? todayOffset : 0
       );
     });
-  }, [grns, filterSupplierId, activePreset, customStartDate, customEndDate]);
+  }, [grns, filterSupplierId, activePreset, customStartDate, customEndDate, todayOffset]);
 
   /** Flattened rows: one entry per receipt line (or one placeholder per empty receipt). */
   const allRows = useMemo(() => {
@@ -664,11 +706,27 @@ export function GoodsReceiptPage({
 
   const isFilterActive =
     activePreset !== "all" ||
+    todayOffset > 0 ||
     Boolean(filterSupplierId) ||
     searchQuery.trim().length > 0;
 
+  const handlePrevDay = () => {
+    setActivePreset("today");
+    setTodayOffset((prev) => prev + 1);
+    setPage(0);
+  };
+
+  const handleNextDay = () => {
+    setActivePreset("today");
+    setTodayOffset((prev) => Math.max(0, prev - 1));
+    setPage(0);
+  };
+
   const handleSelectPreset = (p: DatePreset) => {
     setActivePreset(p);
+    if (p !== "today") {
+      setTodayOffset(0);
+    }
     setPage(0);
     let sDate = customStartDate;
     let eDate = customEndDate;
@@ -726,6 +784,7 @@ export function GoodsReceiptPage({
 
   const handleResetFilters = () => {
     setActivePreset("all");
+    setTodayOffset(0);
     setFilterSupplierId("");
     setSearchQuery("");
     setPage(0);
@@ -734,6 +793,7 @@ export function GoodsReceiptPage({
       selectedOrgId,
       selectedBranchId
     );
+    void refetch();
   };
 
   const [downloadingItemsPdf, setDownloadingItemsPdf] = useState(false);
@@ -746,8 +806,8 @@ export function GoodsReceiptPage({
       let exportItems = allItems.filter((i) => i.active);
       if (searchQuery.trim()) {
         exportItems = filterRowsBySearch(exportItems, searchQuery, undefined, {
-          name: (i) => i.name,
-          sku: (i) => i.sku ?? "",
+          name: (i: Item) => i.name,
+          sku: (i: Item) => i.sku ?? "",
         });
       }
       if (exportItems.length === 0) {
@@ -802,7 +862,7 @@ export function GoodsReceiptPage({
   }, [allFilteredRows]);
 
   useEffect(() => {
-    if (initialOrgId) {
+    if (initialOrgId && initialOrgId !== selectedOrgId) {
       setSelectedOrgId(initialOrgId);
     } else if (!selectedOrgId && orgs.length > 0) {
       setSelectedOrgId(orgs[0].id);
@@ -810,7 +870,7 @@ export function GoodsReceiptPage({
   }, [initialOrgId, orgs, selectedOrgId]);
 
   useEffect(() => {
-    if (initialBranchId) {
+    if (initialBranchId && initialBranchId !== selectedBranchId) {
       setSelectedBranchId(initialBranchId);
     } else if (selectedOrgId && !selectedBranchId && branches.length > 0) {
       setSelectedBranchId(branches[0].id);
@@ -1184,9 +1244,7 @@ export function GoodsReceiptPage({
     permanentDeleteMutation.mutate(grn.id);
   };
 
-  const selectedBranch = branches.find((b: Branch) => b.id === selectedBranchId);
-
-  if (isError && selectedOrgId && selectedBranchId) {
+  if (isError && !grnsData && selectedOrgId && selectedBranchId) {
     return (
       <div className="min-h-0 flex-1 overflow-auto">
         <PageHeader
@@ -1215,6 +1273,12 @@ export function GoodsReceiptPage({
           noMargin
         />
         <div className="flex flex-wrap items-center gap-2">
+          {isRefreshing && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-xs font-medium text-slate-500 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-400">
+              <Loader2 className="h-3 w-3 animate-spin text-primary-500" />
+              <span>Syncing…</span>
+            </span>
+          )}
           <Button
             variant="outline"
             onClick={handleDownloadItemsPdf}
@@ -1263,105 +1327,6 @@ export function GoodsReceiptPage({
 
       {selectedOrgId && selectedBranchId && (
         <div className="mb-5 flex flex-col gap-4">
-          {/* Quick Range Presets & Action Row */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Quick range:
-              </span>
-              {PRESET_OPTIONS.map((p) => {
-                const isSelected = activePreset === p.key;
-                return (
-                  <button
-                    key={p.key}
-                    type="button"
-                    onClick={() => handleSelectPreset(p.key)}
-                    className={cn(
-                      "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-                      isSelected
-                        ? "bg-primary-600 text-white shadow-sm dark:bg-primary-500"
-                        : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                    )}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {isFilterActive && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Reset filters
-              </button>
-            )}
-          </div>
-
-          {/* Custom Date Range Selector (visible when activePreset === "custom") */}
-          {activePreset === "custom" && (
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60">
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="grn-custom-start"
-                  className="text-xs font-medium text-slate-600 dark:text-slate-300"
-                >
-                  From:
-                </label>
-                <DateInput
-                  id="grn-custom-start"
-                  value={customStartDate}
-                  onChange={(e) => handleCustomStartDateChange(e.target.value)}
-                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="grn-custom-end"
-                  className="text-xs font-medium text-slate-600 dark:text-slate-300"
-                >
-                  To:
-                </label>
-                <DateInput
-                  id="grn-custom-end"
-                  value={customEndDate}
-                  onChange={(e) => handleCustomEndDateChange(e.target.value)}
-                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Search Bar & Supplier Filter Dropdown */}
-          <div className="flex flex-wrap items-center gap-3">
-            <TableSearchInput
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search by item, supplier, or barcode…"
-              className="w-full sm:w-72"
-            />
-            {suppliers.length > 0 && (
-              <div className="w-full sm:w-60">
-                <SearchableSelect
-                  id="grn-supplier-filter"
-                  options={supplierFilterOptions}
-                  value={filterSupplierId}
-                  onChange={(val) => {
-                    setFilterSupplierId(val);
-                    setPage(0);
-                  }}
-                  placeholder="Filter by supplier…"
-                  compact
-                  className="w-full"
-                  controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500"
-                />
-              </div>
-            )}
-          </div>
-
           {/* Intelligence KPI Summary Banner */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <StatChip
@@ -1382,6 +1347,174 @@ export function GoodsReceiptPage({
               tone="neutral"
               className="w-full"
             />
+          </div>
+
+          {/* Filters Bar: Search, Supplier, Presets, Custom Date Range & Reset Action */}
+          <div className="flex w-full flex-wrap items-center justify-between gap-2.5 sm:gap-3">
+            <div className="flex flex-1 flex-wrap items-center gap-2.5 sm:gap-3 min-w-[260px]">
+              <TableSearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search by item, supplier, or barcode…"
+                className="w-full sm:flex-1 sm:min-w-[200px] [&>input]:sm:max-w-none"
+              />
+              {suppliers.length > 0 && (
+                <div className="w-full sm:w-56 md:w-60 shrink-0">
+                  <SearchableSelect
+                    id="grn-supplier-filter"
+                    options={supplierFilterOptions}
+                    value={filterSupplierId}
+                    onChange={(val) => {
+                      setFilterSupplierId(val);
+                      setPage(0);
+                    }}
+                    placeholder="Filter by supplier…"
+                    compact
+                    className="w-full"
+                    controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Range Presets */}
+            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+              {PRESET_OPTIONS.map((p) => {
+                if (p.key === "today") {
+                  const isSelected = activePreset === "today";
+                  return (
+                    <div
+                      key="today"
+                      className={cn(
+                        "inline-flex items-center rounded-lg border overflow-hidden transition-colors w-[132px] shrink-0 justify-between",
+                        isSelected
+                          ? "border-primary-600 bg-primary-600 text-white shadow-sm dark:border-primary-500 dark:bg-primary-500"
+                          : "border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePrevDay();
+                        }}
+                        title="Previous day (yesterday, day before...)"
+                        aria-label="Previous day"
+                        className={cn(
+                          "flex h-7 w-6 shrink-0 items-center justify-center transition-colors",
+                          isSelected
+                            ? "bg-black/25 text-white hover:bg-black/40 active:bg-black/50 border-r border-black/15 dark:bg-black/35 dark:hover:bg-black/50 dark:border-white/20"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 border-r border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-white dark:border-slate-600"
+                        )}
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActivePreset("today");
+                          setTodayOffset(0);
+                          setPage(0);
+                        }}
+                        className={cn(
+                          "flex-1 h-7 min-w-0 px-1 text-center text-xs font-semibold whitespace-nowrap transition-colors flex items-center justify-center",
+                          isSelected
+                            ? "hover:bg-black/10 dark:hover:bg-white/10"
+                            : "hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-700/50 dark:hover:text-white"
+                        )}
+                      >
+                        {getDayOffsetLabel(todayOffset)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNextDay();
+                        }}
+                        disabled={todayOffset <= 0}
+                        title={todayOffset > 0 ? "Next day" : undefined}
+                        aria-label="Next day"
+                        className={cn(
+                          "flex h-7 w-6 shrink-0 items-center justify-center transition-colors",
+                          isSelected
+                            ? "bg-black/25 text-white hover:bg-black/40 active:bg-black/50 border-l border-black/15 dark:bg-black/35 dark:hover:bg-black/50 dark:border-white/20"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 border-l border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-white dark:border-slate-600",
+                          todayOffset <= 0 && "opacity-25 pointer-events-none"
+                        )}
+                      >
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  );
+                }
+
+                const isSelected = activePreset === p.key;
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => handleSelectPreset(p.key)}
+                    className={cn(
+                      "rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                      isSelected
+                        ? "bg-primary-600 text-white shadow-sm dark:bg-primary-500"
+                        : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+
+              {/* Custom Date Range Selector (visible when activePreset === "custom") */}
+              {activePreset === "custom" && (
+                <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 dark:border-slate-700 dark:bg-slate-800/60">
+                  <div className="flex items-center gap-1.5">
+                    <label
+                      htmlFor="grn-custom-start"
+                      className="text-xs font-medium text-slate-600 dark:text-slate-300"
+                    >
+                      From:
+                    </label>
+                    <DateInput
+                      id="grn-custom-start"
+                      value={customStartDate}
+                      onChange={(e) => handleCustomStartDateChange(e.target.value)}
+                      className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <label
+                      htmlFor="grn-custom-end"
+                      className="text-xs font-medium text-slate-600 dark:text-slate-300"
+                    >
+                      To:
+                    </label>
+                    <DateInput
+                      id="grn-custom-end"
+                      value={customEndDate}
+                      onChange={(e) => handleCustomEndDateChange(e.target.value)}
+                      className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Reset Filters / Refresh Icon Button */}
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                title={isFilterActive ? "Reset filters" : "Refresh"}
+                aria-label="Reset filters"
+                disabled={isFetching}
+                className={cn(
+                  "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200",
+                  isFetching && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                <RotateCcw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1477,7 +1610,7 @@ export function GoodsReceiptPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {isLoading && grns.length === 0 ? (
+                  {isInitialLoad && grns.length === 0 ? (
                     <TableSkeleton rows={size} columns={visibleColCount} />
                   ) : pagedRows.length === 0 ? (
                     <tr>
@@ -1615,43 +1748,6 @@ export function GoodsReceiptPage({
               )}
             </div>
 
-          {grns.length > 0 && (
-            <div
-              className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-4 dark:border-slate-600 dark:bg-slate-900"
-              aria-label="Total stock receipt amount summary"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="text-sm text-slate-500 dark:text-slate-400">
-                  {isFilterActive ? (
-                    <>
-                      Filtered:{" "}
-                      <strong className="text-slate-700 dark:text-slate-200">
-                        {totalFilteredReceipts} receipt{totalFilteredReceipts === 1 ? "" : "s"}
-                      </strong>{" "}
-                      ({formatQty(totalFilteredUnits)} units)
-                    </>
-                  ) : (
-                    <>
-                      Total:{" "}
-                      <strong className="text-slate-700 dark:text-slate-200">
-                        {grns.length} receipt{grns.length === 1 ? "" : "s"}
-                      </strong>{" "}
-                      ({formatQty(totalFilteredUnits)} units)
-                    </>
-                  )}
-                </span>
-                <span
-                  className="inline-flex cursor-default items-center gap-2 rounded-2xl border-2 border-primary-200 bg-gradient-to-br from-primary-50 to-primary-100 px-5 py-3 text-lg font-bold tabular-nums text-primary-800 shadow-md transition-shadow hover:shadow-lg dark:border-primary-700 dark:from-primary-900/40 dark:to-primary-800/40 dark:text-primary-100"
-                  aria-label={`Total stock receipt amount: ${formatCurrency(totalFilteredAmount)}`}
-                >
-                  <span className="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-300">
-                    Total Value
-                  </span>
-                  <span className="text-2xl">{formatCurrency(totalFilteredAmount)}</span>
-                </span>
-              </div>
-            </div>
-          )}
         </>
       )}
 
@@ -1725,64 +1821,65 @@ export function GoodsReceiptPage({
               {formError}
             </div>
           )}
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Branch: <strong>{selectedBranch?.name ?? "—"}</strong>
-          </p>
-          <div>
-            <label
-              htmlFor="grn-supplier"
-              className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Supplier *
-            </label>
-            <SearchableSelect
-              id="grn-supplier"
-              options={[
-                { value: "", label: "Select supplier…" },
-                ...suppliers.map((s: Supplier) => ({ value: s.id, label: s.name })),
-              ]}
-              value={supplierId}
-              onChange={setSupplierId}
-              placeholder="Select supplier…"
-              className="w-full"
-            />
-          </div>
-
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <label
-                htmlFor="grn-received-at"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Received at *
-              </label>
-              {!editingGrn && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const now = formatDateInput(new Date());
-                    setReceivedAt(now);
-                    saveGoodsReceiptReceivedAt(now, selectedOrgId, selectedBranchId);
-                  }}
-                  className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <div>
+              <div className="mb-1 flex h-[26px] items-center">
+                <label
+                  htmlFor="grn-supplier"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
                 >
-                  Set to today
-                </button>
-              )}
+                  Supplier *
+                </label>
+              </div>
+              <SearchableSelect
+                id="grn-supplier"
+                options={[
+                  { value: "", label: "Select supplier…" },
+                  ...suppliers.map((s: Supplier) => ({ value: s.id, label: s.name })),
+                ]}
+                value={supplierId}
+                onChange={setSupplierId}
+                placeholder="Select supplier…"
+                className="w-full"
+              />
             </div>
-            <DateInput
-              id="grn-received-at"
-              value={receivedAt}
-              onChange={(e) => {
-                const val = e.target.value;
-                setReceivedAt(val);
-                if (!editingGrn) {
-                  saveGoodsReceiptReceivedAt(val, selectedOrgId, selectedBranchId);
-                }
-              }}
-              required
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            />
+
+            <div>
+              <div className="mb-1 flex h-[26px] items-center justify-between">
+                <label
+                  htmlFor="grn-received-at"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Received at *
+                </label>
+                {!editingGrn && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const now = formatDateInput(new Date());
+                      setReceivedAt(now);
+                      saveGoodsReceiptReceivedAt(now, selectedOrgId, selectedBranchId);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  >
+                    Set to today
+                  </button>
+                )}
+              </div>
+              <DateInput
+                id="grn-received-at"
+                value={receivedAt}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setReceivedAt(val);
+                  if (!editingGrn) {
+                    saveGoodsReceiptReceivedAt(val, selectedOrgId, selectedBranchId);
+                  }
+                }}
+                required
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1795,7 +1892,7 @@ export function GoodsReceiptPage({
                   : "Receive"}
               </label>
               <span
-                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100/80 px-2 py-0.5 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                className="inline-flex items-center gap-1.5 text-[13px] text-slate-600 dark:text-slate-300"
                 aria-label={`Total cost: ${formatCurrency(linesTotalCost)}`}
               >
                 <span>Total cost:</span>
@@ -1816,7 +1913,7 @@ export function GoodsReceiptPage({
             ) : null}
           </div>
           {showBarcode && !editingSingleLineId && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-600 dark:bg-slate-800/50">
+            <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-600 dark:bg-transparent">
               <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
                 Scan barcode to add item
               </label>
@@ -1864,14 +1961,14 @@ export function GoodsReceiptPage({
               return (
               <div
                 key={idx}
-                className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-600 dark:bg-slate-800/50"
+                className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-600 dark:bg-transparent"
               >
                 <div className="min-w-[180px] flex-1">
                   <label
                     className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400"
                     htmlFor={`grn-item-${idx}`}
                   >
-                    Item
+                    Item *
                   </label>
                   <ItemSearchCombobox
                     inputId={`grn-item-${idx}`}
@@ -1888,6 +1985,7 @@ export function GoodsReceiptPage({
                     type="number"
                     min="0.001"
                     step="0.001"
+                    required
                     value={line.qty}
                     onChange={(e) => handleUpdateLine(idx, "qty", e.target.value)}
                     placeholder="0"
@@ -1946,28 +2044,26 @@ export function GoodsReceiptPage({
             })}
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="grid grid-cols-2 gap-3 pt-4">
             <button
               type="button"
               onClick={() => setSlideOpen(false)}
-              className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              className="w-full inline-flex items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={submitLoading}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-400"
+              disabled={submitLoading || !isFormValid}
+              className="w-full inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-400"
             >
               {submitLoading
-                ? editingGrn
-                  ? "Saving…"
-                  : "Adding…"
-                : editingGrn
-                  ? editingSingleLineId
-                    ? "Save line"
-                    : "Save"
-                  : "Add stock"}
+                ? "Saving…"
+                : editingSingleLineId
+                  ? "Save line"
+                  : editingGrn
+                    ? "Update stock"
+                    : "Add stock"}
             </button>
           </div>
         </form>

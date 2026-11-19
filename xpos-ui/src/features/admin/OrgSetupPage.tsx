@@ -117,12 +117,9 @@ export function OrgSetupPage() {
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
             Org setup
           </h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Organizations, businesses, branches, terminals, devices, and staff
-          </p>
         </div>
         {orgs.length > 1 && activeTab !== "org" && (
           <div className="flex items-center gap-2">

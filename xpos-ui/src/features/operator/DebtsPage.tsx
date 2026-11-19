@@ -557,17 +557,18 @@ export function DebtsPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-auto p-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <PageHeader
-          title="Customer Debts"
-          subtitle={`Record and view credit sales for ${branchName ?? "this branch"}`}
-          fallbackTo="/operator"
-          noMargin
-        >
-          <div className="mt-3 flex items-center gap-2">
+      <PageHeader
+        title="Customer debts"
+        subtitle={`Record and view credit sales for ${branchName ?? "this branch"}`}
+        fallbackTo="/operator"
+      />
+
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
             <label
               htmlFor="debt-status-filter"
-              className="text-sm font-medium text-slate-600 dark:text-slate-400"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
             >
               Status
             </label>
@@ -581,12 +582,17 @@ export function DebtsPage() {
               }}
               aria-label="Filter by status"
               placeholder="Search status…"
-              compact
-              className="w-full min-w-0 sm:min-w-[12rem]"
-              controlClassName="border-slate-200 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus:border-primary-400 dark:focus:ring-primary-400"
+              className="w-full sm:w-56"
+              controlClassName="border-slate-300 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus:border-primary-400 dark:focus:ring-primary-400"
             />
           </div>
-        </PageHeader>
+          <TableSearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search debts…"
+            className="w-full sm:w-64"
+          />
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -636,7 +642,6 @@ export function DebtsPage() {
 
       {!isLoading && !isError && (
         <>
-          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search debts…" className="mb-4" />
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">&larr; swipe table to see all columns &rarr;</p>
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
             {filteredDebts.length === 0 ? (
@@ -859,38 +864,40 @@ export function DebtsPage() {
         title="Record customer debt"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="customerName"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Customer name *
-            </label>
-            <input
-              id="customerName"
-              type="text"
-              required
-              value={formCustomerName}
-              onChange={(e) => setFormCustomerName(e.target.value)}
-              placeholder="e.g. John Kamau"
-              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="customerPhone"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Customer phone
-            </label>
-            <input
-              id="customerPhone"
-              type="tel"
-              value={formCustomerPhone}
-              onChange={(e) => setFormCustomerPhone(e.target.value)}
-              placeholder="e.g. +254 700 123 456"
-              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="customerName"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Customer name *
+              </label>
+              <input
+                id="customerName"
+                type="text"
+                required
+                value={formCustomerName}
+                onChange={(e) => setFormCustomerName(e.target.value)}
+                placeholder="e.g. John Kamau"
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="customerPhone"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Customer phone
+              </label>
+              <input
+                id="customerPhone"
+                type="tel"
+                value={formCustomerPhone}
+                onChange={(e) => setFormCustomerPhone(e.target.value)}
+                placeholder="e.g. +254 700 123 456"
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
           </div>
           <div>
             <span
@@ -978,58 +985,60 @@ export function DebtsPage() {
               </ul>
             ) : null}
           </div>
-          <div>
-            <label
-              htmlFor="amount"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Amount (KES) *
-            </label>
-            {formBorrowedLines.length > 0 ? (
-              <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="amount"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Amount *
+              </label>
+              {formBorrowedLines.length > 0 ? (
+                <>
+                  <input
+                    id="amount"
+                    type="text"
+                    readOnly
+                    value={formatCurrency(borrowedItemsSubtotal)}
+                    className="mt-1 block w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                    aria-describedby="amount-items-hint"
+                  />
+                  <p id="amount-items-hint" className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Total from borrowed items above. Remove all lines to enter a custom amount.
+                  </p>
+                </>
+              ) : (
                 <input
                   id="amount"
-                  type="text"
-                  readOnly
-                  value={formatCurrency(borrowedItemsSubtotal)}
-                  className="mt-1 block w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
-                  aria-describedby="amount-items-hint"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={formAmount}
+                  onChange={(e) => setFormAmount(e.target.value)}
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                 />
-                <p id="amount-items-hint" className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  Total from borrowed items above. Remove all lines to enter a custom amount.
-                </p>
-              </>
-            ) : (
-              <input
-                id="amount"
-                type="number"
-                step="0.01"
-                min="0.01"
+              )}
+            </div>
+            <div>
+              <label
+                htmlFor="recordedOn"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Date recorded *
+              </label>
+              <DateInput
+                id="recordedOn"
                 required
-                value={formAmount}
-                onChange={(e) => setFormAmount(e.target.value)}
+                max={todayInputValue()}
+                value={formRecordedOn}
+                onChange={(e) => setFormRecordedOn(e.target.value)}
                 className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               />
-            )}
-          </div>
-          <div>
-            <label
-              htmlFor="recordedOn"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Date recorded *
-            </label>
-            <DateInput
-              id="recordedOn"
-              required
-              max={todayInputValue()}
-              value={formRecordedOn}
-              onChange={(e) => setFormRecordedOn(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-            />
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Defaults to today. Pick a past date when entering an old debt.
-            </p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Defaults to today. Pick a past date when entering an old debt.
+              </p>
+            </div>
           </div>
           <div>
             <label
@@ -1060,25 +1069,25 @@ export function DebtsPage() {
               className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
             />
           </div>
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="grid grid-cols-2 gap-3 pt-4">
             <button
               type="button"
               onClick={() => setFormOpen(false)}
-              className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              className="w-full rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
             >
               {submitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Plus className="h-4 w-4" />
               )}
-              Record debt
+              {submitting ? "Saving…" : "Save"}
             </button>
           </div>
         </form>
@@ -1105,70 +1114,74 @@ export function DebtsPage() {
               Same fields as recording a debt. Edits are only allowed before any repayment; use
               Record payment after that.
             </p>
-            <div>
-              <label
-                htmlFor="editCustomerName"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Customer name *
-              </label>
-              <input
-                id="editCustomerName"
-                type="text"
-                required
-                value={editCustomerName}
-                onChange={(e) => setEditCustomerName(e.target.value)}
-                placeholder="e.g. John Kamau"
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="editCustomerName"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Customer name *
+                </label>
+                <input
+                  id="editCustomerName"
+                  type="text"
+                  required
+                  value={editCustomerName}
+                  onChange={(e) => setEditCustomerName(e.target.value)}
+                  placeholder="e.g. John Kamau"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="editCustomerPhone"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Customer phone
+                </label>
+                <input
+                  id="editCustomerPhone"
+                  type="tel"
+                  value={editCustomerPhone}
+                  onChange={(e) => setEditCustomerPhone(e.target.value)}
+                  placeholder="e.g. +254 700 123 456"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
             </div>
-            <div>
-              <label
-                htmlFor="editCustomerPhone"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Customer phone
-              </label>
-              <input
-                id="editCustomerPhone"
-                type="tel"
-                value={editCustomerPhone}
-                onChange={(e) => setEditCustomerPhone(e.target.value)}
-                placeholder="e.g. +254 700 123 456"
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="editAmount"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Amount (KES) *
-              </label>
-              <input
-                id="editAmount"
-                type="number"
-                step="0.01"
-                min="0.01"
-                required
-                value={editAmount}
-                onChange={(e) => setEditAmount(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="editDueDate"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Due date
-              </label>
-              <DateInput
-                id="editDueDate"
-                value={editDueDate}
-                onChange={(e) => setEditDueDate(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="editAmount"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Amount *
+                </label>
+                <input
+                  id="editAmount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="editDueDate"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Due date
+                </label>
+                <DateInput
+                  id="editDueDate"
+                  value={editDueDate}
+                  onChange={(e) => setEditDueDate(e.target.value)}
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
             </div>
             <div>
               <label
@@ -1185,18 +1198,18 @@ export function DebtsPage() {
                 className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               />
             </div>
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="grid grid-cols-2 gap-3 pt-4">
               <button
                 type="button"
                 onClick={() => setEditFormOpen(false)}
-                className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={editSubmitting}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
               >
                 {editSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1232,7 +1245,7 @@ export function DebtsPage() {
                 htmlFor="settleAmount"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Payment amount (KES) *
+                Payment amount *
               </label>
               <input
                 id="settleAmount"
@@ -1247,18 +1260,18 @@ export function DebtsPage() {
                 className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               />
             </div>
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="grid grid-cols-2 gap-3 pt-4">
               <button
                 type="button"
                 onClick={() => setSettleFormOpen(false)}
-                className="rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={settleSubmitting}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
               >
                 {settleSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

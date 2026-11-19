@@ -14,13 +14,10 @@ import {
 } from "recharts";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
-import { fetchOrgs } from "@/api/orgs";
-import { fetchBranches } from "@/api/branches";
+import { useAdminContextSelection } from "@/hooks/useAdminContextSelection";
 import { fetchRevenueDashboard } from "@/api/revenueDashboard";
 import { fetchMiscExpenses } from "@/api/miscExpenses";
 import { fetchRecurringUtilities } from "@/api/recurringUtilities";
-import type { Org, Branch } from "@/types/org";
-import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { formatCurrency, formatPercent, formatAmount } from "@/utils/formatCurrency";
 import { formatDate } from "@/utils/formatDate";
@@ -219,31 +216,30 @@ export function RevenueDashboardPage() {
   const token = useAppSelector(selectToken);
   const [activePreset, setActivePreset] = useState<PresetRange>("today");
   const initialDates = useMemo(() => getRangeDates("today"), []);
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
-  const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+  const {
+    selectedOrgId,
+    setSelectedOrgId,
+    selectedBranchId,
+    setSelectedBranchId,
+    orgs,
+    branches,
+    orgSelectOptions,
+    branchSelectOptions,
+  } = useAdminContextSelection();
   const [startDate, setStartDate] = useState(initialDates.start);
   const [endDate, setEndDate] = useState(initialDates.end);
   const [submittedRange, setSubmittedRange] = useState<{
     start: string;
     end: string;
-  } | null>(null);
+  } | null>(() => ({
+    start: initialDates.start,
+    end: initialDates.end,
+  }));
 
   // Expense breakdown modal & filter state
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expenseSearch, setExpenseSearch] = useState("");
   const [breakdownTab, setBreakdownTab] = useState<"ALL" | "EXPENSES" | "UTILITIES">("ALL");
-
-  const { data: orgsData } = useQuery({
-    queryKey: ["admin-orgs", token],
-    queryFn: () => fetchOrgs(token, { size: 200 }),
-    enabled: Boolean(token),
-  });
-
-  const { data: branchesData } = useQuery({
-    queryKey: ["admin-branches", token, selectedOrgId],
-    queryFn: () => fetchBranches(token, selectedOrgId, { size: 200 }),
-    enabled: Boolean(token) && Boolean(selectedOrgId),
-  });
 
   const {
     data: dashboard,
@@ -316,37 +312,7 @@ export function RevenueDashboardPage() {
       Boolean(selectedBranchId),
   });
 
-  const orgs = filterActiveOrgs(orgsData?.content ?? []);
-  const branches = filterNonDeletedBranches(branchesData?.content ?? []);
 
-  const orgSelectOptions = useMemo(
-    () => [
-      { value: "", label: "Select organization…" },
-      ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
-    ],
-    [orgs]
-  );
-
-  const branchSelectOptions = useMemo(
-    () => [
-      { value: "", label: "Select branch…" },
-      ...branches.map((branch: Branch) => ({
-        value: branch.id,
-        label: branch.name,
-      })),
-    ],
-    [branches]
-  );
-
-  useEffect(() => {
-    if (!selectedOrgId && orgs.length > 0) setSelectedOrgId(orgs[0].id);
-  }, [orgs, selectedOrgId]);
-
-  useEffect(() => {
-    if (selectedOrgId && !selectedBranchId && branches.length > 0) {
-      setSelectedBranchId(branches[0].id);
-    }
-  }, [selectedOrgId, branches, selectedBranchId]);
 
   useEffect(() => {
     if (
@@ -585,8 +551,8 @@ export function RevenueDashboardPage() {
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-            <TrendingUp className="h-7 w-7 text-emerald-500" />
+          <h1 className="flex items-center gap-2 text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
+            <TrendingUp className="h-6 w-6 shrink-0 sm:h-7 sm:w-7 text-emerald-500" />
             Revenue &amp; P&amp;L
           </h1>
           <button

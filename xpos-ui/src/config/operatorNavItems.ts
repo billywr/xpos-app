@@ -41,9 +41,9 @@ function navItem(
 export const OPERATOR_NAV_ITEMS: OperatorNavItemConfig[] = [
   navItem("/operator", "Dashboard", "Main", false, LayoutDashboard, false, true),
   navItem("/operator/menu-order", "POS", "Main", true, ShoppingCart),
-  navItem("/operator/sales-recording", "Sales Recording", "Main", true, PencilLine),
+  navItem("/operator/sales-recording", "Sales recording", "Main", true, PencilLine),
   navItem("/operator/receipts", "Receipts", "Main", true, Receipt),
-  navItem("/operator/debts", "Debts & Expenses", "Main", true, HandCoins),
+  navItem("/operator/debts", "Debts & expenses", "Main", true, HandCoins),
   navItem("/operator/stock-count", "Stock count sessions", "Main", true, ClipboardList),
   navItem(
     "/operator/manual-stock-sheet",
@@ -54,7 +54,7 @@ export const OPERATOR_NAV_ITEMS: OperatorNavItemConfig[] = [
   ),
   navItem(
     "/operator/inventory/stock-count",
-    "Standard Stock Taking",
+    "Stock taking",
     "Main",
     true,
     FileSpreadsheet
@@ -62,14 +62,14 @@ export const OPERATOR_NAV_ITEMS: OperatorNavItemConfig[] = [
 
   navItem(
     "/operator/tables",
-    "Manage Table",
+    "Manage table",
     "Manage",
     true,
     UtensilsCrossed,
     true
   ),
-  navItem("/operator/dishes", "Manage Dish", "Manage", true, ChefHat),
-  navItem("/operator/payments", "Manage Payment", "Manage", true, CreditCard),
+  navItem("/operator/dishes", "Manage dish", "Manage", true, ChefHat),
+  navItem("/operator/payments", "Manage payment", "Manage", true, CreditCard),
 ];
 
 export const OPERATOR_GROUP_ORDER = ["Main", "Manage"];

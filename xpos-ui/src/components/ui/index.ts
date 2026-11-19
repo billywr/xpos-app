@@ -45,8 +45,8 @@ export {
   navActive,
   navInactive,
 } from "./styles";
-export { SlideOver } from "./SlideOver";
-export type { SlideOverProps } from "./SlideOver";
+export { SlideOver, SlideOverFooter } from "./SlideOver";
+export type { SlideOverProps, SlideOverFooterProps } from "./SlideOver";
 export { ConfirmDialog } from "./ConfirmDialog";
 export type { ConfirmDialogProps } from "./ConfirmDialog";
 export { Pagination } from "./Pagination";
@@ -72,6 +72,5 @@ export type {
 } from "../SearchableSelect";
 export { ProgressBar } from "./ProgressBar";
 export type { ProgressBarProps } from "./ProgressBar";
-export { TopProgressBar } from "./TopProgressBar";
 
 

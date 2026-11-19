@@ -177,28 +177,12 @@ export function StockCountPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-auto p-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <PageHeader
-          title="Manual Stock Taking"
-          subtitle={`Stock counts at ${branchName ?? "this branch"}. Start a session, add counted quantities on the count page, then close to apply variances.`}
-          icon={ClipboardList}
-          fallbackTo="/operator"
-          noMargin
-        />
-        <button
-          type="button"
-          onClick={() => startMutation.mutate()}
-          disabled={startMutation.isPending}
-          className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
-        >
-          {startMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4" />
-          )}
-          Start count
-        </button>
-      </div>
+      <PageHeader
+        title="Manual stock taking"
+        subtitle={`Stock counts at ${branchName ?? "this branch"}. Start a session, add counted quantities on the count page, then close to apply variances.`}
+        icon={ClipboardList}
+        fallbackTo="/operator"
+      />
 
       {isLoading && (
         <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
@@ -217,7 +201,27 @@ export function StockCountPage() {
 
       {!isLoading && !isError && (
         <>
-          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search sessions…" className="mb-4" />
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+            <TableSearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search sessions…"
+              className="max-w-md"
+            />
+            <button
+              type="button"
+              onClick={() => startMutation.mutate()}
+              disabled={startMutation.isPending}
+              className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+            >
+              {startMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              Start count
+            </button>
+          </div>
           {filteredSessions.length === 0 ? (
             <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
               {sessions.length === 0 ? "No stock count sessions yet. Start a count to begin." : "No results match your search."}

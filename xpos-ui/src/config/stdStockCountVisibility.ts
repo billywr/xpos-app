@@ -1,5 +1,5 @@
 /**
- * Keys used in operator visibility settings for Standard Stock Taking toolbar buttons.
+ * Keys used in operator visibility settings for Stock taking toolbar buttons.
  * When value is true or key is missing, the button is shown. When false, hidden.
  */
 export const STD_STOCK_COUNT_SHOW_PDF = "stdStockCount.showPdf";

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -136,4 +136,51 @@ describe("ItemsListPage Download PDF", () => {
       });
     });
   });
+
+  it("renders Add item form with Image label, tooltip, and checkboxes", async () => {
+    wrap(<ItemsListPage initialOrgId="org-1" />);
+
+    expect(await screen.findByText("Tusker Lager")).toBeInTheDocument();
+
+    const addItemBtn = screen.getByRole("button", { name: /add item/i });
+    fireEvent.click(addItemBtn);
+
+    const dialog = screen.getByRole("dialog");
+
+    // Old label "Item image (optional)" should not exist
+    expect(within(dialog).queryByText("Item image (optional)")).not.toBeInTheDocument();
+
+    // New label "Image" should be present in the dialog
+    expect(within(dialog).getByText("Image")).toBeInTheDocument();
+
+    // Tooltip role should contain the resize specifications
+    const tooltip = within(dialog).getByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Auto-resized to 400×400 px. JPEG, PNG or WebP, max 5MB.");
+
+    // Checkboxes should be present in the dialog
+    expect(within(dialog).getByLabelText(/track inventory/i)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/visible in pos/i)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/active/i)).toBeInTheDocument();
+
+    // Tax profile should be hidden
+    expect(within(dialog).queryByText("Tax profile")).not.toBeInTheDocument();
+
+    // Amount labels should not have (KES)
+    expect(within(dialog).queryByText(/Buying price \(KES\)/i)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/Selling price \(KES\)/i)).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/Buying price/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Selling price/i)).toBeInTheDocument();
+
+    // Name, SKU, Buying price, and Selling price should be required
+    expect(within(dialog).getByLabelText(/Name/i)).toBeRequired();
+    expect(within(dialog).getByLabelText(/SKU/i)).toBeRequired();
+    expect(within(dialog).getByLabelText(/Buying price/i)).toBeRequired();
+    expect(within(dialog).getByLabelText(/Selling price/i)).toBeRequired();
+
+    // Submit button should say "Save" and NOT be disabled when fields are empty
+    const saveBtn = within(dialog).getByRole("button", { name: "Save" });
+    expect(saveBtn).toBeInTheDocument();
+    expect(saveBtn).not.toBeDisabled();
+  });
 });
+

@@ -290,65 +290,74 @@ export function SuppliersListPage({
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <PageHeader
-          title="Suppliers"
-          subtitle="Manage suppliers for receiving stock. Add a supplier before recording stock receipts."
-          icon={Truck}
-          fallbackTo="/admin"
-          noMargin
-        />
-        <Button
-          onClick={() => {
-            setEditingSupplier(null);
-            resetForm();
-            setSlideOpen(true);
-          }}
-        >
-          <Plus className="h-5 w-5" />
-          Add supplier
-        </Button>
-      </div>
+      <PageHeader
+        title="Suppliers"
+        subtitle="Manage suppliers for receiving stock. Add a supplier before recording stock receipts."
+        icon={Truck}
+        fallbackTo="/admin"
+      />
 
-      <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-        {orgs.length > 1 && (
-          <div className="flex min-w-0 items-center gap-2">
-            <label
-              htmlFor="suppliers-org-select"
-              className="shrink-0 text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Organization
-            </label>
-            <SearchableSelect
-              id="suppliers-org-select"
-              options={orgSelectOptions}
-              value={selectedOrgId}
-              onChange={(next) => {
-                setSelectedOrgId(next);
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          {orgs.length > 1 && (
+            <div className="flex min-w-0 items-center gap-2">
+              <label
+                htmlFor="suppliers-org-select"
+                className="shrink-0 text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Organization
+              </label>
+              <SearchableSelect
+                id="suppliers-org-select"
+                options={orgSelectOptions}
+                value={selectedOrgId}
+                onChange={(next) => {
+                  setSelectedOrgId(next);
+                  setPage(0);
+                  onOrgChange?.(next);
+                }}
+                placeholder="Search organization…"
+                compact
+                className="w-44 min-w-[10rem] max-w-[min(100%,16rem)]"
+                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
+            </div>
+          )}
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={includeInactive}
+              onChange={(e) => {
+                setIncludeInactive(e.target.checked);
                 setPage(0);
-                onOrgChange?.(next);
               }}
-              placeholder="Search organization…"
-              compact
-              className="w-44 min-w-[10rem] max-w-[min(100%,16rem)]"
-              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
             />
-          </div>
-        )}
-        <label className="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={includeInactive}
-            onChange={(e) => {
-              setIncludeInactive(e.target.checked);
-              setPage(0);
+            <span className="text-sm text-slate-700 dark:text-slate-300">
+              Include inactive
+            </span>
+          </label>
+          {selectedOrgId && (
+            <TableSearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search suppliers…"
+              className="w-full sm:w-64"
+            />
+          )}
+        </div>
+        {selectedOrgId && (
+          <Button
+            onClick={() => {
+              setEditingSupplier(null);
+              resetForm();
+              setSlideOpen(true);
             }}
-            className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
-          />
-          <span className="text-sm text-slate-700 dark:text-slate-300">
-            Include inactive
-          </span>
-        </label>
+          >
+            <Plus className="h-5 w-5" />
+            Add supplier
+          </Button>
+        )}
       </div>
 
       {!selectedOrgId ? (
@@ -373,7 +382,6 @@ export function SuppliersListPage({
               )}
             </div>
           )}
-          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search suppliers…" className="mb-4" />
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
           <div className={tableCard}>
             <div className="relative min-h-0 flex-1 overflow-auto">
@@ -561,32 +569,34 @@ export function SuppliersListPage({
               {formError}
             </div>
           )}
-          <div>
-            <FormLabel htmlFor="supplier-name" className="mb-1" required>
-              Name
-            </FormLabel>
-            <input
-              id="supplier-name"
-              type="text"
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              required
-              maxLength={200}
-            />
-          </div>
-          <div>
-            <FormLabel htmlFor="supplier-phone" className="mb-1">
-              Phone
-            </FormLabel>
-            <input
-              id="supplier-phone"
-              type="text"
-              value={formPhone}
-              onChange={(e) => setFormPhone(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              maxLength={50}
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <FormLabel htmlFor="supplier-name" className="mb-1" required>
+                Name
+              </FormLabel>
+              <input
+                id="supplier-name"
+                type="text"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                required
+                maxLength={200}
+              />
+            </div>
+            <div>
+              <FormLabel htmlFor="supplier-phone" className="mb-1">
+                Phone
+              </FormLabel>
+              <input
+                id="supplier-phone"
+                type="text"
+                value={formPhone}
+                onChange={(e) => setFormPhone(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                maxLength={50}
+              />
+            </div>
           </div>
           <div>
             <FormLabel htmlFor="supplier-email" className="mb-1">
@@ -601,11 +611,12 @@ export function SuppliersListPage({
               maxLength={200}
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="grid grid-cols-2 gap-3 pt-4">
             <Button
               type="button"
               variant="secondary"
               size="md"
+              className="w-full"
               onClick={() => {
                 setSlideOpen(false);
                 setEditingSupplier(null);
@@ -614,14 +625,8 @@ export function SuppliersListPage({
             >
               Cancel
             </Button>
-            <Button type="submit" size="md" disabled={submitLoading}>
-              {submitLoading
-                ? editingSupplier
-                  ? "Saving…"
-                  : "Creating…"
-                : editingSupplier
-                  ? "Save"
-                  : "Create"}
+            <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
+              {submitLoading ? "Saving…" : "Save"}
             </Button>
           </div>
         </form>

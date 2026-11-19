@@ -332,17 +332,17 @@ export function StockTakingSchedulesPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-auto">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <PageHeader
-          title="Stock Taking Schedules"
-          subtitle="Configure daily or weekly automatic stock counts per branch."
-          icon={CalendarClock}
-          fallbackTo="/admin"
-          noMargin
-        />
-        <div className="flex flex-wrap items-center gap-4">
+      <PageHeader
+        title="Stock taking schedules"
+        subtitle="Configure daily or weekly automatic stock counts per branch."
+        icon={CalendarClock}
+        fallbackTo="/admin"
+      />
+
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end gap-4">
           {filteredOrgs.length > 1 && (
-            <>
+            <div className="flex flex-col gap-1">
               <label
                 htmlFor="stock-schedule-org"
                 className="text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -358,19 +358,27 @@ export function StockTakingSchedulesPage() {
                   setPage(0);
                 }}
                 placeholder="Search organization…"
-                className="w-full sm:w-auto min-w-[12rem]"
+                className="w-full sm:w-56"
                 controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
               />
-            </>
+            </div>
           )}
-          <Button
-            onClick={openCreate}
-            disabled={!selectedOrgId || filteredBranches.length === 0}
-          >
-            <Plus className="h-4 w-4" />
-            Add schedule
-          </Button>
+          {selectedOrgId && (
+            <TableSearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search schedules…"
+              className="w-full sm:w-64"
+            />
+          )}
         </div>
+        <Button
+          onClick={openCreate}
+          disabled={!selectedOrgId || filteredBranches.length === 0}
+        >
+          <Plus className="h-4 w-4" />
+          Add schedule
+        </Button>
       </div>
 
       {!selectedOrgId && (
@@ -396,7 +404,6 @@ export function StockTakingSchedulesPage() {
 
       {selectedOrgId && !isLoading && !isError && (
         <>
-          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search schedules…" className="mb-4" />
           {filteredSchedules.length === 0 ? (
             <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
               {schedules.length === 0 ? "No stock taking schedules. Add a schedule to enable automatic stock counts." : "No results match your search."}
@@ -546,36 +553,53 @@ export function StockTakingSchedulesPage() {
         title={editingSchedule ? "Edit schedule" : "Add schedule"}
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {!editingSchedule && (
+          {!editingSchedule ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <FormLabel htmlFor="stock-schedule-branch" className="mb-1" required>
+                  Branch
+                </FormLabel>
+                <SearchableSelect
+                  id="stock-schedule-branch"
+                  options={scheduleBranchFormOptions}
+                  value={branchId}
+                  onChange={setBranchId}
+                  placeholder="Search branch…"
+                  className="w-full"
+                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                />
+              </div>
+              <div>
+                <FormLabel htmlFor="stock-schedule-frequency" className="mb-1">
+                  Frequency
+                </FormLabel>
+                <SearchableSelect
+                  id="stock-schedule-frequency"
+                  options={frequencyOptions}
+                  value={frequency}
+                  onChange={(v) => setFrequency(v as "DAILY" | "WEEKLY")}
+                  placeholder="Search…"
+                  className="w-full"
+                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                />
+              </div>
+            </div>
+          ) : (
             <div>
-              <FormLabel htmlFor="stock-schedule-branch" className="mb-1" required>
-                Branch
+              <FormLabel htmlFor="stock-schedule-frequency" className="mb-1">
+                Frequency
               </FormLabel>
               <SearchableSelect
-                id="stock-schedule-branch"
-                options={scheduleBranchFormOptions}
-                value={branchId}
-                onChange={setBranchId}
-                placeholder="Search branch…"
+                id="stock-schedule-frequency"
+                options={frequencyOptions}
+                value={frequency}
+                onChange={(v) => setFrequency(v as "DAILY" | "WEEKLY")}
+                placeholder="Search…"
                 className="w-full"
                 controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
               />
             </div>
           )}
-          <div>
-            <FormLabel htmlFor="stock-schedule-frequency" className="mb-1">
-              Frequency
-            </FormLabel>
-            <SearchableSelect
-              id="stock-schedule-frequency"
-              options={frequencyOptions}
-              value={frequency}
-              onChange={(v) => setFrequency(v as "DAILY" | "WEEKLY")}
-              placeholder="Search…"
-              className="w-full"
-              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-            />
-          </div>
           {frequency === "WEEKLY" && (
             <div>
               <FormLabel htmlFor="stock-schedule-dow" className="mb-1">
@@ -635,11 +659,12 @@ export function StockTakingSchedulesPage() {
               </label>
             </div>
           )}
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="grid grid-cols-2 gap-3 pt-4">
             <Button
               type="button"
               variant="secondary"
               size="md"
+              className="w-full"
               onClick={() => {
                 setSlideOpen(false);
                 setEditingSchedule(null);
@@ -651,12 +676,13 @@ export function StockTakingSchedulesPage() {
             <Button
               type="submit"
               size="md"
+              className="w-full"
               disabled={createMutation.isPending || updateMutation.isPending}
             >
               {(createMutation.isPending || updateMutation.isPending) && (
                 <Loader2 className="h-4 w-4 animate-spin" />
               )}
-              {editingSchedule ? "Update" : "Create"}
+              {createMutation.isPending || updateMutation.isPending ? "Saving…" : "Save"}
             </Button>
           </div>
         </form>

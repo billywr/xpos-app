@@ -122,12 +122,9 @@ export function AnalyticsPage() {
     return (
       <div className="min-h-0 flex-1 overflow-auto p-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
             Analytics
           </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Select a branch to view analytics
-          </p>
           <div className="mt-3">
             <AnalyticsOrgBranchFilter />
           </div>

@@ -1,14 +1,12 @@
-import {
-  QueryClient,
-  QueryClientProvider,
-  keepPreviousData,
-} from "@tanstack/react-query";
+import { QueryClient, keepPreviousData } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Provider } from "react-redux";
 import { BrowserRouter } from "react-router-dom";
 import { store } from "@/store";
 import { setupCrossTabQuerySync } from "@/sync/setupCrossTabQuerySync";
+import { getPersistOptions } from "@/sync/queryPersister";
 import { setupGlobalDatePicker } from "@/utils/setupGlobalDatePicker";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ToastProvider } from "@/contexts/ToastContext";
@@ -19,7 +17,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 60 * 1000,
-      gcTime: 10 * 60 * 1000,
+      gcTime: 24 * 60 * 60 * 1000,
       retry: 1,
       refetchOnWindowFocus: false,
       refetchOnReconnect: "always",
@@ -36,10 +34,12 @@ setupCrossTabQuerySync(queryClient, () => {
 
 setupGlobalDatePicker();
 
+const persistOptions = getPersistOptions();
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
         <BrowserRouter>
           <ThemeProvider>
             <ToastProvider>
@@ -47,7 +47,7 @@ createRoot(document.getElementById("root")!).render(
             </ToastProvider>
           </ThemeProvider>
         </BrowserRouter>
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </Provider>
   </StrictMode>
 );

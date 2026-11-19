@@ -85,8 +85,8 @@ export function ZReportPage() {
     const requestId = getApiErrorRequestId(error);
     return (
       <div className="min-h-0 flex-1 overflow-auto">
-        <h1 className="mb-6 text-2xl font-bold text-slate-800 dark:text-white">
-          Z-Report
+        <h1 className="mb-6 text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
+          Z-report
         </h1>
         <div
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
@@ -107,13 +107,10 @@ export function ZReportPage() {
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 dark:text-white">
-            <FileText className="h-7 w-7" />
-            Z-Report
+          <h1 className="flex items-center gap-2 text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
+            <FileText className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />
+            Z-report
           </h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-400">
-            End-of-day sales summary by branch and business date.
-          </p>
         </div>
       </div>
 
@@ -187,7 +184,7 @@ export function ZReportPage() {
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-600 dark:bg-slate-800">
             <h2 className="font-semibold text-slate-800 dark:text-white">
-              Z-Report · {selectedBranch?.name ?? "Branch"} · {formatDate(report.businessDate)}
+              Z-report · {selectedBranch?.name ?? "Branch"} · {formatDate(report.businessDate)}
             </h2>
           </div>
           <dl className="grid grid-cols-1 gap-px sm:grid-cols-2 lg:grid-cols-3">

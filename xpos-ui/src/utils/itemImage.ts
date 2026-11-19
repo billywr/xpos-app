@@ -8,14 +8,26 @@ export function getItemImageName(url: string | null | undefined): string | null 
   if (!url || !url.trim()) return null;
   const trimmed = url.trim();
   try {
+    let filename = "";
     if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
       const u = new URL(trimmed);
       const segments = u.pathname.split("/").filter(Boolean);
-      return segments.length > 0 ? segments[segments.length - 1] : null;
+      filename = segments.length > 0 ? segments[segments.length - 1] : "";
+    } else {
+      const segments = trimmed.split("/").filter(Boolean);
+      filename = segments.length > 0 ? segments[segments.length - 1] : "";
     }
-    const segments = trimmed.split("/").filter(Boolean);
-    return segments.length > 0 ? segments[segments.length - 1] : null;
+    if (!filename) return null;
+    if (filename.includes("-")) {
+      const parts = filename.split("-");
+      return parts[parts.length - 1];
+    }
+    return filename;
   } catch {
+    if (trimmed.includes("-")) {
+      const parts = trimmed.split("-");
+      return parts[parts.length - 1];
+    }
     return trimmed;
   }
 }

@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useNavVisibilityContext } from "@/contexts/NavVisibilityContext";
 import { useAppSelector } from "@/hooks/useAppSelector";
@@ -35,10 +36,78 @@ import {
   ASSISTANT_SHOW_WIDGET,
   isAssistantWidgetVisible,
 } from "@/config/assistantVisibility";
-import { Settings, Upload, Trash2, Store } from "lucide-react";
+import {
+  Settings,
+  Upload,
+  Trash2,
+  Store,
+  SlidersHorizontal,
+  LayoutDashboard,
+  ShoppingBag,
+  Smartphone,
+  Sparkles,
+  Palette,
+  Search,
+  X,
+} from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { AdminTabList, type AdminTabItem } from "@/components/ui/AdminTabs";
 import { MpesaSettingsSection } from "@/features/admin/MpesaSettingsSection";
 import { resizeImageForLogo } from "@/utils/logoResize";
+
+export type SettingsTabId =
+  | "top-bar"
+  | "admin-sidebar"
+  | "operator-sidebar"
+  | "pos"
+  | "mpesa"
+  | "assistant"
+  | "appearance";
+
+export const SETTINGS_TABS: AdminTabItem[] = [
+  { id: "top-bar", label: "Top Bar", icon: SlidersHorizontal, enabled: true },
+  { id: "admin-sidebar", label: "Admin Sidebar", icon: LayoutDashboard, enabled: true },
+  { id: "operator-sidebar", label: "Operator Sidebar", icon: Store, enabled: true },
+  { id: "pos", label: "POS & Features", icon: ShoppingBag, enabled: true },
+  { id: "mpesa", label: "M-Pesa", icon: Smartphone, enabled: true },
+  { id: "assistant", label: "AI Assistant", icon: Sparkles, enabled: true },
+  { id: "appearance", label: "Appearance", icon: Palette, enabled: true },
+];
+
+const VALID_TAB_IDS = new Set<string>(SETTINGS_TABS.map((t) => t.id));
+
+function settingsTabFromQuery(tabParam: string | null): SettingsTabId {
+  if (tabParam && VALID_TAB_IDS.has(tabParam)) {
+    return tabParam as SettingsTabId;
+  }
+  return "top-bar";
+}
+
+const DARK_THEMES = [
+  { id: "petrol", name: "Petrol", colors: ["#011f2a", "#022633", "#063142", "#06b6d4"] },
+  { id: "cyber-teal", name: "Nordic Teal", colors: ["#061a24", "#0a2533", "#103548", "#14b8a6"] },
+  { id: "emerald", name: "Emerald", colors: ["#022015", "#042c1e", "#073d2b", "#10b981"] },
+  { id: "moss", name: "Pine Moss", colors: ["#0e1f14", "#14291c", "#1c3a28", "#22c55e"] },
+  { id: "jade", name: "Jade Mint", colors: ["#061e1b", "#0b2925", "#123c37", "#2dd4bf"] },
+  { id: "obsidian", name: "Obsidian OLED", colors: ["#050505", "#0c0c0e", "#151518", "#38bdf8"] },
+  { id: "charcoal", name: "Charcoal", colors: ["#121316", "#181a1f", "#23262e", "#6366f1"] },
+  { id: "navy", name: "Executive Navy", colors: ["#070e1b", "#0c172a", "#152542", "#3b82f6"] },
+  { id: "amber", name: "Amber Espresso", colors: ["#15100c", "#1d1712", "#2a211a", "#f59e0b"] },
+  { id: "ocean", name: "Ocean", colors: ["#0d2a4a", "#113264", "#164278", "#0ea5e9"] },
+  { id: "slate", name: "Slate", colors: ["#111318", "#1a1d24", "#24282f", "#94a3b8"] },
+  { id: "forest", name: "Magenta", colors: ["#3a1243", "#52124d", "#601558", "#ec4899"] },
+  { id: "ember", name: "Midnight", colors: ["#0d0d24", "#141432", "#1c1c3d", "#8b5cf6"] },
+] as const;
+
+interface SettingsSection {
+  id: string;
+  tabId: SettingsTabId;
+  tabLabel: string;
+  title: string;
+  description: string;
+  keywords: string[];
+  render: () => React.ReactNode;
+}
 
 function groupAdminNavItems() {
   const byGroup = new Map<string, typeof ADMIN_NAV_ITEMS>();
@@ -386,6 +455,24 @@ function AssistantUsageSection() {
 }
 
 export function AdminSettingsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const activeTab = useMemo(() => settingsTabFromQuery(tabParam), [tabParam]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleTabChange = (id: SettingsTabId) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", id);
+      return next;
+    });
+  };
+
+  const handleTabSelect = (tabId: SettingsTabId) => {
+    setSearchQuery("");
+    handleTabChange(tabId);
+  };
+
   const {
     adminVisibility: visibilityState,
     operatorVisibility: opVisibilityState,
@@ -413,6 +500,643 @@ export function AdminSettingsPage() {
     isSaving,
   } = useNavVisibilityContext();
 
+  const renderTopNav = () => (
+    <section>
+      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+        Top navigation bar
+      </h2>
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+        System logo and app name (shown in header, operator bar). Home, Admin,
+        Operator, Org links. Database values (org dropdown, user name) are
+        shown as-is.
+      </p>
+      <div className="max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        <div className="space-y-3">
+          <LogoUploadRow
+            logoDataUrl={getHeaderLogo()}
+            onLogoChange={(url) => setHeaderLogo(url)}
+            onLogoRemove={() => setHeaderLogo(null)}
+            isSaving={isSaving}
+          />
+          {HEADER_NAV_ITEMS.map((item) => (
+            <NavItemRow
+              key={item.path}
+              path={item.path}
+              defaultLabel={item.label}
+              customLabel={headerLabels[item.path] ?? ""}
+              visible={isHeaderNavItemVisible(
+                item.path,
+                item.canHide,
+                headerVisibilityState
+              )}
+              canHide={item.canHide}
+              onToggle={(v) => setHeaderVisible(item.path, v)}
+              onLabelChange={setHeaderLabel}
+              rowLabel={item.rowLabel}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={resetHeaderToDefaults}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        >
+          Reset visibility (show all)
+        </button>
+        <button
+          type="button"
+          onClick={resetHeaderLabels}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        >
+          Reset labels to default
+        </button>
+      </div>
+    </section>
+  );
+
+  const renderAdminSidebar = () => (
+    <section>
+      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+        Admin sidebar
+      </h2>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {adminNavGroups.map(({ label: groupLabel, items: groupItems }) => (
+          <div
+            key={groupLabel}
+            className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
+          >
+            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              {groupLabel}
+            </h3>
+            <div className="space-y-3">
+              {groupItems.map((item) => (
+                <NavItemRow
+                  key={item.to}
+                  path={item.to}
+                  defaultLabel={item.label}
+                  customLabel={adminLabels[item.to] ?? ""}
+                  visible={isNavItemVisible(
+                    item.to,
+                    item.canHide,
+                    visibilityState
+                  )}
+                  canHide={item.canHide}
+                  onToggle={(v) => setVisible(item.to, v)}
+                  onLabelChange={setAdminLabel}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={resetToDefaults}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        >
+          Reset visibility (show all)
+        </button>
+        <button
+          type="button"
+          onClick={resetAdminLabels}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        >
+          Reset labels to default
+        </button>
+      </div>
+    </section>
+  );
+
+  const renderOperatorSidebar = () => (
+    <section>
+      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+        Operator sidebar
+      </h2>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {operatorNavGroups.map(({ label: groupLabel, items: groupItems }) => (
+          <div
+            key={groupLabel}
+            className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
+          >
+            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              {groupLabel}
+            </h3>
+            <div className="space-y-3">
+              {groupItems.map((item) => (
+                <NavItemRow
+                  key={item.to}
+                  path={item.to}
+                  defaultLabel={item.label}
+                  customLabel={operatorLabels[item.to] ?? ""}
+                  visible={isOperatorNavItemVisible(
+                    item.to,
+                    item.canHide,
+                    opVisibilityState
+                  )}
+                  canHide={item.canHide}
+                  onToggle={(v) => opSetVisible(item.to, v)}
+                  onLabelChange={setOperatorLabel}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={opResetToDefaults}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        >
+          Reset visibility (show all)
+        </button>
+        <button
+          type="button"
+          onClick={resetOperatorLabels}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        >
+          Reset labels to default
+        </button>
+      </div>
+    </section>
+  );
+
+  const renderPos = () => (
+    <section>
+      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+        POS (operator)
+      </h2>
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+        Show or hide elements on the operator POS screen: order type
+        (Dine-in / Takeaway / Delivery), table selector, the item list
+        (categories and search), and the Hide OOS toggle.
+      </p>
+      <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        <div className="space-y-4">
+          <MenuOrderVisibilityRow
+            label="Order type (Dine-in / Takeaway / Delivery)"
+            visible={isMenuOrderOptionVisible(
+              opVisibilityState,
+              MENU_ORDER_SHOW_ORDER_TYPE
+            )}
+            onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_ORDER_TYPE, v)}
+          />
+          <MenuOrderVisibilityRow
+            label="Table selector"
+            visible={isMenuOrderOptionVisible(
+              opVisibilityState,
+              MENU_ORDER_SHOW_TABLE_SELECT
+            )}
+            onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_TABLE_SELECT, v)}
+          />
+          <MenuOrderVisibilityRow
+            label="Item list (categories and search)"
+            visible={isMenuOrderOptionVisible(
+              opVisibilityState,
+              MENU_ORDER_SHOW_ITEM_LIST
+            )}
+            onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_ITEM_LIST, v)}
+          />
+          <MenuOrderVisibilityRow
+            label="Hide OOS toggle (out-of-stock filter)"
+            visible={isMenuOrderOptionVisible(
+              opVisibilityState,
+              MENU_ORDER_SHOW_HIDE_OOS
+            )}
+            onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_HIDE_OOS, v)}
+          />
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderStockCount = () => (
+    <section>
+      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+        Standard stock count
+      </h2>
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+        Show or hide toolbar buttons on the operator Standard Stock Taking page.
+      </p>
+      <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        <div className="space-y-4">
+          <MenuOrderVisibilityRow
+            label="Download"
+            visible={isStdStockCountButtonVisible(
+              opVisibilityState,
+              STD_STOCK_COUNT_SHOW_PDF
+            )}
+            onToggle={(v) => opSetVisible(STD_STOCK_COUNT_SHOW_PDF, v)}
+          />
+          <MenuOrderVisibilityRow
+            label="Save"
+            visible={isStdStockCountButtonVisible(
+              opVisibilityState,
+              STD_STOCK_COUNT_SHOW_SAVE
+            )}
+            onToggle={(v) => opSetVisible(STD_STOCK_COUNT_SHOW_SAVE, v)}
+          />
+          <MenuOrderVisibilityRow
+            label="Reconcile inventory"
+            visible={isStdStockCountButtonVisible(
+              opVisibilityState,
+              STD_STOCK_COUNT_SHOW_RECONCILE
+            )}
+            onToggle={(v) => opSetVisible(STD_STOCK_COUNT_SHOW_RECONCILE, v)}
+          />
+          <MenuOrderVisibilityRow
+            label="Record sales"
+            visible={isStdStockCountButtonVisible(
+              opVisibilityState,
+              STD_STOCK_COUNT_SHOW_RECORD_SALES
+            )}
+            onToggle={(v) => opSetVisible(STD_STOCK_COUNT_SHOW_RECORD_SALES, v)}
+          />
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderBarcode = () => (
+    <section>
+      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+        Barcode (per screen)
+      </h2>
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+        Show or hide barcode scan / barcode field on each screen. When
+        hidden, the barcode input is not shown on that screen.
+      </p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Admin
+          </h3>
+          <div className="space-y-4">
+            <MenuOrderVisibilityRow
+              label="Add stock: barcode scan"
+              visible={isBarcodeVisible(
+                visibilityState,
+                BARCODE_GOODS_RECEIPT
+              )}
+              onToggle={(v) => setVisible(BARCODE_GOODS_RECEIPT, v)}
+            />
+            <MenuOrderVisibilityRow
+              label="Catalog (Items): barcode field"
+              visible={isBarcodeVisible(visibilityState, BARCODE_ITEMS)}
+              onToggle={(v) => setVisible(BARCODE_ITEMS, v)}
+            />
+          </div>
+        </div>
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Operator
+          </h3>
+          <div className="space-y-4">
+            <MenuOrderVisibilityRow
+              label="POS: barcode scan"
+              visible={isBarcodeVisible(
+                opVisibilityState,
+                BARCODE_MENU_ORDER
+              )}
+              onToggle={(v) => opSetVisible(BARCODE_MENU_ORDER, v)}
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderMpesa = () => <MpesaSettingsSection />;
+
+  const renderAssistant = () => (
+    <section>
+      <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+        XPOS Assistant
+      </h2>
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+        Show or hide the branch insights assistant button (bottom-right) in admin and
+        operator layouts. Hidden by default until enabled for this organization.
+      </p>
+      <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        <MenuOrderVisibilityRow
+          label="Assistant button"
+          visible={isAssistantWidgetVisible(opVisibilityState)}
+          onToggle={(v) => opSetVisible(ASSISTANT_SHOW_WIDGET, v)}
+        />
+      </div>
+    </section>
+  );
+
+  const renderAssistantUsage = () => <AssistantUsageSection />;
+
+  const renderAppearance = () => (
+    <section>
+      <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-white">
+        Dark Mode Theme
+      </h2>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {DARK_THEMES.map((theme) => {
+          const isActive = darkTheme === theme.id;
+          return (
+            <button
+              key={theme.id}
+              type="button"
+              onClick={() => setDarkTheme(theme.id)}
+              className={`flex flex-col items-center gap-2 rounded-xl border-2 p-3 transition ${
+                isActive
+                  ? "border-primary-500 bg-primary-50 shadow-md dark:border-primary-400 dark:bg-primary-900/30"
+                  : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-slate-500"
+              }`}
+            >
+              <div className="flex h-8 w-full overflow-hidden rounded-lg">
+                {theme.colors.map((c, i) => (
+                  <div key={i} className="flex-1" style={{ backgroundColor: c }} />
+                ))}
+              </div>
+              <span className={`text-sm font-medium ${isActive ? "text-primary-700 dark:text-primary-300" : "text-slate-700 dark:text-slate-300"}`}>
+                {theme.name}
+              </span>
+              {isActive && (
+                <span className="text-xs font-semibold text-primary-600 dark:text-primary-400">
+                  Active
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+
+  const sections: SettingsSection[] = useMemo(
+    () => [
+      {
+        id: "top-nav",
+        tabId: "top-bar",
+        tabLabel: "Top Bar",
+        title: "Top navigation bar",
+        description:
+          "System logo and app name (shown in header, operator bar). Home, Admin, Operator, Org links. Database values (org dropdown, user name) are shown as-is.",
+        keywords: [
+          "logo",
+          "upload",
+          "system logo",
+          "app name",
+          "store name",
+          "brand",
+          "header",
+          "top bar",
+          "home",
+          "admin",
+          "operator",
+          "counter",
+          "org",
+          "organization",
+          "visibility",
+          "labels",
+          ...HEADER_NAV_ITEMS.map((i) => i.label),
+        ],
+        render: renderTopNav,
+      },
+      {
+        id: "admin-sidebar",
+        tabId: "admin-sidebar",
+        tabLabel: "Admin Sidebar",
+        title: "Admin sidebar",
+        description:
+          "Configure visible menu items and custom labels for the admin navigation sidebar across all functional groups.",
+        keywords: [
+          "admin",
+          "sidebar",
+          "menu",
+          "navigation",
+          "dashboard",
+          ...adminNavGroups.flatMap((g) => [g.label, ...g.items.map((i) => i.label)]),
+        ],
+        render: renderAdminSidebar,
+      },
+      {
+        id: "operator-sidebar",
+        tabId: "operator-sidebar",
+        tabLabel: "Operator Sidebar",
+        title: "Operator sidebar",
+        description:
+          "Configure visible menu items and custom labels for the operator navigation sidebar.",
+        keywords: [
+          "operator",
+          "sidebar",
+          "menu",
+          "navigation",
+          "counter",
+          "cashier",
+          ...operatorNavGroups.flatMap((g) => [g.label, ...g.items.map((i) => i.label)]),
+        ],
+        render: renderOperatorSidebar,
+      },
+      {
+        id: "pos-screen",
+        tabId: "pos",
+        tabLabel: "POS & Features",
+        title: "POS (operator)",
+        description:
+          "Show or hide elements on the operator POS screen: order type (Dine-in / Takeaway / Delivery), table selector, the item list (categories and search), and the Hide OOS toggle.",
+        keywords: [
+          "pos",
+          "operator",
+          "order type",
+          "dine-in",
+          "takeaway",
+          "delivery",
+          "table selector",
+          "item list",
+          "categories",
+          "search",
+          "hide oos",
+          "out of stock",
+          "cashier",
+        ],
+        render: renderPos,
+      },
+      {
+        id: "stock-count",
+        tabId: "pos",
+        tabLabel: "POS & Features",
+        title: "Standard stock count",
+        description:
+          "Show or hide toolbar buttons on the operator Standard Stock Taking page.",
+        keywords: [
+          "stock count",
+          "standard stock taking",
+          "download",
+          "save",
+          "reconcile inventory",
+          "record sales",
+          "inventory",
+          "operator",
+          "pdf",
+        ],
+        render: renderStockCount,
+      },
+      {
+        id: "barcode",
+        tabId: "pos",
+        tabLabel: "POS & Features",
+        title: "Barcode (per screen)",
+        description:
+          "Show or hide barcode scan / barcode field on each screen. When hidden, the barcode input is not shown on that screen.",
+        keywords: [
+          "barcode",
+          "scan",
+          "scanner",
+          "goods receipt",
+          "add stock",
+          "catalog",
+          "items",
+          "pos",
+          "admin",
+          "operator",
+        ],
+        render: renderBarcode,
+      },
+      {
+        id: "mpesa",
+        tabId: "mpesa",
+        tabLabel: "M-Pesa",
+        title: "M-Pesa Settings",
+        description:
+          "Configure Safaricom Daraja M-PESA STK Push, C2B integration, credentials, paybill, till numbers, and branch overrides.",
+        keywords: [
+          "mpesa",
+          "m-pesa",
+          "safaricom",
+          "daraja",
+          "stk",
+          "stk push",
+          "c2b",
+          "shortcode",
+          "till number",
+          "paybill",
+          "sandbox",
+          "production",
+          "consumer key",
+          "consumer secret",
+          "passkey",
+          "callback",
+          "payment",
+          "credentials",
+          "branch",
+        ],
+        render: renderMpesa,
+      },
+      {
+        id: "assistant",
+        tabId: "assistant",
+        tabLabel: "AI Assistant",
+        title: "XPOS Assistant",
+        description:
+          "Show or hide the branch insights assistant button (bottom-right) in admin and operator layouts. Hidden by default until enabled for this organization.",
+        keywords: [
+          "assistant",
+          "xpos assistant",
+          "ai",
+          "button",
+          "widget",
+          "branch insights",
+          "copilot",
+          "floating",
+        ],
+        render: renderAssistant,
+      },
+      {
+        id: "assistant-usage",
+        tabId: "assistant",
+        tabLabel: "AI Assistant",
+        title: "AI usage & governance",
+        description:
+          "Branch-scoped assistant queries are logged with tool name, latency, and optional LLM routing. LLM model and token budget are configured on the server.",
+        keywords: [
+          "ai usage",
+          "governance",
+          "queries",
+          "tokens",
+          "llm",
+          "routing",
+          "daily cap",
+          "token budget",
+          "intents",
+          "top intents",
+        ],
+        render: renderAssistantUsage,
+      },
+      {
+        id: "appearance",
+        tabId: "appearance",
+        tabLabel: "Appearance",
+        title: "Dark Mode Theme",
+        description:
+          "Choose from 13 dark theme variants for the user interface.",
+        keywords: [
+          "theme",
+          "dark mode",
+          "appearance",
+          "palette",
+          "color",
+          "styling",
+          ...DARK_THEMES.map((t) => t.name),
+          ...DARK_THEMES.map((t) => t.id),
+        ],
+        render: renderAppearance,
+      },
+    ],
+    [
+      visibilityState,
+      opVisibilityState,
+      headerVisibilityState,
+      adminLabels,
+      operatorLabels,
+      headerLabels,
+      getHeaderLogo,
+      isSaving,
+      darkTheme,
+    ]
+  );
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const isSearching = normalizedQuery.length > 0;
+
+  const matchingSections = useMemo(() => {
+    if (!isSearching) return [];
+    return sections.filter((s) => {
+      if (s.title.toLowerCase().includes(normalizedQuery)) return true;
+      if (s.description.toLowerCase().includes(normalizedQuery)) return true;
+      if (s.tabLabel.toLowerCase().includes(normalizedQuery)) return true;
+      return s.keywords.some((k) => k.toLowerCase().includes(normalizedQuery));
+    });
+  }, [isSearching, normalizedQuery, sections]);
+
+  const tabMatchCounts = useMemo(() => {
+    if (!isSearching) return new Map<SettingsTabId, number>();
+    const counts = new Map<SettingsTabId, number>();
+    for (const s of matchingSections) {
+      counts.set(s.tabId, (counts.get(s.tabId) ?? 0) + 1);
+    }
+    return counts;
+  }, [isSearching, matchingSections]);
+
+  const tabsWithBadges = useMemo(() => {
+    if (!isSearching) return SETTINGS_TABS;
+    return SETTINGS_TABS.map((tab) => {
+      const count = tabMatchCounts.get(tab.id as SettingsTabId) ?? 0;
+      return {
+        ...tab,
+        label: count > 0 ? `${tab.label} (${count})` : tab.label,
+      };
+    });
+  }, [isSearching, tabMatchCounts]);
+
   if (needsOrgSelection) {
     return (
       <div className="mx-auto max-w-2xl">
@@ -435,375 +1159,121 @@ export function AdminSettingsPage() {
         icon={Settings}
         fallbackTo="/admin"
       />
-      <p className="mb-6 text-slate-600 dark:text-slate-400">
-        Choose which items appear in the top bar, admin and operator sidebars, and
-        customize static menu labels. Values from the database (e.g. org name, branch)
-        are not configurable here. Settings are stored per organization and sync
-        across devices. Changes apply immediately.
-      </p>
 
-      <div className="flex flex-col gap-8">
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
-            Top navigation bar
-          </h2>
-          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-            System logo and app name (shown in header, operator bar). Home, Admin,
-            Operator, Org links. Database values (org dropdown, user name) are
-            shown as-is.
-          </p>
-          <div className="max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-            <div className="space-y-3">
-              <LogoUploadRow
-                logoDataUrl={getHeaderLogo()}
-                onLogoChange={(url) => setHeaderLogo(url)}
-                onLogoRemove={() => setHeaderLogo(null)}
-                isSaving={isSaving}
-              />
-              {HEADER_NAV_ITEMS.map((item) => (
-                <NavItemRow
-                  key={item.path}
-                  path={item.path}
-                  defaultLabel={item.label}
-                  customLabel={headerLabels[item.path] ?? ""}
-                  visible={isHeaderNavItemVisible(
-                    item.path,
-                    item.canHide,
-                    headerVisibilityState
-                  )}
-                  canHide={item.canHide}
-                  onToggle={(v) => setHeaderVisible(item.path, v)}
-                  onLabelChange={setHeaderLabel}
-                  rowLabel={item.rowLabel}
-                />
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+          Configure navigation, custom menu labels, and feature visibility.
+          <br />
+          Settings are saved per organization and sync across all devices.
+        </p>
+        <div className="relative w-full shrink-0 sm:w-80">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search sections or settings…"
+            aria-label="Search sections or settings"
+            className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-9 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-slate-400"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <AdminTabList
+        tabListId="settings-tabs"
+        ariaLabel="Settings sections"
+        tabs={tabsWithBadges}
+        activeTab={activeTab}
+        onTabChange={(id) => handleTabSelect(id as SettingsTabId)}
+      />
+
+      {!isSearching ? (
+        <div className="pt-6 flex flex-col gap-8">
+          {sections
+            .filter((s) => s.tabId === activeTab)
+            .map((s) => (
+              <div key={s.id}>{s.render()}</div>
+            ))}
+        </div>
+      ) : (
+        <div className="pt-6 flex flex-col gap-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
+            <p className="text-sm text-slate-700 dark:text-slate-300">
+              Found{" "}
+              <span className="font-semibold text-slate-900 dark:text-white">
+                {matchingSections.length}
+              </span>{" "}
+              {matchingSections.length === 1 ? "section" : "sections"} matching &ldquo;
+              <span className="font-semibold text-primary-600 dark:text-primary-400">
+                {searchQuery}
+              </span>
+              &rdquo;
+            </p>
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="text-xs font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+            >
+              Clear search
+            </button>
+          </div>
+
+          {matchingSections.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center dark:border-slate-700 dark:bg-slate-800">
+              <Search className="mx-auto h-10 w-10 text-slate-400 dark:text-slate-500" />
+              <h3 className="mt-4 text-base font-semibold text-slate-800 dark:text-white">
+                No settings sections found
+              </h3>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                No sections or settings matched &ldquo;{searchQuery}&rdquo;. Try searching for &ldquo;sidebar&rdquo;, &ldquo;logo&rdquo;, &ldquo;mpesa&rdquo;, &ldquo;barcode&rdquo;, &ldquo;table&rdquo;, &ldquo;stock&rdquo;, or &ldquo;theme&rdquo;.
+              </p>
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                >
+                  <X className="h-4 w-4" />
+                  Clear search
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-8">
+              {matchingSections.map((section) => (
+                <div
+                  key={section.id}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:p-6 dark:border-slate-700 dark:bg-slate-900/30"
+                >
+                  <div className="mb-4 flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-700">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200/80 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                      Tab: {section.tabLabel}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleTabSelect(section.tabId)}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                    >
+                      Go to tab &rarr;
+                    </button>
+                  </div>
+                  {section.render()}
+                </div>
               ))}
             </div>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={resetHeaderToDefaults}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            >
-              Reset visibility (show all)
-            </button>
-            <button
-              type="button"
-              onClick={resetHeaderLabels}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            >
-              Reset labels to default
-            </button>
-          </div>
-        </section>
-
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
-            Admin sidebar
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {adminNavGroups.map(({ label: groupLabel, items: groupItems }) => (
-              <div
-                key={groupLabel}
-                className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
-              >
-                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  {groupLabel}
-                </h3>
-                <div className="space-y-3">
-                  {groupItems.map((item) => (
-                    <NavItemRow
-                      key={item.to}
-                      path={item.to}
-                      defaultLabel={item.label}
-                      customLabel={adminLabels[item.to] ?? ""}
-                      visible={isNavItemVisible(
-                        item.to,
-                        item.canHide,
-                        visibilityState
-                      )}
-                      canHide={item.canHide}
-                      onToggle={(v) => setVisible(item.to, v)}
-                      onLabelChange={setAdminLabel}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={resetToDefaults}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            >
-              Reset visibility (show all)
-            </button>
-            <button
-              type="button"
-              onClick={resetAdminLabels}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            >
-              Reset labels to default
-            </button>
-          </div>
-        </section>
-
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
-            Operator sidebar
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {operatorNavGroups.map(({ label: groupLabel, items: groupItems }) => (
-              <div
-                key={groupLabel}
-                className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
-              >
-                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  {groupLabel}
-                </h3>
-                <div className="space-y-3">
-                  {groupItems.map((item) => (
-                    <NavItemRow
-                      key={item.to}
-                      path={item.to}
-                      defaultLabel={item.label}
-                      customLabel={operatorLabels[item.to] ?? ""}
-                      visible={isOperatorNavItemVisible(
-                        item.to,
-                        item.canHide,
-                        opVisibilityState
-                      )}
-                      canHide={item.canHide}
-                      onToggle={(v) => opSetVisible(item.to, v)}
-                      onLabelChange={setOperatorLabel}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={opResetToDefaults}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            >
-              Reset visibility (show all)
-            </button>
-            <button
-              type="button"
-              onClick={resetOperatorLabels}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            >
-              Reset labels to default
-            </button>
-          </div>
-        </section>
-
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
-            POS (operator)
-          </h2>
-          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-            Show or hide elements on the operator POS screen: order type
-            (Dine-in / Takeaway / Delivery), table selector, the item list
-            (categories and search), and the Hide OOS toggle.
-          </p>
-          <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-            <div className="space-y-4">
-              <MenuOrderVisibilityRow
-                label="Order type (Dine-in / Takeaway / Delivery)"
-                visible={isMenuOrderOptionVisible(
-                  opVisibilityState,
-                  MENU_ORDER_SHOW_ORDER_TYPE
-                )}
-                onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_ORDER_TYPE, v)}
-              />
-              <MenuOrderVisibilityRow
-                label="Table selector"
-                visible={isMenuOrderOptionVisible(
-                  opVisibilityState,
-                  MENU_ORDER_SHOW_TABLE_SELECT
-                )}
-                onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_TABLE_SELECT, v)}
-              />
-              <MenuOrderVisibilityRow
-                label="Item list (categories and search)"
-                visible={isMenuOrderOptionVisible(
-                  opVisibilityState,
-                  MENU_ORDER_SHOW_ITEM_LIST
-                )}
-                onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_ITEM_LIST, v)}
-              />
-              <MenuOrderVisibilityRow
-                label="Hide OOS toggle (out-of-stock filter)"
-                visible={isMenuOrderOptionVisible(
-                  opVisibilityState,
-                  MENU_ORDER_SHOW_HIDE_OOS
-                )}
-                onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_HIDE_OOS, v)}
-              />
-            </div>
-          </div>
-        </section>
-
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
-            XPOS Assistant
-          </h2>
-          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-            Show or hide the branch insights assistant button (bottom-right) in admin and
-            operator layouts. Hidden by default until enabled for this organization.
-          </p>
-          <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-            <MenuOrderVisibilityRow
-              label="Assistant button"
-              visible={isAssistantWidgetVisible(opVisibilityState)}
-              onToggle={(v) => opSetVisible(ASSISTANT_SHOW_WIDGET, v)}
-            />
-          </div>
-        </section>
-
-        <AssistantUsageSection />
-
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
-            Standard stock count
-          </h2>
-          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-            Show or hide toolbar buttons on the operator Standard Stock Taking page.
-          </p>
-          <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-            <div className="space-y-4">
-              <MenuOrderVisibilityRow
-                label="Download"
-                visible={isStdStockCountButtonVisible(
-                  opVisibilityState,
-                  STD_STOCK_COUNT_SHOW_PDF
-                )}
-                onToggle={(v) => opSetVisible(STD_STOCK_COUNT_SHOW_PDF, v)}
-              />
-              <MenuOrderVisibilityRow
-                label="Save"
-                visible={isStdStockCountButtonVisible(
-                  opVisibilityState,
-                  STD_STOCK_COUNT_SHOW_SAVE
-                )}
-                onToggle={(v) => opSetVisible(STD_STOCK_COUNT_SHOW_SAVE, v)}
-              />
-              <MenuOrderVisibilityRow
-                label="Reconcile inventory"
-                visible={isStdStockCountButtonVisible(
-                  opVisibilityState,
-                  STD_STOCK_COUNT_SHOW_RECONCILE
-                )}
-                onToggle={(v) => opSetVisible(STD_STOCK_COUNT_SHOW_RECONCILE, v)}
-              />
-              <MenuOrderVisibilityRow
-                label="Record sales"
-                visible={isStdStockCountButtonVisible(
-                  opVisibilityState,
-                  STD_STOCK_COUNT_SHOW_RECORD_SALES
-                )}
-                onToggle={(v) => opSetVisible(STD_STOCK_COUNT_SHOW_RECORD_SALES, v)}
-              />
-            </div>
-          </div>
-        </section>
-
-        <section>
-          <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
-            Barcode (per screen)
-          </h2>
-          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-            Show or hide barcode scan / barcode field on each screen. When
-            hidden, the barcode input is not shown on that screen.
-          </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Admin
-              </h3>
-              <div className="space-y-4">
-                <MenuOrderVisibilityRow
-                  label="Add stock: barcode scan"
-                  visible={isBarcodeVisible(
-                    visibilityState,
-                    BARCODE_GOODS_RECEIPT
-                  )}
-                  onToggle={(v) => setVisible(BARCODE_GOODS_RECEIPT, v)}
-                />
-                <MenuOrderVisibilityRow
-                  label="Catalog (Items): barcode field"
-                  visible={isBarcodeVisible(visibilityState, BARCODE_ITEMS)}
-                  onToggle={(v) => setVisible(BARCODE_ITEMS, v)}
-                />
-              </div>
-            </div>
-            <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-              <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Operator
-              </h3>
-              <div className="space-y-4">
-                <MenuOrderVisibilityRow
-                  label="POS: barcode scan"
-                  visible={isBarcodeVisible(
-                    opVisibilityState,
-                    BARCODE_MENU_ORDER
-                  )}
-                  onToggle={(v) => opSetVisible(BARCODE_MENU_ORDER, v)}
-                />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <MpesaSettingsSection />
-
-        {/* Dark Mode Theme */}
-        <section>
-          <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-white">
-            Dark Mode Theme
-          </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {([
-              { id: "ocean", name: "Ocean", colors: ["#0d2a4a", "#113264", "#164278", "#0ea5e9"] },
-              { id: "forest", name: "Magenta", colors: ["#3a1243", "#52124d", "#601558", "#ec4899"] },
-              { id: "ember", name: "Midnight", colors: ["#0d0d24", "#141432", "#1c1c3d", "#8b5cf6"] },
-              { id: "slate", name: "Slate", colors: ["#111318", "#1a1d24", "#24282f", "#94a3b8"] },
-            ] as const).map((theme) => {
-              const isActive = darkTheme === theme.id;
-              return (
-                <button
-                  key={theme.id}
-                  type="button"
-                  onClick={() => setDarkTheme(theme.id)}
-                  className={`flex flex-col items-center gap-2 rounded-xl border-2 p-3 transition ${
-                    isActive
-                      ? "border-primary-500 bg-primary-50 shadow-md dark:border-primary-400 dark:bg-primary-900/30"
-                      : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-slate-500"
-                  }`}
-                >
-                  <div className="flex h-8 w-full overflow-hidden rounded-lg">
-                    {theme.colors.map((c, i) => (
-                      <div key={i} className="flex-1" style={{ backgroundColor: c }} />
-                    ))}
-                  </div>
-                  <span className={`text-sm font-medium ${isActive ? "text-primary-700 dark:text-primary-300" : "text-slate-700 dark:text-slate-300"}`}>
-                    {theme.name}
-                  </span>
-                  {isActive && (
-                    <span className="text-xs font-semibold text-primary-600 dark:text-primary-400">
-                      Active
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

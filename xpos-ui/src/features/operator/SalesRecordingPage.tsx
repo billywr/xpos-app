@@ -372,7 +372,7 @@ export function SalesRecordingPage() {
     onSuccess: (resp) => {
       toast.success(
         `Recorded ${resp.createdSaleIds.length} sale(s) for ${resp.saleDate}.`,
-        { title: "Sales Recording" }
+        { title: "Sales recording" }
       );
       if (saveTimerRef.current != null) {
         window.clearTimeout(saveTimerRef.current);
@@ -393,7 +393,7 @@ export function SalesRecordingPage() {
     onError: (err) => {
       const requestId = getApiErrorRequestId(err);
       toast.error(getApiErrorMessage(err), {
-        title: "Sales Recording failed",
+        title: "Sales recording failed",
         detail: requestId ? `Reference: ${requestId}` : undefined,
       });
     },
@@ -468,7 +468,7 @@ export function SalesRecordingPage() {
     <div className="w-full p-4 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center gap-3 sm:mb-6">
         <PageHeader
-          title="Sales Recording"
+          title="Sales recording"
           icon={NotebookPen}
           fallbackTo="/operator"
           noMargin

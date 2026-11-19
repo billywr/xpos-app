@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
-import { fetchOrgs } from "@/api/orgs";
-import { filterActiveOrgs } from "@/types/org";
+import { useAdminContextSelection } from "@/hooks/useAdminContextSelection";
 import { AdminTabList, AdminTabPanel } from "@/components/ui/AdminTabs";
 import { CategoriesListPage } from "@/features/admin/CategoriesListPage";
 import { ItemsListPage } from "@/features/admin/ItemsListPage";
@@ -36,7 +35,13 @@ export function CatalogPage() {
 
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
-  const [contextOrgId, setContextOrgId] = useState<string>("");
+  const {
+    selectedOrgId: contextOrgId,
+    setSelectedOrgId: setContextOrgId,
+    orgs,
+    orgSelectOptions,
+  } = useAdminContextSelection();
+  const hasOrgs = orgs.length > 0;
 
   const handleTabChange = (id: TabId) => {
     setSearchParams((prev) => {
@@ -46,21 +51,6 @@ export function CatalogPage() {
     });
   };
 
-  const { data: orgsData } = useQuery({
-    queryKey: ["admin-orgs", token],
-    queryFn: () => fetchOrgs(token, { size: 200 }),
-    enabled: Boolean(token),
-  });
-
-  const orgs = filterActiveOrgs(orgsData?.content ?? []);
-  const hasOrgs = orgs.length > 0;
-
-  useEffect(() => {
-    if (!contextOrgId && orgs.length > 0) {
-      setContextOrgId(orgs[0].id);
-    }
-  }, [orgs, contextOrgId]);
-
   // When switching to Items tab, invalidate categories so dropdown shows latest (e.g. newly created on Categories tab)
   useEffect(() => {
     if (activeTab === "items" && contextOrgId && token) {
@@ -69,14 +59,6 @@ export function CatalogPage() {
       });
     }
   }, [activeTab, contextOrgId, token, queryClient]);
-
-  const orgSelectOptions = useMemo(
-    () => [
-      { value: "", label: "Select organization" },
-      ...orgs.map((org) => ({ value: org.id, label: org.name })),
-    ],
-    [orgs]
-  );
 
   const tabItems = useMemo(
     () =>
@@ -94,12 +76,9 @@ export function CatalogPage() {
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
             Catalog
           </h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Categories, units of measure, items, and price lists
-          </p>
         </div>
         {orgs.length > 1 && (
           <div className="flex items-center gap-2">

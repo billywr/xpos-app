@@ -218,7 +218,7 @@ export function StockCountSessionsPage() {
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <PageHeader
-          title="Manual Stock Taking"
+          title="Manual stock taking"
           subtitle="Manual and scheduled stock counts. Start a session, add counted lines on the count page, then close to apply variances. Download or share PDF reports."
           icon={ClipboardList}
           fallbackTo="/admin"
@@ -270,21 +270,6 @@ export function StockCountSessionsPage() {
               />
             </>
           )}
-          <Button
-            onClick={() => startMutation.mutate()}
-            disabled={
-              !selectedOrgId ||
-              !selectedBranchId ||
-              startMutation.isPending
-            }
-          >
-            {startMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
-            Start count
-          </Button>
         </div>
       </div>
 
@@ -311,7 +296,29 @@ export function StockCountSessionsPage() {
 
       {selectedOrgId && selectedBranchId && !isLoading && !isError && (
         <>
-          <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search sessions…" className="mb-4" />
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+            <TableSearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search sessions…"
+              className="max-w-md"
+            />
+            <Button
+              onClick={() => startMutation.mutate()}
+              disabled={
+                !selectedOrgId ||
+                !selectedBranchId ||
+                startMutation.isPending
+              }
+            >
+              {startMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              Start count
+            </Button>
+          </div>
           {filteredSessions.length === 0 ? (
             <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
               {sessions.length === 0 ? "No stock count sessions yet. Start a count to begin." : "No results match your search."}

@@ -429,7 +429,7 @@ export function ManualStockCountSheetPage() {
         fallbackTo="/operator"
       />
 
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex min-w-0 items-center gap-2">
           <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search all columns…" />
           {sheet?.lastSavedAt && (
@@ -872,7 +872,7 @@ export function ManualStockCountSheetPage() {
               />
             </label>
             <label className="mb-4 block text-sm text-slate-600 dark:text-slate-300">
-              SKU (optional)
+              SKU
               <input
                 type="text"
                 value={customSku}

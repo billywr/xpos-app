@@ -87,8 +87,8 @@ export function DebtsAndExpensesAdminPage() {
             <HandCoins className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-slate-900 dark:text-white">
-              Debts & Expenses
+            <h1 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
+              Debts & expenses
             </h1>
           </div>
         </div>

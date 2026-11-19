@@ -11,6 +11,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import {
   GoodsReceiptPage,
   isReceiptInDateRange,
+  getDayOffsetLabel,
 } from "./GoodsReceiptPage";
 import * as orgsApi from "@/api/orgs";
 import * as branchesApi from "@/api/branches";
@@ -104,6 +105,31 @@ describe("isReceiptInDateRange helper", () => {
     expect(isReceiptInDateRange(inRange, "custom", "2026-05-01", "2026-05-31", refDate)).toBe(true);
     expect(isReceiptInDateRange(beforeRange, "custom", "2026-05-01", "2026-05-31", refDate)).toBe(false);
     expect(isReceiptInDateRange(afterRange, "custom", "2026-05-01", "2026-05-31", refDate)).toBe(false);
+  });
+
+  it("getDayOffsetLabel generates appropriate labels based on day offset", () => {
+    const fixedNow = new Date("2026-11-19T12:00:00Z");
+    expect(getDayOffsetLabel(0, fixedNow)).toBe("Today");
+    expect(getDayOffsetLabel(1, fixedNow)).toBe("Yesterday");
+    expect(getDayOffsetLabel(2, fixedNow)).toContain("Nov 17");
+  });
+
+  it("handles 'today' preset with dayOffset for yesterday and previous days", () => {
+    const todayIso = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), 10, 0, 0).toISOString();
+    const yesterdayIso = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate() - 1, 10, 0, 0).toISOString();
+    const twoDaysAgoIso = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate() - 2, 10, 0, 0).toISOString();
+
+    // offset 0 is today
+    expect(isReceiptInDateRange(todayIso, "today", undefined, undefined, refDate, 0)).toBe(true);
+    expect(isReceiptInDateRange(yesterdayIso, "today", undefined, undefined, refDate, 0)).toBe(false);
+
+    // offset 1 is yesterday
+    expect(isReceiptInDateRange(yesterdayIso, "today", undefined, undefined, refDate, 1)).toBe(true);
+    expect(isReceiptInDateRange(todayIso, "today", undefined, undefined, refDate, 1)).toBe(false);
+
+    // offset 2 is 2 days ago
+    expect(isReceiptInDateRange(twoDaysAgoIso, "today", undefined, undefined, refDate, 2)).toBe(true);
+    expect(isReceiptInDateRange(yesterdayIso, "today", undefined, undefined, refDate, 2)).toBe(false);
   });
 });
 
@@ -393,7 +419,7 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     expect(screen.queryByText("Tusker Lager")).not.toBeInTheDocument();
 
     // Reset filters button is visible
-    expect(screen.getByText("Reset filters")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reset filters" })).toBeInTheDocument();
   });
 
   it("filters to '7 Days' and dynamically updates total value", async () => {
@@ -429,11 +455,13 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
       expect(screen.getAllByText(/2,000/).length).toBeGreaterThanOrEqual(1);
     });
 
-    fireEvent.click(screen.getByText("Reset filters"));
+    fireEvent.click(screen.getByRole("button", { name: "Reset filters" }));
     await waitFor(() => {
       expect(screen.getAllByText(/10,000/).length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getAllByText(/3 receipts/).length).toBeGreaterThanOrEqual(1);
+    // Button stays visible and does not vanish
+    expect(screen.getByRole("button", { name: "Reset filters" })).toBeInTheDocument();
   });
 
   it("filters by custom date range inputs", async () => {
@@ -814,4 +842,127 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
       );
     });
   });
+
+  it("disables submit button when item or qty is empty and activates it when filled", async () => {
+    wrap(<GoodsReceiptPage initialOrgId="org-1" initialBranchId="branch-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
+    });
+
+    // Open Add Stock slide-over
+    fireEvent.click(screen.getByRole("button", { name: /add stock/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Add stock" })).toBeInTheDocument();
+    });
+
+    // The submit button inside the slide-over
+    const submitBtn = within(screen.getByRole("dialog")).getByRole("button", {
+      name: /add stock/i,
+    });
+
+    // Initially, item is unselected and qty is empty -> submit must be disabled
+    expect(submitBtn).toBeDisabled();
+
+    // Select an item
+    const itemCombobox = screen.getByPlaceholderText("Search item name, SKU, barcode…");
+    fireEvent.focus(itemCombobox);
+    fireEvent.click(itemCombobox);
+
+    await waitFor(() => {
+      const listbox = screen.getByRole("listbox");
+      fireEvent.click(within(listbox).getByText("Tusker Lager"));
+    });
+
+    // Item selected, but qty is still empty -> submit still disabled
+    expect(submitBtn).toBeDisabled();
+
+    // Enter qty 0 -> submit still disabled
+    const qtyInput = screen.getByPlaceholderText("0");
+    fireEvent.change(qtyInput, { target: { value: "0" } });
+    expect(submitBtn).toBeDisabled();
+
+    // Enter positive qty 5 -> submit becomes enabled!
+    fireEvent.change(qtyInput, { target: { value: "5" } });
+    expect(submitBtn).toBeEnabled();
+  });
+
+  it("navigates backwards and forwards through days using the Today back icon", async () => {
+    const yesterdayIso = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12, 0, 0).toISOString();
+    const customGrns = [
+      ...mockGrns,
+      {
+        id: "grn-yesterday",
+        orgId: "org-1",
+        branchId: "branch-1",
+        supplierId: "sup-1",
+        supplierName: "East Africa Breweries",
+        purchaseOrderId: null,
+        receivedByStaffUserId: "user-1",
+        receivedAt: yesterdayIso,
+        createdAt: yesterdayIso,
+        active: true,
+        lines: [
+          {
+            id: "line-yesterday",
+            grnId: "grn-yesterday",
+            itemId: "item-yesterday",
+            itemName: "Yesterday Soda",
+            barcode: "999888",
+            qty: 12,
+            uomId: null,
+            receivedUnitCost: 50,
+            createdAt: yesterdayIso,
+          },
+        ],
+      },
+    ];
+    vi.mocked(grnApi.fetchGoodsReceiptNotes).mockResolvedValue({
+      content: customGrns,
+      totalElements: 4,
+      totalPages: 1,
+      size: 500,
+      number: 0,
+      first: true,
+      last: true,
+    });
+
+    wrap(<GoodsReceiptPage />);
+
+    // Initially "Today" is active, showing Guinness bottle (today) and not Yesterday Soda
+    await waitFor(() => {
+      expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
+      expect(screen.queryByText("Yesterday Soda")).not.toBeInTheDocument();
+    });
+
+    // Next day button is disabled on Today
+    const nextDayBtn = screen.getByRole("button", { name: /next day/i });
+    expect(nextDayBtn).toBeDisabled();
+
+    // Click "Previous day" icon button
+    const prevDayBtn = screen.getByRole("button", { name: /previous day/i });
+    fireEvent.click(prevDayBtn);
+
+    // Now label should change to "Yesterday", showing Yesterday Soda and not Guinness bottle
+    await waitFor(() => {
+      expect(screen.getByText("Yesterday")).toBeInTheDocument();
+      expect(screen.getByText("Yesterday Soda")).toBeInTheDocument();
+      expect(screen.queryByText("Guinness bottle")).not.toBeInTheDocument();
+    });
+
+    // Next day button should now be enabled
+    expect(nextDayBtn).not.toBeDisabled();
+
+    // Click next day button to return to Today
+    fireEvent.click(nextDayBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText("Today")).toBeInTheDocument();
+      expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
+      expect(screen.queryByText("Yesterday Soda")).not.toBeInTheDocument();
+      expect(nextDayBtn).toBeDisabled();
+    });
+  });
 });
+

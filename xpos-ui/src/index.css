@@ -34,6 +34,8 @@
   input[type="time"],
   .date-input {
     cursor: pointer;
+    color-scheme: light;
+    accent-color: var(--accent-600, #0284c7);
   }
   input[type="date"]:disabled,
   input[type="datetime-local"]:disabled,
@@ -59,6 +61,14 @@
   .date-input::-webkit-calendar-picker-indicator:hover {
     opacity: 1;
   }
+  .dark input[type="date"],
+  .dark input[type="datetime-local"],
+  .dark input[type="month"],
+  .dark input[type="time"],
+  .dark .date-input {
+    color-scheme: dark;
+    accent-color: var(--accent-500, #0ea5e9);
+  }
   .dark input[type="date"]::-webkit-calendar-picker-indicator,
   .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
   .dark input[type="month"]::-webkit-calendar-picker-indicator,
@@ -69,6 +79,7 @@
 }
 
 :root {
+  color-scheme: light;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -97,6 +108,7 @@
 
 /* Dark theme: Ocean (default) */
 .dark {
+  color-scheme: dark;
   color: #ffffff;
   --app-bg-start: #0d2a4a;
   --app-bg-mid: #113264;
@@ -216,6 +228,303 @@
   --accent-700: #475569;
   --accent-bg-active: rgba(148, 163, 184, 0.2);
   --accent-text: #cbd5e1;
+  --tone-debt: #fbbf24;
+  --tone-debt-muted: #fcd34d;
+  --tone-expense: #fb7185;
+  --tone-expense-muted: #fda4af;
+  --tone-sales: #34d399;
+  --tone-sales-muted: #6ee7b7;
+  --tone-success: #34d399;
+  --tone-warning: #fbbf24;
+  --tone-danger: #f87171;
+  --tone-neutral: #94a3b8;
+}
+
+/* Dark theme: Petrol (Attached reference #022633 with cyan accents) */
+[data-theme="petrol"].dark {
+  --app-bg-start: #011f2a;
+  --app-bg-mid: #022633;
+  --app-bg-end: #011f2a;
+  --sidebar-start: #022633;
+  --sidebar-end: #011c26;
+  --sidebar-edge: rgba(6, 49, 66, 0.7);
+  --card-bg: #063142;
+  --card-border: rgba(6, 182, 212, 0.15);
+  --table-bg: #042735;
+  --table-header: #021f2b;
+  --table-row-hover: #083c50;
+  --table-border: #0b4960;
+  --surface-input: #021f2b;
+  --surface-raised: #042735;
+  --accent-500: #06b6d4;
+  --accent-600: #0891b2;
+  --accent-700: #0e7490;
+  --accent-bg-active: rgba(6, 182, 212, 0.25);
+  --accent-text: #22d3ee;
+  --tone-debt: #fbbf24;
+  --tone-debt-muted: #fcd34d;
+  --tone-expense: #fb7185;
+  --tone-expense-muted: #fda4af;
+  --tone-sales: #34d399;
+  --tone-sales-muted: #6ee7b7;
+  --tone-success: #34d399;
+  --tone-warning: #fbbf24;
+  --tone-danger: #f87171;
+  --tone-neutral: #94a3b8;
+}
+
+/* Dark theme: Nordic Teal */
+[data-theme="cyber-teal"].dark {
+  --app-bg-start: #061a24;
+  --app-bg-mid: #0a2533;
+  --app-bg-end: #061a24;
+  --sidebar-start: #0a2533;
+  --sidebar-end: #071c26;
+  --sidebar-edge: rgba(16, 53, 72, 0.7);
+  --card-bg: #103548;
+  --card-border: rgba(20, 184, 166, 0.15);
+  --table-bg: #0c2b3b;
+  --table-header: #07202d;
+  --table-row-hover: #13425a;
+  --table-border: #18526f;
+  --surface-input: #07202d;
+  --surface-raised: #0c2b3b;
+  --accent-500: #14b8a6;
+  --accent-600: #0d9488;
+  --accent-700: #0f766e;
+  --accent-bg-active: rgba(20, 184, 166, 0.25);
+  --accent-text: #2dd4bf;
+  --tone-debt: #fbbf24;
+  --tone-debt-muted: #fcd34d;
+  --tone-expense: #fb7185;
+  --tone-expense-muted: #fda4af;
+  --tone-sales: #34d399;
+  --tone-sales-muted: #6ee7b7;
+  --tone-success: #34d399;
+  --tone-warning: #fbbf24;
+  --tone-danger: #f87171;
+  --tone-neutral: #94a3b8;
+}
+
+/* Dark theme: Emerald (Fintech dark green) */
+[data-theme="emerald"].dark {
+  --app-bg-start: #022015;
+  --app-bg-mid: #042c1e;
+  --app-bg-end: #022015;
+  --sidebar-start: #042c1e;
+  --sidebar-end: #022217;
+  --sidebar-edge: rgba(7, 61, 43, 0.7);
+  --card-bg: #073d2b;
+  --card-border: rgba(16, 185, 129, 0.18);
+  --table-bg: #053324;
+  --table-header: #03261a;
+  --table-row-hover: #0a4f38;
+  --table-border: #0e6145;
+  --surface-input: #03261a;
+  --surface-raised: #053324;
+  --accent-500: #10b981;
+  --accent-600: #059669;
+  --accent-700: #047857;
+  --accent-bg-active: rgba(16, 185, 129, 0.25);
+  --accent-text: #34d399;
+  --tone-debt: #fbbf24;
+  --tone-debt-muted: #fcd34d;
+  --tone-expense: #fb7185;
+  --tone-expense-muted: #fda4af;
+  --tone-sales: #34d399;
+  --tone-sales-muted: #6ee7b7;
+  --tone-success: #34d399;
+  --tone-warning: #fbbf24;
+  --tone-danger: #f87171;
+  --tone-neutral: #94a3b8;
+}
+
+/* Dark theme: Pine Moss (Deep botanical moss green) */
+[data-theme="moss"].dark {
+  --app-bg-start: #0e1f14;
+  --app-bg-mid: #14291c;
+  --app-bg-end: #0e1f14;
+  --sidebar-start: #14291c;
+  --sidebar-end: #0f2016;
+  --sidebar-edge: rgba(28, 58, 40, 0.7);
+  --card-bg: #1c3a28;
+  --card-border: rgba(34, 197, 94, 0.16);
+  --table-bg: #173021;
+  --table-header: #102419;
+  --table-row-hover: #224732;
+  --table-border: #29573c;
+  --surface-input: #102419;
+  --surface-raised: #173021;
+  --accent-500: #22c55e;
+  --accent-600: #16a34a;
+  --accent-700: #15803d;
+  --accent-bg-active: rgba(34, 197, 94, 0.25);
+  --accent-text: #4ade80;
+  --tone-debt: #fbbf24;
+  --tone-debt-muted: #fcd34d;
+  --tone-expense: #fb7185;
+  --tone-expense-muted: #fda4af;
+  --tone-sales: #34d399;
+  --tone-sales-muted: #6ee7b7;
+  --tone-success: #34d399;
+  --tone-warning: #fbbf24;
+  --tone-danger: #f87171;
+  --tone-neutral: #94a3b8;
+}
+
+/* Dark theme: Jade Mint (Sage / Jade green) */
+[data-theme="jade"].dark {
+  --app-bg-start: #061e1b;
+  --app-bg-mid: #0b2925;
+  --app-bg-end: #061e1b;
+  --sidebar-start: #0b2925;
+  --sidebar-end: #08211e;
+  --sidebar-edge: rgba(18, 60, 55, 0.7);
+  --card-bg: #123c37;
+  --card-border: rgba(45, 212, 191, 0.16);
+  --table-bg: #0e322d;
+  --table-header: #082521;
+  --table-row-hover: #174b45;
+  --table-border: #1e5d56;
+  --surface-input: #082521;
+  --surface-raised: #0e322d;
+  --accent-500: #2dd4bf;
+  --accent-600: #14b8a6;
+  --accent-700: #0d9488;
+  --accent-bg-active: rgba(45, 212, 191, 0.25);
+  --accent-text: #5eead4;
+  --tone-debt: #fbbf24;
+  --tone-debt-muted: #fcd34d;
+  --tone-expense: #fb7185;
+  --tone-expense-muted: #fda4af;
+  --tone-sales: #34d399;
+  --tone-sales-muted: #6ee7b7;
+  --tone-success: #34d399;
+  --tone-warning: #fbbf24;
+  --tone-danger: #f87171;
+  --tone-neutral: #94a3b8;
+}
+
+/* Dark theme: Obsidian (Pitch black OLED) */
+[data-theme="obsidian"].dark {
+  --app-bg-start: #050505;
+  --app-bg-mid: #0a0a0c;
+  --app-bg-end: #050505;
+  --sidebar-start: #0c0c0e;
+  --sidebar-end: #070708;
+  --sidebar-edge: rgba(255, 255, 255, 0.08);
+  --card-bg: #151518;
+  --card-border: rgba(255, 255, 255, 0.12);
+  --table-bg: #101013;
+  --table-header: #0a0a0d;
+  --table-row-hover: #1c1c22;
+  --table-border: #272730;
+  --surface-input: #0a0a0d;
+  --surface-raised: #101013;
+  --accent-500: #38bdf8;
+  --accent-600: #0284c7;
+  --accent-700: #0369a1;
+  --accent-bg-active: rgba(56, 189, 248, 0.25);
+  --accent-text: #7dd3fc;
+  --tone-debt: #fbbf24;
+  --tone-debt-muted: #fcd34d;
+  --tone-expense: #fb7185;
+  --tone-expense-muted: #fda4af;
+  --tone-sales: #34d399;
+  --tone-sales-muted: #6ee7b7;
+  --tone-success: #34d399;
+  --tone-warning: #fbbf24;
+  --tone-danger: #f87171;
+  --tone-neutral: #94a3b8;
+}
+
+/* Dark theme: Charcoal (Cool carbon graphite) */
+[data-theme="charcoal"].dark {
+  --app-bg-start: #121316;
+  --app-bg-mid: #181a1f;
+  --app-bg-end: #121316;
+  --sidebar-start: #181a1f;
+  --sidebar-end: #141519;
+  --sidebar-edge: rgba(35, 38, 46, 0.8);
+  --card-bg: #23262e;
+  --card-border: rgba(255, 255, 255, 0.1);
+  --table-bg: #1c1e24;
+  --table-header: #15161b;
+  --table-row-hover: #2b2e38;
+  --table-border: #363a46;
+  --surface-input: #15161b;
+  --surface-raised: #1c1e24;
+  --accent-500: #6366f1;
+  --accent-600: #4f46e5;
+  --accent-700: #4338ca;
+  --accent-bg-active: rgba(99, 102, 241, 0.25);
+  --accent-text: #818cf8;
+  --tone-debt: #fbbf24;
+  --tone-debt-muted: #fcd34d;
+  --tone-expense: #fb7185;
+  --tone-expense-muted: #fda4af;
+  --tone-sales: #34d399;
+  --tone-sales-muted: #6ee7b7;
+  --tone-success: #34d399;
+  --tone-warning: #fbbf24;
+  --tone-danger: #f87171;
+  --tone-neutral: #94a3b8;
+}
+
+/* Dark theme: Executive Navy (Corporate enterprise blue) */
+[data-theme="navy"].dark {
+  --app-bg-start: #070e1b;
+  --app-bg-mid: #0c172a;
+  --app-bg-end: #070e1b;
+  --sidebar-start: #0c172a;
+  --sidebar-end: #081120;
+  --sidebar-edge: rgba(21, 37, 66, 0.8);
+  --card-bg: #152542;
+  --card-border: rgba(59, 130, 246, 0.16);
+  --table-bg: #101f37;
+  --table-header: #0a1527;
+  --table-row-hover: #1c3156;
+  --table-border: #233e6d;
+  --surface-input: #0a1527;
+  --surface-raised: #101f37;
+  --accent-500: #3b82f6;
+  --accent-600: #2563eb;
+  --accent-700: #1d4ed8;
+  --accent-bg-active: rgba(59, 130, 246, 0.25);
+  --accent-text: #60a5fa;
+  --tone-debt: #fbbf24;
+  --tone-debt-muted: #fcd34d;
+  --tone-expense: #fb7185;
+  --tone-expense-muted: #fda4af;
+  --tone-sales: #34d399;
+  --tone-sales-muted: #6ee7b7;
+  --tone-success: #34d399;
+  --tone-warning: #fbbf24;
+  --tone-danger: #f87171;
+  --tone-neutral: #94a3b8;
+}
+
+/* Dark theme: Amber Espresso (Warm bronze & gold) */
+[data-theme="amber"].dark {
+  --app-bg-start: #15100c;
+  --app-bg-mid: #1d1712;
+  --app-bg-end: #15100c;
+  --sidebar-start: #1d1712;
+  --sidebar-end: #17120e;
+  --sidebar-edge: rgba(42, 33, 26, 0.8);
+  --card-bg: #2a211a;
+  --card-border: rgba(245, 158, 11, 0.16);
+  --table-bg: #221a14;
+  --table-header: #19130f;
+  --table-row-hover: #352a22;
+  --table-border: #43352b;
+  --surface-input: #19130f;
+  --surface-raised: #221a14;
+  --accent-500: #f59e0b;
+  --accent-600: #d97706;
+  --accent-700: #b45309;
+  --accent-bg-active: rgba(245, 158, 11, 0.25);
+  --accent-text: #fbbf24;
   --tone-debt: #fbbf24;
   --tone-debt-muted: #fcd34d;
   --tone-expense: #fb7185;
@@ -579,13 +888,15 @@ body {
 
 /* react-datepicker dark mode */
 .dark .react-datepicker {
-  background-color: #1e293b !important;
-  border-color: #475569;
+  color-scheme: dark;
+  background-color: var(--card-bg, #1e293b) !important;
+  border: 1px solid var(--card-border, #475569) !important;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  color: #e2e8f0;
 }
 .dark .react-datepicker__header {
-  background-color: #334155;
-  border-color: #475569;
+  background-color: var(--table-header, #334155) !important;
+  border-bottom: 1px solid var(--table-border, #475569) !important;
 }
 .dark .react-datepicker__current-month,
 .dark .react-datepicker__day-name,
@@ -594,14 +905,24 @@ body {
 }
 .dark .react-datepicker__day:hover,
 .dark .react-datepicker__day--keyboard-selected {
-  background-color: #475569;
-  color: #fff;
+  background-color: var(--accent-600, #475569) !important;
+  color: #fff !important;
+}
+.dark .react-datepicker__day--selected {
+  background-color: var(--accent-600, #0284c7) !important;
+  color: #fff !important;
 }
 .dark .react-datepicker__day--disabled {
-  color: #64748b;
+  color: var(--tone-neutral, #64748b);
 }
 .dark .react-datepicker__day--outside-month {
-  color: #64748b;
+  color: var(--tone-neutral, #64748b);
+  opacity: 0.5;
+}
+.dark .react-datepicker__triangle {
+  fill: var(--card-bg, #1e293b) !important;
+  color: var(--card-bg, #1e293b) !important;
+  stroke: var(--card-border, #475569) !important;
 }
 
 /* Hide number input spinners (makes typing easier) */

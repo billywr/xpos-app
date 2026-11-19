@@ -51,7 +51,9 @@ export function AdminLayout() {
     return set;
   }, [location.pathname, navGroups]);
 
-  const [openGroups, setOpenGroups] = useState<Set<string>>(() => activeGroupLabels);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(
+    () => new Set(ADMIN_GROUP_ORDER)
+  );
 
   useEffect(() => {
     setOpenGroups((prev) => {
@@ -158,12 +160,7 @@ export function AdminLayout() {
             style={{ top: 0 }}
           >
             <div className="flex items-center justify-between border-b border-slate-200/60 px-3 py-3 dark:border-white/10">
-              <div>
-                <h2 className="font-semibold text-slate-800 dark:text-white">Admin</h2>
-                <p className="text-xs text-slate-500 dark:text-white/80">
-                  Setup &amp; configuration
-                </p>
-              </div>
+              <h2 className="font-semibold text-slate-800 dark:text-white">Admin</h2>
               <button
                 type="button"
                 onClick={closeMobile}
@@ -195,12 +192,7 @@ export function AdminLayout() {
           }`}
         >
           {!collapsed && (
-            <div>
-              <h2 className="font-semibold text-slate-800 dark:text-white">Admin</h2>
-              <p className="text-xs text-slate-500 dark:text-white/80">
-                Setup &amp; configuration
-              </p>
-            </div>
+            <h2 className="font-semibold text-slate-800 dark:text-white">Admin</h2>
           )}
           <button
             type="button"

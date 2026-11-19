@@ -1,14 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
-
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { ProgressBar } from "./ProgressBar";
-import { TopProgressBar } from "./TopProgressBar";
-import {
-  incrementNetworkActivity,
-  decrementNetworkActivity,
-} from "@/utils/networkActivity";
 
 describe("ConfirmDialog", () => {
   it("renders title, message, and action buttons when open", () => {
@@ -83,38 +76,6 @@ describe("ProgressBar", () => {
     expect(screen.getByText("Processing")).toBeInTheDocument();
     const bar = screen.getByRole("progressbar");
     expect(bar).not.toHaveAttribute("aria-valuenow");
-  });
-});
-
-describe("TopProgressBar & Network Activity", () => {
-  it("activates top progress bar when network activity is triggered", async () => {
-    const queryClient = new QueryClient();
-
-    const { unmount } = render(
-      <QueryClientProvider client={queryClient}>
-        <TopProgressBar />
-      </QueryClientProvider>
-    );
-
-    // Initially idle (hidden)
-    expect(document.querySelector("[aria-hidden='true']")).toBeNull();
-
-    // Trigger in-flight network activity
-    act(() => {
-      incrementNetworkActivity();
-    });
-
-    // Progress bar should appear
-    await waitFor(() => {
-      expect(document.querySelector("[aria-hidden='true']")).toBeInTheDocument();
-    });
-
-    // Finish network activity
-    act(() => {
-      decrementNetworkActivity();
-    });
-
-    unmount();
   });
 });
 

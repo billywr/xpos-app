@@ -1,9 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
-import { fetchOrgs } from "@/api/orgs";
-import { fetchBranches } from "@/api/branches";
+import { useAdminContextSelection } from "@/hooks/useAdminContextSelection";
 import {
   fetchTableAreas,
   createTableArea,
@@ -16,12 +15,7 @@ import {
   type CreateTableBody,
   type UpdateTableBody,
 } from "@/api/tables";
-import type { Org, Branch } from "@/types/org";
 import type { TableArea, TableEntity } from "@/types/sales";
-import {
-  filterActiveOrgs,
-  filterNonDeletedBranches,
-} from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
 import {
   Badge,
@@ -63,8 +57,16 @@ export function AdminTablesPage() {
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("");
-  const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+  const {
+    selectedOrgId,
+    setSelectedOrgId,
+    selectedBranchId,
+    setSelectedBranchId,
+    orgs,
+    branches,
+    orgSelectOptions,
+    branchSelectOptions,
+  } = useAdminContextSelection();
   const page = 0;
   const size = DEFAULT_PAGE_SIZE;
 
@@ -82,18 +84,6 @@ export function AdminTablesPage() {
   const [tableFormStatus, setTableFormStatus] = useState("ACTIVE");
   const [tableFormError, setTableFormError] = useState<string | null>(null);
   const [tableSubmitLoading, setTableSubmitLoading] = useState(false);
-
-  const { data: orgsData } = useQuery({
-    queryKey: ["admin-orgs", token],
-    queryFn: () => fetchOrgs(token, { size: 200 }),
-    enabled: Boolean(token),
-  });
-
-  const { data: branchesData } = useQuery({
-    queryKey: ["admin-branches", token, selectedOrgId],
-    queryFn: () => fetchBranches(token, selectedOrgId, { size: 200 }),
-    enabled: Boolean(token) && Boolean(selectedOrgId),
-  });
 
   const { data: areasData, refetch: refetchAreas, isFetching: isAreasFetching } = useQuery({
     queryKey: ["admin-table-areas", token, selectedOrgId, selectedBranchId],
@@ -241,8 +231,6 @@ export function AdminTablesPage() {
     setTableFormError(null);
   };
 
-  const orgs = filterActiveOrgs(orgsData?.content ?? []);
-  const branches = filterNonDeletedBranches(branchesData?.content ?? []);
   const areas = areasData?.content ?? [];
   const tables = tablesData?.content ?? [];
   const {
@@ -277,42 +265,7 @@ export function AdminTablesPage() {
     [filteredTables]
   );
 
-  useEffect(() => {
-    if (!selectedOrgId && orgs.length > 0) {
-      setSelectedOrgId(orgs[0].id);
-    }
-  }, [orgs, selectedOrgId]);
 
-  useEffect(() => {
-    if (selectedOrgId) {
-      setSelectedBranchId("");
-    }
-  }, [selectedOrgId]);
-
-  useEffect(() => {
-    if (!selectedBranchId && branches.length > 0) {
-      setSelectedBranchId(branches[0].id);
-    }
-  }, [branches, selectedBranchId]);
-
-  const orgSelectOptions = useMemo(
-    () => [
-      { value: "", label: "Select organization…" },
-      ...orgs.map((org: Org) => ({ value: org.id, label: org.name })),
-    ],
-    [orgs]
-  );
-
-  const branchSelectOptions = useMemo(
-    () => [
-      { value: "", label: "Select branch…" },
-      ...branches.map((branch: Branch) => ({
-        value: branch.id,
-        label: branch.name,
-      })),
-    ],
-    [branches]
-  );
 
   const tableAreaOptions = useMemo(
     () => [
@@ -423,7 +376,7 @@ export function AdminTablesPage() {
   return (
     <div className="min-h-0 flex-1 overflow-auto">
       <PageHeader
-        title="Tables & Areas"
+        title="Tables & areas"
         subtitle="Table areas and tables per branch. Used by operator for dine-in."
         fallbackTo="/admin"
       />
@@ -490,16 +443,25 @@ export function AdminTablesPage() {
             </div>
           )}
           <section className="mb-8">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
-                Table Areas
-              </h2>
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
+                  Table Areas
+                </h2>
+                <TableSearchInput
+                  value={areasSearchQuery}
+                  onChange={setAreasSearchQuery}
+                  placeholder="Search areas…"
+                  className="w-full sm:w-64"
+                  onRefresh={() => void refetchAreas()}
+                  isRefreshing={isAreasFetching}
+                />
+              </div>
               <Button onClick={openAreaCreate}>
                 <Plus className="h-4 w-4" />
                 Add area
               </Button>
             </div>
-            <TableSearchInput value={areasSearchQuery} onChange={setAreasSearchQuery} placeholder="Search areas…" className="mb-4" onRefresh={() => void refetchAreas()} isRefreshing={isAreasFetching} />
             <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
               {filteredAreas.length === 0 ? (
@@ -566,16 +528,25 @@ export function AdminTablesPage() {
           </section>
 
           <section>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
-                Tables
-              </h2>
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
+                  Tables
+                </h2>
+                <TableSearchInput
+                  value={tablesSearchQuery}
+                  onChange={setTablesSearchQuery}
+                  placeholder="Search tables…"
+                  className="w-full sm:w-64"
+                  onRefresh={() => void refetchTables()}
+                  isRefreshing={isTablesRefreshing}
+                />
+              </div>
               <Button onClick={openTableCreate}>
                 <Plus className="h-4 w-4" />
                 Add table
               </Button>
             </div>
-            <TableSearchInput value={tablesSearchQuery} onChange={setTablesSearchQuery} placeholder="Search tables…" className="mb-4" onRefresh={() => void refetchTables()} isRefreshing={isTablesRefreshing} />
             <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
               <div className="relative overflow-auto">
@@ -725,12 +696,12 @@ export function AdminTablesPage() {
               </p>
             )}
           </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" size="md" onClick={() => setAreaSlideOpen(false)}>
+          <div className="grid grid-cols-2 gap-3 pt-4">
+            <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setAreaSlideOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" size="md" disabled={areaSubmitLoading}>
-              {areaSubmitLoading ? "Saving…" : editingArea ? "Save" : "Create"}
+            <Button type="submit" size="md" className="w-full" disabled={areaSubmitLoading}>
+              {areaSubmitLoading ? "Saving…" : "Save"}
             </Button>
           </div>
         </form>
@@ -742,60 +713,79 @@ export function AdminTablesPage() {
         title={editingTable ? "Edit table" : "Add table"}
       >
         <form onSubmit={handleTableSubmit} className="flex flex-col gap-4">
-          <div>
-            <FormLabel htmlFor="table-name">
-              Name
-            </FormLabel>
-            <input
-              id="table-name"
-              type="text"
-              value={tableFormName}
-              onChange={(e) => setTableFormName(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              placeholder="e.g. T1, A-1"
-            />
-          </div>
-          <div>
-            <FormLabel htmlFor="table-area">
-              Area
-            </FormLabel>
-            <SearchableSelect
-              id="table-area"
-              options={tableAreaOptions}
-              value={tableFormAreaId}
-              onChange={setTableFormAreaId}
-              placeholder="Search area…"
-              className="mt-1 w-full"
-              controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-            />
-          </div>
-          <div>
-            <FormLabel htmlFor="table-capacity">
-              Capacity
-            </FormLabel>
-            <input
-              id="table-capacity"
-              type="number"
-              min="0"
-              value={tableFormCapacity}
-              onChange={(e) => setTableFormCapacity(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              placeholder="Optional"
-            />
-          </div>
-          {editingTable && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <FormLabel htmlFor="table-status">
-                Status
+              <FormLabel htmlFor="table-name">
+                Name
+              </FormLabel>
+              <input
+                id="table-name"
+                type="text"
+                value={tableFormName}
+                onChange={(e) => setTableFormName(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                placeholder="e.g. T1, A-1"
+              />
+            </div>
+            <div>
+              <FormLabel htmlFor="table-area">
+                Area
               </FormLabel>
               <SearchableSelect
-                id="table-status"
-                options={tableStatusOptions}
-                value={tableFormStatus}
-                onChange={setTableFormStatus}
-                placeholder="Search status…"
+                id="table-area"
+                options={tableAreaOptions}
+                value={tableFormAreaId}
+                onChange={setTableFormAreaId}
+                placeholder="Search area…"
                 className="mt-1 w-full"
                 controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+              />
+            </div>
+          </div>
+          {editingTable ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <FormLabel htmlFor="table-capacity">
+                  Capacity
+                </FormLabel>
+                <input
+                  id="table-capacity"
+                  type="number"
+                  min="0"
+                  value={tableFormCapacity}
+                  onChange={(e) => setTableFormCapacity(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  placeholder="e.g. 4"
+                />
+              </div>
+              <div>
+                <FormLabel htmlFor="table-status">
+                  Status
+                </FormLabel>
+                <SearchableSelect
+                  id="table-status"
+                  options={tableStatusOptions}
+                  value={tableFormStatus}
+                  onChange={setTableFormStatus}
+                  placeholder="Search status…"
+                  className="mt-1 w-full"
+                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <FormLabel htmlFor="table-capacity">
+                Capacity
+              </FormLabel>
+              <input
+                id="table-capacity"
+                type="number"
+                min="0"
+                value={tableFormCapacity}
+                onChange={(e) => setTableFormCapacity(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                placeholder="e.g. 4"
               />
             </div>
           )}
@@ -804,12 +794,12 @@ export function AdminTablesPage() {
               {tableFormError}
             </p>
           )}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" size="md" onClick={() => setTableSlideOpen(false)}>
+          <div className="grid grid-cols-2 gap-3 pt-4">
+            <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setTableSlideOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" size="md" disabled={tableSubmitLoading}>
-              {tableSubmitLoading ? "Saving…" : editingTable ? "Save" : "Create"}
+            <Button type="submit" size="md" className="w-full" disabled={tableSubmitLoading}>
+              {tableSubmitLoading ? "Saving…" : "Save"}
             </Button>
           </div>
         </form>

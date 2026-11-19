@@ -37,8 +37,10 @@ function applyTheme(theme: Theme) {
   const root = document.documentElement;
   if (theme === "dark") {
     root.classList.add("dark");
+    root.style.colorScheme = "dark";
   } else {
     root.classList.remove("dark");
+    root.style.colorScheme = "light";
   }
   // Apply dark color theme from localStorage (before API loads)
   try {

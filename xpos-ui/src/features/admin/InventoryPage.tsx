@@ -310,44 +310,49 @@ export function InventoryPage({
               )}
             </div>
           )}
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <div className="flex-1 min-w-[220px]">
-              <TableSearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search inventory…" />
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+            <TableSearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search inventory…"
+              className="w-full sm:w-72"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showAnalytics}
+                aria-label={showAnalytics ? "Hide analytics" : "Show analytics"}
+                onClick={() => setShowAnalytics((v) => !v)}
+                className={`flex min-h-[40px] items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                  showAnalytics
+                    ? "border-primary-500 bg-primary-600/15 text-primary-700 dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-200"
+                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                }`}
+              >
+                <BarChart3 className="h-4 w-4 shrink-0" aria-hidden />
+                <span>Analytics</span>
+                {showAnalytics ? (
+                  <ChevronUp className="h-4 w-4 shrink-0" aria-hidden />
+                ) : (
+                  <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
+                )}
+              </button>
+              <Button
+                variant="outline"
+                onClick={handleDownloadItemsPdf}
+                disabled={downloadingItemsPdf || !selectedOrgId}
+                title="Download PDF document of all items"
+                className="flex min-h-[40px] items-center gap-1.5"
+              >
+                {downloadingItemsPdf ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                <span>Download</span>
+              </Button>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={showAnalytics}
-              aria-label={showAnalytics ? "Hide analytics" : "Show analytics"}
-              onClick={() => setShowAnalytics((v) => !v)}
-              className={`flex min-h-[40px] items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition ${
-                showAnalytics
-                  ? "border-primary-500 bg-primary-600/15 text-primary-700 dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-200"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-              }`}
-            >
-              <BarChart3 className="h-4 w-4 shrink-0" aria-hidden />
-              <span>Analytics</span>
-              {showAnalytics ? (
-                <ChevronUp className="h-4 w-4 shrink-0" aria-hidden />
-              ) : (
-                <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
-              )}
-            </button>
-            <Button
-              variant="outline"
-              onClick={handleDownloadItemsPdf}
-              disabled={downloadingItemsPdf || !selectedOrgId}
-              title="Download PDF document of all items"
-              className="flex min-h-[40px] items-center gap-1.5"
-            >
-              {downloadingItemsPdf ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              <span>Download</span>
-            </Button>
           </div>
           {showAnalytics && (
             <AnalyticsPanel

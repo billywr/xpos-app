@@ -1,11 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { useAppSelector } from "@/hooks/useAppSelector";
-import { selectToken } from "@/store/selectors/authSelectors";
-import { fetchOrgs } from "@/api/orgs";
-import { fetchBranches } from "@/api/branches";
-import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
+import { useAdminContextSelection } from "@/hooks/useAdminContextSelection";
 import { AdminTabList, AdminTabPanel } from "@/components/ui/AdminTabs";
 import { SuppliersListPage } from "@/features/admin/SuppliersListPage";
 import { GoodsReceiptPage } from "@/features/admin/GoodsReceiptPage";
@@ -37,39 +32,18 @@ export function InventoryReceivingPage() {
     return "stock";
   }, [tabParam]);
 
-  const token = useAppSelector(selectToken);
-  const [contextOrgId, setContextOrgId] = useState<string>("");
-  const [contextBranchId, setContextBranchId] = useState<string>("");
+  const {
+    selectedOrgId: contextOrgId,
+    setSelectedOrgId: setContextOrgId,
+    selectedBranchId: contextBranchId,
+    setSelectedBranchId: setContextBranchId,
+    orgs,
+    branches,
+    orgSelectOptions,
+    branchSelectOptions,
+  } = useAdminContextSelection();
 
-  const { data: orgsData } = useQuery({
-    queryKey: ["admin-orgs", token],
-    queryFn: () => fetchOrgs(token, { size: 200 }),
-    enabled: Boolean(token),
-  });
-
-  const { data: branchesData } = useQuery({
-    queryKey: ["admin-branches", token, contextOrgId],
-    queryFn: () => fetchBranches(token, contextOrgId, { size: 200 }),
-    enabled: Boolean(token) && Boolean(contextOrgId),
-  });
-
-  const orgs = filterActiveOrgs(orgsData?.content ?? []);
-  const branches = filterNonDeletedBranches(branchesData?.content ?? []);
   const hasOrgs = orgs.length > 0;
-
-  useEffect(() => {
-    if (!contextOrgId && orgs.length > 0) {
-      setContextOrgId(orgs[0].id);
-    }
-  }, [orgs, contextOrgId]);
-
-  useEffect(() => {
-    if (contextOrgId && !contextBranchId && branches.length > 0) {
-      setContextBranchId(branches[0].id);
-    } else if (!contextOrgId) {
-      setContextBranchId("");
-    }
-  }, [contextOrgId, contextBranchId, branches]);
 
   useEffect(() => {
     if (tabParam === "goods-receipt") {
@@ -92,22 +66,6 @@ export function InventoryReceivingPage() {
     });
   };
 
-  const orgSelectOptions = useMemo(
-    () => [
-      { value: "", label: "Select organization" },
-      ...orgs.map((org) => ({ value: org.id, label: org.name })),
-    ],
-    [orgs]
-  );
-
-  const branchSelectOptions = useMemo(
-    () => [
-      { value: "", label: "Select branch" },
-      ...branches.map((branch) => ({ value: branch.id, label: branch.name })),
-    ],
-    [branches]
-  );
-
   const tabItems = useMemo(
     () =>
       TABS.map((tab) => ({
@@ -124,12 +82,9 @@ export function InventoryReceivingPage() {
     <div className="min-h-0 flex-1 overflow-auto">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
-            Stock and Inventory
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
+            Stock & inventory
           </h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Suppliers, stock receiving, and inventory by branch
-          </p>
         </div>
         {hasOrgs && (orgs.length > 1 || branches.length > 1) && (
           <div className="flex flex-wrap items-center gap-4">
@@ -145,10 +100,7 @@ export function InventoryReceivingPage() {
                   id="inv-rec-context-org"
                   options={orgSelectOptions}
                   value={contextOrgId}
-                  onChange={(next) => {
-                    setContextOrgId(next);
-                    setContextBranchId("");
-                  }}
+                  onChange={setContextOrgId}
                   placeholder="Search organization…"
                   compact
                   className="min-w-[11rem]"
