@@ -741,8 +741,10 @@ export function SalesRecordingPage() {
                             <span>—</span>
                           )}
                           {savedValue > 0 && (
-                            <span className="inline-flex items-center gap-1 whitespace-nowrap font-medium text-emerald-600 dark:text-emerald-400">
-                              <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                            <span
+                              title={`Recorded total: ${formatAmount(savedValue)}`}
+                              className="inline-flex items-center whitespace-nowrap font-medium text-emerald-600 dark:text-emerald-400"
+                            >
                               {formatAmount(savedValue)}
                             </span>
                           )}
