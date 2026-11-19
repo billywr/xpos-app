@@ -212,10 +212,15 @@ public class StdStockCountServiceImpl implements StdStockCountService {
         stockTakeData.addedByDate().getOrDefault(businessDate, Map.of());
 
     Map<UUID, Instant> firstStockAddedAtByItem = new HashMap<>();
+    Map<UUID, Instant> latestStockAddedAtByItem = new HashMap<>();
     mergeEarliestTimestampedQtyRows(
         firstStockAddedAtByItem, grnData.rowsByDate().getOrDefault(businessDate, List.of()));
     mergeEarliestTimestampedQtyRows(
         firstStockAddedAtByItem, stockTakeData.rowsByDate().getOrDefault(businessDate, List.of()));
+    mergeLatestTimestampedQtyRows(
+        latestStockAddedAtByItem, grnData.rowsByDate().getOrDefault(businessDate, List.of()));
+    mergeLatestTimestampedQtyRows(
+        latestStockAddedAtByItem, stockTakeData.rowsByDate().getOrDefault(businessDate, List.of()));
 
     CarryForwardContext carryForward =
         new CarryForwardContext(
@@ -232,6 +237,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
             addedGrnByItem,
             stockTakeAddedByItem,
             firstStockAddedAtByItem,
+            latestStockAddedAtByItem,
             carryForward,
             todayByItem,
             businessDate);
@@ -287,6 +293,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       Map<UUID, BigDecimal> addedGrnByItem,
       Map<UUID, BigDecimal> stockTakeAddedByItem,
       Map<UUID, Instant> firstStockAddedAtByItem,
+      Map<UUID, Instant> latestStockAddedAtByItem,
       CarryForwardContext carryForward,
       Map<UUID, StdStockCountSnapshot> todayByItem,
       LocalDate businessDate) {
@@ -315,6 +322,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
               compact(closing),
               lastSavedAt,
               firstStockAddedAtByItem.get(itemId),
+              latestStockAddedAtByItem.get(itemId),
               rowComments));
     }
     return rows;
@@ -381,6 +389,20 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       }
       firstByItem.merge(
           itemId, at, (existing, incoming) -> existing.isBefore(incoming) ? existing : incoming);
+    }
+  }
+
+  private static void mergeLatestTimestampedQtyRows(
+      Map<UUID, Instant> latestByItem, List<Object[]> rows) {
+    for (Object[] row : rows) {
+      UUID itemId = (UUID) row[0];
+      Instant at = (Instant) row[1];
+      BigDecimal qty = (BigDecimal) row[2];
+      if (qty.signum() <= 0) {
+        continue;
+      }
+      latestByItem.merge(
+          itemId, at, (existing, incoming) -> existing.isAfter(incoming) ? existing : incoming);
     }
   }
 
@@ -458,14 +480,14 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       BigDecimal effective;
       if (saved.compareTo(openingOnDay) == 0 && addedOnDay.signum() > 0) {
         effective = dayTotal;
+      } else if (lateGrn.signum() > 0) {
+        // Stock arrived after last saved closing; add late receipts up to day total
+        effective = saved.add(lateGrn).add(lateStockTake).min(dayTotal).setScale(SCALE, ROUNDING);
       } else if (saved.compareTo(dayTotal) >= 0) {
         // Saved closing already reflects same-day receipts; only post-save stock-take adjusts.
         effective = saved.add(lateStockTake).setScale(SCALE, ROUNDING);
-      } else if (saved.compareTo(openingOnDay) > 0) {
-        // Closing below day total after receipts (sales recorded); trust saved closing.
-        effective = saved.add(lateStockTake).setScale(SCALE, ROUNDING);
       } else {
-        effective = saved.add(lateGrn).add(lateStockTake).setScale(SCALE, ROUNDING);
+        effective = saved.add(lateStockTake).setScale(SCALE, ROUNDING);
       }
 
       effective = nonnegativeQtyFromLedgerQty(effective);
@@ -1082,19 +1104,18 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     if (isStaleSavedClosingRow(row)) {
       return true;
     }
-    return row.closingStock() == null && row.openingStock().signum() > 0;
+    BigDecimal total = totalStockFromRow(row);
+    return row.closingStock() == null && total.signum() > 0;
   }
 
   private static boolean isStaleSavedClosingRow(StdStockCountRowDto row) {
-    if (row.closingStock() == null
-        || row.lastSavedAt() == null
-        || row.firstStockAddedAt() == null) {
+    Instant stockAddedAt =
+        row.latestStockAddedAt() != null ? row.latestStockAddedAt() : row.firstStockAddedAt();
+    if (row.closingStock() == null || row.lastSavedAt() == null || stockAddedAt == null) {
       return false;
     }
     BigDecimal total = totalStockFromRow(row);
-    return row.closingStock().compareTo(total) < 0
-        && row.closingStock().compareTo(row.openingStock()) == 0
-        && row.lastSavedAt().isBefore(row.firstStockAddedAt());
+    return row.closingStock().compareTo(total) < 0 && row.lastSavedAt().isBefore(stockAddedAt);
   }
 
   private static BigDecimal totalStockFromRow(StdStockCountRowDto row) {

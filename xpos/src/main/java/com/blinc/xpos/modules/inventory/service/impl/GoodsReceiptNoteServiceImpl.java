@@ -403,6 +403,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
         existing.setQty(existing.getQty().add(req.qty()));
         existing.setReceivedUnitCost(unitCost);
         existing.setUom(uom);
+        existing.setCreatedAt(effectiveReceivedAt);
         grnLineRepository.save(existing);
       } else {
         assertGrnLineResolvedUnitCostAllowed(

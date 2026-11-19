@@ -21,6 +21,8 @@ export interface StdStockCountRowResponse {
   lastSavedAt: string | null;
   /** Earliest GRN receipt or stock-take adjust on this sheet date; null when no stock added. */
   firstStockAddedAt: string | null;
+  /** Latest GRN receipt or stock-take adjust on this sheet date; null when no stock added. */
+  latestStockAddedAt?: string | null;
   /** Saved notes for this count line (optional). */
   comments: string | null;
 }

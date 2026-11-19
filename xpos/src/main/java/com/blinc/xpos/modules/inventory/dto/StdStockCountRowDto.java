@@ -14,7 +14,9 @@ import java.util.UUID;
  * 0}. {@code addedStock} is the sum of {@code GrnLine} qty for active GRNs received on the sheet
  * date only. {@code addedTodayStock} is positive stock-take adjustments on the sheet date only.
  * {@code firstStockAddedAt} is the earliest GRN line {@code createdAt} or positive stock-take
- * adjust timestamp for the item on the sheet date (null when no stock was added). Frontend computes
+ * adjust timestamp for the item on the sheet date (null when no stock was added). {@code
+ * latestStockAddedAt} is the latest GRN line {@code createdAt} or positive stock-take adjust
+ * timestamp for the item on the sheet date (null when no stock was added). Frontend computes
  * totalStock (opening + addedStock + addedTodayStock), unitsSold, amount.
  */
 public record StdStockCountRowDto(
@@ -28,4 +30,33 @@ public record StdStockCountRowDto(
     BigDecimal closingStock,
     Instant lastSavedAt,
     Instant firstStockAddedAt,
-    String comments) {}
+    Instant latestStockAddedAt,
+    String comments) {
+
+  public StdStockCountRowDto(
+      UUID itemId,
+      String sku,
+      String name,
+      BigDecimal openingStock,
+      BigDecimal addedStock,
+      BigDecimal addedTodayStock,
+      BigDecimal sellingPrice,
+      BigDecimal closingStock,
+      Instant lastSavedAt,
+      Instant firstStockAddedAt,
+      String comments) {
+    this(
+        itemId,
+        sku,
+        name,
+        openingStock,
+        addedStock,
+        addedTodayStock,
+        sellingPrice,
+        closingStock,
+        lastSavedAt,
+        firstStockAddedAt,
+        firstStockAddedAt,
+        comments);
+  }
+}

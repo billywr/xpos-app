@@ -223,6 +223,124 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.rows[0].addedStock").value(3));
   }
 
+  @Test
+  void priorDayDeliverySavedThenAfternoonSecondDeliveryCarriesForwardToNextDayOpening()
+      throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate businessDay = LocalDate.now(zone);
+    LocalDate priorDay = businessDay.minusDays(1);
+    Instant morningDeliveryAt = priorDay.atTime(LocalTime.of(8, 0)).atZone(zone).toInstant();
+    Instant morningSavedAt = priorDay.atTime(LocalTime.of(10, 0)).atZone(zone).toInstant();
+    Instant afternoonDeliveryAt = priorDay.atTime(LocalTime.of(14, 0)).atZone(zone).toInstant();
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+
+    // 1. Morning receipt: 6 units at 08:00
+    createGrnWithTimestamp(orgId, branchId, supplierId, itemId, 6, morningDeliveryAt);
+
+    // 2. Save stock count at 10:00 (closing stock = 6)
+    String priorClose =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":6}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(priorClose))
+        .andExpect(status().isOk());
+    Timestamp morningSaveTs = Timestamp.from(morningSavedAt);
+    jdbcTemplate.update(
+        "UPDATE std_stock_count_snapshot SET last_saved_at = ? WHERE branch_id = ? AND business_date = ?",
+        morningSaveTs,
+        branchId,
+        priorDay);
+
+    // 3. Afternoon receipt: 4 units at 14:00 (total 10)
+    createGrnWithTimestamp(orgId, branchId, supplierId, itemId, 4, afternoonDeliveryAt);
+
+    // 4. Verify Day 1 sheet exposes latestStockAddedAt as afternoonDeliveryAt
+    String priorUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + priorDay;
+    mockMvc
+        .perform(get(priorUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows.length()").value(1))
+        .andExpect(jsonPath("$.rows[0].openingStock").value(0))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(10))
+        .andExpect(jsonPath("$.rows[0].firstStockAddedAt").isNotEmpty())
+        .andExpect(jsonPath("$.rows[0].latestStockAddedAt").isNotEmpty());
+
+    // 5. Verify Day 2 (businessDay) sheet: opening stock reflects the afternoon addition (6 + 4 =
+    // 10)
+    String todayUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + businessDay;
+    mockMvc
+        .perform(get(todayUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows.length()").value(1))
+        .andExpect(jsonPath("$.rows[0].openingStock").value(10))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(0));
+  }
+
+  private UUID createGrnWithTimestamp(
+      UUID orgId, UUID branchId, UUID supplierId, UUID itemId, int qty, Instant at)
+      throws Exception {
+    String body =
+        "{\"branchId\":\""
+            + branchId
+            + "\",\"supplierId\":\""
+            + supplierId
+            + "\",\"lines\":[{\"itemId\":\""
+            + itemId
+            + "\",\"qty\":"
+            + qty
+            + ",\"receivedUnitCost\":80.00}]}";
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes")
+                    .with(operatorJwt())
+                    .contentType(APPLICATION_JSON)
+                    .content(body))
+            .andExpect(status().isCreated())
+            .andReturn();
+    UUID grnId =
+        UUID.fromString(
+            objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+    Timestamp ts = Timestamp.from(at);
+    jdbcTemplate.update(
+        "UPDATE goods_receipt_note SET received_at = ?, created_at = ? WHERE id = ?",
+        ts,
+        ts,
+        grnId);
+    jdbcTemplate.update("UPDATE grn_line SET created_at = ? WHERE grn_id = ?", ts, grnId);
+    jdbcTemplate.update(
+        "UPDATE stock_movement SET created_at = ? WHERE org_id = ? AND source_id = ?",
+        ts,
+        orgId,
+        grnId);
+    return grnId;
+  }
+
   private UUID createOrg() throws Exception {
     String body =
         objectMapper.writeValueAsString(

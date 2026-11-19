@@ -154,14 +154,14 @@ const STANDARD_STOCK_SORT = {
   amount: (row: ComputedRow) => row.amount,
 };
 
-/** Saved closing is stale when stock arrived after last save and closing still equals opening. */
+/** Saved closing is stale when stock arrived after last save and closing is less than total. */
 function isStaleSavedClosing(row: StdStockCountRowResponse): boolean {
-  if (row.closingStock == null || !row.lastSavedAt || !row.firstStockAddedAt) return false;
+  const stockAddedAt = row.latestStockAddedAt ?? row.firstStockAddedAt;
+  if (row.closingStock == null || !row.lastSavedAt || !stockAddedAt) return false;
   const total = totalStockFromRow(row);
   return (
     row.closingStock < total &&
-    row.closingStock === row.openingStock &&
-    row.lastSavedAt < row.firstStockAddedAt
+    row.lastSavedAt < stockAddedAt
   );
 }
 
@@ -178,8 +178,8 @@ function shouldAutoSyncClosing(
   if (isStaleSavedClosing(row)) {
     return true;
   }
-  // New day: carry-forward opening with no snapshot yet — persist closing = total.
-  if (row.closingStock == null && row.openingStock > 0) {
+  // Carry-forward / unsaved row with positive total stock — persist closing = total.
+  if (row.closingStock == null && totalStockFromRow(row) > 0) {
     return true;
   }
   if (!ctx.addedIncreased) {
@@ -499,6 +499,12 @@ export function StandardStockCountSheetPage({
     if (commentLocal !== undefined) {
       const baselineComment = r.comments ?? "";
       if (commentLocal !== baselineComment) return true;
+    }
+    if (r.closingStock == null && totalStockFromRow(r) > 0) {
+      return true;
+    }
+    if (isStaleSavedClosing(r)) {
+      return true;
     }
     return false;
   }
@@ -983,7 +989,13 @@ export function StandardStockCountSheetPage({
     const changedRows = rows.filter((r) => isRowChanged(r));
     const onlyCarryForward =
       changedRows.length > 0 &&
-      changedRows.every((r) => r.closingStock == null && r.openingStock > 0);
+      changedRows.every(
+        (r) =>
+          r.closingStock == null &&
+          localComments[r.itemId] === undefined &&
+          (localClosings[r.itemId] === undefined ||
+            localClosings[r.itemId] === String(totalStockFromRow(r)))
+      );
 
     if (onlyCarryForward && token && orgId && branchId) {
       void autoSyncStdStockCount(token, orgId, branchId)
@@ -1005,6 +1017,7 @@ export function StandardStockCountSheetPage({
     }
   }, [
     localClosings,
+    localComments,
     hasChanges,
     hasErrors,
     canEdit,

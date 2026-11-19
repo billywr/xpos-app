@@ -1031,6 +1031,7 @@ describe("StandardStockCountSheetPage save button", () => {
 
 describe("StandardStockCountSheetPage new day carry-forward", () => {
   beforeEach(() => {
+    vi.mocked(stdApi.autoSyncStdStockCount).mockReset();
     vi.mocked(stdApi.saveStdStockCount).mockReset();
     vi.mocked(debtsApi.fetchDebts).mockResolvedValue([] as never);
     vi.mocked(analyticsApi.fetchOperatorAnalyticsSnapshot).mockResolvedValue({
@@ -1107,6 +1108,101 @@ describe("StandardStockCountSheetPage new day carry-forward", () => {
 
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: /save/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("auto-saves unsaved row with opening 0 but addedStock > 0 on new day", async () => {
+    const today = localTodayStr();
+    const unsavedRow: StdStockCountRowResponse = {
+      itemId: "item-new",
+      sku: "SKU-NEW",
+      name: "New Product",
+      openingStock: 0,
+      addedStock: 4,
+      addedTodayStock: 0,
+      sellingPrice: 150,
+      closingStock: null,
+      lastSavedAt: null,
+      firstStockAddedAt: "2026-06-10T09:00:00Z",
+      latestStockAddedAt: "2026-06-10T09:00:00Z",
+      comments: null,
+    };
+    vi.mocked(stdApi.fetchStdStockCountSheet)
+      .mockResolvedValueOnce({
+        date: today,
+        outletId: "branch-1",
+        rows: [unsavedRow],
+      })
+      .mockResolvedValue({
+        date: today,
+        outletId: "branch-1",
+        rows: [{ ...unsavedRow, closingStock: 4, lastSavedAt: "2026-06-10T09:05:00Z" }],
+      });
+    vi.mocked(stdApi.autoSyncStdStockCount).mockResolvedValue({
+      date: today,
+      rowsSynced: 1,
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("4")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(stdApi.autoSyncStdStockCount).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("auto-saves stale saved closing when afternoon delivery arrives via latestStockAddedAt", async () => {
+    const today = localTodayStr();
+    const staleRow: StdStockCountRowResponse = {
+      itemId: "item-kc",
+      sku: "KC01",
+      name: "King Cane",
+      openingStock: 6,
+      addedStock: 4,
+      addedTodayStock: 0,
+      sellingPrice: 120,
+      closingStock: 6,
+      lastSavedAt: "2026-06-10T09:00:00Z",
+      firstStockAddedAt: "2026-06-10T08:00:00Z",
+      latestStockAddedAt: "2026-06-10T14:00:00Z",
+      comments: null,
+    };
+    vi.mocked(stdApi.fetchStdStockCountSheet)
+      .mockResolvedValueOnce({
+        date: today,
+        outletId: "branch-1",
+        rows: [staleRow],
+      })
+      .mockResolvedValue({
+        date: today,
+        outletId: "branch-1",
+        rows: [{ ...staleRow, closingStock: 10, lastSavedAt: "2026-06-10T14:05:00Z" }],
+      });
+    vi.mocked(stdApi.saveStdStockCount).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [{ ...staleRow, closingStock: 10, lastSavedAt: "2026-06-10T14:05:00Z" }],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(stdApi.saveStdStockCount).toHaveBeenCalledWith(
+        "t",
+        "org-1",
+        "branch-1",
+        expect.objectContaining({
+          counts: [
+            expect.objectContaining({
+              itemId: "item-kc",
+              closingStock: 10,
+            }),
+          ],
+        })
+      );
     });
   });
 });
