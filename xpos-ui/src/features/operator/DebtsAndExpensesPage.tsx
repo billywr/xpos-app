@@ -35,6 +35,7 @@ import {
   type MiscExpenseUpdateRequest,
 } from "@/api/miscExpenses";
 import { SlideOver } from "@/components/ui/SlideOver";
+import { PageHeader } from "@/components/PageHeader";
 import {
   Pagination,
   ConfirmDialog,
@@ -377,6 +378,7 @@ export interface DebtsAndExpensesPageProps {
   branchId?: string;
   branchName?: string;
   defaultTab?: TabId;
+  hideHeader?: boolean;
 }
 
 export function DebtsAndExpensesPage({
@@ -384,6 +386,7 @@ export function DebtsAndExpensesPage({
   branchId: propBranchId,
   branchName: propBranchName,
   defaultTab = "expenses",
+  hideHeader = false,
 }: DebtsAndExpensesPageProps = {}) {
   const token = useAppSelector(selectToken);
   const keycloakUsername = useAppSelector(selectUsername);
@@ -1623,10 +1626,17 @@ export function DebtsAndExpensesPage({
   // -----------------------------------------------------------------------
   if (!orgId || !branchId) {
     return (
-      <div className="p-6">
-        <p className="text-slate-500 dark:text-slate-400">
+      <div className="min-h-0 flex-1 overflow-auto p-1.5 sm:p-5">
+        {!hideHeader && (
+          <PageHeader
+            title="Debts & expenses"
+            icon={HandCoins}
+            fallbackTo="/operator"
+          />
+        )}
+        <div className="rounded-xl border border-sky-200/70 bg-white/90 p-8 text-center text-slate-500 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400">
           Select organization and branch to manage debts and expenses.
-        </p>
+        </div>
       </div>
     );
   }
@@ -1636,6 +1646,13 @@ export function DebtsAndExpensesPage({
   // -----------------------------------------------------------------------
   return (
     <div className="min-h-0 flex-1 overflow-auto p-1.5 sm:p-5">
+      {!hideHeader && (
+        <PageHeader
+          title="Debts & expenses"
+          icon={HandCoins}
+          fallbackTo="/operator"
+        />
+      )}
       {/* Top Bar: Tabs on left, Actions (Download PDF + Record button) on right */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <AdminTabList

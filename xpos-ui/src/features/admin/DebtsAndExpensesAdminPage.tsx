@@ -81,7 +81,7 @@ export function DebtsAndExpensesAdminPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-4 xl:p-6">
-      <div className="mb-3 hidden xl:flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3 dark:border-slate-700">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3 dark:border-slate-700">
         <div className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
             <HandCoins className="h-5 w-5" />
@@ -147,6 +147,7 @@ export function DebtsAndExpensesAdminPage() {
             orgId={selectedOrgId}
             branchId={selectedBranchId}
             branchName={selectedBranch?.name}
+            hideHeader
           />
         </div>
       )}
