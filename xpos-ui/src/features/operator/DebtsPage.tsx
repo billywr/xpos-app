@@ -910,7 +910,7 @@ export function DebtsPage() {
             </div>
           )}
 
-          <div style={{ order: 3 }} className="col-span-1 sm:col-span-2">
+          <div style={{ order: 9990 }} className="col-span-1 sm:col-span-2">
             <span
               id="borrowed-items-label"
               className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -1078,7 +1078,7 @@ export function DebtsPage() {
           )}
 
           {formCustom.isFieldVisible("notes") && (
-            <div style={{ order: formCustom.getFieldOrder("notes") }} className="col-span-1 sm:col-span-2">
+            <div style={{ order: 9998 }} className="col-span-1 sm:col-span-2">
               <label
                 htmlFor="notes"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"

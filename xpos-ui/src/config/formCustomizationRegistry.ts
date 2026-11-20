@@ -100,12 +100,20 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
         defaultOrder: 2,
       },
       {
+        key: "issuedBy",
+        defaultLabel: "Issued by",
+        defaultPlaceholder: "Search or type a name…",
+        required: false,
+        canHide: true,
+        defaultOrder: 3,
+      },
+      {
         key: "amount",
         defaultLabel: "Debt amount (KSH)",
         defaultPlaceholder: "0.00",
         required: true,
         canHide: false,
-        defaultOrder: 3,
+        defaultOrder: 4,
       },
       {
         key: "recordedOn",
@@ -113,7 +121,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
         defaultPlaceholder: "YYYY-MM-DD",
         required: true,
         canHide: false,
-        defaultOrder: 4,
+        defaultOrder: 5,
       },
       {
         key: "dueDate",
@@ -121,7 +129,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
         defaultPlaceholder: "YYYY-MM-DD",
         required: false,
         canHide: true,
-        defaultOrder: 5,
+        defaultOrder: 6,
       },
       {
         key: "notes",
@@ -129,7 +137,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
         defaultPlaceholder: "e.g. Tab for Friday order",
         required: false,
         canHide: true,
-        defaultOrder: 6,
+        defaultOrder: 7,
       },
     ],
   },
