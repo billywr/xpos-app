@@ -132,6 +132,7 @@ describe("AdminSettingsPage", () => {
     expect(screen.getByRole("tab", { name: /pos & features/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /m-pesa/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /ai assistant/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /forms & sheets/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /appearance/i })).toBeInTheDocument();
 
     // Default tab is Top Bar
@@ -153,6 +154,10 @@ describe("AdminSettingsPage", () => {
     expect(screen.getByText("Standard stock count")).toBeInTheDocument();
     expect(screen.getByText("Barcode (per screen)")).toBeInTheDocument();
 
+    // Switch to Forms & Sheets tab
+    fireEvent.click(screen.getByRole("tab", { name: /forms & sheets/i }));
+    expect(screen.getByText("Form & Sheet Customization")).toBeInTheDocument();
+
     // Switch to Appearance tab
     fireEvent.click(screen.getByRole("tab", { name: /appearance/i }));
     expect(screen.getByText("Dark Mode Theme")).toBeInTheDocument();
@@ -162,6 +167,13 @@ describe("AdminSettingsPage", () => {
     renderSettingsPage(["/admin/settings?tab=appearance"]);
 
     expect(screen.getByText("Dark Mode Theme")).toBeInTheDocument();
+    expect(screen.queryByText("Top navigation bar")).not.toBeInTheDocument();
+  });
+
+  it("reads forms tab from URL query param", () => {
+    renderSettingsPage(["/admin/settings?tab=forms"]);
+
+    expect(screen.getByText("Form & Sheet Customization")).toBeInTheDocument();
     expect(screen.queryByText("Top navigation bar")).not.toBeInTheDocument();
   });
 

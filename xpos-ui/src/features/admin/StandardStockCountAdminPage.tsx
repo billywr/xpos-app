@@ -2,19 +2,34 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
+import {
+  selectOrgId,
+  selectBranchId,
+  selectTerminalId,
+} from "@/store/selectors/orgContextSelectors";
 import { fetchOrgs } from "@/api/orgs";
 import { fetchBranches } from "@/api/branches";
+import { fetchTerminals } from "@/api/terminals";
 import { StandardStockCountSheetPage } from "@/features/operator/StandardStockCountSheetPage";
-import type { Org, Branch } from "@/types/org";
-import { filterActiveOrgs, filterNonDeletedBranches } from "@/types/org";
+import type { Org, Branch, Terminal } from "@/types/org";
+import {
+  filterActiveOrgs,
+  filterNonDeletedBranches,
+  filterNonDeletedTerminals,
+} from "@/types/org";
 import { PageHeader } from "@/components/PageHeader";
 import { FileSpreadsheet } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
 export function StandardStockCountAdminPage() {
   const token = useAppSelector(selectToken);
+  const contextOrgId = useAppSelector(selectOrgId);
+  const contextBranchId = useAppSelector(selectBranchId);
+  const contextTerminalId = useAppSelector(selectTerminalId);
+
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+  const [selectedTerminalId, setSelectedTerminalId] = useState<string>("");
 
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
@@ -28,8 +43,16 @@ export function StandardStockCountAdminPage() {
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
 
+  const { data: terminalsData } = useQuery({
+    queryKey: ["admin-terminals", token, selectedOrgId, selectedBranchId],
+    queryFn: () =>
+      fetchTerminals(token, selectedOrgId, selectedBranchId, { size: 100 }),
+    enabled: Boolean(token && selectedOrgId && selectedBranchId),
+  });
+
   const orgs = orgsData?.content ?? [];
   const branches = branchesData?.content ?? [];
+  const terminals = filterNonDeletedTerminals(terminalsData?.content ?? []);
   const filteredOrgs = filterActiveOrgs(orgs);
   const filteredBranches = filterNonDeletedBranches(branches);
 
@@ -40,15 +63,42 @@ export function StandardStockCountAdminPage() {
 
   useEffect(() => {
     if (!selectedOrgId && filteredOrgs.length > 0) {
-      setSelectedOrgId(filteredOrgs[0].id);
+      if (contextOrgId && filteredOrgs.some((o: Org) => o.id === contextOrgId)) {
+        setSelectedOrgId(contextOrgId);
+      } else {
+        setSelectedOrgId(filteredOrgs[0].id);
+      }
     }
-  }, [filteredOrgs, selectedOrgId]);
+  }, [filteredOrgs, selectedOrgId, contextOrgId]);
 
   useEffect(() => {
     if (selectedOrgId && !selectedBranchId && filteredBranches.length > 0) {
-      setSelectedBranchId(filteredBranches[0].id);
+      if (
+        contextBranchId &&
+        filteredBranches.some((b: Branch) => b.id === contextBranchId)
+      ) {
+        setSelectedBranchId(contextBranchId);
+      } else {
+        setSelectedBranchId(filteredBranches[0].id);
+      }
     }
-  }, [selectedOrgId, filteredBranches, selectedBranchId]);
+  }, [selectedOrgId, filteredBranches, selectedBranchId, contextBranchId]);
+
+  useEffect(() => {
+    if (terminals.length > 0) {
+      if (
+        contextTerminalId &&
+        terminals.some((t: Terminal) => t.id === contextTerminalId)
+      ) {
+        setSelectedTerminalId(contextTerminalId);
+      } else if (
+        !selectedTerminalId ||
+        !terminals.some((t: Terminal) => t.id === selectedTerminalId)
+      ) {
+        setSelectedTerminalId(terminals[0].id);
+      }
+    }
+  }, [terminals, contextTerminalId, selectedTerminalId]);
 
   const orgSelectOptions = useMemo(
     () => [
@@ -95,6 +145,7 @@ export function StandardStockCountAdminPage() {
                   onChange={(next) => {
                     setSelectedOrgId(next);
                     setSelectedBranchId("");
+                    setSelectedTerminalId("");
                   }}
                   placeholder="Search organization…"
                   className="w-56"
@@ -114,7 +165,10 @@ export function StandardStockCountAdminPage() {
                   id="std-branch-select"
                   options={branchSelectOptions}
                   value={selectedBranchId}
-                  onChange={setSelectedBranchId}
+                  onChange={(next) => {
+                    setSelectedBranchId(next);
+                    setSelectedTerminalId("");
+                  }}
                   placeholder="Search branch…"
                   className="w-56"
                   controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
@@ -134,8 +188,10 @@ export function StandardStockCountAdminPage() {
     <StandardStockCountSheetPage
       orgId={selectedOrgId}
       branchId={selectedBranchId}
+      terminalId={selectedTerminalId || contextTerminalId}
       orgName={selectedOrg?.name}
       branchName={selectedBranch?.name}
+      fallbackTo="/admin"
     />
   );
 }

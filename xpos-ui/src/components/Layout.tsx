@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { PageTransition } from "@/components/ui/PageTransition";
 import { Store, LayoutDashboard, LogOut, Sun, Moon, Menu, X, Server } from "lucide-react";
 import { ServerConfigModal } from "@/components/ServerConfigModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ContextSelectDropdowns } from "@/components/ContextSelectDropdowns";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
@@ -48,6 +49,7 @@ export function Layout() {
   const logoUrl = navVisibility ? getHeaderLogo() : null;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showServerModal, setShowServerModal] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useLayoutEffect(() => {
     document.title = appName ? `${appName} — POS` : "XPOS";
@@ -169,7 +171,7 @@ export function Layout() {
               {token && (
                 <button
                   type="button"
-                  onClick={handleLogout}
+                  onClick={() => setShowLogoutConfirm(true)}
                   className="flex items-center gap-1.5 text-slate-600 hover:text-primary-600 dark:text-white/90 dark:hover:text-white"
                   aria-label="Log out"
                 >
@@ -232,7 +234,10 @@ export function Layout() {
               <div className="mt-2 border-t border-slate-200 pt-2 dark:border-white/10">
                 <button
                   type="button"
-                  onClick={handleLogout}
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setShowLogoutConfirm(true);
+                  }}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-primary-600 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
                 >
                   <LogOut className="h-4 w-4" />
@@ -249,6 +254,17 @@ export function Layout() {
       <ServerConfigModal
         open={showServerModal}
         onClose={() => setShowServerModal(false)}
+      />
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Log out?"
+        message="Are you sure you want to log out of your session? Any unsaved changes will be lost."
+        confirmLabel="Log out"
+        cancelLabel="Cancel"
+        variant="danger"
+        icon={<LogOut className="h-5 w-5" />}
       />
     </div>
   );

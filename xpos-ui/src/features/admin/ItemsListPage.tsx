@@ -60,6 +60,7 @@ import { resizeImageTo400x400 } from "@/utils/imageResize";
 import { Plus, Pencil, Trash2, Upload, ChevronDown, Download, Loader2, Info } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
+import { useFormCustomization } from "@/contexts/FormCustomizationContext";
 import { BARCODE_ITEMS, isBarcodeVisible } from "@/config/barcodeVisibility";
 
 const DEFAULT_PAGE_SIZE = 15;
@@ -90,6 +91,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     navContext?.adminVisibility ?? {},
     BARCODE_ITEMS
   );
+  const formCustom = useFormCustomization("item");
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
@@ -956,6 +958,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               onClick={handleDownloadPdf}
               disabled={downloadingPdf || !selectedOrgId}
               title="Download PDF document of all items"
+              aria-label="Download"
               className="flex items-center gap-1.5"
             >
               {downloadingPdf ? (
@@ -1247,42 +1250,58 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                   {formError}
                 </p>
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <FormLabel htmlFor="item-name" className="mb-1" required>
-                    Name
-                  </FormLabel>
-                  <input
-                    id="item-name"
-                    type="text"
-                    required
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                    placeholder="e.g. Coca Cola 500ml"
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <FormLabel htmlFor="item-sku" className="mb-1" required>
-                    SKU
-                  </FormLabel>
-                  <input
-                    id="item-sku"
-                    type="text"
-                    required
-                    value={formSku}
-                    onChange={(e) => setFormSku(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  />
-                </div>
-              </div>
+              <div className="flex flex-col gap-4">
+                {formCustom.isFieldVisible("name") && (
+                  <div style={{ order: formCustom.getFieldOrder("name") }}>
+                    <FormLabel
+                      htmlFor="item-name"
+                      className="mb-1"
+                      required={formCustom.isFieldRequired("name", true)}
+                    >
+                      {formCustom.getFieldLabel("name", "Name")}
+                    </FormLabel>
+                    <input
+                      id="item-name"
+                      type="text"
+                      required={formCustom.isFieldRequired("name", true)}
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                      placeholder={formCustom.getFieldPlaceholder("name", "e.g. Coca Cola 500ml")}
+                      autoFocus
+                    />
+                  </div>
+                )}
 
-              {showBarcode ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <FormLabel htmlFor="item-barcode" className="mb-1">
-                      Barcode
+                {formCustom.isFieldVisible("sku") && (
+                  <div style={{ order: formCustom.getFieldOrder("sku") }}>
+                    <FormLabel
+                      htmlFor="item-sku"
+                      className="mb-1"
+                      required={formCustom.isFieldRequired("sku", true)}
+                    >
+                      {formCustom.getFieldLabel("sku", "SKU")}
+                    </FormLabel>
+                    <input
+                      id="item-sku"
+                      type="text"
+                      required={formCustom.isFieldRequired("sku", true)}
+                      value={formSku}
+                      onChange={(e) => setFormSku(e.target.value)}
+                      placeholder={formCustom.getFieldPlaceholder("sku", "e.g. BEV-001")}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    />
+                  </div>
+                )}
+
+                {showBarcode && formCustom.isFieldVisible("barcode") && (
+                  <div style={{ order: formCustom.getFieldOrder("barcode") }}>
+                    <FormLabel
+                      htmlFor="item-barcode"
+                      className="mb-1"
+                      required={formCustom.isFieldRequired("barcode", false)}
+                    >
+                      {formCustom.getFieldLabel("barcode", "Barcode")}
                     </FormLabel>
                     <input
                       id="item-barcode"
@@ -1293,90 +1312,99 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                         if (e.key === "Enter") e.preventDefault();
                       }}
                       className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                      placeholder="e.g. 5901234123457 or scan"
+                      placeholder={formCustom.getFieldPlaceholder("barcode", "e.g. 5901234123457 or scan")}
                       autoComplete="off"
                     />
                   </div>
-                  <div>
-                    <FormLabel htmlFor="item-type" className="mb-1">
-                      Type
-                    </FormLabel>
-                    <SearchableSelect
-                      id="item-type"
-                      options={itemTypeOptions}
-                      value={formItemType}
-                      onChange={setFormItemType}
-                      placeholder="Search type…"
-                      className="w-full"
-                      controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                    />
-                  </div>
-                </div>
-              ) : null}
+                )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {!showBarcode ? (
-                  <div>
-                    <FormLabel htmlFor="item-type" className="mb-1">
-                      Type
+                {formCustom.isFieldVisible("itemType") && (
+                  <div style={{ order: formCustom.getFieldOrder("itemType") }}>
+                    <FormLabel
+                      htmlFor="item-type"
+                      className="mb-1"
+                      required={formCustom.isFieldRequired("itemType", false)}
+                    >
+                      {formCustom.getFieldLabel("itemType", "Type")}
                     </FormLabel>
                     <SearchableSelect
                       id="item-type"
                       options={itemTypeOptions}
                       value={formItemType}
                       onChange={setFormItemType}
-                      placeholder="Search type…"
+                      placeholder={formCustom.getFieldPlaceholder("itemType", "Search type…")}
                       className="w-full"
                       controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
                     />
                   </div>
-                ) : null}
-                <div>
-                  <FormLabel htmlFor="item-category" className="mb-1">
-                    Category
-                  </FormLabel>
-                  <SearchableSelect
-                    id="item-category"
-                    options={itemCategoryOptions}
-                    value={formCategoryId}
-                    onChange={setFormCategoryId}
-                    placeholder="Search category…"
-                    className="w-full"
-                    controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <FormLabel htmlFor="item-buying-price" className="mb-1" required>
-                    Buying price
-                  </FormLabel>
-                  <input
-                    id="item-buying-price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={formBuyingPrice}
-                    onChange={(e) => setFormBuyingPrice(e.target.value)}
-                    className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <FormLabel htmlFor="item-selling-price" className="mb-1" required>
-                    Selling price
-                  </FormLabel>
-                  <input
-                    id="item-selling-price"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    value={formSellingPrice}
-                    onChange={(e) => setFormSellingPrice(e.target.value)}
-                    className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  />
-                </div>
+                )}
+
+                {formCustom.isFieldVisible("category") && (
+                  <div style={{ order: formCustom.getFieldOrder("category") }}>
+                    <FormLabel
+                      htmlFor="item-category"
+                      className="mb-1"
+                      required={formCustom.isFieldRequired("category", false)}
+                    >
+                      {formCustom.getFieldLabel("category", "Category")}
+                    </FormLabel>
+                    <SearchableSelect
+                      id="item-category"
+                      options={itemCategoryOptions}
+                      value={formCategoryId}
+                      onChange={setFormCategoryId}
+                      placeholder={formCustom.getFieldPlaceholder("category", "Search category…")}
+                      className="w-full"
+                      controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                    />
+                  </div>
+                )}
+
+                {formCustom.isFieldVisible("buyingPrice") && (
+                  <div style={{ order: formCustom.getFieldOrder("buyingPrice") }}>
+                    <FormLabel
+                      htmlFor="item-buying-price"
+                      className="mb-1"
+                      required={formCustom.isFieldRequired("buyingPrice", true)}
+                    >
+                      {formCustom.getFieldLabel("buyingPrice", "Buying price")}
+                    </FormLabel>
+                    <input
+                      id="item-buying-price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required={formCustom.isFieldRequired("buyingPrice", true)}
+                      value={formBuyingPrice}
+                      onChange={(e) => setFormBuyingPrice(e.target.value)}
+                      placeholder={formCustom.getFieldPlaceholder("buyingPrice", "0.00")}
+                      className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    />
+                  </div>
+                )}
+
+                {formCustom.isFieldVisible("sellingPrice") && (
+                  <div style={{ order: formCustom.getFieldOrder("sellingPrice") }}>
+                    <FormLabel
+                      htmlFor="item-selling-price"
+                      className="mb-1"
+                      required={formCustom.isFieldRequired("sellingPrice", true)}
+                    >
+                      {formCustom.getFieldLabel("sellingPrice", "Selling price")}
+                    </FormLabel>
+                    <input
+                      id="item-selling-price"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required={formCustom.isFieldRequired("sellingPrice", true)}
+                      value={formSellingPrice}
+                      onChange={(e) => setFormSellingPrice(e.target.value)}
+                      placeholder={formCustom.getFieldPlaceholder("sellingPrice", "0.00")}
+                      className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    />
+                  </div>
+                )}
               </div>
               {priceWarning && (
                 <p className="text-xs font-medium text-red-600 dark:text-red-400">

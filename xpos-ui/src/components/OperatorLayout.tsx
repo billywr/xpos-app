@@ -8,7 +8,6 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  Settings,
   ShoppingCart,
   Store,
   UtensilsCrossed,
@@ -44,6 +43,7 @@ import { isOperatorNavItemVisible } from "@/hooks/useOperatorNavVisibility";
 import { OPERATOR_NAV_ITEMS } from "@/config/operatorNavItems";
 import { APP_NAME_KEY } from "@/config/headerNavItems";
 import { AssistantWidget } from "@/components/AssistantWidget";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { InsightAlertBell } from "@/components/InsightAlertBell";
 
 const MANAGE_TABLE_SUB_ITEMS = [
@@ -108,6 +108,7 @@ export function OperatorLayout() {
   const displayInitial = displayName.charAt(0).toUpperCase() || "U";
   const [globalError, setGlobalError] = useState<{ message: string; requestId: string } | null>(null);
   const [manageOpen, setManageOpen] = useState(true);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const visibilityState = navVisibility?.operatorVisibility ?? null;
   const getOperatorLabel = navVisibility?.getOperatorLabel ?? ((_, defaultLabel) => defaultLabel);
@@ -262,20 +263,9 @@ export function OperatorLayout() {
           </>
         )}
         <div className="my-2 border-t border-slate-200 dark:border-white/10" />
-        {showLabels && (
-          <Link
-            to="/settings"
-            title="Settings"
-            onClick={isMobile ? closeMobile : undefined}
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
-          >
-            <Settings className="h-5 w-5 shrink-0" />
-            Settings
-          </Link>
-        )}
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={() => setShowLogoutConfirm(true)}
           title="Logout"
           className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white ${!showLabels ? "justify-center" : ""}`}
         >
@@ -483,6 +473,18 @@ export function OperatorLayout() {
         </main>
       </div>
       <AssistantWidget />
+
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Log out?"
+        message="Are you sure you want to end your cashier session and return to the login screen?"
+        confirmLabel="Log out"
+        cancelLabel="Cancel"
+        variant="danger"
+        icon={<LogOut className="h-5 w-5" />}
+      />
     </div>
   );
 }

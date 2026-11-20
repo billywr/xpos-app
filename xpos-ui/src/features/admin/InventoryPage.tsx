@@ -343,6 +343,7 @@ export function InventoryPage({
                 onClick={handleDownloadItemsPdf}
                 disabled={downloadingItemsPdf || !selectedOrgId}
                 title="Download PDF document of all items"
+                aria-label="Download"
                 className="flex min-h-[40px] items-center gap-1.5"
               >
                 {downloadingItemsPdf ? (

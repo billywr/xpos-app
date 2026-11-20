@@ -1284,6 +1284,7 @@ export function GoodsReceiptPage({
             onClick={handleDownloadItemsPdf}
             disabled={downloadingItemsPdf || !selectedOrgId}
             title="Download PDF document of all items"
+            aria-label="Download"
             className="flex items-center gap-1.5"
           >
             {downloadingItemsPdf ? (

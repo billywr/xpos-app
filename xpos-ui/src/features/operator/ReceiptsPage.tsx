@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -57,12 +58,15 @@ function getTodayLocal(): string {
 }
 
 export function ReceiptsPage() {
+  const location = useLocation();
   const token = useAppSelector(selectToken);
   const orgId = useAppSelector(selectOrgId);
   const branchId = useAppSelector(selectBranchId);
   const branchName = useAppSelector(selectBranchName);
   const queryClient = useQueryClient();
   const toast = useToast();
+
+  const fallbackTo = location.pathname.startsWith("/admin") ? "/admin" : "/operator";
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
   const [fromDate, setFromDate] = useState(() => getTodayLocal());
@@ -222,7 +226,7 @@ export function ReceiptsPage() {
         title="Receipts"
         subtitle={`View and reprint receipts for ${branchName ?? "this branch"}.`}
         icon={Receipt}
-        fallbackTo="/operator"
+        fallbackTo={fallbackTo}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-4">

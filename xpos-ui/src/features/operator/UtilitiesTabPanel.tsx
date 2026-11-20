@@ -317,7 +317,7 @@ export function UtilitiesTabPanel({
     <div className="space-y-4">
       {/* Filter and Control Bar */}
       <div className="mb-4 flex flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:gap-4">
           <TableSearchInput
             value={search}
             onChange={(val) => {
@@ -325,11 +325,12 @@ export function UtilitiesTabPanel({
               setPage(0);
             }}
             placeholder="Search utilities…"
+            className="w-full sm:flex-1 sm:max-w-xs lg:max-w-sm [&>input]:sm:max-w-none"
           />
-          <div className="hidden xl:flex items-center gap-1.5">
+          <div className="hidden xl:flex items-center gap-1.5 shrink-0">
             <label
               htmlFor="utility-status-filter"
-              className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400"
+              className="text-xs font-semibold uppercase text-slate-500 whitespace-nowrap dark:text-slate-400"
             >
               Status
             </label>

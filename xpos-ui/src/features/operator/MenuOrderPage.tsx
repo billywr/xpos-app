@@ -7,7 +7,7 @@ import {
   useState,
   useRef,
 } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
@@ -128,6 +128,8 @@ function filterOutOfStockItems(
 }
 
 export function MenuOrderPage() {
+  const location = useLocation();
+  const fallbackTo = location.pathname.startsWith("/admin") ? "/admin" : "/operator";
   const [searchParams, setSearchParams] = useSearchParams();
   const saleIdFromUrl = searchParams.get("saleId");
   const token = useAppSelector(selectToken);
@@ -752,7 +754,7 @@ export function MenuOrderPage() {
           <PageHeader
             title="POS"
             subtitle="Select items and proceed to payment"
-            fallbackTo="/operator"
+            fallbackTo={fallbackTo}
             noMargin
             className="mb-2 shrink-0"
           />

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -340,6 +341,10 @@ export interface StandardStockCountSheetPageProps {
   branchId?: string;
   branchName?: string;
   orgName?: string;
+  /** Override terminal context (for admin) */
+  terminalId?: string | null;
+  /** Fallback URL for back navigation */
+  fallbackTo?: string;
 }
 
 export function StandardStockCountSheetPage({
@@ -347,18 +352,23 @@ export function StandardStockCountSheetPage({
   branchId: branchIdProp,
   branchName: branchNameProp,
   orgName: orgNameProp,
+  terminalId: terminalIdProp,
+  fallbackTo: fallbackToProp,
 }: StandardStockCountSheetPageProps = {}) {
+  const location = useLocation();
   const token = useAppSelector(selectToken);
   const contextOrgId = useAppSelector(selectOrgId) ?? "";
   const contextBranchId = useAppSelector(selectBranchId) ?? "";
   const contextBranchName = useAppSelector(selectBranchName);
   const contextOrgName = useAppSelector(selectOrgName);
-  const terminalId = useAppSelector(selectTerminalId);
+  const contextTerminalId = useAppSelector(selectTerminalId);
 
   const orgId = orgIdProp ?? contextOrgId;
   const branchId = branchIdProp ?? contextBranchId;
   const branchName = branchNameProp ?? contextBranchName;
   const orgName = orgNameProp ?? contextOrgName;
+  const terminalId = terminalIdProp ?? contextTerminalId;
+  const fallbackTo = fallbackToProp ?? (location.pathname.startsWith("/admin") ? "/admin" : "/operator");
   const queryClient = useQueryClient();
   const toast = useToast();
   const navVisibility = useNavVisibilityContextOrNull();
@@ -853,7 +863,6 @@ export function StandardStockCountSheetPage({
     sortColumn,
     sortDirection,
     toggleSort,
-    setSort,
   } = useDataTable(tableInputRows, undefined, {
     searchQuery,
     setSearchQuery,
@@ -1436,7 +1445,7 @@ export function StandardStockCountSheetPage({
             subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = latest saved Closing before this date (0 if never saved). Added = GRN receipts on this date. Total Stock = Opening + Added + Added today. Closing = physical count (defaults to Total Stock for unsaved rows so Units Sold starts at 0; editable); Units Sold = Total Stock − Closing.`}
             subtitleRevealOnTitleHover
             icon={FileSpreadsheet}
-            fallbackTo="/operator"
+            fallbackTo={fallbackTo}
           />
         </div>
       )}
@@ -1462,54 +1471,6 @@ export function StandardStockCountSheetPage({
                 onChange={setSearchQuery}
                 placeholder="Search items…"
               />
-            </div>
-            {/* Quick view / ordering mode pills */}
-            <div
-              className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs font-medium dark:border-slate-700 dark:bg-slate-800 shrink-0"
-              role="group"
-              aria-label="Table ordering"
-            >
-              <button
-                type="button"
-                onClick={() => setSort(null)}
-                className={cn(
-                  "rounded-md px-2 py-1 transition-colors",
-                  sortColumn === null
-                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white font-semibold"
-                    : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                )}
-                title="Order by frequently sold items (most frequently sold first)"
-              >
-                <span className="hidden sm:inline">Frequently sold</span>
-                <span className="sm:hidden">Freq</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSort("sold", "desc")}
-                className={cn(
-                  "rounded-md px-2 py-1 transition-colors",
-                  sortColumn === "sold" && sortDirection === "desc"
-                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white font-semibold"
-                    : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                )}
-                title="Sort by highest sold units on this sheet"
-              >
-                <span className="hidden sm:inline">Sold today</span>
-                <span className="sm:hidden">Sold</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSort("item", "asc")}
-                className={cn(
-                  "rounded-md px-2 py-1 transition-colors",
-                  sortColumn === "item" && sortDirection === "asc"
-                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white font-semibold"
-                    : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                )}
-                title="Sort alphabetically A-Z"
-              >
-                A-Z
-              </button>
             </div>
             {/* Total Sales pill for small/smaller screens (< xl) */}
             <div
@@ -1595,6 +1556,7 @@ export function StandardStockCountSheetPage({
               size="md"
               onClick={handleDownloadPdf}
               disabled={!sheet}
+              title="Download PDF"
               aria-label="Download"
               className="hidden xl:inline-flex px-2.5 py-1.5 sm:px-4 sm:py-2"
             >
@@ -1623,7 +1585,7 @@ export function StandardStockCountSheetPage({
               onClick={handleReconcileClick}
               disabled={reconcileMutation.isPending || saveMutation.isPending}
               title={`Set POS on-hand to match saved closings (${itemsToReconcile} item${itemsToReconcile === 1 ? "" : "s"})`}
-              aria-label={`Reconcile inventory (${itemsToReconcile} item${itemsToReconcile === 1 ? "" : "s"})`}
+              aria-label={`Reconcile (${itemsToReconcile} item${itemsToReconcile === 1 ? "" : "s"})`}
               className="p-2 xl:px-3 xl:py-2 text-xs xl:text-sm shrink-0"
             >
               {reconcileMutation.isPending ? (
@@ -1631,7 +1593,7 @@ export function StandardStockCountSheetPage({
               ) : (
                 <GitCompare className="h-4 w-4 text-primary-600 dark:text-primary-400" />
               )}
-              <span className="hidden xl:inline">Reconcile inventory</span>
+              <span className="hidden xl:inline">Reconcile</span>
               {itemsToReconcile > 0 && (
                 <span className="ml-1.5 rounded-full bg-primary-100 px-1.5 py-0.5 text-xs font-semibold text-primary-800 dark:bg-primary-950/60 dark:text-primary-300">
                   {itemsToReconcile}

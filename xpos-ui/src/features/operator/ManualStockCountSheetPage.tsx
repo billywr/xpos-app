@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -182,12 +183,15 @@ function buildSaveRow(r: LocalRow, index: number): ManualStockCountLineSaveReque
 }
 
 export function ManualStockCountSheetPage() {
+  const location = useLocation();
   const token = useAppSelector(selectToken);
   const orgId = useAppSelector(selectOrgId) ?? "";
   const branchId = useAppSelector(selectBranchId) ?? "";
   const branchName = useAppSelector(selectBranchName);
   const queryClient = useQueryClient();
   const toast = useToast();
+
+  const fallbackTo = location.pathname.startsWith("/admin") ? "/admin" : "/operator";
   const [dateStr, setDateStr] = useState<string>(
     () => getSavedStockCountDate(orgId, branchId) || todayStr()
   );
@@ -426,7 +430,7 @@ export function ManualStockCountSheetPage() {
         subtitle={`Manual sheet at ${branchName ?? "this branch"} (no ledger). Same layout as standard count: Opening + Added = Total stock; Closing and System are typed in; Units sold = Total − Closing; Variance = Closing − System; Amount = Units sold × selling price. Item name is set when you add a row. Leave Opening blank on save to use yesterday’s saved closing.`}
         subtitleRevealOnTitleHover
         icon={FileSpreadsheet}
-        fallbackTo="/operator"
+        fallbackTo={fallbackTo}
       />
 
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">

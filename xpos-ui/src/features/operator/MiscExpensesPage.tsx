@@ -43,11 +43,12 @@ import {
 } from "@/components/ui";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
-import { formatDateTime } from "@/utils/formatDate";
+import { formatDate } from "@/utils/formatDate";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { downloadExpensesPdf } from "@/utils/expensesPdf";
 import { recordedAtToCreatedAt, todayInputValue } from "@/utils/recordedAt";
 import { useToast } from "@/contexts/ToastContext";
+import { useFormCustomization } from "@/contexts/FormCustomizationContext";
 import { Receipt, Plus, Loader2, Pencil, XCircle, FileDown } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -83,6 +84,7 @@ export function MiscExpensesPage() {
   const branchName = useAppSelector(selectBranchName);
   const queryClient = useQueryClient();
   const toast = useToast();
+  const formCustom = useFormCustomization("expense");
   const [page, setPage] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [formAmount, setFormAmount] = useState("");
@@ -491,6 +493,7 @@ export function MiscExpensesPage() {
                     ? "No expenses on this page to export"
                     : "Download expenses shown on this page as PDF"
                 }
+                aria-label="Download"
               >
                 <FileDown className="h-5 w-5" />
                 Download
@@ -501,7 +504,7 @@ export function MiscExpensesPage() {
                 className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
               >
                 <Plus className="h-5 w-5" />
-                Record expense
+                Record
               </button>
             </div>
           </div>
@@ -520,7 +523,7 @@ export function MiscExpensesPage() {
                     className="mt-4 inline-flex items-center gap-2 rounded-lg border border-primary-500 bg-transparent px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30"
                   >
                     <Plus className="h-4 w-4" />
-                    Record expense
+                    Record
                   </button>
                 )}
               </div>
@@ -625,7 +628,7 @@ export function MiscExpensesPage() {
                           </td>
                         )}
                         <td className={tableBodyCell}>
-                          {formatDateTime(e.createdAt)}
+                          {formatDate(e.createdAt)}
                         </td>
                         <td className={tableBodyCell}>
                           <div className="flex justify-start gap-1">
@@ -688,14 +691,14 @@ export function MiscExpensesPage() {
         }}
         title="Record miscellaneous expense"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {formCustom.isFieldVisible("recordedOn") && (
+            <div style={{ order: formCustom.getFieldOrder("recordedOn") }}>
               <label
                 htmlFor="recordedOn"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Date recorded *
+                {formCustom.getFieldLabel("recordedOn", "Date")} *
               </label>
               <DateInput
                 id="recordedOn"
@@ -703,38 +706,43 @@ export function MiscExpensesPage() {
                 max={todayInputValue()}
                 value={formRecordedOn}
                 onChange={(e) => setFormRecordedOn(e.target.value)}
+                placeholder={formCustom.getFieldPlaceholder("recordedOn", "YYYY-MM-DD")}
                 className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Defaults to today. Pick a past date when entering an old expense.
-              </p>
             </div>
-            <div>
+          )}
+
+          {formCustom.isFieldVisible("amount") && (
+            <div style={{ order: formCustom.getFieldOrder("amount") }}>
               <label
                 htmlFor="amount"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Amount *
+                {formCustom.getFieldLabel("amount", "Amount")}
+                {formCustom.isFieldRequired("amount", true) && " *"}
               </label>
               <input
                 id="amount"
                 type="number"
                 step="0.01"
                 min="0.01"
-                required
+                required={formCustom.isFieldRequired("amount", true)}
                 value={formAmount}
                 onChange={(e) => setFormAmount(e.target.value)}
+                placeholder={formCustom.getFieldPlaceholder("amount", "0.00")}
                 className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
             </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+          )}
+
+          {formCustom.isFieldVisible("category") && (
+            <div style={{ order: formCustom.getFieldOrder("category") }}>
               <label
                 htmlFor="category"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Spent on *
+                {formCustom.getFieldLabel("category", "Spent on")}
+                {formCustom.isFieldRequired("category", true) && " *"}
               </label>
               <SearchableSelect
                 id="category"
@@ -742,7 +750,7 @@ export function MiscExpensesPage() {
                 value={formCategory}
                 onChange={setFormCategory}
                 allowCustomValue
-                placeholder="Type or search…"
+                placeholder={formCustom.getFieldPlaceholder("category", "Type or search…")}
                 className="mt-1 block w-full"
                 controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
                 onAddOption={handleAddCategory}
@@ -750,12 +758,16 @@ export function MiscExpensesPage() {
                 addOptionPlaceholder="New category name…"
               />
             </div>
-            <div>
+          )}
+
+          {formCustom.isFieldVisible("incurredBy") && (
+            <div style={{ order: formCustom.getFieldOrder("incurredBy") }}>
               <label
                 htmlFor="incurredBy"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Incurred by *
+                {formCustom.getFieldLabel("incurredBy", "Incurred by")}
+                {formCustom.isFieldRequired("incurredBy", true) && " *"}
               </label>
               <SearchableSelect
                 id="incurredBy"
@@ -763,7 +775,7 @@ export function MiscExpensesPage() {
                 value={formIncurredBy}
                 onChange={setFormIncurredBy}
                 allowCustomValue
-                placeholder="Name of person who incurred the expense"
+                placeholder={formCustom.getFieldPlaceholder("incurredBy", "Type or search person…")}
                 className="mt-1 block w-full"
                 controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
                 onAddOption={handleAddIncurredBy}
@@ -771,23 +783,47 @@ export function MiscExpensesPage() {
                 addOptionPlaceholder="New person name…"
               />
             </div>
-          </div>
-          <div>
-            <label
-              htmlFor="description"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Description
-            </label>
-            <input
-              id="description"
-              type="text"
-              value={formDescription}
-              onChange={(e) => setFormDescription(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3 pt-4">
+          )}
+
+          {formCustom.isFieldVisible("description") && (
+            <div style={{ order: formCustom.getFieldOrder("description") }}>
+              <label
+                htmlFor="description"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                {formCustom.getFieldLabel("description", "Description")}
+              </label>
+              <input
+                id="description"
+                type="text"
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                placeholder={formCustom.getFieldPlaceholder("description", "Optional description…")}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+          )}
+
+          {formCustom.isFieldVisible("receiptRef") && (
+            <div style={{ order: formCustom.getFieldOrder("receiptRef") }}>
+              <label
+                htmlFor="receiptRef"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                {formCustom.getFieldLabel("receiptRef", "Receipt / Voucher Ref")}
+              </label>
+              <input
+                id="receiptRef"
+                type="text"
+                value={formReceiptRef}
+                onChange={(e) => setFormReceiptRef(e.target.value)}
+                placeholder={formCustom.getFieldPlaceholder("receiptRef", "e.g. REC-1234")}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+          )}
+
+          <div style={{ order: 9999 }} className="grid grid-cols-2 gap-3 pt-4">
             <button
               type="button"
               onClick={() => setFormOpen(false)}
@@ -826,32 +862,38 @@ export function MiscExpensesPage() {
         title="Edit expense"
       >
         {editingExpense && (
-          <form onSubmit={handleEditSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+          <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
+            {formCustom.isFieldVisible("amount") && (
+              <div style={{ order: formCustom.getFieldOrder("amount") }}>
                 <label
                   htmlFor="editAmount"
                   className="block text-sm font-medium text-slate-700 dark:text-slate-300"
                 >
-                  Amount *
+                  {formCustom.getFieldLabel("amount", "Amount")}
+                  {formCustom.isFieldRequired("amount", true) && " *"}
                 </label>
                 <input
                   id="editAmount"
                   type="number"
                   step="0.01"
                   min="0.01"
-                  required
+                  required={formCustom.isFieldRequired("amount", true)}
                   value={editAmount}
                   onChange={(e) => setEditAmount(e.target.value)}
+                  placeholder={formCustom.getFieldPlaceholder("amount", "0.00")}
                   className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 />
               </div>
-              <div>
+            )}
+
+            {formCustom.isFieldVisible("category") && (
+              <div style={{ order: formCustom.getFieldOrder("category") }}>
                 <label
                   htmlFor="editCategory"
                   className="block text-sm font-medium text-slate-700 dark:text-slate-300"
                 >
-                  Spent on *
+                  {formCustom.getFieldLabel("category", "Spent on")}
+                  {formCustom.isFieldRequired("category", true) && " *"}
                 </label>
                 <SearchableSelect
                   id="editCategory"
@@ -859,7 +901,7 @@ export function MiscExpensesPage() {
                   value={editCategory}
                   onChange={setEditCategory}
                   allowCustomValue
-                  placeholder="Type or search…"
+                  placeholder={formCustom.getFieldPlaceholder("category", "Type or search…")}
                   className="mt-1 block w-full"
                   controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
                   onAddOption={handleAddCategory}
@@ -867,44 +909,53 @@ export function MiscExpensesPage() {
                   addOptionPlaceholder="New category name…"
                 />
               </div>
-            </div>
-            <div>
-              <label
-                htmlFor="editIncurredBy"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Incurred by *
-              </label>
-              <SearchableSelect
-                id="editIncurredBy"
-                options={incurredByOptions}
-                value={editIncurredBy}
-                onChange={setEditIncurredBy}
-                allowCustomValue
-                placeholder="Name of person who incurred the expense"
-                className="mt-1 block w-full"
-                controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                onAddOption={handleAddIncurredBy}
-                onDeleteOption={handleDeleteIncurredBy}
-                addOptionPlaceholder="New person name…"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="editDescription"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Description
-              </label>
-              <input
-                id="editDescription"
-                type="text"
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3 pt-4">
+            )}
+
+            {formCustom.isFieldVisible("incurredBy") && (
+              <div style={{ order: formCustom.getFieldOrder("incurredBy") }}>
+                <label
+                  htmlFor="editIncurredBy"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  {formCustom.getFieldLabel("incurredBy", "Incurred by")}
+                  {formCustom.isFieldRequired("incurredBy", true) && " *"}
+                </label>
+                <SearchableSelect
+                  id="editIncurredBy"
+                  options={incurredByOptions}
+                  value={editIncurredBy}
+                  onChange={setEditIncurredBy}
+                  allowCustomValue
+                  placeholder={formCustom.getFieldPlaceholder("incurredBy", "Type or search person…")}
+                  className="mt-1 block w-full"
+                  controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                  onAddOption={handleAddIncurredBy}
+                  onDeleteOption={handleDeleteIncurredBy}
+                  addOptionPlaceholder="New person name…"
+                />
+              </div>
+            )}
+
+            {formCustom.isFieldVisible("description") && (
+              <div style={{ order: formCustom.getFieldOrder("description") }}>
+                <label
+                  htmlFor="editDescription"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  {formCustom.getFieldLabel("description", "Description")}
+                </label>
+                <input
+                  id="editDescription"
+                  type="text"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder={formCustom.getFieldPlaceholder("description", "Optional description…")}
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                />
+              </div>
+            )}
+
+            <div style={{ order: 9999 }} className="grid grid-cols-2 gap-3 pt-4">
               <button
                 type="button"
                 onClick={() => setEditFormOpen(false)}

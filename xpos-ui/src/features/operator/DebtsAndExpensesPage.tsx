@@ -60,7 +60,7 @@ import {
   tableRowNoCell,
 } from "@/components/ui";
 import { formatCurrency, formatAmount, formatPercent } from "@/utils/formatCurrency";
-import { formatDate, formatDateTime } from "@/utils/formatDate";
+import { formatDate } from "@/utils/formatDate";
 import { filterRowsBySearch } from "@/utils/tableSearchMatch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import {
@@ -79,6 +79,7 @@ import {
   readSavedIssuedByNames,
 } from "@/utils/issuedByStorage";
 import { useToast } from "@/contexts/ToastContext";
+import { useFormCustomization } from "@/contexts/FormCustomizationContext";
 import {
   HandCoins,
   Plus,
@@ -323,25 +324,25 @@ function RecordedDateFilters(props: {
     onClearOnRecordedDate,
   } = props;
   const dateInputClassName =
-    "w-[8.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white";
+    "w-[8.5rem] sm:w-36 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white";
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-1">
+    <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2">
       <DateInput
         value={fromDate ?? ""}
         onChange={(e) => onFromDateChange(e.target.value || todayStr())}
         className={dateInputClassName}
         aria-label="From date"
       />
-      <span className="text-xs text-slate-400">to</span>
+      <span className="text-xs font-medium text-slate-400 dark:text-slate-500">to</span>
       <DateInput
         value={toDate}
         onChange={(e) => onToDateChange(e.target.value || todayStr())}
         className={dateInputClassName}
         aria-label="To date"
       />
-      <span className="text-xs text-slate-400">|</span>
-      <span className="text-xs text-slate-400">On</span>
+      <span className="text-xs text-slate-300 dark:text-slate-600">|</span>
+      <span className="text-xs font-medium text-slate-400 dark:text-slate-500">On</span>
       <DateInput
         value={onRecordedDate}
         onChange={(e) => onOnRecordedDateChange(e.target.value)}
@@ -397,6 +398,8 @@ export function DebtsAndExpensesPage({
   const branchName = propBranchName ?? contextBranchName;
   const queryClient = useQueryClient();
   const toast = useToast();
+  const debtFormCustom = useFormCustomization("customer-debt");
+  const expFormCustom = useFormCustomization("expense");
 
   const { data: meData } = useQuery({
     queryKey: ["me", token, orgId],
@@ -1366,12 +1369,13 @@ export function DebtsAndExpensesPage({
 
   const handleDebtSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const name = debtFormCustomerName.trim();
+    const isNameRequired = debtFormCustom.isFieldRequired("customerName", true);
+    const name = debtFormCustomerName.trim() || (!isNameRequired ? "Customer" : "");
     const manualAmount = parseFloat(debtFormAmount);
     const fromItems = debtFormBorrowedLines.length > 0 ? borrowedItemsSubtotal : 0;
     const amount =
       debtFormBorrowedLines.length > 0 ? Number(fromItems.toFixed(2)) : manualAmount;
-    if (!name) {
+    if (isNameRequired && !debtFormCustomerName.trim()) {
       toast.error("Enter customer name.");
       return;
     }
@@ -1521,7 +1525,7 @@ export function DebtsAndExpensesPage({
       toast.error("Enter a valid amount.");
       return;
     }
-    if (!editExpIncurredBy.trim()) {
+    if (expFormCustom.isFieldRequired("incurredBy", true) && !editExpIncurredBy.trim()) {
       toast.error("Enter or select who incurred the expense.");
       return;
     }
@@ -1567,7 +1571,7 @@ export function DebtsAndExpensesPage({
       toast.error("Enter a valid amount.");
       return;
     }
-    if (!expFormIncurredBy.trim()) {
+    if (expFormCustom.isFieldRequired("incurredBy", true) && !expFormIncurredBy.trim()) {
       toast.error("Enter or select who incurred the expense.");
       return;
     }
@@ -1765,6 +1769,7 @@ export function DebtsAndExpensesPage({
                 onClick={() => downloadUtilitiesPdfRef.current?.()}
                 className="hidden xl:inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 title="Download recurring utilities report"
+                aria-label="Download"
               >
                 <FileDown className="h-4 w-4" />
                 <span className="hidden sm:inline">Download</span>
@@ -1793,6 +1798,7 @@ export function DebtsAndExpensesPage({
                       ? `Download debts report (grouped by ${DEBT_GROUP_BY_OPTIONS.find((o) => o.value === debtGroupBy)?.label ?? debtGroupBy})`
                       : `Download debts from ${dateRangeLabel}`
                   }
+                  aria-label="Download"
                 >
                   {debtsPdfLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1826,6 +1832,7 @@ export function DebtsAndExpensesPage({
                       ? `Download expenses report (grouped by ${EXPENSE_GROUP_BY_OPTIONS.find((o) => o.value === expGroupBy)?.label ?? expGroupBy})`
                       : `Download all expenses from ${dateRangeLabel}`
                   }
+                  aria-label="Download"
                 >
                   {expensesPdfLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1841,7 +1848,7 @@ export function DebtsAndExpensesPage({
                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
               >
                 <Plus className="h-4 w-4" />
-                <span>Record expense</span>
+                <span>Record</span>
               </button>
             </>
           )}
@@ -1887,53 +1894,60 @@ export function DebtsAndExpensesPage({
           {!debtsLoading && !activeDebtsBootstrapLoading && dateRangeReady && !debtsIsError && !(debtGroupBy !== "none" && isGroupedDebtsLoading) && (
             <>
               <div className="mb-4 flex flex-col gap-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <TableSearchInput value={debtSearchQuery} onChange={setDebtSearchQuery} placeholder="Search debts…" />
-                  <div className="hidden xl:flex items-center gap-1.5">
-                    <label
-                      htmlFor="debt-status-filter"
-                      className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400"
-                    >
-                      Status
-                    </label>
-                    <SearchableSelect
-                      id="debt-status-filter"
-                      options={debtStatusFilterOptions}
-                      value={statusFilter}
-                      onChange={(v) => {
-                        setStatusFilter(v);
-                        setDebtsPage(0);
-                      }}
-                      aria-label="Filter by status"
-                      placeholder="Search status…"
-                      compact
-                      className="w-44"
-                      controlClassName="border-slate-200 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus:border-primary-400 dark:focus:ring-primary-400"
-                    />
+                <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:gap-4">
+                  <TableSearchInput
+                    value={debtSearchQuery}
+                    onChange={setDebtSearchQuery}
+                    placeholder="Search debts…"
+                    className="w-full sm:flex-1 sm:max-w-xs lg:max-w-sm [&>input]:sm:max-w-none"
+                  />
+                  <div className="hidden xl:flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      <label
+                        htmlFor="debt-status-filter"
+                        className="text-xs font-semibold uppercase text-slate-500 whitespace-nowrap dark:text-slate-400"
+                      >
+                        Status
+                      </label>
+                      <SearchableSelect
+                        id="debt-status-filter"
+                        options={debtStatusFilterOptions}
+                        value={statusFilter}
+                        onChange={(v) => {
+                          setStatusFilter(v);
+                          setDebtsPage(0);
+                        }}
+                        aria-label="Filter by status"
+                        placeholder="Search status…"
+                        compact
+                        className="w-44"
+                        controlClassName="border-slate-200 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus:border-primary-400 dark:focus:ring-primary-400"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <label
+                        htmlFor="debt-group-by"
+                        className="text-xs font-semibold uppercase text-slate-500 whitespace-nowrap dark:text-slate-400"
+                      >
+                        Group by
+                      </label>
+                      <SearchableSelect
+                        id="debt-group-by"
+                        options={DEBT_GROUP_BY_OPTIONS}
+                        value={debtGroupBy}
+                        onChange={(v) => {
+                          setDebtGroupBy(v as DebtGroupByOption);
+                          setDebtsPage(0);
+                        }}
+                        aria-label="Group debts by"
+                        placeholder="Group by…"
+                        compact
+                        className="w-48 sm:w-52"
+                        controlClassName="border-slate-200 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus:border-primary-400 dark:focus:ring-primary-400"
+                      />
+                    </div>
                   </div>
-                  <div className="hidden xl:flex items-center gap-1.5">
-                    <label
-                      htmlFor="debt-group-by"
-                      className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400"
-                    >
-                      Group by
-                    </label>
-                    <SearchableSelect
-                      id="debt-group-by"
-                      options={DEBT_GROUP_BY_OPTIONS}
-                      value={debtGroupBy}
-                      onChange={(v) => {
-                        setDebtGroupBy(v as DebtGroupByOption);
-                        setDebtsPage(0);
-                      }}
-                      aria-label="Group debts by"
-                      placeholder="Group by…"
-                      compact
-                      className="w-48"
-                      controlClassName="border-slate-200 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus:border-primary-400 dark:focus:ring-primary-400"
-                    />
-                  </div>
-                  <div className="hidden xl:block">
+                  <div className="hidden xl:flex items-center shrink-0">
                     <RecordedDateFilters
                       fromDate={fromDate}
                       toDate={toDate}
@@ -2352,7 +2366,7 @@ export function DebtsAndExpensesPage({
                                 {showDebtIssuedByCol && (
                                   <td className="px-2 py-1.5 text-xs text-slate-600 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-400">{d.issuedBy ?? "—"}</td>
                                 )}
-                                <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{formatDateTime(d.createdAt)}</td>
+                                <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{formatDate(d.createdAt)}</td>
                                 {showDebtNotesCol && (
                                   <td className="hidden max-w-[14rem] px-4 py-2 align-top text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">
                                     {d.notes?.trim() ? (
@@ -2452,12 +2466,17 @@ export function DebtsAndExpensesPage({
           {!expensesLoading && !activeDebtsBootstrapLoading && dateRangeReady && !expensesIsError && !(expGroupBy !== "none" && isGroupedExpensesLoading) && (
             <>
               <div className="mb-4 flex flex-col gap-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <TableSearchInput value={expSearchQuery} onChange={setExpSearchQuery} placeholder="Search expenses…" />
-                  <div className="hidden xl:flex items-center gap-1.5">
+                <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:gap-4">
+                  <TableSearchInput
+                    value={expSearchQuery}
+                    onChange={setExpSearchQuery}
+                    placeholder="Search expenses…"
+                    className="w-full sm:flex-1 sm:max-w-xs lg:max-w-sm [&>input]:sm:max-w-none"
+                  />
+                  <div className="hidden xl:flex items-center gap-2 shrink-0">
                     <label
                       htmlFor="exp-group-by"
-                      className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400"
+                      className="text-xs font-semibold uppercase text-slate-500 whitespace-nowrap dark:text-slate-400"
                     >
                       Group by
                     </label>
@@ -2472,11 +2491,11 @@ export function DebtsAndExpensesPage({
                       aria-label="Group expenses by"
                       placeholder="Group by…"
                       compact
-                      className="w-48"
+                      className="w-48 sm:w-52"
                       controlClassName="border-slate-200 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus:border-primary-400 dark:focus:ring-primary-400"
                     />
                   </div>
-                  <div className="hidden xl:block">
+                  <div className="hidden xl:flex items-center shrink-0">
                     <RecordedDateFilters
                       fromDate={fromDate}
                       toDate={toDate}
@@ -2508,7 +2527,7 @@ export function DebtsAndExpensesPage({
                         className="mt-4 inline-flex items-center gap-2 rounded-lg border border-primary-500 bg-transparent px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/30"
                       >
                         <Plus className="h-4 w-4" />
-                        Record expense
+                        Record
                       </button>
                     )}
                   </div>
@@ -2648,7 +2667,7 @@ export function DebtsAndExpensesPage({
                                 {showExpReceiptRefCol && (
                                   <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{e.receiptRef ?? "—"}</td>
                                 )}
-                                <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{formatDateTime(e.createdAt)}</td>
+                                <td className="hidden px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl xl:table-cell dark:text-slate-400">{formatDate(e.createdAt)}</td>
                                 <td className="px-2 py-1.5 text-left sm:px-6 sm:py-2.5">
                                   <div className="flex justify-start gap-1">
                                     <button type="button" onClick={() => openExpEditForm(e)} className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 sm:p-1.5 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200" title="Edit">
@@ -2722,18 +2741,44 @@ export function DebtsAndExpensesPage({
         }}
         title="Record customer debt"
       >
-        <form onSubmit={handleDebtSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="customerName" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Customer name *</label>
-              <input id="customerName" type="text" required value={debtFormCustomerName} onChange={(e) => setDebtFormCustomerName(e.target.value)} placeholder="e.g. John Kamau" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+        <form onSubmit={handleDebtSubmit} className="flex flex-col gap-4">
+          {debtFormCustom.isFieldVisible("customerName") && (
+            <div style={{ order: debtFormCustom.getFieldOrder("customerName") }}>
+              <label htmlFor="customerName" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {debtFormCustom.getFieldLabel("customerName", "Customer name")}
+                {debtFormCustom.isFieldRequired("customerName", true) && " *"}
+              </label>
+              <input
+                id="customerName"
+                type="text"
+                required={debtFormCustom.isFieldRequired("customerName", true)}
+                value={debtFormCustomerName}
+                onChange={(e) => setDebtFormCustomerName(e.target.value)}
+                placeholder={debtFormCustom.getFieldPlaceholder("customerName", "e.g. John Kamau")}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              />
             </div>
-            <div>
-              <label htmlFor="customerPhone" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Customer phone</label>
-              <input id="customerPhone" type="tel" value={debtFormCustomerPhone} onChange={(e) => setDebtFormCustomerPhone(e.target.value)} placeholder="e.g. +254 700 123 456" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+          )}
+
+          {debtFormCustom.isFieldVisible("customerPhone") && (
+            <div style={{ order: debtFormCustom.getFieldOrder("customerPhone") }}>
+              <label htmlFor="customerPhone" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {debtFormCustom.getFieldLabel("customerPhone", "Customer phone")}
+                {debtFormCustom.isFieldRequired("customerPhone", false) && " *"}
+              </label>
+              <input
+                id="customerPhone"
+                type="tel"
+                required={debtFormCustom.isFieldRequired("customerPhone", false)}
+                value={debtFormCustomerPhone}
+                onChange={(e) => setDebtFormCustomerPhone(e.target.value)}
+                placeholder={debtFormCustom.getFieldPlaceholder("customerPhone", "e.g. +254 700 123 456")}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              />
             </div>
-          </div>
-          <div>
+          )}
+
+          <div style={{ order: 3 }}>
             <label htmlFor="debtIssuedBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Issued by</label>
             <SearchableSelect
               id="debtIssuedBy"
@@ -2747,7 +2792,8 @@ export function DebtsAndExpensesPage({
               controlClassName="border-slate-300 shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus-within:border-primary-400 dark:focus-within:ring-primary-400"
             />
           </div>
-          <div>
+
+          <div style={{ order: 4 }}>
             <span id="borrowed-items-label" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Items borrowed</span>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
               Add lines from the branch price list (or default selling price). Debt total fills from
@@ -2803,33 +2849,88 @@ export function DebtsAndExpensesPage({
               </ul>
             ) : null}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="debtAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Amount *</label>
+
+          {debtFormCustom.isFieldVisible("amount") && (
+            <div style={{ order: debtFormCustom.getFieldOrder("amount") }}>
+              <label htmlFor="debtAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {debtFormCustom.getFieldLabel("amount", "Amount")}
+                {debtFormCustom.isFieldRequired("amount", true) && " *"}
+              </label>
               {debtFormBorrowedLines.length > 0 ? (
                 <>
                   <input id="debtAmount" type="text" readOnly value={formatCurrency(borrowedItemsSubtotal)} className="mt-1 block w-full cursor-not-allowed rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white" aria-describedby="amount-items-hint" />
                   <p id="amount-items-hint" className="mt-1 text-xs text-slate-500 dark:text-slate-400">Total from borrowed items above. Remove all lines to enter a custom amount.</p>
                 </>
               ) : (
-                <input id="debtAmount" type="number" step="0.01" min="0.01" required value={debtFormAmount} onChange={(e) => setDebtFormAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+                <input
+                  id="debtAmount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required={debtFormCustom.isFieldRequired("amount", true)}
+                  value={debtFormAmount}
+                  onChange={(e) => setDebtFormAmount(e.target.value)}
+                  placeholder={debtFormCustom.getFieldPlaceholder("amount", "0.00")}
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                />
               )}
             </div>
-            <div>
-              <label htmlFor="debtRecordedOn" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Date recorded *</label>
-              <DateInput id="debtRecordedOn" required max={todayInputValue()} value={debtFormRecordedOn} onChange={(e) => setDebtFormRecordedOn(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Defaults to today. Pick a past date when entering an old debt.</p>
+          )}
+
+          {debtFormCustom.isFieldVisible("recordedOn") && (
+            <div style={{ order: debtFormCustom.getFieldOrder("recordedOn") }}>
+              <label htmlFor="debtRecordedOn" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {debtFormCustom.getFieldLabel("recordedOn", "Date")}
+                {debtFormCustom.isFieldRequired("recordedOn", true) && " *"}
+              </label>
+              <DateInput
+                id="debtRecordedOn"
+                required={debtFormCustom.isFieldRequired("recordedOn", true)}
+                max={todayInputValue()}
+                value={debtFormRecordedOn}
+                onChange={(e) => setDebtFormRecordedOn(e.target.value)}
+                placeholder={debtFormCustom.getFieldPlaceholder("recordedOn", "YYYY-MM-DD")}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
             </div>
-          </div>
-          <div>
-            <label htmlFor="dueDate" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Due date</label>
-            <DateInput id="dueDate" value={debtFormDueDate} onChange={(e) => setDebtFormDueDate(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
-          </div>
-          <div>
-            <label htmlFor="notes" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
-            <textarea id="notes" rows={2} value={debtFormNotes} onChange={(e) => setDebtFormNotes(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
-          </div>
-          <div className="grid grid-cols-2 gap-3 pt-4">
+          )}
+
+          {debtFormCustom.isFieldVisible("dueDate") && (
+            <div style={{ order: debtFormCustom.getFieldOrder("dueDate") }}>
+              <label htmlFor="dueDate" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {debtFormCustom.getFieldLabel("dueDate", "Due date")}
+                {debtFormCustom.isFieldRequired("dueDate", false) && " *"}
+              </label>
+              <DateInput
+                id="dueDate"
+                required={debtFormCustom.isFieldRequired("dueDate", false)}
+                value={debtFormDueDate}
+                onChange={(e) => setDebtFormDueDate(e.target.value)}
+                placeholder={debtFormCustom.getFieldPlaceholder("dueDate", "YYYY-MM-DD")}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+          )}
+
+          {debtFormCustom.isFieldVisible("notes") && (
+            <div style={{ order: debtFormCustom.getFieldOrder("notes") }}>
+              <label htmlFor="notes" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {debtFormCustom.getFieldLabel("notes", "Notes")}
+                {debtFormCustom.isFieldRequired("notes", false) && " *"}
+              </label>
+              <textarea
+                id="notes"
+                rows={2}
+                required={debtFormCustom.isFieldRequired("notes", false)}
+                value={debtFormNotes}
+                onChange={(e) => setDebtFormNotes(e.target.value)}
+                placeholder={debtFormCustom.getFieldPlaceholder("notes", "e.g. Tab for Friday order")}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+          )}
+
+          <div style={{ order: 9999 }} className="grid grid-cols-2 gap-3 pt-4">
             <button type="button" onClick={() => setDebtFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
             <button type="submit" disabled={debtSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
               {debtSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
@@ -3080,28 +3181,58 @@ export function DebtsAndExpensesPage({
         }}
         title="Record miscellaneous expense"
       >
-        <form onSubmit={handleExpSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="expRecordedOn" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Date recorded *</label>
-              <DateInput id="expRecordedOn" required max={todayInputValue()} value={expFormRecordedOn} onChange={(e) => setExpFormRecordedOn(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Defaults to today. Pick a past date when entering an old expense.</p>
+        <form onSubmit={handleExpSubmit} className="flex flex-col gap-4">
+          {expFormCustom.isFieldVisible("recordedOn") && (
+            <div style={{ order: expFormCustom.getFieldOrder("recordedOn") }}>
+              <label htmlFor="expRecordedOn" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {expFormCustom.getFieldLabel("recordedOn", "Date")}
+                {expFormCustom.isFieldRequired("recordedOn", true) && " *"}
+              </label>
+              <DateInput
+                id="expRecordedOn"
+                required={expFormCustom.isFieldRequired("recordedOn", true)}
+                max={todayInputValue()}
+                value={expFormRecordedOn}
+                onChange={(e) => setExpFormRecordedOn(e.target.value)}
+                placeholder={expFormCustom.getFieldPlaceholder("recordedOn", "YYYY-MM-DD")}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
             </div>
-            <div>
-              <label htmlFor="expAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Amount *</label>
-              <input id="expAmount" type="number" step="0.01" min="0.01" required value={expFormAmount} onChange={(e) => setExpFormAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+          )}
+
+          {expFormCustom.isFieldVisible("amount") && (
+            <div style={{ order: expFormCustom.getFieldOrder("amount") }}>
+              <label htmlFor="expAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {expFormCustom.getFieldLabel("amount", "Amount")}
+                {expFormCustom.isFieldRequired("amount", true) && " *"}
+              </label>
+              <input
+                id="expAmount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                required={expFormCustom.isFieldRequired("amount", true)}
+                value={expFormAmount}
+                onChange={(e) => setExpFormAmount(e.target.value)}
+                placeholder={expFormCustom.getFieldPlaceholder("amount", "0.00")}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
             </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="expCategory" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Spent on *</label>
+          )}
+
+          {expFormCustom.isFieldVisible("category") && (
+            <div style={{ order: expFormCustom.getFieldOrder("category") }}>
+              <label htmlFor="expCategory" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {expFormCustom.getFieldLabel("category", "Spent on")}
+                {expFormCustom.isFieldRequired("category", true) && " *"}
+              </label>
               <SearchableSelect
                 id="expCategory"
                 options={expenseCategoryOptions}
                 value={expFormCategory}
                 onChange={setExpFormCategory}
                 allowCustomValue
-                placeholder="Type or search…"
+                placeholder={expFormCustom.getFieldPlaceholder("category", "Type or search…")}
                 className="mt-1 block w-full"
                 controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
                 onAddOption={handleAddCategory}
@@ -3109,15 +3240,21 @@ export function DebtsAndExpensesPage({
                 addOptionPlaceholder="New category name…"
               />
             </div>
-            <div>
-              <label htmlFor="expIncurredBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Incurred by *</label>
+          )}
+
+          {expFormCustom.isFieldVisible("incurredBy") && (
+            <div style={{ order: expFormCustom.getFieldOrder("incurredBy") }}>
+              <label htmlFor="expIncurredBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {expFormCustom.getFieldLabel("incurredBy", "Incurred by")}
+                {expFormCustom.isFieldRequired("incurredBy", true) && " *"}
+              </label>
               <SearchableSelect
                 id="expIncurredBy"
                 options={incurredByOptions}
                 value={expFormIncurredBy}
                 onChange={setExpFormIncurredBy}
                 allowCustomValue
-                placeholder="Name of person who incurred the expense"
+                placeholder={expFormCustom.getFieldPlaceholder("incurredBy", "Type or search person…")}
                 className="mt-1 block w-full"
                 controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
                 onAddOption={handleAddIncurredBy}
@@ -3125,18 +3262,45 @@ export function DebtsAndExpensesPage({
                 addOptionPlaceholder="New person name…"
               />
             </div>
-          </div>
-          <div>
-            <label htmlFor="expDescription" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Description</label>
-            <input
-              id="expDescription"
-              type="text"
-              value={expFormDescription}
-              onChange={(e) => setExpFormDescription(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3 pt-4">
+          )}
+
+          {expFormCustom.isFieldVisible("description") && (
+            <div style={{ order: expFormCustom.getFieldOrder("description") }}>
+              <label htmlFor="expDescription" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {expFormCustom.getFieldLabel("description", "Description")}
+                {expFormCustom.isFieldRequired("description", false) && " *"}
+              </label>
+              <input
+                id="expDescription"
+                type="text"
+                required={expFormCustom.isFieldRequired("description", false)}
+                value={expFormDescription}
+                onChange={(e) => setExpFormDescription(e.target.value)}
+                placeholder={expFormCustom.getFieldPlaceholder("description", "Optional description…")}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+          )}
+
+          {expFormCustom.isFieldVisible("receiptRef") && (
+            <div style={{ order: expFormCustom.getFieldOrder("receiptRef") }}>
+              <label htmlFor="expReceiptRef" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {expFormCustom.getFieldLabel("receiptRef", "Receipt / Voucher Ref")}
+                {expFormCustom.isFieldRequired("receiptRef", false) && " *"}
+              </label>
+              <input
+                id="expReceiptRef"
+                type="text"
+                required={expFormCustom.isFieldRequired("receiptRef", false)}
+                value={expFormReceiptRef}
+                onChange={(e) => setExpFormReceiptRef(e.target.value)}
+                placeholder={expFormCustom.getFieldPlaceholder("receiptRef", "e.g. REC-1234")}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+          )}
+
+          <div style={{ order: 9999 }} className="grid grid-cols-2 gap-3 pt-4">
             <button type="button" onClick={() => setExpFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
             <button type="submit" disabled={createExpMutation.isPending} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
               {createExpMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
@@ -3161,21 +3325,40 @@ export function DebtsAndExpensesPage({
         title="Edit expense"
       >
         {editingExpense && (
-          <form onSubmit={handleExpEditSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="editExpAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Amount *</label>
-                <input id="editExpAmount" type="number" step="0.01" min="0.01" required value={editExpAmount} onChange={(e) => setEditExpAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+          <form onSubmit={handleExpEditSubmit} className="flex flex-col gap-4">
+            {expFormCustom.isFieldVisible("amount") && (
+              <div style={{ order: expFormCustom.getFieldOrder("amount") }}>
+                <label htmlFor="editExpAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  {expFormCustom.getFieldLabel("amount", "Amount")}
+                  {expFormCustom.isFieldRequired("amount", true) && " *"}
+                </label>
+                <input
+                  id="editExpAmount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required={expFormCustom.isFieldRequired("amount", true)}
+                  value={editExpAmount}
+                  onChange={(e) => setEditExpAmount(e.target.value)}
+                  placeholder={expFormCustom.getFieldPlaceholder("amount", "0.00")}
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                />
               </div>
-              <div>
-                <label htmlFor="editExpCategory" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Spent on *</label>
+            )}
+
+            {expFormCustom.isFieldVisible("category") && (
+              <div style={{ order: expFormCustom.getFieldOrder("category") }}>
+                <label htmlFor="editExpCategory" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  {expFormCustom.getFieldLabel("category", "Spent on")}
+                  {expFormCustom.isFieldRequired("category", true) && " *"}
+                </label>
                 <SearchableSelect
                   id="editExpCategory"
                   options={expenseCategoryOptions}
                   value={editExpCategory}
                   onChange={setEditExpCategory}
                   allowCustomValue
-                  placeholder="Type or search…"
+                  placeholder={expFormCustom.getFieldPlaceholder("category", "Type or search…")}
                   className="mt-1 block w-full"
                   controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
                   onAddOption={handleAddCategory}
@@ -3183,34 +3366,49 @@ export function DebtsAndExpensesPage({
                   addOptionPlaceholder="New category name…"
                 />
               </div>
-            </div>
-            <div>
-              <label htmlFor="editExpIncurredBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Incurred by *</label>
-              <SearchableSelect
-                id="editExpIncurredBy"
-                options={incurredByOptions}
-                value={editExpIncurredBy}
-                onChange={setEditExpIncurredBy}
-                allowCustomValue
-                placeholder="Name of person who incurred the expense"
-                className="mt-1 block w-full"
-                controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                onAddOption={handleAddIncurredBy}
-                onDeleteOption={handleDeleteIncurredBy}
-                addOptionPlaceholder="New person name…"
-              />
-            </div>
-            <div>
-              <label htmlFor="editExpDescription" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Description</label>
-              <input
-                id="editExpDescription"
-                type="text"
-                value={editExpDescription}
-                onChange={(e) => setEditExpDescription(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3 pt-4">
+            )}
+
+            {expFormCustom.isFieldVisible("incurredBy") && (
+              <div style={{ order: expFormCustom.getFieldOrder("incurredBy") }}>
+                <label htmlFor="editExpIncurredBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  {expFormCustom.getFieldLabel("incurredBy", "Incurred by")}
+                  {expFormCustom.isFieldRequired("incurredBy", true) && " *"}
+                </label>
+                <SearchableSelect
+                  id="editExpIncurredBy"
+                  options={incurredByOptions}
+                  value={editExpIncurredBy}
+                  onChange={setEditExpIncurredBy}
+                  allowCustomValue
+                  placeholder={expFormCustom.getFieldPlaceholder("incurredBy", "Type or search person…")}
+                  className="mt-1 block w-full"
+                  controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                  onAddOption={handleAddIncurredBy}
+                  onDeleteOption={handleDeleteIncurredBy}
+                  addOptionPlaceholder="New person name…"
+                />
+              </div>
+            )}
+
+            {expFormCustom.isFieldVisible("description") && (
+              <div style={{ order: expFormCustom.getFieldOrder("description") }}>
+                <label htmlFor="editExpDescription" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  {expFormCustom.getFieldLabel("description", "Description")}
+                  {expFormCustom.isFieldRequired("description", false) && " *"}
+                </label>
+                <input
+                  id="editExpDescription"
+                  type="text"
+                  required={expFormCustom.isFieldRequired("description", false)}
+                  value={editExpDescription}
+                  onChange={(e) => setEditExpDescription(e.target.value)}
+                  placeholder={expFormCustom.getFieldPlaceholder("description", "Optional description…")}
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                />
+              </div>
+            )}
+
+            <div style={{ order: 9999 }} className="grid grid-cols-2 gap-3 pt-4">
               <button type="button" onClick={() => setExpEditFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
               <button type="submit" disabled={editExpSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
                 {editExpSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Pencil className="h-4 w-4" />Save</>}

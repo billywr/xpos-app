@@ -38,11 +38,12 @@ import {
 } from "@/components/ui";
 import { useDataTable } from "@/hooks/useDataTable";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
-import { formatDate, formatDateTime } from "@/utils/formatDate";
+import { formatDate } from "@/utils/formatDate";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { downloadDebtsPdf } from "@/utils/debtsPdf";
 import { recordedAtToCreatedAt, todayInputValue } from "@/utils/recordedAt";
 import { useToast } from "@/contexts/ToastContext";
+import { useFormCustomization } from "@/contexts/FormCustomizationContext";
 import {
   HandCoins,
   Plus,
@@ -132,6 +133,7 @@ export function DebtsPage() {
   const branchName = useAppSelector(selectBranchName);
   const queryClient = useQueryClient();
   const toast = useToast();
+  const formCustom = useFormCustomization("customer-debt");
   const [page, setPage] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [formCustomerName, setFormCustomerName] = useState("");
@@ -499,12 +501,13 @@ export function DebtsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const name = formCustomerName.trim();
+    const isNameRequired = formCustom.isFieldRequired("customerName", true);
+    const name = formCustomerName.trim() || (!isNameRequired ? "Customer" : "");
     const manualAmount = parseFloat(formAmount);
     const fromItems = formBorrowedLines.length > 0 ? borrowedItemsSubtotal : 0;
     const amount =
       formBorrowedLines.length > 0 ? Number(fromItems.toFixed(2)) : manualAmount;
-    if (!name) {
+    if (isNameRequired && !formCustomerName.trim()) {
       toast.error("Enter customer name.");
       return;
     }
@@ -611,6 +614,7 @@ export function DebtsPage() {
                 ? "No debts on this page to export"
                 : "Download debts shown on this page as PDF"
             }
+            aria-label="Download"
           >
             <FileDown className="h-5 w-5" />
             Download
@@ -770,7 +774,7 @@ export function DebtsPage() {
                           </td>
                         )}
                         <td className="px-4 py-2 text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
-                          {formatDateTime(d.createdAt)}
+                          {formatDate(d.createdAt)}
                         </td>
                         {showNotesCol && (
                           <td className="max-w-[14rem] px-4 py-2 align-top text-base text-slate-600 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-400">
@@ -863,43 +867,50 @@ export function DebtsPage() {
         }}
         title="Record customer debt"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {formCustom.isFieldVisible("customerName") && (
+            <div style={{ order: formCustom.getFieldOrder("customerName") }}>
               <label
                 htmlFor="customerName"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Customer name *
+                {formCustom.getFieldLabel("customerName", "Customer name")}
+                {formCustom.isFieldRequired("customerName", true) && " *"}
               </label>
               <input
                 id="customerName"
                 type="text"
-                required
+                required={formCustom.isFieldRequired("customerName", true)}
                 value={formCustomerName}
                 onChange={(e) => setFormCustomerName(e.target.value)}
-                placeholder="e.g. John Kamau"
+                placeholder={formCustom.getFieldPlaceholder("customerName", "e.g. John Kamau")}
                 className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               />
             </div>
-            <div>
+          )}
+
+          {formCustom.isFieldVisible("customerPhone") && (
+            <div style={{ order: formCustom.getFieldOrder("customerPhone") }}>
               <label
                 htmlFor="customerPhone"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Customer phone
+                {formCustom.getFieldLabel("customerPhone", "Customer phone")}
+                {formCustom.isFieldRequired("customerPhone", false) && " *"}
               </label>
               <input
                 id="customerPhone"
                 type="tel"
+                required={formCustom.isFieldRequired("customerPhone", false)}
                 value={formCustomerPhone}
                 onChange={(e) => setFormCustomerPhone(e.target.value)}
-                placeholder="e.g. +254 700 123 456"
+                placeholder={formCustom.getFieldPlaceholder("customerPhone", "e.g. +254 700 123 456")}
                 className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               />
             </div>
-          </div>
-          <div>
+          )}
+
+          <div style={{ order: 3 }}>
             <span
               id="borrowed-items-label"
               className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -985,13 +996,15 @@ export function DebtsPage() {
               </ul>
             ) : null}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+
+          {formCustom.isFieldVisible("amount") && (
+            <div style={{ order: formCustom.getFieldOrder("amount") }}>
               <label
                 htmlFor="amount"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Amount *
+                {formCustom.getFieldLabel("amount", "Amount")}
+                {formCustom.isFieldRequired("amount", true) && " *"}
               </label>
               {formBorrowedLines.length > 0 ? (
                 <>
@@ -1013,63 +1026,79 @@ export function DebtsPage() {
                   type="number"
                   step="0.01"
                   min="0.01"
-                  required
+                  required={formCustom.isFieldRequired("amount", true)}
                   value={formAmount}
                   onChange={(e) => setFormAmount(e.target.value)}
+                  placeholder={formCustom.getFieldPlaceholder("amount", "0.00")}
                   className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                 />
               )}
             </div>
-            <div>
+          )}
+
+          {formCustom.isFieldVisible("recordedOn") && (
+            <div style={{ order: formCustom.getFieldOrder("recordedOn") }}>
               <label
                 htmlFor="recordedOn"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Date recorded *
+                {formCustom.getFieldLabel("recordedOn", "Date")}
+                {formCustom.isFieldRequired("recordedOn", true) && " *"}
               </label>
               <DateInput
                 id="recordedOn"
-                required
+                required={formCustom.isFieldRequired("recordedOn", true)}
                 max={todayInputValue()}
                 value={formRecordedOn}
                 onChange={(e) => setFormRecordedOn(e.target.value)}
+                placeholder={formCustom.getFieldPlaceholder("recordedOn", "YYYY-MM-DD")}
                 className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               />
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Defaults to today. Pick a past date when entering an old debt.
-              </p>
             </div>
-          </div>
-          <div>
-            <label
-              htmlFor="dueDate"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Due date
-            </label>
-            <DateInput
-              id="dueDate"
-              value={formDueDate}
-              onChange={(e) => setFormDueDate(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="notes"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Notes
-            </label>
-            <textarea
-              id="notes"
-              rows={2}
-              value={formNotes}
-              onChange={(e) => setFormNotes(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3 pt-4">
+          )}
+
+          {formCustom.isFieldVisible("dueDate") && (
+            <div style={{ order: formCustom.getFieldOrder("dueDate") }}>
+              <label
+                htmlFor="dueDate"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                {formCustom.getFieldLabel("dueDate", "Due date")}
+                {formCustom.isFieldRequired("dueDate", false) && " *"}
+              </label>
+              <DateInput
+                id="dueDate"
+                required={formCustom.isFieldRequired("dueDate", false)}
+                value={formDueDate}
+                onChange={(e) => setFormDueDate(e.target.value)}
+                placeholder={formCustom.getFieldPlaceholder("dueDate", "YYYY-MM-DD")}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+          )}
+
+          {formCustom.isFieldVisible("notes") && (
+            <div style={{ order: formCustom.getFieldOrder("notes") }}>
+              <label
+                htmlFor="notes"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                {formCustom.getFieldLabel("notes", "Notes")}
+                {formCustom.isFieldRequired("notes", false) && " *"}
+              </label>
+              <textarea
+                id="notes"
+                rows={2}
+                required={formCustom.isFieldRequired("notes", false)}
+                value={formNotes}
+                onChange={(e) => setFormNotes(e.target.value)}
+                placeholder={formCustom.getFieldPlaceholder("notes", "e.g. Tab for Friday order")}
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+          )}
+
+          <div style={{ order: 9999 }} className="grid grid-cols-2 gap-3 pt-4">
             <button
               type="button"
               onClick={() => setFormOpen(false)}

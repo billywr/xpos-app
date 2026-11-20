@@ -57,6 +57,31 @@ describe("ConfirmDialog", () => {
     const cancelBtn = screen.getByRole("button", { name: "Cancel" });
     expect(cancelBtn).toBeDisabled();
   });
+
+  it("renders with custom icon and side-by-side buttons in footer", () => {
+    render(
+      <ConfirmDialog
+        open={true}
+        title="Log out?"
+        message="Are you sure you want to log out?"
+        confirmLabel="Log out"
+        cancelLabel="Cancel"
+        variant="danger"
+        icon={<span data-testid="custom-icon">LOGOUT</span>}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("custom-icon")).toBeInTheDocument();
+    expect(screen.getByText("Log out?")).toBeInTheDocument();
+    expect(screen.getByText("Are you sure you want to log out?")).toBeInTheDocument();
+
+    const buttons = screen.getAllByRole("button");
+    // Action button first, Cancel button second
+    expect(buttons[0]).toHaveTextContent("Log out");
+    expect(buttons[1]).toHaveTextContent("Cancel");
+  });
 });
 
 describe("ProgressBar", () => {

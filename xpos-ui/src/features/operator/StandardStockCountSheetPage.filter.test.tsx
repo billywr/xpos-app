@@ -1322,7 +1322,7 @@ describe("StandardStockCountSheetPage reconcile inventory", () => {
       expect(stdApi.fetchStdStockCountReconcilePreview).toHaveBeenCalled();
     });
 
-    expect(screen.queryByRole("button", { name: /reconcile inventory/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^reconcile/i })).not.toBeInTheDocument();
   });
 
   it("preview mismatch opens modal, confirm reconcile, and show success", async () => {
@@ -1384,7 +1384,7 @@ describe("StandardStockCountSheetPage reconcile inventory", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /reconcile inventory/i })).toBeEnabled();
+      expect(screen.getByRole("button", { name: /^reconcile/i })).toBeEnabled();
     });
 
     await waitFor(() => {
@@ -1396,7 +1396,7 @@ describe("StandardStockCountSheetPage reconcile inventory", () => {
       );
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /reconcile inventory/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^reconcile/i }));
 
     await waitFor(() => {
       expect(
@@ -1404,8 +1404,7 @@ describe("StandardStockCountSheetPage reconcile inventory", () => {
       ).toBeInTheDocument();
     });
 
-    const reconcileButtons = screen.getAllByRole("button", { name: /reconcile inventory/i });
-    fireEvent.click(reconcileButtons[reconcileButtons.length - 1]!);
+    fireEvent.click(screen.getByRole("button", { name: /reconcile inventory/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/reconcile inventory to closings\?/i)).toBeInTheDocument();
@@ -1969,13 +1968,13 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /record sales/i })).toBeInTheDocument();
     });
-    expect(screen.getByRole("button", { name: /reconcile inventory/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^reconcile/i })).toBeInTheDocument();
 
     const recordSalesBtn = screen.getByRole("button", { name: /record sales/i });
     const recordSalesText = recordSalesBtn.querySelector("span");
     expect(recordSalesText?.className).toContain("hidden xl:inline");
 
-    const reconcileBtn = screen.getByRole("button", { name: /reconcile inventory/i });
+    const reconcileBtn = screen.getByRole("button", { name: /^reconcile/i });
     const reconcileText = reconcileBtn.querySelector("span");
     expect(reconcileText?.className).toContain("hidden xl:inline");
   });
@@ -2043,11 +2042,11 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
 
     // Reconcile is visible, Record sales is strictly hidden
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /reconcile inventory/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^reconcile/i })).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: /record sales/i })).not.toBeInTheDocument();
 
-    const reconcileText = screen.getByText("Reconcile inventory");
+    const reconcileText = screen.getByText("Reconcile");
     expect(reconcileText.className).toContain("hidden xl:inline");
   });
 
@@ -2230,7 +2229,7 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
     expect(recordSalesBtn).toHaveAttribute("aria-label", "Record sales (2 items)");
   });
 
-  it("displays unique item count badge on Reconcile inventory button", async () => {
+  it("displays unique item count badge on Reconcile button", async () => {
     vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
       date: today,
       branchId: "branch-1",
@@ -2272,13 +2271,13 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
     wrap(<StandardStockCountSheetPage />, "term-1");
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /reconcile inventory/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^reconcile/i })).toBeInTheDocument();
     });
 
-    const reconcileBtn = screen.getByRole("button", { name: /reconcile inventory/i });
+    const reconcileBtn = screen.getByRole("button", { name: /^reconcile/i });
     const badge = reconcileBtn.querySelector("span.rounded-full");
     expect(badge).toHaveTextContent("3");
-    expect(reconcileBtn).toHaveAttribute("aria-label", "Reconcile inventory (3 items)");
+    expect(reconcileBtn).toHaveAttribute("aria-label", "Reconcile (3 items)");
   });
 
   it("displays Tot: amount badge in top bar before date filter", async () => {
@@ -2630,14 +2629,13 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
       });
     });
 
-    it("defaults to Frequently sold preserving server order", async () => {
+    it("defaults to preserving server order without quick ordering pills", async () => {
       wrap(<StandardStockCountSheetPage />);
       await waitFor(() => {
         expect(screen.getByText("Zebra Gin")).toBeInTheDocument();
       });
 
-      const freqButton = screen.getByRole("button", { name: /frequently sold/i });
-      expect(freqButton).toHaveClass("font-semibold");
+      expect(screen.queryByRole("group", { name: /table ordering/i })).not.toBeInTheDocument();
 
       const names = screen.getAllByRole("cell", { name: /Zebra Gin|Alpha Whiskey|Beta Beer/i });
       expect(names[0]).toHaveTextContent("Zebra Gin");
@@ -2645,31 +2643,15 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
       expect(names[2]).toHaveTextContent("Beta Beer");
     });
 
-    it("switches to Sold today sorting by units sold descending", async () => {
+    it("clicking Item column header sorts alphabetically A-Z", async () => {
       wrap(<StandardStockCountSheetPage />);
       await waitFor(() => {
         expect(screen.getByText("Zebra Gin")).toBeInTheDocument();
       });
 
-      const soldTodayBtn = screen.getByRole("button", { name: /sold today/i });
-      fireEvent.click(soldTodayBtn);
-
-      await waitFor(() => {
-        const names = screen.getAllByRole("cell", { name: /Zebra Gin|Alpha Whiskey|Beta Beer/i });
-        expect(names[0]).toHaveTextContent("Alpha Whiskey");
-        expect(names[1]).toHaveTextContent("Zebra Gin");
-        expect(names[2]).toHaveTextContent("Beta Beer");
-      });
-    });
-
-    it("switches to A-Z sorting alphabetically by item name", async () => {
-      wrap(<StandardStockCountSheetPage />);
-      await waitFor(() => {
-        expect(screen.getByText("Zebra Gin")).toBeInTheDocument();
-      });
-
-      const azBtn = screen.getByRole("button", { name: "A-Z" });
-      fireEvent.click(azBtn);
+      const itemHeader = screen.getByRole("columnheader", { name: /item/i });
+      const sortBtn = within(itemHeader).getByRole("button");
+      fireEvent.click(sortBtn);
 
       await waitFor(() => {
         const names = screen.getAllByRole("cell", { name: /Zebra Gin|Alpha Whiskey|Beta Beer/i });

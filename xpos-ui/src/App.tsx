@@ -12,6 +12,7 @@ import { clearPersistedQueryCache } from "@/sync/queryPersister";
 import { Layout } from "@/components/Layout";
 import { AdminLayout } from "@/components/AdminLayout";
 import { NavVisibilityProvider } from "@/components/NavVisibilityProvider";
+import { FormCustomizationProvider } from "@/components/FormCustomizationProvider";
 
 import { OperatorLayout } from "@/components/OperatorLayout";
 import { OperatorContextGuard } from "@/components/OperatorContextGuard";
@@ -90,7 +91,9 @@ function App() {
           <ProtectedRoute>
             <RestoreContext />
             <NavVisibilityProvider>
-              <Layout />
+              <FormCustomizationProvider>
+                <Layout />
+              </FormCustomizationProvider>
             </NavVisibilityProvider>
           </ProtectedRoute>
         }
@@ -118,7 +121,12 @@ function App() {
           <Route path="items" element={<ItemsListPage />} />
           <Route path="tender-types" element={<TenderTypesListPage />} />
           <Route path="sales" element={<SalesListPage />} />
-          <Route path="tables" element={<AdminTablesPage />} />
+          <Route path="pos" element={<MenuOrderPage />} />
+          <Route path="menu-order" element={<MenuOrderPage />} />
+          <Route path="sales-recording" element={<SalesRecordingPage />} />
+          <Route path="receipts" element={<ReceiptsPage />} />
+          <Route path="payments" element={<PaymentsPage />} />
+          <Route path="tables/*" element={<AdminTablesPage />} />
           <Route path="shifts" element={<ShiftsListPage />} />
           <Route path="z-report" element={<ZReportPage />} />
           <Route path="debts" element={<DebtsAndExpensesAdminPage />} />
@@ -135,6 +143,10 @@ function App() {
           <Route
             path="standard-stock-count"
             element={<StandardStockCountAdminPage />}
+          />
+          <Route
+            path="manual-stock-sheet"
+            element={<ManualStockCountSheetPage />}
           />
           <Route path="revenue" element={<RevenueDashboardPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />

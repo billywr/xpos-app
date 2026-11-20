@@ -1,10 +1,8 @@
 import type { ReactNode } from "react";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Info, Loader2, Trash2 } from "lucide-react";
 import { Button } from "./Button";
 import { ProgressBar } from "./ProgressBar";
-import { modalOverlay } from "./styles";
 import { cn } from "@/utils/cn";
-
 
 export type ConfirmDialogMaxWidth = "max-w-md" | "max-w-lg" | "max-w-xl" | "max-w-4xl";
 
@@ -16,7 +14,8 @@ export interface ConfirmDialogProps {
   message: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
-  variant?: "danger" | "primary" | "default";
+  variant?: "danger" | "primary" | "warning" | "default";
+  icon?: ReactNode;
   loading?: boolean;
   /** Panel max width (default max-w-md). Use max-w-xl for longer copy. */
   maxWidth?: ConfirmDialogMaxWidth;
@@ -29,8 +28,11 @@ export interface ConfirmDialogProps {
 }
 
 /**
- * Confirmation dialog for destructive or critical actions (delete, deactivate, etc.).
- * Per §11.3: always show before performing the action.
+ * Reusable dynamic confirmation dialog for destructive or critical actions (delete, logout, deactivate, etc.).
+ * Features:
+ * - Contextual icon badge (danger, warning, primary)
+ * - Clear title and concise description (limited to max 2 lines)
+ * - Action/OK button and Cancel button side by side at the end of the footer
  */
 export function ConfirmDialog({
   open,
@@ -41,73 +43,92 @@ export function ConfirmDialog({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   variant = "danger",
+  icon,
   loading = false,
   maxWidth = "max-w-md",
   trailingDangerAction,
 }: ConfirmDialogProps) {
   if (!open) return null;
 
-  const anyLoading =
-    loading || Boolean(trailingDangerAction?.loading);
+  const anyLoading = loading || Boolean(trailingDangerAction?.loading);
 
   const confirmVariant =
     variant === "danger" ? "danger" : variant === "primary" ? "primary" : "neutral";
 
-  const isLarge = maxWidth === "max-w-xl" || maxWidth === "max-w-4xl";
-  const isExtraLarge = maxWidth === "max-w-4xl";
+  const renderBadgeIcon = () => {
+    if (icon) {
+      return (
+        <div
+          className={cn(
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+            variant === "danger"
+              ? "bg-red-100 text-red-600 dark:bg-red-950/50 dark:text-red-400"
+              : variant === "warning"
+                ? "bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400"
+                : "bg-primary-100 text-primary-600 dark:bg-primary-950/50 dark:text-primary-400"
+          )}
+        >
+          {icon}
+        </div>
+      );
+    }
+    if (variant === "danger") {
+      return (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600 dark:bg-red-950/50 dark:text-red-400">
+          <Trash2 className="h-5 w-5" />
+        </div>
+      );
+    }
+    if (variant === "warning") {
+      return (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
+          <AlertTriangle className="h-5 w-5" />
+        </div>
+      );
+    }
+    return (
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-primary-600 dark:bg-primary-950/50 dark:text-primary-400">
+        <Info className="h-5 w-5" />
+      </div>
+    );
+  };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
       aria-describedby="confirm-dialog-desc"
     >
       <div
-        className={modalOverlay}
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
         aria-hidden
         onClick={onClose}
       />
       <div
         className={cn(
-          "relative z-10 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800",
-          maxWidth,
-          isExtraLarge
-            ? "p-9 sm:p-12"
-            : isLarge
-              ? "p-6 sm:p-8"
-              : maxWidth === "max-w-lg"
-                ? "p-5 sm:p-7"
-                : "p-4 sm:p-6"
+          "relative z-10 w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xl transition-all sm:p-6 dark:border-slate-700/80 dark:bg-slate-800",
+          maxWidth
         )}
       >
-        <h3
-          id="confirm-dialog-title"
-          className={cn(
-            "font-semibold text-slate-900 dark:text-white",
-            isExtraLarge
-              ? "text-xl sm:text-2xl"
-              : isLarge
-                ? "text-lg sm:text-xl"
-                : "text-base sm:text-lg"
-          )}
-        >
-          {title}
-        </h3>
-        <p
-          id="confirm-dialog-desc"
-          className={cn(
-            "text-slate-600 dark:text-slate-300",
-            isExtraLarge
-              ? "mt-4 text-lg leading-relaxed sm:mt-5 sm:text-xl"
-              : isLarge
-                ? "mt-3 text-base leading-relaxed sm:text-lg"
-                : "mt-2 text-sm sm:text-base"
-          )}
-        >
-          {message}
-        </p>
+        <div className="flex items-start gap-4">
+          {renderBadgeIcon()}
+          <div className="min-w-0 flex-1">
+            <h3
+              id="confirm-dialog-title"
+              className="text-lg font-semibold text-slate-900 dark:text-white"
+            >
+              {title}
+            </h3>
+            <p
+              id="confirm-dialog-desc"
+              className="mt-1 text-sm text-slate-600 line-clamp-2 dark:text-slate-300"
+            >
+              {message}
+            </p>
+          </div>
+        </div>
 
         {anyLoading && (
           <div className="mt-4 sm:mt-5">
@@ -120,15 +141,8 @@ export function ConfirmDialog({
           </div>
         )}
 
-        <div
-          className={cn(
-            "flex flex-wrap justify-end gap-2 sm:gap-3",
-            isExtraLarge ? "mt-9 sm:mt-12" : isLarge ? "mt-6 sm:mt-8" : "mt-4 sm:mt-6"
-          )}
-        >
-          <Button variant="secondary" size="md" onClick={onClose} disabled={anyLoading}>
-            {cancelLabel}
-          </Button>
+        {/* Footer with action and cancel buttons side by side at end */}
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-2.5 border-t border-slate-100 pt-4 sm:gap-3 dark:border-slate-700/60">
           <Button
             variant={confirmVariant}
             size="md"
@@ -143,6 +157,9 @@ export function ConfirmDialog({
             ) : (
               confirmLabel
             )}
+          </Button>
+          <Button variant="secondary" size="md" onClick={onClose} disabled={anyLoading}>
+            {cancelLabel}
           </Button>
           {trailingDangerAction ? (
             <Button
@@ -163,7 +180,6 @@ export function ConfirmDialog({
           ) : null}
         </div>
       </div>
-
     </div>
   );
 }

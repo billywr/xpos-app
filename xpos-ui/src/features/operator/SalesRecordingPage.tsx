@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { usePersistedSearch } from "@/hooks/usePersistedSearch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -116,12 +117,15 @@ interface SaveDraftVars {
 }
 
 export function SalesRecordingPage() {
+  const location = useLocation();
   const token = useAppSelector(selectToken);
   const orgId = useAppSelector(selectOrgId);
   const branchId = useAppSelector(selectBranchId);
   const terminalId = useAppSelector(selectTerminalId);
   const queryClient = useQueryClient();
   const toast = useToast();
+
+  const fallbackTo = location.pathname.startsWith("/admin") ? "/admin" : "/operator";
 
   const [saleDate, setSaleDate] = useState<string>(todayIso());
   const [qtyByItem, setQtyByItem] = useState<Record<string, string>>({});
@@ -471,7 +475,7 @@ export function SalesRecordingPage() {
         <PageHeader
           title="Sales recording"
           icon={NotebookPen}
-          fallbackTo="/operator"
+          fallbackTo={fallbackTo}
           noMargin
           className="min-w-0 flex-1"
         />

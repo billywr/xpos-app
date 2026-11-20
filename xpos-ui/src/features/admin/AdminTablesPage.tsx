@@ -17,6 +17,7 @@ import {
 } from "@/api/tables";
 import type { TableArea, TableEntity } from "@/types/sales";
 import { PageHeader } from "@/components/PageHeader";
+import { TablesPage } from "@/features/operator/TablesPage";
 import {
   Badge,
   Button,
@@ -70,6 +71,7 @@ export function AdminTablesPage() {
   const page = 0;
   const size = DEFAULT_PAGE_SIZE;
 
+  const [viewMode, setViewMode] = useState<"setup" | "floor">("setup");
   const [areaSlideOpen, setAreaSlideOpen] = useState(false);
   const [editingArea, setEditingArea] = useState<TableArea | null>(null);
   const [areaFormName, setAreaFormName] = useState("");
@@ -380,6 +382,36 @@ export function AdminTablesPage() {
         subtitle="Table areas and tables per branch. Used by operator for dine-in."
         fallbackTo="/admin"
       />
+
+      <div className="mb-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setViewMode("setup")}
+          className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition ${
+            viewMode === "setup"
+              ? "bg-primary-600 text-white shadow-sm"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300"
+          }`}
+        >
+          Table & area setup
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode("floor")}
+          className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition ${
+            viewMode === "floor"
+              ? "bg-primary-600 text-white shadow-sm"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300"
+          }`}
+        >
+          Active floor & orders
+        </button>
+      </div>
+
+      {viewMode === "floor" ? (
+        <TablesPage />
+      ) : (
+        <>
 
       {(orgs.length > 1 || branches.length > 1) && (
         <div className="mb-4 flex flex-wrap items-end gap-4">
@@ -804,6 +836,8 @@ export function AdminTablesPage() {
           </div>
         </form>
       </SlideOver>
+      </>
+      )}
     </div>
   );
 }

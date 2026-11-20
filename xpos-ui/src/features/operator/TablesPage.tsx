@@ -36,8 +36,12 @@ export function TablesPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const isAdmin = location.pathname.startsWith("/admin");
+  const posPath = isAdmin ? "/admin/pos" : "/operator/menu-order";
+  const tablesBasePath = isAdmin ? "/admin/tables/active" : "/operator/tables";
+
   const currentTab =
-    TABS.find((t) => location.pathname.endsWith(`/tables/${t.path}`))?.path ??
+    TABS.find((t) => location.pathname.endsWith(`/${t.path}`))?.path ??
     "active";
 
   const { data: tables = [], isLoading } = useQuery({
@@ -54,7 +58,7 @@ export function TablesPage() {
 
   const handleSelectTable = (tableId: string) => {
     dispatch(setTableId(tableId));
-    navigate("/operator/menu-order");
+    navigate(posPath);
   };
 
   return (
@@ -68,7 +72,7 @@ export function TablesPage() {
         {TABS.map(({ path, label }) => (
           <Link
             key={path}
-            to={`/operator/tables/${path}`}
+            to={`${tablesBasePath}/${path}`}
             className={`min-h-[44px] rounded-xl px-4 py-2.5 text-sm font-medium transition ${
               currentTab === path
                 ? "bg-primary-600 text-white"

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import {
@@ -19,10 +19,15 @@ import type { Sale } from "@/types/sales";
 import { CreditCard, ShoppingBag, X } from "lucide-react";
 
 /**
- * Operator Payments page: lists open/held sales that need payment completion.
+ * Payments page: lists open/held sales that need payment completion.
  * Users can complete payments from the POS screen via "Proceed to payment".
  */
 export function PaymentsPage() {
+  const location = useLocation();
+  const isAdmin = location.pathname.startsWith("/admin");
+  const fallbackTo = isAdmin ? "/admin" : "/operator";
+  const posPath = isAdmin ? "/admin/pos" : "/operator/menu-order";
+
   const token = useAppSelector(selectToken);
   const orgId = useAppSelector(selectOrgId);
   const branchId = useAppSelector(selectBranchId);
@@ -70,7 +75,7 @@ export function PaymentsPage() {
         title="Payments"
         subtitle="Complete payments from the POS screen. Add items to cart, then click Proceed to payment to add tenders (Cash, M-Pesa, etc.) and complete the sale. Click Cancel when the customer changes their mind or items are out of stock."
         icon={CreditCard}
-        fallbackTo="/operator"
+        fallbackTo={fallbackTo}
       />
 
       {isInitialLoad && (
@@ -107,7 +112,7 @@ export function PaymentsPage() {
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Link
-                    to={`/operator/menu-order?saleId=${sale.id}`}
+                    to={`${posPath}?saleId=${sale.id}`}
                     className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500"
                   >
                     Go to POS
@@ -131,7 +136,7 @@ export function PaymentsPage() {
 
       {!isInitialLoad && (
       <Link
-        to="/operator/menu-order"
+        to={posPath}
         className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-3 font-medium text-white hover:bg-primary-500"
       >
         <ShoppingBag className="h-5 w-5" />

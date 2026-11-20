@@ -36,6 +36,7 @@ import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import { useFormCustomization } from "@/contexts/FormCustomizationContext";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -58,6 +59,7 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
   const toast = useToast();
+  const categoryCustom = useFormCustomization("category");
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
@@ -498,16 +500,20 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
             }}
             title={editingCategory ? "Edit category" : "Add category"}
           >
-            <form onSubmit={handleSlideSubmit} className="space-y-4">
+            <form onSubmit={handleSlideSubmit} className="flex flex-col gap-4">
               {formError && (
                 <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/30 dark:text-red-200">
                   {formError}
                 </p>
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <FormLabel htmlFor="category-name" className="mb-1">
-                    Name
+              {categoryCustom.isFieldVisible("name") && (
+                <div style={{ order: categoryCustom.getFieldOrder("name") }}>
+                  <FormLabel
+                    htmlFor="category-name"
+                    className="mb-1"
+                    required={categoryCustom.isFieldRequired("name", true)}
+                  >
+                    {categoryCustom.getFieldLabel("name")}
                   </FormLabel>
                   <input
                     id="category-name"
@@ -515,40 +521,53 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                    placeholder="e.g. Beverages"
+                    placeholder={categoryCustom.getFieldPlaceholder("name")}
+                    required={categoryCustom.isFieldRequired("name", true)}
                     autoFocus
                   />
                 </div>
-                <div>
-                  <FormLabel htmlFor="category-parent" className="mb-1">
-                    Parent category
+              )}
+              {categoryCustom.isFieldVisible("parentCategory") && (
+                <div style={{ order: categoryCustom.getFieldOrder("parentCategory") }}>
+                  <FormLabel
+                    htmlFor="category-parent"
+                    className="mb-1"
+                    required={categoryCustom.isFieldRequired("parentCategory", false)}
+                  >
+                    {categoryCustom.getFieldLabel("parentCategory")}
                   </FormLabel>
                   <SearchableSelect
                     id="category-parent"
                     options={parentSelectOptions}
                     value={formParentId}
                     onChange={setFormParentId}
-                    placeholder="Search parent…"
+                    placeholder={categoryCustom.getFieldPlaceholder("parentCategory")}
                     className="w-full"
                     controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
                   />
                 </div>
-              </div>
-              <div>
-                <FormLabel htmlFor="category-type" className="mb-1">
-                  Type
-                </FormLabel>
-                <SearchableSelect
-                  id="category-type"
-                  options={categoryTypeOptions}
-                  value={formType}
-                  onChange={setFormType}
-                  placeholder="Search type…"
-                  className="w-full"
-                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3 pt-4">
+              )}
+              {categoryCustom.isFieldVisible("type") && (
+                <div style={{ order: categoryCustom.getFieldOrder("type") }}>
+                  <FormLabel
+                    htmlFor="category-type"
+                    className="mb-1"
+                    required={categoryCustom.isFieldRequired("type", false)}
+                  >
+                    {categoryCustom.getFieldLabel("type")}
+                  </FormLabel>
+                  <SearchableSelect
+                    id="category-type"
+                    options={categoryTypeOptions}
+                    value={formType}
+                    onChange={setFormType}
+                    placeholder={categoryCustom.getFieldPlaceholder("type")}
+                    className="w-full"
+                    controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                  />
+                </div>
+              )}
+              <div style={{ order: 999 }} className="grid grid-cols-2 gap-3 pt-4">
                 <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setSlideOpen(false)}>
                   Cancel
                 </Button>

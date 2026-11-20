@@ -38,6 +38,7 @@ import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import { useFormCustomization } from "@/contexts/FormCustomizationContext";
 import { Plus, Truck, Pencil, Trash2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -63,6 +64,7 @@ export function SuppliersListPage({
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
   const toast = useToast();
+  const supplierCustom = useFormCustomization("supplier");
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
@@ -569,49 +571,70 @@ export function SuppliersListPage({
               {formError}
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <FormLabel htmlFor="supplier-name" className="mb-1" required>
-                Name
+          {supplierCustom.isFieldVisible("name") && (
+            <div style={{ order: supplierCustom.getFieldOrder("name") }}>
+              <FormLabel
+                htmlFor="supplier-name"
+                className="mb-1"
+                required={supplierCustom.isFieldRequired("name", true)}
+              >
+                {supplierCustom.getFieldLabel("name")}
               </FormLabel>
               <input
                 id="supplier-name"
                 type="text"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                required
+                placeholder={supplierCustom.getFieldPlaceholder("name")}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                required={supplierCustom.isFieldRequired("name", true)}
                 maxLength={200}
               />
             </div>
-            <div>
-              <FormLabel htmlFor="supplier-phone" className="mb-1">
-                Phone
+          )}
+          {supplierCustom.isFieldVisible("phone") && (
+            <div style={{ order: supplierCustom.getFieldOrder("phone") }}>
+              <FormLabel
+                htmlFor="supplier-phone"
+                className="mb-1"
+                required={supplierCustom.isFieldRequired("phone", false)}
+              >
+                {supplierCustom.getFieldLabel("phone")}
               </FormLabel>
               <input
                 id="supplier-phone"
                 type="text"
                 value={formPhone}
                 onChange={(e) => setFormPhone(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                placeholder={supplierCustom.getFieldPlaceholder("phone")}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                required={supplierCustom.isFieldRequired("phone", false)}
                 maxLength={50}
               />
             </div>
-          </div>
-          <div>
-            <FormLabel htmlFor="supplier-email" className="mb-1">
-              Email
-            </FormLabel>
-            <input
-              id="supplier-email"
-              type="email"
-              value={formEmail}
-              onChange={(e) => setFormEmail(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              maxLength={200}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3 pt-4">
+          )}
+          {supplierCustom.isFieldVisible("email") && (
+            <div style={{ order: supplierCustom.getFieldOrder("email") }}>
+              <FormLabel
+                htmlFor="supplier-email"
+                className="mb-1"
+                required={supplierCustom.isFieldRequired("email", false)}
+              >
+                {supplierCustom.getFieldLabel("email")}
+              </FormLabel>
+              <input
+                id="supplier-email"
+                type="email"
+                value={formEmail}
+                onChange={(e) => setFormEmail(e.target.value)}
+                placeholder={supplierCustom.getFieldPlaceholder("email")}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                required={supplierCustom.isFieldRequired("email", false)}
+                maxLength={200}
+              />
+            </div>
+          )}
+          <div style={{ order: 999 }} className="grid grid-cols-2 gap-3 pt-4">
             <Button
               type="button"
               variant="secondary"

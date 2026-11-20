@@ -49,10 +49,12 @@ import {
   Palette,
   Search,
   X,
+  FileText,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { AdminTabList, type AdminTabItem } from "@/components/ui/AdminTabs";
 import { MpesaSettingsSection } from "@/features/admin/MpesaSettingsSection";
+import { FormCustomizationSettingsSection } from "@/features/admin/FormCustomizationSettingsSection";
 import { resizeImageForLogo } from "@/utils/logoResize";
 
 export type SettingsTabId =
@@ -60,6 +62,7 @@ export type SettingsTabId =
   | "admin-sidebar"
   | "operator-sidebar"
   | "pos"
+  | "forms"
   | "mpesa"
   | "assistant"
   | "appearance";
@@ -69,6 +72,7 @@ export const SETTINGS_TABS: AdminTabItem[] = [
   { id: "admin-sidebar", label: "Admin Sidebar", icon: LayoutDashboard, enabled: true },
   { id: "operator-sidebar", label: "Operator Sidebar", icon: Store, enabled: true },
   { id: "pos", label: "POS & Features", icon: ShoppingBag, enabled: true },
+  { id: "forms", label: "Forms & Sheets", icon: FileText, enabled: true },
   { id: "mpesa", label: "M-Pesa", icon: Smartphone, enabled: true },
   { id: "assistant", label: "AI Assistant", icon: Sparkles, enabled: true },
   { id: "appearance", label: "Appearance", icon: Palette, enabled: true },
@@ -809,6 +813,8 @@ export function AdminSettingsPage() {
     </section>
   );
 
+  const renderForms = () => <FormCustomizationSettingsSection />;
+
   const renderMpesa = () => <MpesaSettingsSection />;
 
   const renderAssistant = () => (
@@ -1000,6 +1006,43 @@ export function AdminSettingsPage() {
           "operator",
         ],
         render: renderBarcode,
+      },
+      {
+        id: "form-customization",
+        tabId: "forms",
+        tabLabel: "Forms & Sheets",
+        title: "Forms & Sheets",
+        description:
+          "Configure data capture sheets and forms across the system: hide or reveal fields, rename field labels, rearrange field order, and toggle or customize input placeholders.",
+        keywords: [
+          "form",
+          "forms",
+          "sheet",
+          "sheets",
+          "field",
+          "fields",
+          "label",
+          "labels",
+          "rename",
+          "rearrange",
+          "reorder",
+          "order",
+          "hide",
+          "reveal",
+          "placeholder",
+          "placeholders",
+          "expense",
+          "debt",
+          "item",
+          "catalog",
+          "supplier",
+          "category",
+          "branch",
+          "staff",
+          "table",
+          "utility",
+        ],
+        render: renderForms,
       },
       {
         id: "mpesa",

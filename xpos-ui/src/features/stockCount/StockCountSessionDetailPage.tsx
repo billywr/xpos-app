@@ -352,6 +352,8 @@ export function StockCountSessionDetailPage({
             <button
               type="button"
               onClick={handleDownloadPdf}
+              title="Download PDF"
+              aria-label="Download"
               className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               <Download className="h-4 w-4" />
