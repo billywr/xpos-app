@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   useFormCustomizationContext,
   type ResolvedFormField,
@@ -23,14 +23,143 @@ import {
   Sparkles,
 } from "lucide-react";
 
+interface FieldLabelInputProps {
+  formId: string;
+  fieldKey: string;
+  defaultLabel: string;
+  customLabel?: string;
+}
+
+function FieldLabelInput({
+  formId,
+  fieldKey,
+  defaultLabel,
+  customLabel,
+}: FieldLabelInputProps) {
+  const { setFieldLabel } = useFormCustomizationContext();
+  const [localValue, setLocalValue] = useState(customLabel ?? "");
+  const isFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setLocalValue(customLabel ?? "");
+    }
+  }, [customLabel]);
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        id={`label-${fieldKey}`}
+        type="text"
+        value={localValue}
+        onFocus={() => {
+          isFocusedRef.current = true;
+        }}
+        onBlur={() => {
+          isFocusedRef.current = false;
+          setFieldLabel(formId, fieldKey, localValue, true);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        onChange={(e) => {
+          const val = e.target.value;
+          setLocalValue(val);
+          setFieldLabel(formId, fieldKey, val);
+        }}
+        placeholder={defaultLabel}
+        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+      />
+      {customLabel && (
+        <button
+          type="button"
+          onClick={() => {
+            setLocalValue("");
+            setFieldLabel(formId, fieldKey, "", true);
+          }}
+          title="Reset label to default"
+          className="shrink-0 rounded p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+interface FieldPlaceholderInputProps {
+  formId: string;
+  fieldKey: string;
+  defaultPlaceholder?: string;
+  customPlaceholder?: string;
+}
+
+function FieldPlaceholderInput({
+  formId,
+  fieldKey,
+  defaultPlaceholder,
+  customPlaceholder,
+}: FieldPlaceholderInputProps) {
+  const { setFieldCustomPlaceholder } = useFormCustomizationContext();
+  const [localValue, setLocalValue] = useState(customPlaceholder ?? "");
+  const isFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFocusedRef.current) {
+      setLocalValue(customPlaceholder ?? "");
+    }
+  }, [customPlaceholder]);
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="text"
+        value={localValue}
+        onFocus={() => {
+          isFocusedRef.current = true;
+        }}
+        onBlur={() => {
+          isFocusedRef.current = false;
+          setFieldCustomPlaceholder(formId, fieldKey, localValue, true);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        onChange={(e) => {
+          const val = e.target.value;
+          setLocalValue(val);
+          setFieldCustomPlaceholder(formId, fieldKey, val);
+        }}
+        placeholder={defaultPlaceholder || "No default placeholder"}
+        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+      />
+      {customPlaceholder && (
+        <button
+          type="button"
+          onClick={() => {
+            setLocalValue("");
+            setFieldCustomPlaceholder(formId, fieldKey, "", true);
+          }}
+          title="Reset placeholder to default"
+          className="shrink-0 rounded p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function FormCustomizationSettingsSection() {
   const {
     getFormConfig,
     setFieldVisibility,
     setFieldRequired,
-    setFieldLabel,
     setFieldShowPlaceholder,
-    setFieldCustomPlaceholder,
     moveFieldOrder,
     resetFormToDefaults,
     resetAllFormsToDefaults,
@@ -296,30 +425,13 @@ export function FormCustomizationSettingsSection() {
                           >
                             Field Label (display name)
                           </label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              id={`label-${field.key}`}
-                              type="text"
-                              value={field.customLabel ?? ""}
-                              onChange={(e) =>
-                                setFieldLabel(activeFormDef.id, field.key, e.target.value)
-                              }
-                              placeholder={field.defaultLabel}
-                              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                            />
-                            {field.customLabel && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setFieldLabel(activeFormDef.id, field.key, "")
-                                }
-                                title="Reset label to default"
-                                className="shrink-0 rounded p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                              >
-                                <RotateCcw className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                          </div>
+                          <FieldLabelInput
+                            key={`label-${activeFormDef.id}-${field.key}`}
+                            formId={activeFormDef.id}
+                            fieldKey={field.key}
+                            defaultLabel={field.defaultLabel}
+                            customLabel={field.customLabel}
+                          />
                         </div>
 
                         {/* Placeholder Configuration */}
@@ -353,39 +465,13 @@ export function FormCustomizationSettingsSection() {
                           </div>
 
                           {field.showPlaceholder ? (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                value={field.customPlaceholder ?? ""}
-                                onChange={(e) =>
-                                  setFieldCustomPlaceholder(
-                                    activeFormDef.id,
-                                    field.key,
-                                    e.target.value
-                                  )
-                                }
-                                placeholder={
-                                  field.defaultPlaceholder || "No default placeholder"
-                                }
-                                className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                              />
-                              {field.customPlaceholder && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setFieldCustomPlaceholder(
-                                      activeFormDef.id,
-                                      field.key,
-                                      ""
-                                    )
-                                  }
-                                  title="Reset placeholder to default"
-                                  className="shrink-0 rounded p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                                >
-                                  <RotateCcw className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </div>
+                            <FieldPlaceholderInput
+                              key={`placeholder-${activeFormDef.id}-${field.key}`}
+                              formId={activeFormDef.id}
+                              fieldKey={field.key}
+                              defaultPlaceholder={field.defaultPlaceholder}
+                              customPlaceholder={field.customPlaceholder}
+                            />
                           ) : (
                             <p className="text-[11px] italic text-slate-400 dark:text-slate-500">
                               Input will render clean with no placeholder.

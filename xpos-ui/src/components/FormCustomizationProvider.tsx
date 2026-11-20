@@ -3,6 +3,7 @@ import {
   useCallback,
   useMemo,
   useEffect,
+  useRef,
   type ReactNode,
 } from "react";
 import { useAppSelector } from "@/hooks/useAppSelector";
@@ -67,24 +68,54 @@ export function FormCustomizationProvider({ children }: { children: ReactNode })
     setLocalCustomization(loadLocalState(orgId));
   }, [orgId]);
 
-  // Combined visibility: backend nav visibility has precedence when available, else local
+  const pendingLabelUpdatesRef = useRef<Record<string, string>>({});
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (
+        debounceTimerRef.current &&
+        Object.keys(pendingLabelUpdatesRef.current).length > 0
+      ) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+        const updates = { ...pendingLabelUpdatesRef.current };
+        pendingLabelUpdatesRef.current = {};
+        (Object.entries(updates) as [string, string][]).forEach(([k, v]) => {
+          navCtx?.setAdminLabel(k, v);
+        });
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [navCtx]);
+
+  // Combined visibility: local customization takes precedence for the active session, else backend
   const combinedVisibility = useMemo(() => {
     const backendVis = navCtx?.adminVisibility ?? {};
-    return { ...localCustomization.visibility, ...backendVis };
+    return { ...backendVis, ...localCustomization.visibility };
   }, [navCtx?.adminVisibility, localCustomization.visibility]);
 
-  // Combined labels: backend nav labels have precedence when available, else local
+  // Combined labels: local customization takes precedence for the active session, else backend
   const combinedLabels = useMemo(() => {
     const backendLabels = navCtx?.adminLabels ?? {};
-    return { ...localCustomization.labels, ...backendLabels };
+    return { ...backendLabels, ...localCustomization.labels };
   }, [navCtx?.adminLabels, localCustomization.labels]);
 
   const persistChange = useCallback(
     (
       newVisDelta?: Record<string, boolean>,
-      newLabelsDelta?: Record<string, string>
+      newLabelsDelta?: Record<string, string>,
+      immediateRemoteSync = false
     ) => {
-      // 1. Update local cache
+      // 1. Update local cache immediately
       setLocalCustomization((prev) => {
         const nextVis = { ...prev.visibility, ...newVisDelta };
         const nextLabels = { ...prev.labels, ...newLabelsDelta };
@@ -100,9 +131,28 @@ export function FormCustomizationProvider({ children }: { children: ReactNode })
           });
         }
         if (newLabelsDelta) {
-          Object.entries(newLabelsDelta).forEach(([k, v]) => {
-            navCtx.setAdminLabel(k, v);
-          });
+          Object.assign(pendingLabelUpdatesRef.current, newLabelsDelta);
+
+          const flushLabels = () => {
+            const updates = { ...pendingLabelUpdatesRef.current };
+            pendingLabelUpdatesRef.current = {};
+            (Object.entries(updates) as [string, string][]).forEach(([k, v]) => {
+              navCtx.setAdminLabel(k, v);
+            });
+          };
+
+          if (immediateRemoteSync) {
+            if (debounceTimerRef.current) {
+              clearTimeout(debounceTimerRef.current);
+              debounceTimerRef.current = null;
+            }
+            flushLabels();
+          } else {
+            if (debounceTimerRef.current) {
+              clearTimeout(debounceTimerRef.current);
+            }
+            debounceTimerRef.current = setTimeout(flushLabels, 1500);
+          }
         }
       }
     },
@@ -147,15 +197,21 @@ export function FormCustomizationProvider({ children }: { children: ReactNode })
         }
 
         // Custom Label
-        const customLabel = combinedLabels[labelKey]?.trim() || undefined;
-        const label = customLabel || f.defaultLabel;
+        const customLabel =
+          labelKey in combinedLabels && combinedLabels[labelKey] !== ""
+            ? combinedLabels[labelKey]
+            : undefined;
+        const label = customLabel?.trim() || f.defaultLabel;
 
         // Custom Placeholder
         const customPlaceholder =
-          combinedLabels[customPlaceholderKey]?.trim() || undefined;
+          customPlaceholderKey in combinedLabels &&
+          combinedLabels[customPlaceholderKey] !== ""
+            ? combinedLabels[customPlaceholderKey]
+            : undefined;
         let placeholder: string | undefined = undefined;
         if (showPlaceholder) {
-          placeholder = customPlaceholder || f.defaultPlaceholder;
+          placeholder = customPlaceholder?.trim() || f.defaultPlaceholder;
         }
 
         // Order
@@ -290,9 +346,9 @@ export function FormCustomizationProvider({ children }: { children: ReactNode })
   );
 
   const setFieldLabel = useCallback(
-    (formId: string, fieldKey: string, label: string) => {
+    (formId: string, fieldKey: string, label: string, immediate = false) => {
       const labelKey = `form.${formId}.${fieldKey}.label`;
-      persistChange(undefined, { [labelKey]: label.trim() });
+      persistChange(undefined, { [labelKey]: label }, immediate);
     },
     [persistChange]
   );
@@ -306,9 +362,14 @@ export function FormCustomizationProvider({ children }: { children: ReactNode })
   );
 
   const setFieldCustomPlaceholder = useCallback(
-    (formId: string, fieldKey: string, placeholder: string) => {
+    (
+      formId: string,
+      fieldKey: string,
+      placeholder: string,
+      immediate = false
+    ) => {
       const customPlaceholderKey = `form.${formId}.${fieldKey}.customPlaceholder`;
-      persistChange(undefined, { [customPlaceholderKey]: placeholder.trim() });
+      persistChange(undefined, { [customPlaceholderKey]: placeholder }, immediate);
     },
     [persistChange]
   );
@@ -316,7 +377,7 @@ export function FormCustomizationProvider({ children }: { children: ReactNode })
   const setFormOrder = useCallback(
     (formId: string, orderedKeys: string[]) => {
       const orderKey = `form.${formId}.order`;
-      persistChange(undefined, { [orderKey]: orderedKeys.join(",") });
+      persistChange(undefined, { [orderKey]: orderedKeys.join(",") }, true);
     },
     [persistChange]
   );
@@ -361,7 +422,7 @@ export function FormCustomizationProvider({ children }: { children: ReactNode })
       });
       newLabels[`form.${formId}.order`] = "";
 
-      persistChange(newVis, newLabels);
+      persistChange(newVis, newLabels, true);
     },
     [persistChange]
   );
@@ -381,7 +442,7 @@ export function FormCustomizationProvider({ children }: { children: ReactNode })
       newLabels[`form.${def.id}.order`] = "";
     });
 
-    persistChange(newVis, newLabels);
+    persistChange(newVis, newLabels, true);
   }, [persistChange]);
 
   const value: FormCustomizationContextValue = useMemo(

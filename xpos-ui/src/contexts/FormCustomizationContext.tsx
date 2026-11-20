@@ -45,7 +45,12 @@ export interface FormCustomizationContextValue {
     fieldKey: string,
     required: boolean
   ) => void;
-  setFieldLabel: (formId: string, fieldKey: string, label: string) => void;
+  setFieldLabel: (
+    formId: string,
+    fieldKey: string,
+    label: string,
+    immediate?: boolean
+  ) => void;
   setFieldShowPlaceholder: (
     formId: string,
     fieldKey: string,
@@ -54,7 +59,8 @@ export interface FormCustomizationContextValue {
   setFieldCustomPlaceholder: (
     formId: string,
     fieldKey: string,
-    placeholder: string
+    placeholder: string,
+    immediate?: boolean
   ) => void;
   moveFieldOrder: (
     formId: string,
@@ -207,12 +213,26 @@ export function useFormCustomization(formId: string) {
       ctx?.setFieldVisibility(formId, fieldKey, visible),
     setFieldRequired: (fieldKey: string, required: boolean) =>
       ctx?.setFieldRequired(formId, fieldKey, required),
-    setFieldLabel: (fieldKey: string, label: string) =>
-      ctx?.setFieldLabel(formId, fieldKey, label),
+    setFieldLabel: (fieldKey: string, label: string, immediate?: boolean) => {
+      if (immediate !== undefined) {
+        ctx?.setFieldLabel(formId, fieldKey, label, immediate);
+      } else {
+        ctx?.setFieldLabel(formId, fieldKey, label);
+      }
+    },
     setFieldShowPlaceholder: (fieldKey: string, show: boolean) =>
       ctx?.setFieldShowPlaceholder(formId, fieldKey, show),
-    setFieldCustomPlaceholder: (fieldKey: string, placeholder: string) =>
-      ctx?.setFieldCustomPlaceholder(formId, fieldKey, placeholder),
+    setFieldCustomPlaceholder: (
+      fieldKey: string,
+      placeholder: string,
+      immediate?: boolean
+    ) => {
+      if (immediate !== undefined) {
+        ctx?.setFieldCustomPlaceholder(formId, fieldKey, placeholder, immediate);
+      } else {
+        ctx?.setFieldCustomPlaceholder(formId, fieldKey, placeholder);
+      }
+    },
     moveFieldOrder: (fieldKey: string, direction: "up" | "down") =>
       ctx?.moveFieldOrder(formId, fieldKey, direction),
     resetToDefaults: () => ctx?.resetFormToDefaults(formId),
