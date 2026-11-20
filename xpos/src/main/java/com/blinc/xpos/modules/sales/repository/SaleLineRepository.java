@@ -3,6 +3,8 @@ package com.blinc.xpos.modules.sales.repository;
 import com.blinc.xpos.modules.sales.domain.SaleLine;
 import com.blinc.xpos.modules.sales.dto.TopItemProjection;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
@@ -79,4 +81,17 @@ public interface SaleLineRepository extends JpaRepository<SaleLine, UUID> {
       @Param("orgId") UUID orgId,
       @Param("branchId") UUID branchId,
       @Param("businessDate") java.time.LocalDate businessDate);
+
+  @Query(
+      """
+      select s.businessDate, l.item.id, coalesce(sum(l.qty), 0)
+      from SaleLine l join l.sale s
+      where s.org.id = :orgId and s.branch.id = :branchId
+      and s.status = 'COMPLETED' and s.businessDate in :businessDates
+      group by s.businessDate, l.item.id
+      """)
+  List<Object[]> sumQtyByItemForOrgBranchAndBusinessDates(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("businessDates") Collection<LocalDate> businessDates);
 }

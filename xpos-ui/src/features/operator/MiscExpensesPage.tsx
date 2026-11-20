@@ -1,6 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
+import {
+  readSavedExpenseCategories,
+  addExpenseCategory,
+  removeExpenseCategory,
+  readSavedIncurredByPresets,
+  addIncurredByPreset,
+  removeIncurredByPreset,
+} from "@/utils/expensePresetsStorage";
 import { selectToken } from "@/store/selectors/authSelectors";
 import {
   selectOrgId,
@@ -58,16 +66,6 @@ function MiscExpensesTotalBadge(props: { totalAmount: number }) {
 }
 
 const PAGE_SIZE = 20;
-const DEFAULT_CATEGORIES = [
-  "Utilities",
-  "Supplies",
-  "Maintenance",
-  "Transport",
-  "Fuel",
-  "Rent",
-  "Salaries",
-  "Other",
-];
 
 const MISC_EXPENSE_SORT = {
   incurredBy: (row: MiscExpenseResponse) => row.incurredBy ?? "",
@@ -114,13 +112,6 @@ export function MiscExpensesPage() {
     staleTime: 60_000,
   });
 
-  const expenseCategoryOptions = useMemo(() => {
-    const fromApi = categoriesFromApi ?? [];
-    const merged = new Set([...fromApi, ...DEFAULT_CATEGORIES]);
-    return [...merged]
-      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
-      .map((c) => ({ value: c, label: c }));
-  }, [categoriesFromApi]);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["operator-misc-expenses", token, orgId, branchId, page],
@@ -192,6 +183,109 @@ export function MiscExpensesPage() {
   );
   const totalAmount = data?.totalAmount ?? 0;
 
+  // -----------------------------------------------------------------------
+  // Expense Category (Spent on) & Incurred by presets & options
+  // -----------------------------------------------------------------------
+  const [expenseCategories, setExpenseCategories] = useState<string[]>([]);
+  useEffect(() => {
+    setExpenseCategories(
+      readSavedExpenseCategories(orgId, branchId, categoriesFromApi ?? [])
+    );
+  }, [orgId, branchId, categoriesFromApi]);
+
+  const expenseCategoryOptions = useMemo(() => {
+    return expenseCategories.map((c) => ({ value: c, label: c }));
+  }, [expenseCategories]);
+
+  const handleAddCategory = useCallback(
+    (cat: string) => {
+      const updated = addExpenseCategory(
+        orgId,
+        branchId,
+        cat,
+        categoriesFromApi ?? []
+      );
+      setExpenseCategories(updated);
+      toast.success(`"${cat.trim()}" added to categories.`);
+    },
+    [orgId, branchId, categoriesFromApi, toast]
+  );
+
+  const handleDeleteCategory = useCallback(
+    (cat: string) => {
+      const updated = removeExpenseCategory(
+        orgId,
+        branchId,
+        cat,
+        categoriesFromApi ?? []
+      );
+      setExpenseCategories(updated);
+      if (
+        formCategory.localeCompare(cat.trim(), undefined, {
+          sensitivity: "base",
+        }) === 0
+      ) {
+        setFormCategory("");
+      }
+      if (
+        editCategory.localeCompare(cat.trim(), undefined, {
+          sensitivity: "base",
+        }) === 0
+      ) {
+        setEditCategory("");
+      }
+      toast.success(`"${cat.trim()}" removed from suggestions.`);
+    },
+    [orgId, branchId, categoriesFromApi, formCategory, editCategory, toast]
+  );
+
+  const seedIncurredBy = useMemo(() => {
+    return expenses
+      .map((e) => e.incurredBy?.trim())
+      .filter((n): n is string => Boolean(n));
+  }, [expenses]);
+
+  const [incurredByList, setIncurredByList] = useState<string[]>([]);
+  useEffect(() => {
+    setIncurredByList(readSavedIncurredByPresets(orgId, branchId, seedIncurredBy));
+  }, [orgId, branchId, seedIncurredBy]);
+
+  const incurredByOptions = useMemo(() => {
+    return incurredByList.map((n) => ({ value: n, label: n }));
+  }, [incurredByList]);
+
+  const handleAddIncurredBy = useCallback(
+    (name: string) => {
+      const updated = addIncurredByPreset(orgId, branchId, name, seedIncurredBy);
+      setIncurredByList(updated);
+      toast.success(`"${name.trim()}" added to suggestions.`);
+    },
+    [orgId, branchId, seedIncurredBy, toast]
+  );
+
+  const handleDeleteIncurredBy = useCallback(
+    (name: string) => {
+      const updated = removeIncurredByPreset(orgId, branchId, name, seedIncurredBy);
+      setIncurredByList(updated);
+      if (
+        formIncurredBy.localeCompare(name.trim(), undefined, {
+          sensitivity: "base",
+        }) === 0
+      ) {
+        setFormIncurredBy("");
+      }
+      if (
+        editIncurredBy.localeCompare(name.trim(), undefined, {
+          sensitivity: "base",
+        }) === 0
+      ) {
+        setEditIncurredBy("");
+      }
+      toast.success(`"${name.trim()}" removed from suggestions.`);
+    },
+    [orgId, branchId, seedIncurredBy, formIncurredBy, editIncurredBy, toast]
+  );
+
   const updateMutation = useMutation({
     mutationFn: ({
       expenseId,
@@ -254,6 +348,24 @@ export function MiscExpensesPage() {
     }
     setEditSubmitting(true);
     try {
+      if (editCategory.trim()) {
+        const updatedCats = addExpenseCategory(
+          orgId,
+          branchId,
+          editCategory.trim(),
+          categoriesFromApi ?? []
+        );
+        setExpenseCategories(updatedCats);
+      }
+      if (editIncurredBy.trim()) {
+        const updatedIncurred = addIncurredByPreset(
+          orgId,
+          branchId,
+          editIncurredBy.trim(),
+          seedIncurredBy
+        );
+        setIncurredByList(updatedIncurred);
+      }
       await updateMutation.mutateAsync({
         expenseId: editingExpense.id,
         body: {
@@ -285,6 +397,24 @@ export function MiscExpensesPage() {
     if (isNaN(amount) || amount <= 0) {
       toast.error("Enter a valid amount.");
       return;
+    }
+    if (formCategory.trim()) {
+      const updatedCats = addExpenseCategory(
+        orgId,
+        branchId,
+        formCategory.trim(),
+        categoriesFromApi ?? []
+      );
+      setExpenseCategories(updatedCats);
+    }
+    if (formIncurredBy.trim()) {
+      const updatedIncurred = addIncurredByPreset(
+        orgId,
+        branchId,
+        formIncurredBy.trim(),
+        seedIncurredBy
+      );
+      setIncurredByList(updatedIncurred);
     }
     createMutation.mutate({
       amount,
@@ -565,7 +695,7 @@ export function MiscExpensesPage() {
                 max={todayInputValue()}
                 value={formRecordedOn}
                 onChange={(e) => setFormRecordedOn(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Defaults to today. Pick a past date when entering an old expense.
@@ -586,7 +716,7 @@ export function MiscExpensesPage() {
                 required
                 value={formAmount}
                 onChange={(e) => setFormAmount(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
             </div>
           </div>
@@ -607,6 +737,9 @@ export function MiscExpensesPage() {
                 placeholder="Type or search…"
                 className="mt-1 block w-full"
                 controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                onAddOption={handleAddCategory}
+                onDeleteOption={handleDeleteCategory}
+                addOptionPlaceholder="New category name…"
               />
             </div>
             <div>
@@ -616,13 +749,18 @@ export function MiscExpensesPage() {
               >
                 Incurred by
               </label>
-              <input
+              <SearchableSelect
                 id="incurredBy"
-                type="text"
+                options={incurredByOptions}
                 value={formIncurredBy}
-                onChange={(e) => setFormIncurredBy(e.target.value)}
+                onChange={setFormIncurredBy}
+                allowCustomValue
                 placeholder="Name of person who incurred the expense"
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                className="mt-1 block w-full"
+                controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                onAddOption={handleAddIncurredBy}
+                onDeleteOption={handleDeleteIncurredBy}
+                addOptionPlaceholder="New person name…"
               />
             </div>
           </div>
@@ -639,7 +777,7 @@ export function MiscExpensesPage() {
               value={formDescription}
               onChange={(e) => setFormDescription(e.target.value)}
               placeholder="Optional — e.g. Electricity bill for January"
-              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </div>
           <div>
@@ -655,7 +793,7 @@ export function MiscExpensesPage() {
               value={formReceiptRef}
               onChange={(e) => setFormReceiptRef(e.target.value)}
               placeholder="Optional"
-              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </div>
           <div className="grid grid-cols-2 gap-3 pt-4">
@@ -714,7 +852,7 @@ export function MiscExpensesPage() {
                   required
                   value={editAmount}
                   onChange={(e) => setEditAmount(e.target.value)}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 />
               </div>
               <div>
@@ -733,6 +871,9 @@ export function MiscExpensesPage() {
                   placeholder="Type or search…"
                   className="mt-1 block w-full"
                   controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                  onAddOption={handleAddCategory}
+                  onDeleteOption={handleDeleteCategory}
+                  addOptionPlaceholder="New category name…"
                 />
               </div>
             </div>
@@ -744,13 +885,18 @@ export function MiscExpensesPage() {
                 >
                   Incurred by
                 </label>
-                <input
+                <SearchableSelect
                   id="editIncurredBy"
-                  type="text"
+                  options={incurredByOptions}
                   value={editIncurredBy}
-                  onChange={(e) => setEditIncurredBy(e.target.value)}
+                  onChange={setEditIncurredBy}
+                  allowCustomValue
                   placeholder="Name of person who incurred the expense"
-                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                  className="mt-1 block w-full"
+                  controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                  onAddOption={handleAddIncurredBy}
+                  onDeleteOption={handleDeleteIncurredBy}
+                  addOptionPlaceholder="New person name…"
                 />
               </div>
               <div>
@@ -765,7 +911,7 @@ export function MiscExpensesPage() {
                   type="text"
                   value={editReceiptRef}
                   onChange={(e) => setEditReceiptRef(e.target.value)}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 />
               </div>
             </div>
@@ -782,7 +928,7 @@ export function MiscExpensesPage() {
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
                 placeholder="Optional — e.g. Electricity bill for January"
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
             </div>
             <div className="grid grid-cols-2 gap-3 pt-4">

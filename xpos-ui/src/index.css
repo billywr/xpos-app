@@ -689,8 +689,10 @@ body {
 /* Active nav / selected state */
 .dark .dark\:bg-indigo-500\/30,
 .dark .dark\:bg-primary-900\/30,
+.dark .dark\:hover\:bg-primary-900\/30:hover,
 [data-theme]:not([data-theme=""]).dark .dark\:bg-indigo-500\/30,
-[data-theme]:not([data-theme=""]).dark .dark\:bg-primary-900\/30 {
+[data-theme]:not([data-theme=""]).dark .dark\:bg-primary-900\/30,
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-primary-900\/30:hover {
   background-color: var(--accent-bg-active) !important;
 }
 .dark .dark\:text-indigo-100,
@@ -703,8 +705,18 @@ body {
   background-color: var(--surface-input) !important;
 }
 .dark .dark\:hover\:bg-slate-600:hover,
-[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-slate-600:hover {
+.dark .dark\:hover\:bg-slate-700\/60:hover,
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-slate-600:hover,
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-slate-700\/60:hover {
   background-color: var(--table-row-hover) !important;
+}
+.dark .dark\:bg-slate-700\/60,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-700\/60 {
+  background-color: color-mix(in srgb, var(--table-header) 60%, transparent) !important;
+}
+.dark .dark\:divide-slate-700\/40 > :not([hidden]) ~ :not([hidden]),
+[data-theme]:not([data-theme=""]).dark .dark\:divide-slate-700\/40 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--table-border) !important;
 }
 .dark .dark\:hover\:bg-white\/10:hover,
 [data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-white\/10:hover {
@@ -714,14 +726,36 @@ body {
 [data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-white\/5:hover {
   background-color: color-mix(in srgb, var(--accent-500) 8%, transparent) !important;
 }
-/* Deep surfaces (modals, overlays) */
+/* Deep surfaces (modals, overlays, dropdown quick-add rows) */
 .dark .dark\:bg-slate-900,
 [data-theme]:not([data-theme=""]).dark .dark\:bg-slate-900 {
   background-color: var(--app-bg-start) !important;
 }
+.dark .dark\:bg-slate-900\/60,
 .dark .dark\:bg-slate-900\/50,
-[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-900\/50 {
-  background-color: color-mix(in srgb, var(--app-bg-start) 50%, transparent) !important;
+.dark .dark\:bg-slate-900\/40,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-900\/60,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-900\/50,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-900\/40 {
+  background-color: color-mix(in srgb, var(--app-bg-start) 60%, transparent) !important;
+}
+/* Global dropdown listbox theme styling */
+.dark [role="listbox"],
+[data-theme]:not([data-theme=""]).dark [role="listbox"] {
+  background-color: var(--table-bg) !important;
+  border-color: var(--table-border) !important;
+}
+.dark [role="listbox"] [role="option"][aria-selected="true"],
+[data-theme]:not([data-theme=""]).dark [role="listbox"] [role="option"][aria-selected="true"] {
+  background-color: var(--accent-bg-active) !important;
+  color: var(--accent-text) !important;
+}
+.dark select,
+.dark select option,
+[data-theme]:not([data-theme=""]).dark select,
+[data-theme]:not([data-theme=""]).dark select option {
+  background-color: var(--surface-input) !important;
+  color: #ffffff !important;
 }
 /* Cards with opacity modifiers */
 .dark .dark\:bg-slate-800\/95,

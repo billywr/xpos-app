@@ -8,7 +8,13 @@ import authReducer from "@/store/slices/authSlice";
 import orgContextReducer from "@/store/slices/orgContextSlice";
 import cartReducer from "@/store/slices/cartSlice";
 import { ToastProvider } from "@/contexts/ToastContext";
-import { StandardStockCountSheetPage } from "./StandardStockCountSheetPage";
+import {
+  StandardStockCountSheetPage,
+  isStaleSavedClosing,
+  shouldAutoSyncClosing,
+  defaultClosingFromRow,
+  computeRow,
+} from "./StandardStockCountSheetPage";
 import * as stdApi from "@/api/stdStockCount";
 import type { StdStockCountRowResponse } from "@/api/stdStockCount";
 import * as debtsApi from "@/api/debts";
@@ -2397,6 +2403,122 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
     const noBadge = unrecordedRow?.querySelector("span.rounded-full");
     expect(noBadge).toBeNull();
   });
+
+  describe("recorded sales protection against stale closing auto-sync overwrite", () => {
+    const rowBase: StdStockCountRowResponse = {
+      itemId: "item-tanzanite",
+      sku: "SKU-TZ",
+      name: "Tanzanite 750ml",
+      openingStock: 14.5,
+      addedStock: 2.0,
+      addedTodayStock: 0,
+      sellingPrice: 350,
+      closingStock: 14.0,
+      lastSavedAt: "2026-11-19T05:00:00Z", // saved in morning
+      firstStockAddedAt: "2026-11-19T12:00:00Z", // backdated GRN at midday
+      latestStockAddedAt: "2026-11-19T12:00:00Z",
+      comments: null,
+    };
+
+    it("isStaleSavedClosing returns false when sales are recorded", () => {
+      // With recorded sales = 2.5, even though lastSavedAt < stockAddedAt and closingStock (14) < total (16.5)
+      expect(isStaleSavedClosing(rowBase, 2.5)).toBe(false);
+    });
+
+    it("isStaleSavedClosing returns false when closingStock != openingStock even if no sales recorded", () => {
+      // Closing was physically counted as 14.0, not untouched opening (14.5)
+      expect(isStaleSavedClosing(rowBase, 0)).toBe(false);
+    });
+
+    it("isStaleSavedClosing returns true only when untouched opening was saved before stock arrival", () => {
+      const untouchedRow: StdStockCountRowResponse = {
+        ...rowBase,
+        closingStock: 14.5, // equals openingStock
+      };
+      expect(isStaleSavedClosing(untouchedRow, 0)).toBe(true);
+    });
+
+    it("shouldAutoSyncClosing returns false when sales are already recorded", () => {
+      expect(
+        shouldAutoSyncClosing(rowBase, {
+          addedIncreased: true,
+          priorAdded: 0,
+          alreadyRecorded: 2.5,
+        })
+      ).toBe(false);
+    });
+
+    it("defaultClosingFromRow clamps corrupted historical closing to max physical stock", () => {
+      // Bug in prior versions saved closing = 16.5 (total stock) even though 2.5 were sold
+      const corruptedRow: StdStockCountRowResponse = {
+        ...rowBase,
+        closingStock: 16.5,
+      };
+      // Clamps to 16.5 - 2.5 = 14.0
+      expect(defaultClosingFromRow(corruptedRow, 2.5)).toBe(14.0);
+    });
+
+    it("computeRow calculates correct unitsSold and 0 unsaved/stale when sales recorded", () => {
+      const corruptedRow: StdStockCountRowResponse = {
+        ...rowBase,
+        closingStock: 16.5,
+      };
+      const computed = computeRow(corruptedRow, undefined, undefined, 2.5);
+      expect(computed.closingStock).toBe(14.0);
+      expect(computed.unitsSold).toBe(2.5);
+      expect(computed.amount).toBe(875);
+      expect(computed.closingStale).toBe(false);
+      expect(computed.closingUnsaved).toBe(false);
+    });
+
+    it("UI does not auto-save corrupted closing to total stock when sales were recorded", async () => {
+      vi.mocked(stdApi.saveStdStockCount).mockReset();
+      vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+        date: "2026-11-19",
+        branchId: "branch-1",
+        totalQtyToRecord: 0,
+        totalValueToRecord: 0,
+        lines: [
+          {
+            itemId: "item-tanzanite",
+            name: "Tanzanite 750ml",
+            impliedSold: 2.5,
+            alreadyRecorded: 2.5,
+            qtyToRecord: 0,
+            qtyRecorded: 2.5,
+            unitPrice: 350,
+            lineValue: 0,
+            status: "RECORDED",
+          },
+        ],
+      });
+      vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+        date: "2026-11-19",
+        outletId: "branch-1",
+        rows: [
+          {
+            ...rowBase,
+            closingStock: 16.5, // corrupted closing
+          },
+        ],
+      });
+
+      wrap(<StandardStockCountSheetPage />, "term-1");
+
+      await waitFor(() => {
+        expect(screen.getByText("Tanzanite 750ml")).toBeInTheDocument();
+      });
+
+      // Closing input should display 14 (clamped to physical), not 16.5
+      const input = screen.getByDisplayValue("14");
+      expect(input).toBeInTheDocument();
+
+      // Verify auto-save is never triggered on load
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      expect(stdApi.saveStdStockCount).not.toHaveBeenCalled();
+    });
+  });
 });
+
 
 

@@ -222,6 +222,12 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     mergeLatestTimestampedQtyRows(
         latestStockAddedAtByItem, stockTakeData.rowsByDate().getOrDefault(businessDate, List.of()));
 
+    Set<LocalDate> datesForSales = new HashSet<>(neededDates);
+    datesForSales.add(businessDate);
+    List<Object[]> saleRows =
+        saleLineRepository.sumQtyByItemForOrgBranchAndBusinessDates(orgId, branchId, datesForSales);
+    Map<LocalDate, Map<UUID, BigDecimal>> salesData = partitionSalesRows(saleRows);
+
     CarryForwardContext carryForward =
         new CarryForwardContext(
             priorByItem,
@@ -229,7 +235,10 @@ public class StdStockCountServiceImpl implements StdStockCountService {
             grnData.rowsByDate(),
             stockTakeData.rowsByDate(),
             grnData.addedByDate(),
-            stockTakeData.addedByDate());
+            stockTakeData.addedByDate(),
+            salesData);
+
+    Map<UUID, BigDecimal> recordedSalesToday = salesData.getOrDefault(businessDate, Map.of());
 
     List<StdStockCountRowDto> rows =
         buildSheetRows(
@@ -240,6 +249,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
             latestStockAddedAtByItem,
             carryForward,
             todayByItem,
+            recordedSalesToday,
             businessDate);
 
     return new StdStockCountSheetDto(businessDate, branchId, rows);
@@ -287,6 +297,17 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     return new PartitionedDateData(rowsByDate, addedByDate);
   }
 
+  private static Map<LocalDate, Map<UUID, BigDecimal>> partitionSalesRows(List<Object[]> rows) {
+    Map<LocalDate, Map<UUID, BigDecimal>> map = new HashMap<>();
+    for (Object[] row : rows) {
+      LocalDate date = (LocalDate) row[0];
+      UUID itemId = (UUID) row[1];
+      BigDecimal qty = ((BigDecimal) row[2]).setScale(SCALE, ROUNDING);
+      map.computeIfAbsent(date, k -> new HashMap<>()).put(itemId, qty);
+    }
+    return map;
+  }
+
   @SuppressWarnings("checkstyle:ParameterNumber")
   private List<StdStockCountRowDto> buildSheetRows(
       List<Item> items,
@@ -296,6 +317,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       Map<UUID, Instant> latestStockAddedAtByItem,
       CarryForwardContext carryForward,
       Map<UUID, StdStockCountSnapshot> todayByItem,
+      Map<UUID, BigDecimal> recordedSalesTodayByItem,
       LocalDate businessDate) {
     List<StdStockCountRowDto> rows = new ArrayList<>(items.size());
     for (Item item : items) {
@@ -309,6 +331,16 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       BigDecimal closing = snap != null ? snap.getClosingQty().setScale(SCALE, ROUNDING) : null;
       Instant lastSavedAt = snap != null ? snap.getLastSavedAt() : null;
       String rowComments = snap != null ? snap.getComments() : null;
+
+      BigDecimal recordedSales = recordedSalesTodayByItem.getOrDefault(itemId, BigDecimal.ZERO);
+      if (recordedSales.signum() > 0) {
+        BigDecimal dayTotal = opening.add(addedGrn).add(addedToday).setScale(SCALE, ROUNDING);
+        BigDecimal maxPhysicalStock =
+            dayTotal.subtract(recordedSales).max(BigDecimal.ZERO).setScale(SCALE, ROUNDING);
+        if (closing != null && closing.compareTo(maxPhysicalStock) > 0) {
+          closing = maxPhysicalStock;
+        }
+      }
 
       rows.add(
           new StdStockCountRowDto(
@@ -419,6 +451,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     private final Map<LocalDate, List<Object[]>> stockTakeRowsByDate;
     private final Map<LocalDate, Map<UUID, BigDecimal>> grnAddedByDate;
     private final Map<LocalDate, Map<UUID, BigDecimal>> stockTakeAddedByDate;
+    private final Map<LocalDate, Map<UUID, BigDecimal>> salesByDate;
     private final Map<LocalDate, PriorDayLateAddedCache> lateCacheByDate = new HashMap<>();
     private final Map<UUID, Map<LocalDate, BigDecimal>> effectiveByItemAndDate = new HashMap<>();
 
@@ -428,13 +461,15 @@ public class StdStockCountServiceImpl implements StdStockCountService {
         Map<LocalDate, List<Object[]>> grnRowsByDate,
         Map<LocalDate, List<Object[]>> stockTakeRowsByDate,
         Map<LocalDate, Map<UUID, BigDecimal>> grnAddedByDate,
-        Map<LocalDate, Map<UUID, BigDecimal>> stockTakeAddedByDate) {
+        Map<LocalDate, Map<UUID, BigDecimal>> stockTakeAddedByDate,
+        Map<LocalDate, Map<UUID, BigDecimal>> salesByDate) {
       this.priorByItem = priorByItem;
       this.blankSaveDates = blankSaveDates;
       this.grnRowsByDate = grnRowsByDate;
       this.stockTakeRowsByDate = stockTakeRowsByDate;
       this.grnAddedByDate = grnAddedByDate;
       this.stockTakeAddedByDate = stockTakeAddedByDate;
+      this.salesByDate = salesByDate;
     }
 
     private BigDecimal openingForSheetDate(UUID itemId, LocalDate sheetDate) {
@@ -469,6 +504,15 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       BigDecimal dayTotal = openingOnDay.add(addedOnDay).setScale(SCALE, ROUNDING);
       BigDecimal saved = snap.getClosingQty().setScale(SCALE, ROUNDING);
 
+      BigDecimal recordedSales =
+          salesByDate.getOrDefault(snapDate, Map.of()).getOrDefault(itemId, BigDecimal.ZERO);
+      BigDecimal maxPhysicalStock =
+          dayTotal.subtract(recordedSales).max(BigDecimal.ZERO).setScale(SCALE, ROUNDING);
+
+      if (recordedSales.signum() > 0 && saved.compareTo(maxPhysicalStock) > 0) {
+        saved = maxPhysicalStock;
+      }
+
       PriorDayLateAddedCache cache = getLateCache(snapDate);
       BigDecimal lateGrn =
           cache != null ? cache.lateGrnQtyAfter(itemId, snap.getLastSavedAt()) : BigDecimal.ZERO;
@@ -478,7 +522,10 @@ public class StdStockCountServiceImpl implements StdStockCountService {
               : BigDecimal.ZERO;
 
       BigDecimal effective;
-      if (saved.compareTo(openingOnDay) == 0 && addedOnDay.signum() > 0) {
+      if (recordedSales.signum() > 0) {
+        // Sales were recorded on this date; saved closing reflects post-sales physical stock.
+        effective = saved.add(lateStockTake).min(maxPhysicalStock).setScale(SCALE, ROUNDING);
+      } else if (saved.compareTo(openingOnDay) == 0 && addedOnDay.signum() > 0) {
         effective = dayTotal;
       } else if (lateGrn.signum() > 0) {
         // Stock arrived after last saved closing; add late receipts up to day total
@@ -1085,11 +1132,20 @@ public class StdStockCountServiceImpl implements StdStockCountService {
   private int autoSyncSnapshotsForDate(
       UUID orgId, Branch branch, UUID branchId, LocalDate businessDate, Instant now) {
     StdStockCountSheetDto sheet = getSheet(orgId, branchId, businessDate);
+    Map<UUID, BigDecimal> alreadyRecorded =
+        loadAlreadyRecordedQtyByItem(orgId, branchId, businessDate);
     List<StdStockCountCountDto> counts = new ArrayList<>();
     for (StdStockCountRowDto row : sheet.rows()) {
-      if (shouldAutoSyncClosingRow(row)) {
-        counts.add(
-            new StdStockCountCountDto(row.itemId(), totalStockFromRow(row), Optional.empty()));
+      BigDecimal recorded = alreadyRecorded.getOrDefault(row.itemId(), BigDecimal.ZERO);
+      if (shouldAutoSyncClosingRow(row, recorded)) {
+        BigDecimal syncClosing =
+            recorded.signum() > 0
+                ? totalStockFromRow(row)
+                    .subtract(recorded)
+                    .max(BigDecimal.ZERO)
+                    .setScale(SCALE, ROUNDING)
+                : totalStockFromRow(row);
+        counts.add(new StdStockCountCountDto(row.itemId(), syncClosing, Optional.empty()));
       }
     }
     if (counts.isEmpty()) {
@@ -1100,7 +1156,12 @@ public class StdStockCountServiceImpl implements StdStockCountService {
   }
 
   /** Mirrors frontend {@code shouldAutoSyncClosing} for carry-forward / stale-receipt cases. */
-  private static boolean shouldAutoSyncClosingRow(StdStockCountRowDto row) {
+  private static boolean shouldAutoSyncClosingRow(
+      StdStockCountRowDto row, BigDecimal recordedSales) {
+    if (recordedSales != null && recordedSales.signum() > 0) {
+      BigDecimal total = totalStockFromRow(row);
+      return row.closingStock() == null && total.signum() > 0;
+    }
     if (isStaleSavedClosingRow(row)) {
       return true;
     }
@@ -1115,7 +1176,9 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       return false;
     }
     BigDecimal total = totalStockFromRow(row);
-    return row.closingStock().compareTo(total) < 0 && row.lastSavedAt().isBefore(stockAddedAt);
+    return row.closingStock().compareTo(total) < 0
+        && row.closingStock().compareTo(row.openingStock()) == 0
+        && row.lastSavedAt().isBefore(stockAddedAt);
   }
 
   private static BigDecimal totalStockFromRow(StdStockCountRowDto row) {

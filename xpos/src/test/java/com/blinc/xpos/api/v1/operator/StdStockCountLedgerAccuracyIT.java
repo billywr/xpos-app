@@ -301,8 +301,169 @@ class StdStockCountLedgerAccuracyIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.rows[0].addedStock").value(0));
   }
 
+  @Test
+  void priorDayReceiptAndSalesRecordedCarriesForwardPhysicalClosingNotTotalStock()
+      throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate businessDay = LocalDate.now(zone);
+    LocalDate priorDay = businessDay.minusDays(1);
+    Instant morningDeliveryAt = priorDay.atTime(LocalTime.of(8, 0)).atZone(zone).toInstant();
+    Instant middayDeliveryAt = priorDay.atTime(LocalTime.of(12, 0)).atZone(zone).toInstant();
+    Instant countSavedAt = priorDay.atTime(LocalTime.of(18, 0)).atZone(zone).toInstant();
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+    UUID terminalId = createTerminal(orgId, branchId);
+    openShift(orgId, branchId, terminalId);
+    UUID tenderTypeId = getCashTenderTypeId(orgId);
+
+    // 1. Prior Day: Morning receipt 14.5 units, Midday receipt 2.0 units (Total = 16.5)
+    createGrnWithTimestamp(orgId, branchId, supplierId, itemId, 14.5, morningDeliveryAt);
+    createGrnWithTimestamp(orgId, branchId, supplierId, itemId, 2.0, middayDeliveryAt);
+
+    // 2. Operator saves closing stock as 14.0 (implies 2.5 units sold)
+    String priorClose =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":14.0}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(priorClose))
+        .andExpect(status().isOk());
+
+    Timestamp countSaveTs = Timestamp.from(countSavedAt);
+    jdbcTemplate.update(
+        "UPDATE std_stock_count_snapshot SET last_saved_at = ? WHERE branch_id = ? AND business_date = ?",
+        countSaveTs,
+        branchId,
+        priorDay);
+
+    // 3. Operator records sales of 2.5 units on priorDay
+    recordSale(
+        orgId, branchId, terminalId, tenderTypeId, itemId, 2.5, 350.00, priorDay, countSaveTs);
+
+    // 4. Simulate historical corruption: snapshot saved as 16.5 (total stock)
+    jdbcTemplate.update(
+        "UPDATE std_stock_count_snapshot SET closing_qty = 16.5 WHERE branch_id = ? AND business_date = ?",
+        branchId,
+        priorDay);
+
+    // 5. Verify Day 1 sheet self-heals corrupted snapshot to maxPhysicalStock (16.5 - 2.5 = 14.0)
+    String priorUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + priorDay;
+    mockMvc
+        .perform(get(priorUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].closingStock").value(14.0))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(16.5));
+
+    // 6. Verify Day 2 carries forward 14.0, NOT corrupted 16.5
+    String todayUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + businessDay;
+    mockMvc
+        .perform(get(todayUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(14.0))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(0));
+
+    // 7. Verify Day 2 sales preview prompts 0 units to record (no duplicate sales)
+    String salesPreviewUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count/sales-preview?date="
+            + businessDay;
+    mockMvc
+        .perform(get(salesPreviewUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalQtyToRecord").value(0));
+  }
+
+  private void recordSale(
+      UUID orgId,
+      UUID branchId,
+      UUID terminalId,
+      UUID tenderTypeId,
+      UUID itemId,
+      double qty,
+      double unitPrice,
+      LocalDate businessDate,
+      Timestamp completedAt)
+      throws Exception {
+    String base =
+        "/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/terminals/" + terminalId;
+    MvcResult result =
+        mockMvc
+            .perform(
+                post(base + "/sales")
+                    .with(operatorJwt())
+                    .contentType(APPLICATION_JSON)
+                    .content("{}"))
+            .andExpect(status().isCreated())
+            .andReturn();
+    UUID saleId =
+        UUID.fromString(
+            objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
+    mockMvc
+        .perform(
+            post(base + "/sales/" + saleId + "/lines")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(
+                    "{\"itemId\":\""
+                        + itemId
+                        + "\",\"qty\":"
+                        + qty
+                        + ",\"uomId\":null,\"unitPriceOverride\":"
+                        + unitPrice
+                        + ",\"modifiers\":[]}"))
+        .andExpect(status().isOk());
+    double tenderAmount = qty * unitPrice;
+    mockMvc
+        .perform(
+            post(base + "/sales/" + saleId + "/tenders")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(
+                    "{\"tenderTypeId\":\""
+                        + tenderTypeId
+                        + "\",\"amount\":"
+                        + tenderAmount
+                        + ",\"currency\":\"KES\"}"))
+        .andExpect(status().isCreated());
+    mockMvc
+        .perform(post(base + "/sales/" + saleId + "/complete").with(operatorJwt()))
+        .andExpect(status().isOk());
+
+    jdbcTemplate.update(
+        "UPDATE sale SET business_date = ?, completed_at = ? WHERE id = ?",
+        businessDate,
+        completedAt,
+        saleId);
+  }
+
   private UUID createGrnWithTimestamp(
-      UUID orgId, UUID branchId, UUID supplierId, UUID itemId, int qty, Instant at)
+      UUID orgId, UUID branchId, UUID supplierId, UUID itemId, Number qty, Instant at)
       throws Exception {
     String body =
         "{\"branchId\":\""

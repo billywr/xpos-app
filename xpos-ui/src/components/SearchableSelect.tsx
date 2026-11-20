@@ -399,8 +399,8 @@ export function SearchableSelect({
                       role="presentation"
                       className={`group flex items-center justify-between transition ${
                         idx === highlighted
-                          ? "bg-primary-50 text-primary-900 dark:bg-primary-950/40 dark:text-primary-100"
-                          : "text-slate-800 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/60"
+                          ? "bg-primary-50 text-primary-900 dark:bg-primary-900/30 dark:text-primary-300"
+                          : "text-slate-800 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
                       }`}
                       onMouseEnter={() => setHighlighted(idx)}
                     >
@@ -457,7 +457,7 @@ export function SearchableSelect({
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleAddOption(filterText.trim())}
-                    className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-xs font-semibold text-primary-600 transition hover:bg-primary-100/60 dark:text-primary-400 dark:hover:bg-primary-950/50"
+                    className="flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-left text-xs font-semibold text-primary-600 transition hover:bg-primary-100/60 dark:text-primary-400 dark:hover:bg-primary-900/30"
                   >
                     <Plus className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">Add &ldquo;{filterText.trim()}&rdquo;</span>

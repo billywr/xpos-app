@@ -1,6 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
+import {
+  readSavedExpenseCategories,
+  addExpenseCategory,
+  removeExpenseCategory,
+  readSavedIncurredByPresets,
+  addIncurredByPreset,
+  removeIncurredByPreset,
+} from "@/utils/expensePresetsStorage";
 import { selectToken, selectUsername } from "@/store/selectors/authSelectors";
 import {
   selectOrgId,
@@ -279,16 +287,6 @@ function DebtPendingTotalDisplay(props: {
 // ---------------------------------------------------------------------------
 
 const EXPENSES_PAGE_SIZE = 20;
-const DEFAULT_EXPENSE_CATEGORIES = [
-  "Utilities",
-  "Supplies",
-  "Maintenance",
-  "Transport",
-  "Fuel",
-  "Rent",
-  "Salaries",
-  "Other",
-];
 
 function MiscExpensesTotalBadge(props: {
   totalAmount: number;
@@ -559,14 +557,6 @@ export function DebtsAndExpensesPage({
     staleTime: 60_000,
   });
 
-  const expenseCategoryOptions = useMemo(() => {
-    const fromApi = categoriesFromApi ?? [];
-    const merged = new Set([...fromApi, ...DEFAULT_EXPENSE_CATEGORIES]);
-    return [...merged]
-      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
-      .map((c) => ({ value: c, label: c }));
-  }, [categoriesFromApi]);
-
 
   // -----------------------------------------------------------------------
   // Debts queries
@@ -727,6 +717,82 @@ export function DebtsAndExpensesPage({
       }),
     enabled: Boolean(token && orgId && branchId && dateRangeReady),
   });
+
+  // -----------------------------------------------------------------------
+  // Expense Category (Spent on) & Incurred by presets & options
+  // -----------------------------------------------------------------------
+  const [expenseCategories, setExpenseCategories] = useState<string[]>([]);
+  useEffect(() => {
+    setExpenseCategories(readSavedExpenseCategories(orgId, branchId, categoriesFromApi ?? []));
+  }, [orgId, branchId, categoriesFromApi]);
+
+  const expenseCategoryOptions = useMemo(() => {
+    return expenseCategories.map((c) => ({ value: c, label: c }));
+  }, [expenseCategories]);
+
+  const handleAddCategory = useCallback(
+    (cat: string) => {
+      const updated = addExpenseCategory(orgId, branchId, cat, categoriesFromApi ?? []);
+      setExpenseCategories(updated);
+      toast.success(`"${cat.trim()}" added to categories.`);
+    },
+    [orgId, branchId, categoriesFromApi, toast]
+  );
+
+  const handleDeleteCategory = useCallback(
+    (cat: string) => {
+      const updated = removeExpenseCategory(orgId, branchId, cat, categoriesFromApi ?? []);
+      setExpenseCategories(updated);
+      if (expFormCategory.localeCompare(cat.trim(), undefined, { sensitivity: "base" }) === 0) {
+        setExpFormCategory("");
+      }
+      if (editExpCategory.localeCompare(cat.trim(), undefined, { sensitivity: "base" }) === 0) {
+        setEditExpCategory("");
+      }
+      toast.success(`"${cat.trim()}" removed from suggestions.`);
+    },
+    [orgId, branchId, categoriesFromApi, expFormCategory, editExpCategory, toast]
+  );
+
+  const seedIncurredBy = useMemo(() => {
+    const expenses = expensesTotalPage?.content ?? expensesData?.content ?? [];
+    return expenses
+      .map((e) => e.incurredBy?.trim())
+      .filter((n): n is string => Boolean(n));
+  }, [expensesTotalPage?.content, expensesData?.content]);
+
+  const [incurredByList, setIncurredByList] = useState<string[]>([]);
+  useEffect(() => {
+    setIncurredByList(readSavedIncurredByPresets(orgId, branchId, seedIncurredBy));
+  }, [orgId, branchId, seedIncurredBy]);
+
+  const incurredByOptions = useMemo(() => {
+    return incurredByList.map((n) => ({ value: n, label: n }));
+  }, [incurredByList]);
+
+  const handleAddIncurredBy = useCallback(
+    (name: string) => {
+      const updated = addIncurredByPreset(orgId, branchId, name, seedIncurredBy);
+      setIncurredByList(updated);
+      toast.success(`"${name.trim()}" added to suggestions.`);
+    },
+    [orgId, branchId, seedIncurredBy, toast]
+  );
+
+  const handleDeleteIncurredBy = useCallback(
+    (name: string) => {
+      const updated = removeIncurredByPreset(orgId, branchId, name, seedIncurredBy);
+      setIncurredByList(updated);
+      if (expFormIncurredBy.localeCompare(name.trim(), undefined, { sensitivity: "base" }) === 0) {
+        setExpFormIncurredBy("");
+      }
+      if (editExpIncurredBy.localeCompare(name.trim(), undefined, { sensitivity: "base" }) === 0) {
+        setEditExpIncurredBy("");
+      }
+      toast.success(`"${name.trim()}" removed from suggestions.`);
+    },
+    [orgId, branchId, seedIncurredBy, expFormIncurredBy, editExpIncurredBy, toast]
+  );
 
   const { data: serverGroupedExpenses = [], isLoading: isGroupedExpensesLoading } = useQuery({
     queryKey: [
@@ -1457,6 +1523,14 @@ export function DebtsAndExpensesPage({
     }
     setEditExpSubmitting(true);
     try {
+      if (editExpCategory.trim()) {
+        const updatedCats = addExpenseCategory(orgId, branchId, editExpCategory.trim(), categoriesFromApi ?? []);
+        setExpenseCategories(updatedCats);
+      }
+      if (editExpIncurredBy.trim()) {
+        const updatedIncurred = addIncurredByPreset(orgId, branchId, editExpIncurredBy.trim(), seedIncurredBy);
+        setIncurredByList(updatedIncurred);
+      }
       await updateExpMutation.mutateAsync({
         expenseId: editingExpense.id,
         body: {
@@ -1488,6 +1562,14 @@ export function DebtsAndExpensesPage({
     if (isNaN(amount) || amount <= 0) {
       toast.error("Enter a valid amount.");
       return;
+    }
+    if (expFormCategory.trim()) {
+      const updatedCats = addExpenseCategory(orgId, branchId, expFormCategory.trim(), categoriesFromApi ?? []);
+      setExpenseCategories(updatedCats);
+    }
+    if (expFormIncurredBy.trim()) {
+      const updatedIncurred = addIncurredByPreset(orgId, branchId, expFormIncurredBy.trim(), seedIncurredBy);
+      setIncurredByList(updatedIncurred);
     }
     createExpMutation.mutate({
       amount,
@@ -2722,22 +2804,22 @@ export function DebtsAndExpensesPage({
                   <p id="amount-items-hint" className="mt-1 text-xs text-slate-500 dark:text-slate-400">Total from borrowed items above. Remove all lines to enter a custom amount.</p>
                 </>
               ) : (
-                <input id="debtAmount" type="number" step="0.01" min="0.01" required value={debtFormAmount} onChange={(e) => setDebtFormAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+                <input id="debtAmount" type="number" step="0.01" min="0.01" required value={debtFormAmount} onChange={(e) => setDebtFormAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
               )}
             </div>
             <div>
               <label htmlFor="debtRecordedOn" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Date recorded *</label>
-              <DateInput id="debtRecordedOn" required max={todayInputValue()} value={debtFormRecordedOn} onChange={(e) => setDebtFormRecordedOn(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+              <DateInput id="debtRecordedOn" required max={todayInputValue()} value={debtFormRecordedOn} onChange={(e) => setDebtFormRecordedOn(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Defaults to today. Pick a past date when entering an old debt.</p>
             </div>
           </div>
           <div>
             <label htmlFor="dueDate" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Due date</label>
-            <DateInput id="dueDate" value={debtFormDueDate} onChange={(e) => setDebtFormDueDate(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+            <DateInput id="dueDate" value={debtFormDueDate} onChange={(e) => setDebtFormDueDate(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
           </div>
           <div>
             <label htmlFor="notes" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
-            <textarea id="notes" rows={2} value={debtFormNotes} onChange={(e) => setDebtFormNotes(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+            <textarea id="notes" rows={2} value={debtFormNotes} onChange={(e) => setDebtFormNotes(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
           </div>
           <div className="grid grid-cols-2 gap-3 pt-4">
             <button type="button" onClick={() => setDebtFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
@@ -2798,16 +2880,16 @@ export function DebtsAndExpensesPage({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="editDebtAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Amount *</label>
-                <input id="editDebtAmount" type="number" step="0.01" min="0.01" required value={editDebtAmount} onChange={(e) => setEditDebtAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+                <input id="editDebtAmount" type="number" step="0.01" min="0.01" required value={editDebtAmount} onChange={(e) => setEditDebtAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
               </div>
               <div>
                 <label htmlFor="editDebtDueDate" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Due date</label>
-                <DateInput id="editDebtDueDate" value={editDebtDueDate} onChange={(e) => setEditDebtDueDate(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+                <DateInput id="editDebtDueDate" value={editDebtDueDate} onChange={(e) => setEditDebtDueDate(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
               </div>
             </div>
             <div>
               <label htmlFor="editDebtNotes" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
-              <textarea id="editDebtNotes" rows={2} value={editDebtNotes} onChange={(e) => setEditDebtNotes(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+              <textarea id="editDebtNotes" rows={2} value={editDebtNotes} onChange={(e) => setEditDebtNotes(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
             </div>
             <div className="grid grid-cols-2 gap-3 pt-4">
               <button type="button" onClick={() => setDebtEditFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
@@ -2994,12 +3076,12 @@ export function DebtsAndExpensesPage({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="expRecordedOn" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Date recorded *</label>
-              <DateInput id="expRecordedOn" required max={todayInputValue()} value={expFormRecordedOn} onChange={(e) => setExpFormRecordedOn(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+              <DateInput id="expRecordedOn" required max={todayInputValue()} value={expFormRecordedOn} onChange={(e) => setExpFormRecordedOn(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Defaults to today. Pick a past date when entering an old expense.</p>
             </div>
             <div>
               <label htmlFor="expAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Amount *</label>
-              <input id="expAmount" type="number" step="0.01" min="0.01" required value={expFormAmount} onChange={(e) => setExpFormAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+              <input id="expAmount" type="number" step="0.01" min="0.01" required value={expFormAmount} onChange={(e) => setExpFormAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -3014,20 +3096,35 @@ export function DebtsAndExpensesPage({
                 placeholder="Type or search…"
                 className="mt-1 block w-full"
                 controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                onAddOption={handleAddCategory}
+                onDeleteOption={handleDeleteCategory}
+                addOptionPlaceholder="New category name…"
               />
             </div>
             <div>
               <label htmlFor="expIncurredBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Incurred by</label>
-              <input id="expIncurredBy" type="text" value={expFormIncurredBy} onChange={(e) => setExpFormIncurredBy(e.target.value)} placeholder="Name of person who incurred the expense" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+              <SearchableSelect
+                id="expIncurredBy"
+                options={incurredByOptions}
+                value={expFormIncurredBy}
+                onChange={setExpFormIncurredBy}
+                allowCustomValue
+                placeholder="Name of person who incurred the expense"
+                className="mt-1 block w-full"
+                controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                onAddOption={handleAddIncurredBy}
+                onDeleteOption={handleDeleteIncurredBy}
+                addOptionPlaceholder="New person name…"
+              />
             </div>
           </div>
           <div>
             <label htmlFor="expDescription" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Description</label>
-            <textarea id="expDescription" rows={3} value={expFormDescription} onChange={(e) => setExpFormDescription(e.target.value)} placeholder="Optional — e.g. Electricity bill for January" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+            <textarea id="expDescription" rows={3} value={expFormDescription} onChange={(e) => setExpFormDescription(e.target.value)} placeholder="Optional — e.g. Electricity bill for January" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
           </div>
           <div>
             <label htmlFor="expReceiptRef" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Receipt / Invoice reference</label>
-            <input id="expReceiptRef" type="text" value={expFormReceiptRef} onChange={(e) => setExpFormReceiptRef(e.target.value)} placeholder="e.g. REC-1234" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+            <input id="expReceiptRef" type="text" value={expFormReceiptRef} onChange={(e) => setExpFormReceiptRef(e.target.value)} placeholder="e.g. REC-1234" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
           </div>
           <div className="grid grid-cols-2 gap-3 pt-4">
             <button type="button" onClick={() => setExpFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
@@ -3058,7 +3155,7 @@ export function DebtsAndExpensesPage({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="editExpAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Amount *</label>
-                <input id="editExpAmount" type="number" step="0.01" min="0.01" required value={editExpAmount} onChange={(e) => setEditExpAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+                <input id="editExpAmount" type="number" step="0.01" min="0.01" required value={editExpAmount} onChange={(e) => setEditExpAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
               </div>
               <div>
                 <label htmlFor="editExpCategory" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Spent on *</label>
@@ -3071,22 +3168,37 @@ export function DebtsAndExpensesPage({
                   placeholder="Type or search…"
                   className="mt-1 block w-full"
                   controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                  onAddOption={handleAddCategory}
+                  onDeleteOption={handleDeleteCategory}
+                  addOptionPlaceholder="New category name…"
                 />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="editExpIncurredBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Incurred by</label>
-                <input id="editExpIncurredBy" type="text" value={editExpIncurredBy} onChange={(e) => setEditExpIncurredBy(e.target.value)} placeholder="Name of person who incurred the expense" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+                <SearchableSelect
+                  id="editExpIncurredBy"
+                  options={incurredByOptions}
+                  value={editExpIncurredBy}
+                  onChange={setEditExpIncurredBy}
+                  allowCustomValue
+                  placeholder="Name of person who incurred the expense"
+                  className="mt-1 block w-full"
+                  controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                  onAddOption={handleAddIncurredBy}
+                  onDeleteOption={handleDeleteIncurredBy}
+                  addOptionPlaceholder="New person name…"
+                />
               </div>
               <div>
                 <label htmlFor="editExpReceiptRef" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Receipt / Invoice reference</label>
-                <input id="editExpReceiptRef" type="text" value={editExpReceiptRef} onChange={(e) => setEditExpReceiptRef(e.target.value)} placeholder="e.g. REC-1234" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+                <input id="editExpReceiptRef" type="text" value={editExpReceiptRef} onChange={(e) => setEditExpReceiptRef(e.target.value)} placeholder="e.g. REC-1234" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
               </div>
             </div>
             <div>
               <label htmlFor="editExpDescription" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Description</label>
-              <textarea id="editExpDescription" rows={3} value={editExpDescription} onChange={(e) => setEditExpDescription(e.target.value)} placeholder="e.g. Electricity bill for January" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
+              <textarea id="editExpDescription" rows={3} value={editExpDescription} onChange={(e) => setEditExpDescription(e.target.value)} placeholder="e.g. Electricity bill for January" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
             </div>
             <div className="grid grid-cols-2 gap-3 pt-4">
               <button type="button" onClick={() => setExpEditFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>

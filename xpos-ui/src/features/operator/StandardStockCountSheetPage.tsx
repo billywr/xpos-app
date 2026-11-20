@@ -154,28 +154,38 @@ const STANDARD_STOCK_SORT = {
   amount: (row: ComputedRow) => row.amount,
 };
 
-/** Saved closing is stale when stock arrived after last save and closing is less than total. */
-function isStaleSavedClosing(row: StdStockCountRowResponse): boolean {
+/** Saved closing is stale when stock arrived after last save, closing equals opening (no operator count/sales performed), and closing is less than total. Once sales are recorded for an item, closing is NEVER considered stale. */
+export function isStaleSavedClosing(
+  row: StdStockCountRowResponse,
+  alreadyRecorded: number = 0
+): boolean {
+  if (alreadyRecorded > 0) return false;
   const stockAddedAt = row.latestStockAddedAt ?? row.firstStockAddedAt;
   if (row.closingStock == null || !row.lastSavedAt || !stockAddedAt) return false;
   const total = totalStockFromRow(row);
   return (
+    row.closingStock === row.openingStock &&
     row.closingStock < total &&
     row.lastSavedAt < stockAddedAt
   );
 }
 
-interface AutoSyncClosingContext {
+export interface AutoSyncClosingContext {
   addedIncreased: boolean;
   priorAdded?: number;
+  alreadyRecorded?: number;
 }
 
 /** Whether closing should be bumped to total and auto-saved (GRN / cross-tab Added increase). */
-function shouldAutoSyncClosing(
+export function shouldAutoSyncClosing(
   row: StdStockCountRowResponse,
   ctx: AutoSyncClosingContext
 ): boolean {
-  if (isStaleSavedClosing(row)) {
+  if (ctx.alreadyRecorded !== undefined && ctx.alreadyRecorded > 0) {
+    // If sales were already recorded, NEVER auto-sync closing to total stock.
+    return false;
+  }
+  if (isStaleSavedClosing(row, ctx.alreadyRecorded ?? 0)) {
     return true;
   }
   // Carry-forward / unsaved row with positive total stock — persist closing = total.
@@ -203,7 +213,7 @@ function shouldAutoSyncClosing(
   return false;
 }
 
-function totalStockFromRow(row: StdStockCountRowResponse): number {
+export function totalStockFromRow(row: StdStockCountRowResponse): number {
   return (
     (row.openingStock ?? 0) +
     (row.addedStock ?? 0) +
@@ -211,20 +221,32 @@ function totalStockFromRow(row: StdStockCountRowResponse): number {
   );
 }
 
-/** Saved closing if present; otherwise Total stock (Open + Added + AddedToday) so unsaved rows start at "nothing sold yet" and never exceed Total. */
-function defaultClosingFromRow(row: StdStockCountRowResponse): number {
+/** Saved closing if present; otherwise Total stock (Open + Added + AddedToday) so unsaved rows start at "nothing sold yet" and never exceed Total. If sales were already recorded, closing cannot exceed total - alreadyRecorded. */
+export function defaultClosingFromRow(
+  row: StdStockCountRowResponse,
+  alreadyRecorded: number = 0
+): number {
+  const total = totalStockFromRow(row);
   if (row.closingStock !== null && row.closingStock !== undefined) {
+    if (alreadyRecorded > 0) {
+      const maxPhysical = Math.max(0, total - alreadyRecorded);
+      return Math.min(row.closingStock, maxPhysical);
+    }
     return row.closingStock;
   }
-  return totalStockFromRow(row);
+  if (alreadyRecorded > 0) {
+    return Math.max(0, total - alreadyRecorded);
+  }
+  return total;
 }
 
-function computeRow(
+export function computeRow(
   row: StdStockCountRowResponse,
   localClosing: number | undefined,
-  localComment: string | undefined
+  localComment: string | undefined,
+  alreadyRecorded: number = 0
 ): ComputedRow {
-  const closing = localClosing ?? defaultClosingFromRow(row);
+  const closing = localClosing ?? defaultClosingFromRow(row, alreadyRecorded);
   const total =
     row.openingStock + row.addedStock + (row.addedTodayStock ?? 0);
   const unitsSold = Math.max(0, total - closing);
@@ -240,7 +262,7 @@ function computeRow(
   }
 
   const closingStale =
-    isStaleSavedClosing(row) &&
+    isStaleSavedClosing(row, alreadyRecorded) &&
     (localClosing === undefined || closing !== row.closingStock);
 
   const closingUnsaved =
@@ -435,6 +457,14 @@ export function StandardStockCountSheetPage({
     refetchOnWindowFocus: false,
   });
 
+  const alreadyRecordedByItem = useMemo(() => {
+    const map: Record<string, number> = {};
+    (cachedSalesPreview?.lines ?? []).forEach((line) => {
+      map[line.itemId] = line.alreadyRecorded ?? 0;
+    });
+    return map;
+  }, [cachedSalesPreview?.lines]);
+
   const { data: analytics } = useQuery({
     queryKey: ["stock-sheet-analytics", token, orgId, branchId, dateStr],
     queryFn: () =>
@@ -472,9 +502,13 @@ export function StandardStockCountSheetPage({
   const dayDebtsTotal = dayDebts.reduce((s, d) => s + (d.outstanding ?? 0), 0);
   const allDebtsTotal = allDebts.reduce((s, d) => s + (d.outstanding ?? 0), 0);
 
-  function parseClosing(itemId: string, row: StdStockCountRowResponse): number {
+  function parseClosing(
+    itemId: string,
+    row: StdStockCountRowResponse,
+    alreadyRecorded: number = 0
+  ): number {
     const s = localClosings[itemId];
-    if (s === undefined) return defaultClosingFromRow(row);
+    if (s === undefined) return defaultClosingFromRow(row, alreadyRecorded);
     if (s === "" || s === ".") return 0;
     const n = parseFloat(s);
     if (Number.isNaN(n)) return 0;
@@ -488,8 +522,9 @@ export function StandardStockCountSheetPage({
   }
 
   function isRowChanged(r: StdStockCountRowResponse): boolean {
+    const already = alreadyRecordedByItem[r.itemId] ?? 0;
     if (localClosings[r.itemId] !== undefined) {
-      const parsed = parseClosing(r.itemId, r);
+      const parsed = parseClosing(r.itemId, r, already);
       if (r.closingStock == null) {
         return true;
       }
@@ -500,10 +535,14 @@ export function StandardStockCountSheetPage({
       const baselineComment = r.comments ?? "";
       if (commentLocal !== baselineComment) return true;
     }
+    if (already > 0) {
+      // Item already has recorded sales. Do NOT treat unsaved carry-forward or stale receipts as auto-changes.
+      return false;
+    }
     if (r.closingStock == null && totalStockFromRow(r) > 0) {
       return true;
     }
-    if (isStaleSavedClosing(r)) {
+    if (isStaleSavedClosing(r, already)) {
       return true;
     }
     return false;
@@ -540,12 +579,12 @@ export function StandardStockCountSheetPage({
       outletId: branchId,
       counts: changedRows.map((r) => ({
         itemId: r.itemId,
-        closingStock: parseClosing(r.itemId, r),
+        closingStock: parseClosing(r.itemId, r, alreadyRecordedByItem[r.itemId] ?? 0),
         comments: parseCommentForSave(r.itemId, r),
       })),
     });
     return response;
-  }, [sheet?.rows, token, orgId, branchId, dateStr, localClosings, localComments]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sheet?.rows, token, orgId, branchId, dateStr, localClosings, localComments, alreadyRecordedByItem]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refetchPreviewsRef = useRef<() => void>(() => {});
 
@@ -790,14 +829,16 @@ export function StandardStockCountSheetPage({
 
   const allComputedRows = useMemo(() => {
     const rows = sheet?.rows ?? [];
-    return rows.map((r) =>
-      computeRow(
+    return rows.map((r) => {
+      const already = alreadyRecordedByItem[r.itemId] ?? 0;
+      return computeRow(
         r,
-        localClosings[r.itemId] !== undefined ? parseClosing(r.itemId, r) : undefined,
-        localComments[r.itemId] !== undefined ? localComments[r.itemId] : undefined
-      )
-    );
-  }, [sheet?.rows, localClosings, localComments]);
+        localClosings[r.itemId] !== undefined ? parseClosing(r.itemId, r, already) : undefined,
+        localComments[r.itemId] !== undefined ? localComments[r.itemId] : undefined,
+        already
+      );
+    });
+  }, [sheet?.rows, localClosings, localComments, alreadyRecordedByItem]);
 
   const [searchQuery, setSearchQuery] = usePersistedSearch();
 
@@ -863,7 +904,8 @@ export function StandardStockCountSheetPage({
         const priorAdded = priorAddedByItem.get(row.itemId);
         const addedIncreased =
           priorAdded !== undefined && row.addedStock > priorAdded;
-        if (shouldAutoSyncClosing(row, { addedIncreased, priorAdded })) {
+        const alreadyRecorded = alreadyRecordedByItem[row.itemId] ?? 0;
+        if (shouldAutoSyncClosing(row, { addedIncreased, priorAdded, alreadyRecorded })) {
           if (next === null) next = { ...prev };
           next[row.itemId] = String(totalStockFromRow(row));
         }
@@ -875,7 +917,7 @@ export function StandardStockCountSheetPage({
     });
 
     priorAddedStockSignatureRef.current = addedStockSignature;
-  }, [sheet, addedStockSignature, canEdit, dateStr, saveMutation.isPending, systemSyncMutation.isPending]);
+  }, [sheet, addedStockSignature, canEdit, dateStr, saveMutation.isPending, systemSyncMutation.isPending, alreadyRecordedByItem]);
 
   useEffect(() => {
     setPage(0);
@@ -930,7 +972,7 @@ export function StandardStockCountSheetPage({
       if (isRowChanged(r)) ids.add(r.itemId);
     });
     return ids;
-  }, [sheet?.rows, localClosings, localComments]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sheet?.rows, localClosings, localComments, alreadyRecordedByItem]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasErrors = computedRows.some(
     (r) => changedItemIds.has(r.itemId) && r.closingError
@@ -1030,13 +1072,6 @@ export function StandardStockCountSheetPage({
   ]);
 
   const remainingQtyToRecord = cachedSalesPreview?.totalQtyToRecord ?? 0;
-  const alreadyRecordedByItem = useMemo(() => {
-    const map: Record<string, number> = {};
-    (cachedSalesPreview?.lines ?? []).forEach((line) => {
-      map[line.itemId] = line.alreadyRecorded ?? 0;
-    });
-    return map;
-  }, [cachedSalesPreview?.lines]);
 
   const reactiveTotalQtyToRecord = useMemo(() => {
     let sum = 0;
