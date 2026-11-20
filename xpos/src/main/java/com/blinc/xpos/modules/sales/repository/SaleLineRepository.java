@@ -94,4 +94,31 @@ public interface SaleLineRepository extends JpaRepository<SaleLine, UUID> {
       @Param("orgId") UUID orgId,
       @Param("branchId") UUID branchId,
       @Param("businessDates") Collection<LocalDate> businessDates);
+
+  @Query(
+      """
+      select l.item.id, coalesce(sum(l.lineTotal), 0)
+      from SaleLine l join l.sale s
+      where s.org.id = :orgId and s.branch.id = :branchId
+        and s.status = com.blinc.xpos.common.constants.enums.SaleStatus.COMPLETED
+        and (s.businessDate >= :sinceDate
+             or (s.businessDate is null and s.completedAt >= :sinceInstant))
+      group by l.item.id
+      """)
+  List<Object[]> sumAmountYieldByItemForOrgBranchSince(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("sinceDate") LocalDate sinceDate,
+      @Param("sinceInstant") Instant sinceInstant);
+
+  @Query(
+      """
+      select l.item.id, coalesce(sum(l.lineTotal), 0)
+      from SaleLine l join l.sale s
+      where s.org.id = :orgId and s.branch.id = :branchId
+        and s.status = com.blinc.xpos.common.constants.enums.SaleStatus.COMPLETED
+      group by l.item.id
+      """)
+  List<Object[]> sumAmountYieldByItemForOrgBranch(
+      @Param("orgId") UUID orgId, @Param("branchId") UUID branchId);
 }

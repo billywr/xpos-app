@@ -259,21 +259,23 @@ public class StdStockCountServiceImpl implements StdStockCountService {
 
   private List<Item> sortItemsBySalesVelocity(
       UUID orgId, UUID branchId, List<Item> items, LocalDate businessDate, ZoneId zone) {
-    Instant salesSince = businessDate.minusDays(90).atStartOfDay(zone).toInstant();
-    List<Object[]> soldRows =
-        stockMovementRepository.sumSoldQtyByItemIdForBranchSince(orgId, branchId, salesSince);
-    if (soldRows.isEmpty()) {
-      soldRows = stockMovementRepository.sumSoldQtyByItemIdForBranch(orgId, branchId);
+    LocalDate salesSinceDate = businessDate.minusDays(90);
+    Instant salesSinceInstant = salesSinceDate.atStartOfDay(zone).toInstant();
+    List<Object[]> amountRows =
+        saleLineRepository.sumAmountYieldByItemForOrgBranchSince(
+            orgId, branchId, salesSinceDate, salesSinceInstant);
+    if (amountRows.isEmpty()) {
+      amountRows = saleLineRepository.sumAmountYieldByItemForOrgBranch(orgId, branchId);
     }
-    Map<UUID, BigDecimal> soldQtyByItem = new HashMap<>();
-    for (Object[] r : soldRows) {
-      soldQtyByItem.put((UUID) r[0], (BigDecimal) r[1]);
+    Map<UUID, BigDecimal> amountYieldByItem = new HashMap<>();
+    for (Object[] r : amountRows) {
+      amountYieldByItem.put((UUID) r[0], (BigDecimal) r[1]);
     }
 
     List<Item> sortedItems = new ArrayList<>(items);
     sortedItems.sort(
         Comparator.<Item, BigDecimal>comparing(
-                item -> soldQtyByItem.getOrDefault(item.getId(), BigDecimal.ZERO),
+                item -> amountYieldByItem.getOrDefault(item.getId(), BigDecimal.ZERO),
                 Comparator.reverseOrder())
             .thenComparing(Item::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
     return sortedItems;

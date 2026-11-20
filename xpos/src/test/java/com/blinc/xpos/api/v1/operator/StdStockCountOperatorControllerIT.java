@@ -1798,45 +1798,60 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   @Test
-  void getSheetOrdersItemsBySalesVelocityDescendingThenNameAscending() throws Exception {
+  void getSheetOrdersItemsBySalesAmountYieldDescendingThenNameAscending() throws Exception {
     UUID orgId = createOrg();
     UUID businessId = createBusiness(orgId);
     UUID branchId = createBranch(orgId, businessId);
     UUID staffUserId = createStaffUser(orgId);
     assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID terminalId = createTerminal(orgId, branchId);
 
     UUID itemZebra = createItem(orgId, "Zebra Gin");
     UUID itemAlpha = createItem(orgId, "Alpha Whiskey");
     UUID itemBeta = createItem(orgId, "Beta Beer");
     UUID itemDelta = createItem(orgId, "Delta Wine");
 
+    UUID saleId = UUID.randomUUID();
+    LocalDate todayDate = LocalDate.now();
     jdbcTemplate.update(
         """
-        INSERT INTO stock_movement (id, org_id, branch_id, item_id, movement_type, source_type, source_id, qty, created_at)
-        VALUES (?, ?, ?, ?, 'OUT', 'SALE', ?, ?, ?)
+        INSERT INTO sale (id, org_id, branch_id, terminal_id, status, subtotal, tax_total,\
+        discount_total, service_charge_total, total, created_by_staff_user_id, created_at,\
+        completed_at, business_date)
+        VALUES (?, ?, ?, ?, 'COMPLETED', 1250.00, 0, 0, 0, 1250.00, ?, ?, ?, ?)
+        """,
+        saleId,
+        orgId,
+        branchId,
+        terminalId,
+        staffUserId,
+        Timestamp.from(Instant.now()),
+        Timestamp.from(Instant.now()),
+        todayDate);
+
+    jdbcTemplate.update(
+        """
+        INSERT INTO sale_line (id, org_id, sale_id, item_id, qty, unit_price, line_subtotal, line_total, created_at)
+        VALUES (?, ?, ?, ?, 1.0, 1000.00, 1000.00, 1000.00, ?)
         """,
         UUID.randomUUID(),
         orgId,
-        branchId,
+        saleId,
         itemZebra,
-        UUID.randomUUID(),
-        BigDecimal.valueOf(50),
         Timestamp.from(Instant.now()));
 
     jdbcTemplate.update(
         """
-        INSERT INTO stock_movement (id, org_id, branch_id, item_id, movement_type, source_type, source_id, qty, created_at)
-        VALUES (?, ?, ?, ?, 'OUT', 'SALE', ?, ?, ?)
+        INSERT INTO sale_line (id, org_id, sale_id, item_id, qty, unit_price, line_subtotal, line_total, created_at)
+        VALUES (?, ?, ?, ?, 5.0, 50.00, 250.00, 250.00, ?)
         """,
         UUID.randomUUID(),
         orgId,
-        branchId,
+        saleId,
         itemAlpha,
-        UUID.randomUUID(),
-        BigDecimal.valueOf(10),
         Timestamp.from(Instant.now()));
 
-    String date = LocalDate.now().toString();
+    String date = todayDate.toString();
     String url =
         "/api/v1/operator/orgs/"
             + orgId
@@ -1853,6 +1868,21 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.rows[1].name").value("Alpha Whiskey"))
         .andExpect(jsonPath("$.rows[2].name").value("Beta Beer"))
         .andExpect(jsonPath("$.rows[3].name").value("Delta Wine"));
+  }
+
+  private UUID createTerminal(UUID orgId, UUID branchId) throws Exception {
+    String body = "{\"terminalCode\":\"T1\"}";
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/api/v1/admin/orgs/" + orgId + "/branches/" + branchId + "/terminals")
+                    .with(adminJwt())
+                    .contentType(APPLICATION_JSON)
+                    .content(body))
+            .andExpect(status().isCreated())
+            .andReturn();
+    return UUID.fromString(
+        objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
   }
 
   private void setOnHandQty(UUID orgId, UUID branchId, UUID itemId, BigDecimal qty) {

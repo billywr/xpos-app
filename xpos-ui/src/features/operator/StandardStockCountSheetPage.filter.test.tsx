@@ -2531,6 +2531,7 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
         sellingPrice: 100,
         closingStock: 19, // 1 sold today
         lastSavedAt: "2026-11-20T08:00:00Z",
+        firstStockAddedAt: null,
         comments: null,
       },
       {
@@ -2543,6 +2544,7 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
         sellingPrice: 150,
         closingStock: 15, // 5 sold today (highest sold today!)
         lastSavedAt: "2026-11-20T08:00:00Z",
+        firstStockAddedAt: null,
         comments: null,
       },
       {
@@ -2555,6 +2557,7 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
         sellingPrice: 80,
         closingStock: 10, // 0 sold today
         lastSavedAt: "2026-11-20T08:00:00Z",
+        firstStockAddedAt: null,
         comments: null,
       },
     ];
@@ -2562,8 +2565,8 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
     beforeEach(() => {
       sessionStorage.clear();
       vi.mocked(stdApi.autoSyncStdStockCount).mockResolvedValue({
-        syncedDates: [],
-        syncedRowCount: 0,
+        date: localTodayStr(),
+        rowsSynced: 0,
       });
       vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
         date: localTodayStr(),
