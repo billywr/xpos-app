@@ -141,7 +141,7 @@ describe("StandardStockCountSheetPage filter", () => {
     expect(screen.queryByText("Product 50")).not.toBeInTheDocument();
 
     // Type a search that only matches a row on page 2
-    const input = screen.getByPlaceholderText(/search all columns/i);
+    const input = screen.getByPlaceholderText(/search (items|all columns)/i);
     fireEvent.change(input, { target: { value: "Product 50" } });
 
     // After filtering, the match should appear even though it was on page 2
@@ -151,17 +151,72 @@ describe("StandardStockCountSheetPage filter", () => {
     expect(screen.queryByText("Product 1")).not.toBeInTheDocument();
   });
 
-  it("filter by SKU finds item on a later page", async () => {
+  it("filter searches only by item name and ignores SKU", async () => {
     wrap(<StandardStockCountSheetPage />);
     await waitFor(() => {
       expect(screen.getByText("Product 1")).toBeInTheDocument();
     });
 
-    const input = screen.getByPlaceholderText(/search all columns/i);
+    const input = screen.getByPlaceholderText(/search (items|all columns)/i);
+    // Searching by SKU should not match
     fireEvent.change(input, { target: { value: "SKU072" } });
+    await waitFor(() => {
+      expect(screen.queryByText("Product 72")).not.toBeInTheDocument();
+    });
 
+    // Searching by item name finds item on later page
+    fireEvent.change(input, { target: { value: "Product 72" } });
     await waitFor(() => {
       expect(screen.getByText("Product 72")).toBeInTheDocument();
+    });
+  });
+
+  it("searching 'kc' matches 'K.C 250ml' but not 'Tusker can' whose SKU contains 'kc'", async () => {
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: localTodayStr(),
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-kc",
+          sku: "kc25001",
+          name: "K.C 250ml",
+          openingStock: 14,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 150,
+          closingStock: 14,
+          lastSavedAt: "2026-11-20T10:00:00Z",
+          firstStockAddedAt: null,
+          comments: null,
+        },
+        {
+          itemId: "item-tusker",
+          sku: "tskcan001",
+          name: "Tusker can",
+          openingStock: 6,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 250,
+          closingStock: 6,
+          lastSavedAt: "2026-11-20T10:00:00Z",
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+    await waitFor(() => {
+      expect(screen.getByText("K.C 250ml")).toBeInTheDocument();
+      expect(screen.getByText("Tusker can")).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText(/search (items|all columns)/i);
+    fireEvent.change(input, { target: { value: "kc" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("K.C 250ml")).toBeInTheDocument();
+      expect(screen.queryByText("Tusker can")).not.toBeInTheDocument();
     });
   });
 
@@ -219,7 +274,7 @@ describe("StandardStockCountSheetPage filter", () => {
       expect(screen.getByText("Balozi Sold Out")).toBeInTheDocument();
     });
 
-    const input = screen.getByPlaceholderText(/search all columns/i);
+    const input = screen.getByPlaceholderText(/search (items|all columns)/i);
     fireEvent.change(input, { target: { value: "Balozi" } });
 
     await waitFor(() => {
@@ -527,7 +582,7 @@ describe("StandardStockCountSheetPage filter", () => {
       expect(screen.getByText("Product 1")).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByPlaceholderText(/search all columns/i), {
+    fireEvent.change(screen.getByPlaceholderText(/search (items|all columns)/i), {
       target: { value: "Product 1" },
     });
 

@@ -857,6 +857,7 @@ export function StandardStockCountSheetPage({
   } = useDataTable(tableInputRows, undefined, {
     searchQuery,
     setSearchQuery,
+    getSearchableText: (row) => row.name,
     page,
     size: pageSize,
     setPage,
@@ -1459,7 +1460,7 @@ export function StandardStockCountSheetPage({
               <TableSearchInput
                 value={searchQuery}
                 onChange={setSearchQuery}
-                placeholder="Search all columns…"
+                placeholder="Search items…"
               />
             </div>
             {/* Quick view / ordering mode pills */}

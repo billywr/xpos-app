@@ -1,4 +1,5 @@
 export const DEFAULT_EXPENSE_CATEGORIES = [
+  "Bills",
   "Utilities",
   "Supplies",
   "Maintenance",

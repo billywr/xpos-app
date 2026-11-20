@@ -86,7 +86,7 @@ export function MiscExpensesPage() {
   const [page, setPage] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [formAmount, setFormAmount] = useState("");
-  const [formCategory, setFormCategory] = useState("Other");
+  const [formCategory, setFormCategory] = useState("Bills");
   const [formDescription, setFormDescription] = useState("");
   const [formIncurredBy, setFormIncurredBy] = useState("");
   const [formReceiptRef, setFormReceiptRef] = useState("");
@@ -96,7 +96,7 @@ export function MiscExpensesPage() {
     null
   );
   const [editAmount, setEditAmount] = useState("");
-  const [editCategory, setEditCategory] = useState("Other");
+  const [editCategory, setEditCategory] = useState("Bills");
   const [editDescription, setEditDescription] = useState("");
   const [editIncurredBy, setEditIncurredBy] = useState("");
   const [editReceiptRef, setEditReceiptRef] = useState("");
@@ -128,7 +128,7 @@ export function MiscExpensesPage() {
       queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
       setFormOpen(false);
       setFormAmount("");
-      setFormCategory("Other");
+      setFormCategory("Bills");
       setFormDescription("");
       setFormIncurredBy("");
       setFormReceiptRef("");
@@ -331,7 +331,7 @@ export function MiscExpensesPage() {
   const openEditForm = (e: MiscExpenseResponse) => {
     setEditingExpense(e);
     setEditAmount(String(e.amount));
-    setEditCategory(e.category || "Other");
+    setEditCategory(e.category || "Bills");
     setEditDescription(e.description ?? "");
     setEditIncurredBy(e.incurredBy ?? "");
     setEditReceiptRef(e.receiptRef ?? "");
@@ -344,6 +344,10 @@ export function MiscExpensesPage() {
     const amount = parseFloat(editAmount);
     if (isNaN(amount) || amount <= 0) {
       toast.error("Enter a valid amount.");
+      return;
+    }
+    if (!editIncurredBy.trim()) {
+      toast.error("Enter or select who incurred the expense.");
       return;
     }
     setEditSubmitting(true);
@@ -396,6 +400,10 @@ export function MiscExpensesPage() {
     const amount = parseFloat(formAmount);
     if (isNaN(amount) || amount <= 0) {
       toast.error("Enter a valid amount.");
+      return;
+    }
+    if (!formIncurredBy.trim()) {
+      toast.error("Enter or select who incurred the expense.");
       return;
     }
     if (formCategory.trim()) {
@@ -671,7 +679,7 @@ export function MiscExpensesPage() {
           setFormOpen(false);
           if (!createMutation.isPending) {
             setFormAmount("");
-            setFormCategory("Other");
+            setFormCategory("Bills");
             setFormDescription("");
             setFormIncurredBy("");
             setFormReceiptRef("");
@@ -747,7 +755,7 @@ export function MiscExpensesPage() {
                 htmlFor="incurredBy"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                Incurred by
+                Incurred by *
               </label>
               <SearchableSelect
                 id="incurredBy"
@@ -771,28 +779,11 @@ export function MiscExpensesPage() {
             >
               Description
             </label>
-            <textarea
+            <input
               id="description"
-              rows={3}
+              type="text"
               value={formDescription}
               onChange={(e) => setFormDescription(e.target.value)}
-              placeholder="Optional — e.g. Electricity bill for January"
-              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="receiptRef"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Receipt / Invoice reference
-            </label>
-            <input
-              id="receiptRef"
-              type="text"
-              value={formReceiptRef}
-              onChange={(e) => setFormReceiptRef(e.target.value)}
-              placeholder="Optional"
               className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
             />
           </div>
@@ -877,43 +868,26 @@ export function MiscExpensesPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="editIncurredBy"
-                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
-                  Incurred by
-                </label>
-                <SearchableSelect
-                  id="editIncurredBy"
-                  options={incurredByOptions}
-                  value={editIncurredBy}
-                  onChange={setEditIncurredBy}
-                  allowCustomValue
-                  placeholder="Name of person who incurred the expense"
-                  className="mt-1 block w-full"
-                  controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                  onAddOption={handleAddIncurredBy}
-                  onDeleteOption={handleDeleteIncurredBy}
-                  addOptionPlaceholder="New person name…"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="editReceiptRef"
-                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
-                  Receipt / Invoice reference
-                </label>
-                <input
-                  id="editReceiptRef"
-                  type="text"
-                  value={editReceiptRef}
-                  onChange={(e) => setEditReceiptRef(e.target.value)}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                />
-              </div>
+            <div>
+              <label
+                htmlFor="editIncurredBy"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Incurred by *
+              </label>
+              <SearchableSelect
+                id="editIncurredBy"
+                options={incurredByOptions}
+                value={editIncurredBy}
+                onChange={setEditIncurredBy}
+                allowCustomValue
+                placeholder="Name of person who incurred the expense"
+                className="mt-1 block w-full"
+                controlClassName="shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                onAddOption={handleAddIncurredBy}
+                onDeleteOption={handleDeleteIncurredBy}
+                addOptionPlaceholder="New person name…"
+              />
             </div>
             <div>
               <label
@@ -922,12 +896,11 @@ export function MiscExpensesPage() {
               >
                 Description
               </label>
-              <textarea
+              <input
                 id="editDescription"
-                rows={3}
+                type="text"
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
-                placeholder="Optional — e.g. Electricity bill for January"
                 className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
             </div>
