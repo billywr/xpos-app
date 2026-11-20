@@ -92,6 +92,18 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     BARCODE_ITEMS
   );
   const formCustom = useFormCustomization("item");
+  const itemGridKeys = useMemo(
+    () => [
+      "name",
+      "sku",
+      ...(showBarcode ? ["barcode"] : []),
+      "itemType",
+      "category",
+      "buyingPrice",
+      "sellingPrice",
+    ],
+    [showBarcode]
+  );
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
@@ -1252,7 +1264,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {formCustom.isFieldVisible("name") && (
-                  <div style={{ order: formCustom.getFieldOrder("name") }}>
+                  <div style={{ order: formCustom.getFieldOrder("name") }} className={formCustom.getFieldColSpan("name", itemGridKeys)}>
                     <FormLabel
                       htmlFor="item-name"
                       className="mb-1"
@@ -1274,7 +1286,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 )}
 
                 {formCustom.isFieldVisible("sku") && (
-                  <div style={{ order: formCustom.getFieldOrder("sku") }}>
+                  <div style={{ order: formCustom.getFieldOrder("sku") }} className={formCustom.getFieldColSpan("sku", itemGridKeys)}>
                     <FormLabel
                       htmlFor="item-sku"
                       className="mb-1"
@@ -1295,7 +1307,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 )}
 
                 {showBarcode && formCustom.isFieldVisible("barcode") && (
-                  <div style={{ order: formCustom.getFieldOrder("barcode") }}>
+                  <div style={{ order: formCustom.getFieldOrder("barcode") }} className={formCustom.getFieldColSpan("barcode", itemGridKeys)}>
                     <FormLabel
                       htmlFor="item-barcode"
                       className="mb-1"
@@ -1319,7 +1331,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 )}
 
                 {formCustom.isFieldVisible("itemType") && (
-                  <div style={{ order: formCustom.getFieldOrder("itemType") }}>
+                  <div style={{ order: formCustom.getFieldOrder("itemType") }} className={formCustom.getFieldColSpan("itemType", itemGridKeys)}>
                     <FormLabel
                       htmlFor="item-type"
                       className="mb-1"
@@ -1340,7 +1352,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 )}
 
                 {formCustom.isFieldVisible("category") && (
-                  <div style={{ order: formCustom.getFieldOrder("category") }}>
+                  <div style={{ order: formCustom.getFieldOrder("category") }} className={formCustom.getFieldColSpan("category", itemGridKeys)}>
                     <FormLabel
                       htmlFor="item-category"
                       className="mb-1"
@@ -1361,7 +1373,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 )}
 
                 {formCustom.isFieldVisible("buyingPrice") && (
-                  <div style={{ order: formCustom.getFieldOrder("buyingPrice") }}>
+                  <div style={{ order: formCustom.getFieldOrder("buyingPrice") }} className={formCustom.getFieldColSpan("buyingPrice", itemGridKeys)}>
                     <FormLabel
                       htmlFor="item-buying-price"
                       className="mb-1"
@@ -1384,7 +1396,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 )}
 
                 {formCustom.isFieldVisible("sellingPrice") && (
-                  <div style={{ order: formCustom.getFieldOrder("sellingPrice") }}>
+                  <div style={{ order: formCustom.getFieldOrder("sellingPrice") }} className={formCustom.getFieldColSpan("sellingPrice", itemGridKeys)}>
                     <FormLabel
                       htmlFor="item-selling-price"
                       className="mb-1"

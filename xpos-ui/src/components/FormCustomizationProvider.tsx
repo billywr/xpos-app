@@ -13,6 +13,7 @@ import {
   FormCustomizationContext,
   type ResolvedFormField,
   type FormCustomizationContextValue,
+  computeFieldLayout,
 } from "@/contexts/FormCustomizationContext";
 import {
   FORM_REGISTRY,
@@ -243,7 +244,13 @@ export function FormCustomizationProvider({ children }: { children: ReactNode })
       });
 
       // Sort by order ascending
-      return resolved.sort((a, b) => a.order - b.order);
+      const sorted = resolved.sort((a, b) => a.order - b.order);
+      const layout = computeFieldLayout(sorted);
+      return sorted.map((f) => ({
+        ...f,
+        colSpan: layout[f.key]?.colSpan ?? "",
+        isLone: layout[f.key]?.isLone ?? false,
+      }));
     },
     [combinedVisibility, combinedLabels]
   );
@@ -317,6 +324,29 @@ export function FormCustomizationProvider({ children }: { children: ReactNode })
       return found?.order ?? 99;
     },
     [getFormConfig]
+  );
+
+  const getFieldColSpan = useCallback(
+    (formId: string, fieldKey: string, activeKeys?: string[]): string => {
+      const config = getFormConfig(formId);
+      if (activeKeys) {
+        const filtered = config.filter((f) => activeKeys.includes(f.key));
+        const layout = computeFieldLayout(filtered);
+        return layout[fieldKey]?.colSpan ?? "";
+      }
+      const found = config.find((f) => f.key === fieldKey);
+      return found?.colSpan ?? "";
+    },
+    [getFormConfig]
+  );
+
+  const isFieldLone = useCallback(
+    (formId: string, fieldKey: string, activeKeys?: string[]): boolean => {
+      return Boolean(
+        getFieldColSpan(formId, fieldKey, activeKeys).includes("sm:col-span-2")
+      );
+    },
+    [getFieldColSpan]
   );
 
   const setFieldVisibility = useCallback(
@@ -453,6 +483,8 @@ export function FormCustomizationProvider({ children }: { children: ReactNode })
       getFieldLabel,
       getFieldPlaceholder,
       getFieldOrder,
+      getFieldColSpan,
+      isFieldLone,
       setFieldVisibility,
       setFieldRequired,
       setFieldLabel,
@@ -471,6 +503,8 @@ export function FormCustomizationProvider({ children }: { children: ReactNode })
       getFieldLabel,
       getFieldPlaceholder,
       getFieldOrder,
+      getFieldColSpan,
+      isFieldLone,
       setFieldVisibility,
       setFieldRequired,
       setFieldLabel,

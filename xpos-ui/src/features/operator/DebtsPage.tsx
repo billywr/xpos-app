@@ -869,7 +869,7 @@ export function DebtsPage() {
       >
         <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {formCustom.isFieldVisible("customerName") && (
-            <div style={{ order: formCustom.getFieldOrder("customerName") }}>
+            <div style={{ order: formCustom.getFieldOrder("customerName") }} className={formCustom.getFieldColSpan("customerName")}>
               <label
                 htmlFor="customerName"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -890,7 +890,7 @@ export function DebtsPage() {
           )}
 
           {formCustom.isFieldVisible("customerPhone") && (
-            <div style={{ order: formCustom.getFieldOrder("customerPhone") }}>
+            <div style={{ order: formCustom.getFieldOrder("customerPhone") }} className={formCustom.getFieldColSpan("customerPhone")}>
               <label
                 htmlFor="customerPhone"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -998,7 +998,7 @@ export function DebtsPage() {
           </div>
 
           {formCustom.isFieldVisible("amount") && (
-            <div style={{ order: formCustom.getFieldOrder("amount") }}>
+            <div style={{ order: formCustom.getFieldOrder("amount") }} className={formCustom.getFieldColSpan("amount")}>
               <label
                 htmlFor="amount"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -1037,7 +1037,7 @@ export function DebtsPage() {
           )}
 
           {formCustom.isFieldVisible("recordedOn") && (
-            <div style={{ order: formCustom.getFieldOrder("recordedOn") }}>
+            <div style={{ order: formCustom.getFieldOrder("recordedOn") }} className={formCustom.getFieldColSpan("recordedOn")}>
               <label
                 htmlFor="recordedOn"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -1058,7 +1058,7 @@ export function DebtsPage() {
           )}
 
           {formCustom.isFieldVisible("dueDate") && (
-            <div style={{ order: formCustom.getFieldOrder("dueDate") }}>
+            <div style={{ order: formCustom.getFieldOrder("dueDate") }} className={formCustom.getFieldColSpan("dueDate")}>
               <label
                 htmlFor="dueDate"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -1177,8 +1177,6 @@ export function DebtsPage() {
                   className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                 />
               </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label
                   htmlFor="editAmount"
@@ -1211,21 +1209,21 @@ export function DebtsPage() {
                   className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                 />
               </div>
-            </div>
-            <div>
-              <label
-                htmlFor="editNotes"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Notes
-              </label>
-              <textarea
-                id="editNotes"
-                rows={2}
-                value={editNotes}
-                onChange={(e) => setEditNotes(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-              />
+              <div className="col-span-1 sm:col-span-2">
+                <label
+                  htmlFor="editNotes"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Notes
+                </label>
+                <textarea
+                  id="editNotes"
+                  rows={2}
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3 pt-4">
               <button

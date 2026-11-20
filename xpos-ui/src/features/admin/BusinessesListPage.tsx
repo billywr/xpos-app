@@ -486,32 +486,32 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                     placeholder="Tax registration number"
                   />
                 </div>
-              </div>
-              <div>
-                <FormLabel htmlFor="business-logo-url" className="mb-1">
-                  Logo URL
-                </FormLabel>
-                <input
-                  id="business-logo-url"
-                  type="url"
-                  value={formLogoUrl}
-                  onChange={(e) => setFormLogoUrl(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  placeholder="https://…"
-                />
-              </div>
-              <div>
-                <FormLabel htmlFor="business-receipt-footer" className="mb-1">
-                  Receipt footer
-                </FormLabel>
-                <textarea
-                  id="business-receipt-footer"
-                  rows={3}
-                  value={formReceiptFooter}
-                  onChange={(e) => setFormReceiptFooter(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  placeholder="Text shown at bottom of receipts"
-                />
+                <div className="col-span-1 sm:col-span-2">
+                  <FormLabel htmlFor="business-logo-url" className="mb-1">
+                    Logo URL
+                  </FormLabel>
+                  <input
+                    id="business-logo-url"
+                    type="url"
+                    value={formLogoUrl}
+                    onChange={(e) => setFormLogoUrl(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    placeholder="https://…"
+                  />
+                </div>
+                <div className="col-span-1 sm:col-span-2">
+                  <FormLabel htmlFor="business-receipt-footer" className="mb-1">
+                    Receipt footer
+                  </FormLabel>
+                  <textarea
+                    id="business-receipt-footer"
+                    rows={3}
+                    value={formReceiptFooter}
+                    onChange={(e) => setFormReceiptFooter(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    placeholder="Text shown at bottom of receipts"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3 pt-4">
                 <Button type="submit" size="md" className="w-full" disabled={submitLoading}>

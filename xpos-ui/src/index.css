@@ -1173,3 +1173,11 @@ button:not([class*="text-"]),
   animation: pulse-glow 1.5s ease-in-out infinite;
 }
 
+/* ========================================================================= */
+/* Global 2-column form sheets: Lone odd items automatically take full width */
+/* ========================================================================= */
+@media (min-width: 640px) {
+  .grid-cols-1.sm\:grid-cols-2 > *:last-child:nth-child(odd) {
+    grid-column: span 2 / span 2;
+  }
+}

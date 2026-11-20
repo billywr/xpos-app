@@ -553,23 +553,40 @@ export function StockTakingSchedulesPage() {
         title={editingSchedule ? "Edit schedule" : "Add schedule"}
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {!editingSchedule ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <FormLabel htmlFor="stock-schedule-branch" className="mb-1" required>
-                  Branch
-                </FormLabel>
-                <SearchableSelect
-                  id="stock-schedule-branch"
-                  options={scheduleBranchFormOptions}
-                  value={branchId}
-                  onChange={setBranchId}
-                  placeholder="Search branch…"
-                  className="w-full"
-                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                />
-              </div>
-              <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {!editingSchedule ? (
+              <>
+                <div>
+                  <FormLabel htmlFor="stock-schedule-branch" className="mb-1" required>
+                    Branch
+                  </FormLabel>
+                  <SearchableSelect
+                    id="stock-schedule-branch"
+                    options={scheduleBranchFormOptions}
+                    value={branchId}
+                    onChange={setBranchId}
+                    placeholder="Search branch…"
+                    className="w-full"
+                    controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <FormLabel htmlFor="stock-schedule-frequency" className="mb-1">
+                    Frequency
+                  </FormLabel>
+                  <SearchableSelect
+                    id="stock-schedule-frequency"
+                    options={frequencyOptions}
+                    value={frequency}
+                    onChange={(v) => setFrequency(v as "DAILY" | "WEEKLY")}
+                    placeholder="Search…"
+                    className="w-full"
+                    controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="col-span-1 sm:col-span-2">
                 <FormLabel htmlFor="stock-schedule-frequency" className="mb-1">
                   Frequency
                 </FormLabel>
@@ -583,41 +600,24 @@ export function StockTakingSchedulesPage() {
                   controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
                 />
               </div>
-            </div>
-          ) : (
-            <div>
-              <FormLabel htmlFor="stock-schedule-frequency" className="mb-1">
-                Frequency
-              </FormLabel>
-              <SearchableSelect
-                id="stock-schedule-frequency"
-                options={frequencyOptions}
-                value={frequency}
-                onChange={(v) => setFrequency(v as "DAILY" | "WEEKLY")}
-                placeholder="Search…"
-                className="w-full"
-                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-              />
-            </div>
-          )}
-          {frequency === "WEEKLY" && (
-            <div>
-              <FormLabel htmlFor="stock-schedule-dow" className="mb-1">
-                Day of week
-              </FormLabel>
-              <SearchableSelect
-                id="stock-schedule-dow"
-                options={dayOfWeekOptions}
-                value={String(dayOfWeek)}
-                onChange={(v) => setDayOfWeek(Number(v))}
-                placeholder="Search day…"
-                matchOptionValue
-                className="w-full"
-                controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-              />
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-4">
+            )}
+            {frequency === "WEEKLY" && (
+              <div className="col-span-1 sm:col-span-2">
+                <FormLabel htmlFor="stock-schedule-dow" className="mb-1">
+                  Day of week
+                </FormLabel>
+                <SearchableSelect
+                  id="stock-schedule-dow"
+                  options={dayOfWeekOptions}
+                  value={String(dayOfWeek)}
+                  onChange={(v) => setDayOfWeek(Number(v))}
+                  placeholder="Search day…"
+                  matchOptionValue
+                  className="w-full"
+                  controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                />
+              </div>
+            )}
             <div>
               <FormLabel className="mb-1">
                 Hour (0–23)
@@ -644,21 +644,21 @@ export function StockTakingSchedulesPage() {
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
             </div>
+            {editingSchedule && (
+              <div className="col-span-1 sm:col-span-2 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  className="rounded border-slate-300"
+                />
+                <label htmlFor="isActive" className="text-sm text-slate-700 dark:text-slate-300">
+                  Active
+                </label>
+              </div>
+            )}
           </div>
-          {editingSchedule && (
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={isActive}
-                onChange={(e) => setIsActive(e.target.checked)}
-                className="rounded border-slate-300"
-              />
-              <label htmlFor="isActive" className="text-sm text-slate-700 dark:text-slate-300">
-                Active
-              </label>
-            </div>
-          )}
           <div className="grid grid-cols-2 gap-3 pt-4">
             <Button
               type="submit"

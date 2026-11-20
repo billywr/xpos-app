@@ -773,23 +773,21 @@ export function AdminTablesPage() {
                 controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
               />
             </div>
-          </div>
-          {editingTable ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <FormLabel htmlFor="table-capacity">
-                  Capacity
-                </FormLabel>
-                <input
-                  id="table-capacity"
-                  type="number"
-                  min="0"
-                  value={tableFormCapacity}
-                  onChange={(e) => setTableFormCapacity(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  placeholder="e.g. 4"
-                />
-              </div>
+            <div className={editingTable ? "" : "col-span-1 sm:col-span-2"}>
+              <FormLabel htmlFor="table-capacity">
+                Capacity
+              </FormLabel>
+              <input
+                id="table-capacity"
+                type="number"
+                min="0"
+                value={tableFormCapacity}
+                onChange={(e) => setTableFormCapacity(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                placeholder="e.g. 4"
+              />
+            </div>
+            {editingTable && (
               <div>
                 <FormLabel htmlFor="table-status">
                   Status
@@ -804,23 +802,8 @@ export function AdminTablesPage() {
                   controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
                 />
               </div>
-            </div>
-          ) : (
-            <div>
-              <FormLabel htmlFor="table-capacity">
-                Capacity
-              </FormLabel>
-              <input
-                id="table-capacity"
-                type="number"
-                min="0"
-                value={tableFormCapacity}
-                onChange={(e) => setTableFormCapacity(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                placeholder="e.g. 4"
-              />
-            </div>
-          )}
+            )}
+          </div>
           {tableFormError && (
             <p className="text-sm text-red-600 dark:text-red-400">
               {tableFormError}

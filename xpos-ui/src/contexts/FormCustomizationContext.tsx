@@ -18,6 +18,76 @@ export interface ResolvedFormField {
   customLabel?: string;
   customPlaceholder?: string;
   showPlaceholder: boolean;
+  colSpan?: string;
+  isLone?: boolean;
+}
+
+/**
+ * Computes dynamic 2-column grid placement:
+ * If a field is alone on its row (e.g. 5 fields visible, or 1 field only, or lone before notes),
+ * it expands to take the whole width (col-span-1 sm:col-span-2).
+ */
+export function computeFieldLayout(
+  fields: { key: string; order: number; visible: boolean }[]
+): Record<string, { colSpan: string; isLone: boolean }> {
+  const visible = fields
+    .filter((f) => f.visible)
+    .sort((a, b) => a.order - b.order);
+  const result: Record<string, { colSpan: string; isLone: boolean }> = {};
+
+  for (const f of fields) {
+    result[f.key] = { colSpan: "", isLone: false };
+  }
+
+  const isInherentlyFullWidth = (key: string) =>
+    key === "notes" || key === "address";
+
+  let colInRow = 0; // 0 = left column, 1 = right column
+
+  for (let i = 0; i < visible.length; i++) {
+    const f = visible[i];
+    const isFullWidth = isInherentlyFullWidth(f.key);
+
+    if (isFullWidth) {
+      if (colInRow === 1 && i > 0) {
+        result[visible[i - 1].key] = {
+          colSpan: "col-span-1 sm:col-span-2",
+          isLone: true,
+        };
+      }
+      result[f.key] = {
+        colSpan: "col-span-1 sm:col-span-2",
+        isLone: true,
+      };
+      colInRow = 0;
+    } else {
+      const isLast = i === visible.length - 1;
+      const nextIsFullWidth =
+        i < visible.length - 1 && isInherentlyFullWidth(visible[i + 1].key);
+
+      if (colInRow === 0 && (isLast || nextIsFullWidth)) {
+        result[f.key] = {
+          colSpan: "col-span-1 sm:col-span-2",
+          isLone: true,
+        };
+        colInRow = 0;
+      } else if (colInRow === 0) {
+        result[f.key] = {
+          colSpan: "",
+          isLone: false,
+        };
+        colInRow = 1;
+      } else {
+        result[f.key] = {
+          colSpan: "",
+          isLone: false,
+        };
+        colInRow = 0;
+      }
+    }
+  }
+
+  return result;
 }
 
 export interface FormCustomizationContextValue {
@@ -35,6 +105,16 @@ export interface FormCustomizationContextValue {
     fallback?: string
   ) => string | undefined;
   getFieldOrder: (formId: string, fieldKey: string) => number;
+  getFieldColSpan: (
+    formId: string,
+    fieldKey: string,
+    activeKeys?: string[]
+  ) => string;
+  isFieldLone: (
+    formId: string,
+    fieldKey: string,
+    activeKeys?: string[]
+  ) => boolean;
   setFieldVisibility: (
     formId: string,
     fieldKey: string,
@@ -80,7 +160,7 @@ const fallbackContextValue: FormCustomizationContextValue = {
   getFormConfig: (formId: string): ResolvedFormField[] => {
     const formDef = FORM_REGISTRY[formId];
     if (!formDef) return [];
-    return formDef.fields.map(
+    const raw = formDef.fields.map(
       (f): ResolvedFormField => ({
         key: f.key,
         label: f.defaultLabel,
@@ -95,6 +175,14 @@ const fallbackContextValue: FormCustomizationContextValue = {
         showPlaceholder: true,
       })
     );
+    const layout = computeFieldLayout(raw);
+    return raw
+      .map((f) => ({
+        ...f,
+        colSpan: layout[f.key]?.colSpan ?? "",
+        isLone: layout[f.key]?.isLone ?? false,
+      }))
+      .sort((a, b) => a.order - b.order);
   },
   isFieldVisible: () => true,
   isFieldRequired: (formId, fieldKey, fallback) => {
@@ -116,6 +204,23 @@ const fallbackContextValue: FormCustomizationContextValue = {
     const formDef = FORM_REGISTRY[formId];
     const def = formDef?.fields.find((f) => f.key === fieldKey);
     return def?.defaultOrder ?? 99;
+  },
+  getFieldColSpan: (formId, fieldKey, activeKeys) => {
+    const config = fallbackContextValue.getFormConfig(formId);
+    if (activeKeys) {
+      const filtered = config.filter((f) => activeKeys.includes(f.key));
+      const layout = computeFieldLayout(filtered);
+      return layout[fieldKey]?.colSpan ?? "";
+    }
+    const found = config.find((f) => f.key === fieldKey);
+    return found?.colSpan ?? "";
+  },
+  isFieldLone: (formId, fieldKey, activeKeys) => {
+    return Boolean(
+      fallbackContextValue
+        .getFieldColSpan(formId, fieldKey, activeKeys)
+        .includes("sm:col-span-2")
+    );
   },
   setFieldVisibility: () => {},
   setFieldRequired: () => {},
@@ -151,7 +256,7 @@ export function useFormCustomization(formId: string) {
     }
     // Fallback when context is missing (e.g. standalone test)
     if (!formDef) return [];
-    return formDef.fields.map(
+    const raw = formDef.fields.map(
       (f): ResolvedFormField => ({
         key: f.key,
         label: f.defaultLabel,
@@ -166,6 +271,14 @@ export function useFormCustomization(formId: string) {
         showPlaceholder: true,
       })
     );
+    const layout = computeFieldLayout(raw);
+    return raw
+      .map((f) => ({
+        ...f,
+        colSpan: layout[f.key]?.colSpan ?? "",
+        isLone: layout[f.key]?.isLone ?? false,
+      }))
+      .sort((a, b) => a.order - b.order);
   }, [ctx, formId, formDef]);
 
   const isFieldVisible = (fieldKey: string): boolean => {
@@ -200,6 +313,22 @@ export function useFormCustomization(formId: string) {
     return def?.defaultOrder ?? 99;
   };
 
+  const getFieldColSpan = (fieldKey: string, activeKeys?: string[]): string => {
+    if (ctx) return ctx.getFieldColSpan(formId, fieldKey, activeKeys);
+    if (activeKeys) {
+      const filtered = sortedFields.filter((f) => activeKeys.includes(f.key));
+      const layout = computeFieldLayout(filtered);
+      return layout[fieldKey]?.colSpan ?? "";
+    }
+    const found = sortedFields.find((f) => f.key === fieldKey);
+    return found?.colSpan ?? "";
+  };
+
+  const isFieldLone = (fieldKey: string, activeKeys?: string[]): boolean => {
+    if (ctx) return ctx.isFieldLone(formId, fieldKey, activeKeys);
+    return Boolean(getFieldColSpan(fieldKey, activeKeys).includes("sm:col-span-2"));
+  };
+
   return {
     form: formDef,
     fields: sortedFields,
@@ -209,6 +338,8 @@ export function useFormCustomization(formId: string) {
     getFieldLabel,
     getFieldPlaceholder,
     getFieldOrder,
+    getFieldColSpan,
+    isFieldLone,
     setFieldVisibility: (fieldKey: string, visible: boolean) =>
       ctx?.setFieldVisibility(formId, fieldKey, visible),
     setFieldRequired: (fieldKey: string, required: boolean) =>

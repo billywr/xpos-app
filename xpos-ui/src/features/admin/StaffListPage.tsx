@@ -725,8 +725,6 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                       />
                     </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <FormLabel htmlFor="profile-email" className="mb-1">
                         Email
@@ -751,8 +749,6 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                       />
                     </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <FormLabel htmlFor="profile-default-branch" className="mb-1">
                         Default branch

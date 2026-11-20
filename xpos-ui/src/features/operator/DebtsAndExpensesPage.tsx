@@ -2743,7 +2743,7 @@ export function DebtsAndExpensesPage({
       >
         <form onSubmit={handleDebtSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {debtFormCustom.isFieldVisible("customerName") && (
-            <div style={{ order: debtFormCustom.getFieldOrder("customerName") }}>
+            <div style={{ order: debtFormCustom.getFieldOrder("customerName") }} className={debtFormCustom.getFieldColSpan("customerName")}>
               <label htmlFor="customerName" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 {debtFormCustom.getFieldLabel("customerName", "Customer name")}
                 {debtFormCustom.isFieldRequired("customerName", true) && " *"}
@@ -2761,7 +2761,7 @@ export function DebtsAndExpensesPage({
           )}
 
           {debtFormCustom.isFieldVisible("customerPhone") && (
-            <div style={{ order: debtFormCustom.getFieldOrder("customerPhone") }}>
+            <div style={{ order: debtFormCustom.getFieldOrder("customerPhone") }} className={debtFormCustom.getFieldColSpan("customerPhone")}>
               <label htmlFor="customerPhone" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 {debtFormCustom.getFieldLabel("customerPhone", "Customer phone")}
                 {debtFormCustom.isFieldRequired("customerPhone", false) && " *"}
@@ -2851,7 +2851,7 @@ export function DebtsAndExpensesPage({
           </div>
 
           {debtFormCustom.isFieldVisible("amount") && (
-            <div style={{ order: debtFormCustom.getFieldOrder("amount") }}>
+            <div style={{ order: debtFormCustom.getFieldOrder("amount") }} className={debtFormCustom.getFieldColSpan("amount")}>
               <label htmlFor="debtAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 {debtFormCustom.getFieldLabel("amount", "Amount")}
                 {debtFormCustom.isFieldRequired("amount", true) && " *"}
@@ -2878,7 +2878,7 @@ export function DebtsAndExpensesPage({
           )}
 
           {debtFormCustom.isFieldVisible("recordedOn") && (
-            <div style={{ order: debtFormCustom.getFieldOrder("recordedOn") }}>
+            <div style={{ order: debtFormCustom.getFieldOrder("recordedOn") }} className={debtFormCustom.getFieldColSpan("recordedOn")}>
               <label htmlFor="debtRecordedOn" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 {debtFormCustom.getFieldLabel("recordedOn", "Date")}
                 {debtFormCustom.isFieldRequired("recordedOn", true) && " *"}
@@ -2896,7 +2896,7 @@ export function DebtsAndExpensesPage({
           )}
 
           {debtFormCustom.isFieldVisible("dueDate") && (
-            <div style={{ order: debtFormCustom.getFieldOrder("dueDate") }}>
+            <div style={{ order: debtFormCustom.getFieldOrder("dueDate") }} className={debtFormCustom.getFieldColSpan("dueDate")}>
               <label htmlFor="dueDate" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 {debtFormCustom.getFieldLabel("dueDate", "Due date")}
                 {debtFormCustom.isFieldRequired("dueDate", false) && " *"}
@@ -2971,22 +2971,20 @@ export function DebtsAndExpensesPage({
                 <label htmlFor="editCustomerPhone" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Customer phone</label>
                 <input id="editCustomerPhone" type="tel" value={editDebtCustomerPhone} onChange={(e) => setEditDebtCustomerPhone(e.target.value)} placeholder="e.g. +254 700 123 456" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white" />
               </div>
-            </div>
-            <div>
-              <label htmlFor="editDebtIssuedBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Issued by</label>
-              <SearchableSelect
-                id="editDebtIssuedBy"
-                aria-label="Issued by"
-                options={issuedBySelectOptions}
-                value={editDebtIssuedBy}
-                onChange={setEditDebtIssuedBy}
-                allowCustomValue
-                placeholder="Search or type a name…"
-                className="mt-1 block w-full"
-                controlClassName="border-slate-300 shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus-within:border-primary-400 dark:focus-within:ring-primary-400"
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="col-span-1 sm:col-span-2">
+                <label htmlFor="editDebtIssuedBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Issued by</label>
+                <SearchableSelect
+                  id="editDebtIssuedBy"
+                  aria-label="Issued by"
+                  options={issuedBySelectOptions}
+                  value={editDebtIssuedBy}
+                  onChange={setEditDebtIssuedBy}
+                  allowCustomValue
+                  placeholder="Search or type a name…"
+                  className="mt-1 block w-full"
+                  controlClassName="border-slate-300 shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus-within:border-primary-400 dark:focus-within:ring-primary-400"
+                />
+              </div>
               <div>
                 <label htmlFor="editDebtAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Amount *</label>
                 <input id="editDebtAmount" type="number" step="0.01" min="0.01" required value={editDebtAmount} onChange={(e) => setEditDebtAmount(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
@@ -2995,10 +2993,10 @@ export function DebtsAndExpensesPage({
                 <label htmlFor="editDebtDueDate" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Due date</label>
                 <DateInput id="editDebtDueDate" value={editDebtDueDate} onChange={(e) => setEditDebtDueDate(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
               </div>
-            </div>
-            <div>
-              <label htmlFor="editDebtNotes" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
-              <textarea id="editDebtNotes" rows={2} value={editDebtNotes} onChange={(e) => setEditDebtNotes(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+              <div className="col-span-1 sm:col-span-2">
+                <label htmlFor="editDebtNotes" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
+                <textarea id="editDebtNotes" rows={2} value={editDebtNotes} onChange={(e) => setEditDebtNotes(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3 pt-4">
               <button type="submit" disabled={editDebtSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
@@ -3183,7 +3181,7 @@ export function DebtsAndExpensesPage({
       >
         <form onSubmit={handleExpSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {expFormCustom.isFieldVisible("recordedOn") && (
-            <div style={{ order: expFormCustom.getFieldOrder("recordedOn") }}>
+            <div style={{ order: expFormCustom.getFieldOrder("recordedOn") }} className={expFormCustom.getFieldColSpan("recordedOn")}>
               <label htmlFor="expRecordedOn" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 {expFormCustom.getFieldLabel("recordedOn", "Date")}
                 {expFormCustom.isFieldRequired("recordedOn", true) && " *"}
@@ -3201,7 +3199,7 @@ export function DebtsAndExpensesPage({
           )}
 
           {expFormCustom.isFieldVisible("amount") && (
-            <div style={{ order: expFormCustom.getFieldOrder("amount") }}>
+            <div style={{ order: expFormCustom.getFieldOrder("amount") }} className={expFormCustom.getFieldColSpan("amount")}>
               <label htmlFor="expAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 {expFormCustom.getFieldLabel("amount", "Amount")}
                 {expFormCustom.isFieldRequired("amount", true) && " *"}
@@ -3221,7 +3219,7 @@ export function DebtsAndExpensesPage({
           )}
 
           {expFormCustom.isFieldVisible("category") && (
-            <div style={{ order: expFormCustom.getFieldOrder("category") }}>
+            <div style={{ order: expFormCustom.getFieldOrder("category") }} className={expFormCustom.getFieldColSpan("category")}>
               <label htmlFor="expCategory" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 {expFormCustom.getFieldLabel("category", "Spent on")}
                 {expFormCustom.isFieldRequired("category", true) && " *"}
@@ -3243,7 +3241,7 @@ export function DebtsAndExpensesPage({
           )}
 
           {expFormCustom.isFieldVisible("incurredBy") && (
-            <div style={{ order: expFormCustom.getFieldOrder("incurredBy") }}>
+            <div style={{ order: expFormCustom.getFieldOrder("incurredBy") }} className={expFormCustom.getFieldColSpan("incurredBy")}>
               <label htmlFor="expIncurredBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 {expFormCustom.getFieldLabel("incurredBy", "Incurred by")}
                 {expFormCustom.isFieldRequired("incurredBy", true) && " *"}
@@ -3265,7 +3263,7 @@ export function DebtsAndExpensesPage({
           )}
 
           {expFormCustom.isFieldVisible("description") && (
-            <div style={{ order: expFormCustom.getFieldOrder("description") }}>
+            <div style={{ order: expFormCustom.getFieldOrder("description") }} className={expFormCustom.getFieldColSpan("description")}>
               <label htmlFor="expDescription" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 {expFormCustom.getFieldLabel("description", "Description")}
                 {expFormCustom.isFieldRequired("description", false) && " *"}
@@ -3283,7 +3281,7 @@ export function DebtsAndExpensesPage({
           )}
 
           {expFormCustom.isFieldVisible("receiptRef") && (
-            <div style={{ order: expFormCustom.getFieldOrder("receiptRef") }}>
+            <div style={{ order: expFormCustom.getFieldOrder("receiptRef") }} className={expFormCustom.getFieldColSpan("receiptRef")}>
               <label htmlFor="expReceiptRef" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 {expFormCustom.getFieldLabel("receiptRef", "Receipt / Voucher Ref")}
                 {expFormCustom.isFieldRequired("receiptRef", false) && " *"}
@@ -3327,7 +3325,7 @@ export function DebtsAndExpensesPage({
         {editingExpense && (
           <form onSubmit={handleExpEditSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {expFormCustom.isFieldVisible("amount") && (
-              <div style={{ order: expFormCustom.getFieldOrder("amount") }}>
+              <div style={{ order: expFormCustom.getFieldOrder("amount") }} className={expFormCustom.getFieldColSpan("amount", ["amount", "category", "incurredBy", "description"])}>
                 <label htmlFor="editExpAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                   {expFormCustom.getFieldLabel("amount", "Amount")}
                   {expFormCustom.isFieldRequired("amount", true) && " *"}
@@ -3347,7 +3345,7 @@ export function DebtsAndExpensesPage({
             )}
 
             {expFormCustom.isFieldVisible("category") && (
-              <div style={{ order: expFormCustom.getFieldOrder("category") }}>
+              <div style={{ order: expFormCustom.getFieldOrder("category") }} className={expFormCustom.getFieldColSpan("category", ["amount", "category", "incurredBy", "description"])}>
                 <label htmlFor="editExpCategory" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                   {expFormCustom.getFieldLabel("category", "Spent on")}
                   {expFormCustom.isFieldRequired("category", true) && " *"}
@@ -3369,7 +3367,7 @@ export function DebtsAndExpensesPage({
             )}
 
             {expFormCustom.isFieldVisible("incurredBy") && (
-              <div style={{ order: expFormCustom.getFieldOrder("incurredBy") }}>
+              <div style={{ order: expFormCustom.getFieldOrder("incurredBy") }} className={expFormCustom.getFieldColSpan("incurredBy", ["amount", "category", "incurredBy", "description"])}>
                 <label htmlFor="editExpIncurredBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                   {expFormCustom.getFieldLabel("incurredBy", "Incurred by")}
                   {expFormCustom.isFieldRequired("incurredBy", true) && " *"}
@@ -3391,7 +3389,7 @@ export function DebtsAndExpensesPage({
             )}
 
             {expFormCustom.isFieldVisible("description") && (
-              <div style={{ order: expFormCustom.getFieldOrder("description") }}>
+              <div style={{ order: expFormCustom.getFieldOrder("description") }} className={expFormCustom.getFieldColSpan("description", ["amount", "category", "incurredBy", "description"])}>
                 <label htmlFor="editExpDescription" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                   {expFormCustom.getFieldLabel("description", "Description")}
                   {expFormCustom.isFieldRequired("description", false) && " *"}

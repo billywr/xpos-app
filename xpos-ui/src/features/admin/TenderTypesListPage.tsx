@@ -464,23 +464,23 @@ export function TenderTypesListPage() {
                     placeholder="e.g. Cash"
                   />
                 </div>
+                {editingTenderType && (
+                  <div className="col-span-1 sm:col-span-2">
+                    <FormLabel htmlFor="tender-type-active" className="mb-1">
+                      Active
+                    </FormLabel>
+                    <SearchableSelect
+                      id="tender-type-active"
+                      options={tenderActiveOptions}
+                      value={formActive ? "true" : "false"}
+                      onChange={(v) => setFormActive(v === "true")}
+                      placeholder="Search…"
+                      className="w-full"
+                      controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                    />
+                  </div>
+                )}
               </div>
-              {editingTenderType && (
-                <div>
-                  <FormLabel htmlFor="tender-type-active" className="mb-1">
-                    Active
-                  </FormLabel>
-                  <SearchableSelect
-                    id="tender-type-active"
-                    options={tenderActiveOptions}
-                    value={formActive ? "true" : "false"}
-                    onChange={(v) => setFormActive(v === "true")}
-                    placeholder="Search…"
-                    className="w-full"
-                    controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                  />
-                </div>
-              )}
               <div className="grid grid-cols-2 gap-3 pt-4">
                 <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
                   {submitLoading ? "Saving…" : "Save"}

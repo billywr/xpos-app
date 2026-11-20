@@ -45,6 +45,8 @@ describe("FormCustomizationSettingsSection", () => {
       getFieldLabel: vi.fn((_f, key) => (key === "amount" ? "Amount (KSH)" : "Notes")),
       getFieldPlaceholder: vi.fn((_f, key) => (key === "amount" ? "0.00" : "Optional details…")),
       getFieldOrder: vi.fn((_f, key) => (key === "amount" ? 1 : 2)),
+      getFieldColSpan: vi.fn(() => ""),
+      isFieldLone: vi.fn(() => false),
       setFieldVisibility: vi.fn(),
       setFieldLabel: vi.fn(),
       setFieldShowPlaceholder: vi.fn(),

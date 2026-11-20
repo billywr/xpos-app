@@ -607,8 +607,6 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
                     </p>
                   )}
                 </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <FormLabel htmlFor="branch-timezone" className="mb-1">
                     Timezone
@@ -635,23 +633,23 @@ export function BranchesListPage({ initialOrgId }: BranchesListPageProps = {}) {
                     placeholder="KES"
                   />
                 </div>
+                {editingBranch && (
+                  <div className="col-span-1 sm:col-span-2">
+                    <FormLabel htmlFor="branch-status" className="mb-1">
+                      Status
+                    </FormLabel>
+                    <SearchableSelect
+                      id="branch-status"
+                      options={branchStatusOptions}
+                      value={formStatus}
+                      onChange={setFormStatus}
+                      placeholder="Search status…"
+                      className="w-full"
+                      controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
+                    />
+                  </div>
+                )}
               </div>
-              {editingBranch && (
-                <div>
-                  <FormLabel htmlFor="branch-status" className="mb-1">
-                    Status
-                  </FormLabel>
-                  <SearchableSelect
-                    id="branch-status"
-                    options={branchStatusOptions}
-                    value={formStatus}
-                    onChange={setFormStatus}
-                    placeholder="Search status…"
-                    className="w-full"
-                    controlClassName="focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500"
-                  />
-                </div>
-              )}
               <div className="grid grid-cols-2 gap-3 pt-4">
                 <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
                   {submitLoading ? "Saving…" : "Save"}

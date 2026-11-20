@@ -507,7 +507,7 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                 </p>
               )}
               {categoryCustom.isFieldVisible("name") && (
-                <div style={{ order: categoryCustom.getFieldOrder("name") }}>
+                <div style={{ order: categoryCustom.getFieldOrder("name") }} className={categoryCustom.getFieldColSpan("name")}>
                   <FormLabel
                     htmlFor="category-name"
                     className="mb-1"
@@ -528,7 +528,7 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                 </div>
               )}
               {categoryCustom.isFieldVisible("parentCategory") && (
-                <div style={{ order: categoryCustom.getFieldOrder("parentCategory") }}>
+                <div style={{ order: categoryCustom.getFieldOrder("parentCategory") }} className={categoryCustom.getFieldColSpan("parentCategory")}>
                   <FormLabel
                     htmlFor="category-parent"
                     className="mb-1"
@@ -548,7 +548,7 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                 </div>
               )}
               {categoryCustom.isFieldVisible("type") && (
-                <div style={{ order: categoryCustom.getFieldOrder("type") }}>
+                <div style={{ order: categoryCustom.getFieldOrder("type") }} className={categoryCustom.getFieldColSpan("type")}>
                   <FormLabel
                     htmlFor="category-type"
                     className="mb-1"

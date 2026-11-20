@@ -514,19 +514,19 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                     autoFocus
                   />
                 </div>
-              </div>
-              <div>
-                <FormLabel htmlFor="register-fingerprint" className="mb-1">
-                  Device fingerprint
-                </FormLabel>
-                <input
-                  id="register-fingerprint"
-                  type="text"
-                  value={formFingerprint}
-                  onChange={(e) => setFormFingerprint(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  placeholder="Leave empty if not used"
-                />
+                <div className="col-span-1 sm:col-span-2">
+                  <FormLabel htmlFor="register-fingerprint" className="mb-1">
+                    Device fingerprint
+                  </FormLabel>
+                  <input
+                    id="register-fingerprint"
+                    type="text"
+                    value={formFingerprint}
+                    onChange={(e) => setFormFingerprint(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    placeholder="Leave empty if not used"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3 pt-4">
                 <Button type="submit" size="md" className="w-full" disabled={submitLoading}>

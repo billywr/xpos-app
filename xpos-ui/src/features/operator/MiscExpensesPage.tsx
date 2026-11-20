@@ -693,7 +693,7 @@ export function MiscExpensesPage() {
       >
         <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {formCustom.isFieldVisible("recordedOn") && (
-            <div style={{ order: formCustom.getFieldOrder("recordedOn") }}>
+            <div style={{ order: formCustom.getFieldOrder("recordedOn") }} className={formCustom.getFieldColSpan("recordedOn")}>
               <label
                 htmlFor="recordedOn"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -713,7 +713,7 @@ export function MiscExpensesPage() {
           )}
 
           {formCustom.isFieldVisible("amount") && (
-            <div style={{ order: formCustom.getFieldOrder("amount") }}>
+            <div style={{ order: formCustom.getFieldOrder("amount") }} className={formCustom.getFieldColSpan("amount")}>
               <label
                 htmlFor="amount"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -736,7 +736,7 @@ export function MiscExpensesPage() {
           )}
 
           {formCustom.isFieldVisible("category") && (
-            <div style={{ order: formCustom.getFieldOrder("category") }}>
+            <div style={{ order: formCustom.getFieldOrder("category") }} className={formCustom.getFieldColSpan("category")}>
               <label
                 htmlFor="category"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -761,7 +761,7 @@ export function MiscExpensesPage() {
           )}
 
           {formCustom.isFieldVisible("incurredBy") && (
-            <div style={{ order: formCustom.getFieldOrder("incurredBy") }}>
+            <div style={{ order: formCustom.getFieldOrder("incurredBy") }} className={formCustom.getFieldColSpan("incurredBy")}>
               <label
                 htmlFor="incurredBy"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -786,7 +786,7 @@ export function MiscExpensesPage() {
           )}
 
           {formCustom.isFieldVisible("description") && (
-            <div style={{ order: formCustom.getFieldOrder("description") }}>
+            <div style={{ order: formCustom.getFieldOrder("description") }} className={formCustom.getFieldColSpan("description")}>
               <label
                 htmlFor="description"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -805,7 +805,7 @@ export function MiscExpensesPage() {
           )}
 
           {formCustom.isFieldVisible("receiptRef") && (
-            <div style={{ order: formCustom.getFieldOrder("receiptRef") }}>
+            <div style={{ order: formCustom.getFieldOrder("receiptRef") }} className={formCustom.getFieldColSpan("receiptRef")}>
               <label
                 htmlFor="receiptRef"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -864,7 +864,7 @@ export function MiscExpensesPage() {
         {editingExpense && (
           <form onSubmit={handleEditSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {formCustom.isFieldVisible("amount") && (
-              <div style={{ order: formCustom.getFieldOrder("amount") }}>
+              <div style={{ order: formCustom.getFieldOrder("amount") }} className={formCustom.getFieldColSpan("amount", ["amount", "category", "incurredBy", "description"])}>
                 <label
                   htmlFor="editAmount"
                   className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -887,7 +887,7 @@ export function MiscExpensesPage() {
             )}
 
             {formCustom.isFieldVisible("category") && (
-              <div style={{ order: formCustom.getFieldOrder("category") }}>
+              <div style={{ order: formCustom.getFieldOrder("category") }} className={formCustom.getFieldColSpan("category", ["amount", "category", "incurredBy", "description"])}>
                 <label
                   htmlFor="editCategory"
                   className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -912,7 +912,7 @@ export function MiscExpensesPage() {
             )}
 
             {formCustom.isFieldVisible("incurredBy") && (
-              <div style={{ order: formCustom.getFieldOrder("incurredBy") }}>
+              <div style={{ order: formCustom.getFieldOrder("incurredBy") }} className={formCustom.getFieldColSpan("incurredBy", ["amount", "category", "incurredBy", "description"])}>
                 <label
                   htmlFor="editIncurredBy"
                   className="block text-sm font-medium text-slate-700 dark:text-slate-300"
@@ -937,7 +937,7 @@ export function MiscExpensesPage() {
             )}
 
             {formCustom.isFieldVisible("description") && (
-              <div style={{ order: formCustom.getFieldOrder("description") }}>
+              <div style={{ order: formCustom.getFieldOrder("description") }} className={formCustom.getFieldColSpan("description", ["amount", "category", "incurredBy", "description"])}>
                 <label
                   htmlFor="editDescription"
                   className="block text-sm font-medium text-slate-700 dark:text-slate-300"

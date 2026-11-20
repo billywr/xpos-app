@@ -590,7 +590,7 @@ export function FormCustomizationSettingsSection() {
                 {currentFields
                   .filter((f) => f.visible)
                   .map((field) => (
-                    <div key={field.key} className="space-y-1">
+                    <div key={field.key} className={`space-y-1 ${field.colSpan ?? ""}`}>
                       <FormLabel required={field.required} className="text-xs">
                         {field.label}
                       </FormLabel>

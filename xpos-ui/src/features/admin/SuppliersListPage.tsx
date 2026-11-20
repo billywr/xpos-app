@@ -572,7 +572,7 @@ export function SuppliersListPage({
             </div>
           )}
           {supplierCustom.isFieldVisible("name") && (
-            <div style={{ order: supplierCustom.getFieldOrder("name") }}>
+            <div style={{ order: supplierCustom.getFieldOrder("name") }} className={supplierCustom.getFieldColSpan("name")}>
               <FormLabel
                 htmlFor="supplier-name"
                 className="mb-1"
@@ -593,7 +593,7 @@ export function SuppliersListPage({
             </div>
           )}
           {supplierCustom.isFieldVisible("phone") && (
-            <div style={{ order: supplierCustom.getFieldOrder("phone") }}>
+            <div style={{ order: supplierCustom.getFieldOrder("phone") }} className={supplierCustom.getFieldColSpan("phone")}>
               <FormLabel
                 htmlFor="supplier-phone"
                 className="mb-1"
@@ -614,7 +614,7 @@ export function SuppliersListPage({
             </div>
           )}
           {supplierCustom.isFieldVisible("email") && (
-            <div style={{ order: supplierCustom.getFieldOrder("email") }}>
+            <div style={{ order: supplierCustom.getFieldOrder("email") }} className={supplierCustom.getFieldColSpan("email")}>
               <FormLabel
                 htmlFor="supplier-email"
                 className="mb-1"
