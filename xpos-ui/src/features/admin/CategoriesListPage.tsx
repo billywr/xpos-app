@@ -500,9 +500,9 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
             }}
             title={editingCategory ? "Edit category" : "Add category"}
           >
-            <form onSubmit={handleSlideSubmit} className="flex flex-col gap-4">
+            <form onSubmit={handleSlideSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {formError && (
-                <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/30 dark:text-red-200">
+                <p className="col-span-1 sm:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/30 dark:text-red-200">
                   {formError}
                 </p>
               )}
@@ -567,12 +567,12 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                   />
                 </div>
               )}
-              <div style={{ order: 999 }} className="grid grid-cols-2 gap-3 pt-4">
-                <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setSlideOpen(false)}>
-                  Cancel
-                </Button>
+              <div style={{ order: 999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
                 <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
                   {submitLoading ? "Saving…" : "Save"}
+                </Button>
+                <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setSlideOpen(false)}>
+                  Cancel
                 </Button>
               </div>
             </form>

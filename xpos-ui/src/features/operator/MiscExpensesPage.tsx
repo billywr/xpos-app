@@ -689,9 +689,9 @@ export function MiscExpensesPage() {
             setFormRecordedOn(todayInputValue());
           }
         }}
-        title="Record miscellaneous expense"
+        title="Record expenses"
       >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {formCustom.isFieldVisible("recordedOn") && (
             <div style={{ order: formCustom.getFieldOrder("recordedOn") }}>
               <label
@@ -823,14 +823,7 @@ export function MiscExpensesPage() {
             </div>
           )}
 
-          <div style={{ order: 9999 }} className="grid grid-cols-2 gap-3 pt-4">
-            <button
-              type="button"
-              onClick={() => setFormOpen(false)}
-              className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-            >
-              Cancel
-            </button>
+          <div style={{ order: 9999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
             <button
               type="submit"
               disabled={createMutation.isPending}
@@ -842,6 +835,13 @@ export function MiscExpensesPage() {
                 <Plus className="h-4 w-4" />
               )}
               {createMutation.isPending ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormOpen(false)}
+              className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+            >
+              Cancel
             </button>
           </div>
         </form>
@@ -862,7 +862,7 @@ export function MiscExpensesPage() {
         title="Edit expense"
       >
         {editingExpense && (
-          <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleEditSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {formCustom.isFieldVisible("amount") && (
               <div style={{ order: formCustom.getFieldOrder("amount") }}>
                 <label
@@ -955,14 +955,7 @@ export function MiscExpensesPage() {
               </div>
             )}
 
-            <div style={{ order: 9999 }} className="grid grid-cols-2 gap-3 pt-4">
-              <button
-                type="button"
-                onClick={() => setEditFormOpen(false)}
-                className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-              >
-                Cancel
-              </button>
+            <div style={{ order: 9999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
               <button
                 type="submit"
                 disabled={editSubmitting}
@@ -976,6 +969,13 @@ export function MiscExpensesPage() {
                     Save
                   </>
                 )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditFormOpen(false)}
+                className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              >
+                Cancel
               </button>
             </div>
           </form>

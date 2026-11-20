@@ -594,11 +594,11 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 pt-4">
-                <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setSlideOpen(false)}>
-                  Cancel
-                </Button>
                 <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
                   {submitLoading ? "Saving…" : "Save"}
+                </Button>
+                <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setSlideOpen(false)}>
+                  Cancel
                 </Button>
               </div>
             </form>
@@ -640,11 +640,11 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                 )}
               </div>
               <div className="grid grid-cols-2 gap-3 pt-4">
-                <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setBindSlideOpen(false)}>
-                  Cancel
-                </Button>
                 <Button type="submit" size="md" className="w-full" disabled={bindLoading}>
                   {bindLoading ? "Binding…" : "Bind"}
+                </Button>
+                <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setBindSlideOpen(false)}>
+                  Cancel
                 </Button>
               </div>
             </form>

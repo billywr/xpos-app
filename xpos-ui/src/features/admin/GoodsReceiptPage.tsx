@@ -2047,13 +2047,6 @@ export function GoodsReceiptPage({
 
           <div className="grid grid-cols-2 gap-3 pt-4">
             <button
-              type="button"
-              onClick={() => setSlideOpen(false)}
-              className="w-full inline-flex items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-            >
-              Cancel
-            </button>
-            <button
               type="submit"
               disabled={submitLoading || !isFormValid}
               className="w-full inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-400"
@@ -2065,6 +2058,13 @@ export function GoodsReceiptPage({
                   : editingGrn
                     ? "Update stock"
                     : "Add stock"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSlideOpen(false)}
+              className="w-full inline-flex items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+            >
+              Cancel
             </button>
           </div>
         </form>

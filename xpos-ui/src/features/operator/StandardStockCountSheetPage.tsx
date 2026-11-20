@@ -2246,13 +2246,6 @@ export function StandardStockCountSheetPage({
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setRecordPreview(null)}
-                  className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
                   onClick={() => recordSalesMutation.mutate()}
                   disabled={
                     recordPreview.totalQtyToRecord <= 0 || recordSalesMutation.isPending
@@ -2265,6 +2258,13 @@ export function StandardStockCountSheetPage({
                     <ShoppingBag className="h-4 w-4" />
                   )}
                   Record sales
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecordPreview(null)}
+                  className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                >
+                  Cancel
                 </button>
               </div>
             </div>

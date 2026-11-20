@@ -2741,7 +2741,7 @@ export function DebtsAndExpensesPage({
         }}
         title="Record customer debt"
       >
-        <form onSubmit={handleDebtSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleDebtSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {debtFormCustom.isFieldVisible("customerName") && (
             <div style={{ order: debtFormCustom.getFieldOrder("customerName") }}>
               <label htmlFor="customerName" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -2778,7 +2778,7 @@ export function DebtsAndExpensesPage({
             </div>
           )}
 
-          <div style={{ order: 3 }}>
+          <div style={{ order: 3 }} className="col-span-1 sm:col-span-2">
             <label htmlFor="debtIssuedBy" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Issued by</label>
             <SearchableSelect
               id="debtIssuedBy"
@@ -2793,7 +2793,7 @@ export function DebtsAndExpensesPage({
             />
           </div>
 
-          <div style={{ order: 4 }}>
+          <div style={{ order: 4 }} className="col-span-1 sm:col-span-2">
             <span id="borrowed-items-label" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Items borrowed</span>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
               Add lines from the branch price list (or default selling price). Debt total fills from
@@ -2913,7 +2913,7 @@ export function DebtsAndExpensesPage({
           )}
 
           {debtFormCustom.isFieldVisible("notes") && (
-            <div style={{ order: debtFormCustom.getFieldOrder("notes") }}>
+            <div style={{ order: debtFormCustom.getFieldOrder("notes") }} className="col-span-1 sm:col-span-2">
               <label htmlFor="notes" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 {debtFormCustom.getFieldLabel("notes", "Notes")}
                 {debtFormCustom.isFieldRequired("notes", false) && " *"}
@@ -2930,12 +2930,12 @@ export function DebtsAndExpensesPage({
             </div>
           )}
 
-          <div style={{ order: 9999 }} className="grid grid-cols-2 gap-3 pt-4">
-            <button type="button" onClick={() => setDebtFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
+          <div style={{ order: 9999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
             <button type="submit" disabled={debtSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
               {debtSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {debtSubmitting ? "Saving…" : "Save"}
             </button>
+            <button type="button" onClick={() => setDebtFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
           </div>
         </form>
       </SlideOver>
@@ -3001,10 +3001,10 @@ export function DebtsAndExpensesPage({
               <textarea id="editDebtNotes" rows={2} value={editDebtNotes} onChange={(e) => setEditDebtNotes(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white" />
             </div>
             <div className="grid grid-cols-2 gap-3 pt-4">
-              <button type="button" onClick={() => setDebtEditFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
               <button type="submit" disabled={editDebtSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
                 {editDebtSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Pencil className="h-4 w-4" />Save</>}
               </button>
+              <button type="button" onClick={() => setDebtEditFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
             </div>
           </form>
         )}
@@ -3117,13 +3117,6 @@ export function DebtsAndExpensesPage({
             )}
             <div className="grid grid-cols-2 gap-3 pt-4">
               <button
-                type="button"
-                onClick={() => setSettleFormOpen(false)}
-                className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-              >
-                Cancel
-              </button>
-              <button
                 type="submit"
                 disabled={settleSubmitting || settleBulkMutation.isPending}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
@@ -3136,6 +3129,13 @@ export function DebtsAndExpensesPage({
                     Record payment
                   </>
                 )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettleFormOpen(false)}
+                className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              >
+                Cancel
               </button>
             </div>
           </form>
@@ -3179,9 +3179,9 @@ export function DebtsAndExpensesPage({
             setExpFormRecordedOn(todayInputValue());
           }
         }}
-        title="Record miscellaneous expense"
+        title="Record expenses"
       >
-        <form onSubmit={handleExpSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleExpSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {expFormCustom.isFieldVisible("recordedOn") && (
             <div style={{ order: expFormCustom.getFieldOrder("recordedOn") }}>
               <label htmlFor="expRecordedOn" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -3300,12 +3300,12 @@ export function DebtsAndExpensesPage({
             </div>
           )}
 
-          <div style={{ order: 9999 }} className="grid grid-cols-2 gap-3 pt-4">
-            <button type="button" onClick={() => setExpFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
+          <div style={{ order: 9999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
             <button type="submit" disabled={createExpMutation.isPending} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
               {createExpMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {createExpMutation.isPending ? "Saving…" : "Save"}
             </button>
+            <button type="button" onClick={() => setExpFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
           </div>
         </form>
       </SlideOver>
@@ -3325,7 +3325,7 @@ export function DebtsAndExpensesPage({
         title="Edit expense"
       >
         {editingExpense && (
-          <form onSubmit={handleExpEditSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleExpEditSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {expFormCustom.isFieldVisible("amount") && (
               <div style={{ order: expFormCustom.getFieldOrder("amount") }}>
                 <label htmlFor="editExpAmount" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -3408,11 +3408,11 @@ export function DebtsAndExpensesPage({
               </div>
             )}
 
-            <div style={{ order: 9999 }} className="grid grid-cols-2 gap-3 pt-4">
-              <button type="button" onClick={() => setExpEditFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
+            <div style={{ order: 9999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
               <button type="submit" disabled={editExpSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
                 {editExpSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Pencil className="h-4 w-4" />Save</>}
               </button>
+              <button type="button" onClick={() => setExpEditFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
             </div>
           </form>
         )}

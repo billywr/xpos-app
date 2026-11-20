@@ -500,7 +500,7 @@ export function FormCustomizationSettingsSection() {
               </div>
 
               {/* Fields in real order */}
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {currentFields
                   .filter((f) => f.visible)
                   .map((field) => (
@@ -519,7 +519,7 @@ export function FormCustomizationSettingsSection() {
                   ))}
 
                 {currentFields.filter((f) => f.visible).length === 0 && (
-                  <p className="py-6 text-center text-xs text-slate-400 italic">
+                  <p className="col-span-1 sm:col-span-2 py-6 text-center text-xs text-slate-400 italic">
                     All fields have been hidden.
                   </p>
                 )}
@@ -530,16 +530,16 @@ export function FormCustomizationSettingsSection() {
                 <button
                   type="button"
                   disabled
-                  className="rounded-lg border border-slate-200 bg-slate-100 py-1.5 text-center text-xs font-medium text-slate-600 opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                  className="rounded-lg bg-primary-600 py-1.5 text-center text-xs font-medium text-white opacity-60"
                 >
-                  Cancel
+                  Save
                 </button>
                 <button
                   type="button"
                   disabled
-                  className="rounded-lg bg-primary-600 py-1.5 text-center text-xs font-medium text-white opacity-60"
+                  className="rounded-lg border border-slate-200 bg-slate-100 py-1.5 text-center text-xs font-medium text-slate-600 opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300"
                 >
-                  Save
+                  Cancel
                 </button>
               </div>
             </div>

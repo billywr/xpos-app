@@ -1250,7 +1250,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                   {formError}
                 </p>
               )}
-              <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {formCustom.isFieldVisible("name") && (
                   <div style={{ order: formCustom.getFieldOrder("name") }}>
                     <FormLabel
@@ -1591,11 +1591,11 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               )}
 
               <div className="grid grid-cols-2 gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
-                <Button type="button" variant="secondary" size="md" className="w-full" onClick={closeSlide}>
-                  Cancel
-                </Button>
                 <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
                   {submitLoading ? "Saving…" : "Save"}
+                </Button>
+                <Button type="button" variant="secondary" size="md" className="w-full" onClick={closeSlide}>
+                  Cancel
                 </Button>
               </div>
             </form>

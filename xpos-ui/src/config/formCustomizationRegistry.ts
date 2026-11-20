@@ -24,7 +24,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
     title: "Miscellaneous Expenses",
     category: "Operations",
     description: "Sheet for recording operational expenses (utilities, supplies, maintenance).",
-    sheetTitle: "Record expense",
+    sheetTitle: "Record expenses",
     fields: [
       {
         key: "recordedOn",

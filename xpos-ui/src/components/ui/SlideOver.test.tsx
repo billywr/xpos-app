@@ -90,8 +90,8 @@ describe("SlideOver", () => {
   it("renders SlideOverFooter with grid grid-cols-2 for 50/50 side by side buttons", () => {
     const { container } = render(
       <SlideOverFooter>
-        <button type="button">Cancel</button>
         <button type="submit">Save</button>
+        <button type="button">Cancel</button>
       </SlideOverFooter>
     );
 

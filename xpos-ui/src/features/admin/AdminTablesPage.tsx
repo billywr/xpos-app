@@ -729,11 +729,11 @@ export function AdminTablesPage() {
             )}
           </div>
           <div className="grid grid-cols-2 gap-3 pt-4">
-            <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setAreaSlideOpen(false)}>
-              Cancel
-            </Button>
             <Button type="submit" size="md" className="w-full" disabled={areaSubmitLoading}>
               {areaSubmitLoading ? "Saving…" : "Save"}
+            </Button>
+            <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setAreaSlideOpen(false)}>
+              Cancel
             </Button>
           </div>
         </form>
@@ -827,11 +827,11 @@ export function AdminTablesPage() {
             </p>
           )}
           <div className="grid grid-cols-2 gap-3 pt-4">
-            <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setTableSlideOpen(false)}>
-              Cancel
-            </Button>
             <Button type="submit" size="md" className="w-full" disabled={tableSubmitLoading}>
               {tableSubmitLoading ? "Saving…" : "Save"}
+            </Button>
+            <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setTableSlideOpen(false)}>
+              Cancel
             </Button>
           </div>
         </form>

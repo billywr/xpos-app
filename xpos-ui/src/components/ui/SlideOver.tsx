@@ -11,7 +11,7 @@ export interface SlideOverFooterProps {
 
 /**
  * Standard footer container for slide-over sheet action buttons.
- * Renders a 2-column grid so Cancel and Add/Save occupy 50% width each side by side.
+ * Renders a 2-column grid with primary action on the left and Cancel on the right (50% width each side by side).
  */
 export function SlideOverFooter({ children, className }: SlideOverFooterProps) {
   return (
@@ -26,7 +26,7 @@ export interface SlideOverProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
-  /** Optional max width class (default w-full sm:max-w-xl md:w-1/2 md:max-w-[50vw] md:min-w-[480px]) */
+  /** Optional max width class (default w-full sm:max-w-2xl md:w-1/2 md:max-w-[50vw] md:min-w-[480px]) */
   maxWidth?: string;
   /** Optional action element rendered in the header next to close button */
   headerAction?: ReactNode;
@@ -41,7 +41,7 @@ export function SlideOver({
   onClose,
   title,
   children,
-  maxWidth = "w-full sm:max-w-xl md:w-1/2 md:max-w-[50vw] md:min-w-[480px]",
+  maxWidth = "w-full sm:max-w-2xl md:w-1/2 md:max-w-[50vw] md:min-w-[480px]",
   headerAction,
 }: SlideOverProps) {
   useEffect(() => {

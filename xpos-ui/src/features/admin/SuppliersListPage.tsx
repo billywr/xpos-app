@@ -562,10 +562,10 @@ export function SuppliersListPage({
         }}
         title={editingSupplier ? "Edit supplier" : "Add supplier"}
       >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {formError && (
             <div
-              className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
+              className="col-span-1 sm:col-span-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200"
               role="alert"
             >
               {formError}
@@ -634,7 +634,10 @@ export function SuppliersListPage({
               />
             </div>
           )}
-          <div style={{ order: 999 }} className="grid grid-cols-2 gap-3 pt-4">
+          <div style={{ order: 999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
+            <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
+              {submitLoading ? "Saving…" : "Save"}
+            </Button>
             <Button
               type="button"
               variant="secondary"
@@ -647,9 +650,6 @@ export function SuppliersListPage({
               }}
             >
               Cancel
-            </Button>
-            <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
-              {submitLoading ? "Saving…" : "Save"}
             </Button>
           </div>
         </form>

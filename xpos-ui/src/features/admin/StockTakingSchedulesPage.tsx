@@ -661,6 +661,17 @@ export function StockTakingSchedulesPage() {
           )}
           <div className="grid grid-cols-2 gap-3 pt-4">
             <Button
+              type="submit"
+              size="md"
+              className="w-full"
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              {(createMutation.isPending || updateMutation.isPending) && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              {createMutation.isPending || updateMutation.isPending ? "Saving…" : "Save"}
+            </Button>
+            <Button
               type="button"
               variant="secondary"
               size="md"
@@ -672,17 +683,6 @@ export function StockTakingSchedulesPage() {
               }}
             >
               Cancel
-            </Button>
-            <Button
-              type="submit"
-              size="md"
-              className="w-full"
-              disabled={createMutation.isPending || updateMutation.isPending}
-            >
-              {(createMutation.isPending || updateMutation.isPending) && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
-              {createMutation.isPending || updateMutation.isPending ? "Saving…" : "Save"}
             </Button>
           </div>
         </form>

@@ -78,6 +78,27 @@ describe("DateInput", () => {
     const { container } = render(<DateInput aria-label="Empty date" />);
     expect(container).toHaveTextContent("dd/mm/yyyy");
   });
+
+  it("opens react-datepicker on trigger click and emits onChange on selection", () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <DateInput aria-label="Order date" value="2026-11-15" onChange={onChange} />
+    );
+    const trigger = container.querySelector(".cursor-pointer");
+    expect(trigger).toBeTruthy();
+    fireEvent.click(trigger!);
+
+    const popper = document.querySelector(".react-datepicker");
+    expect(popper).toBeTruthy();
+
+    const day = document.querySelector(".react-datepicker__day--020") as HTMLElement;
+    if (day) {
+      fireEvent.click(day);
+      expect(onChange).toHaveBeenCalled();
+      const calledEvent = onChange.mock.calls[0][0];
+      expect(calledEvent.target.value).toBe("2026-11-20");
+    }
+  });
 });
 
 describe("setupGlobalDatePicker", () => {
