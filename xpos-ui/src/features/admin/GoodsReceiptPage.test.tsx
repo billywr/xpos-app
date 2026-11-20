@@ -368,18 +368,18 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     ]);
   });
 
-  it("renders stock receiving with initial 'Today' range and switches to 'All' to calculate grand total KPI", async () => {
+  it("renders stock receiving with initial 'All' range and switches to 'Today' to calculate today's KPI", async () => {
     wrap(<GoodsReceiptPage initialOrgId="org-1" initialBranchId="branch-1" />);
 
     await waitFor(() => {
       expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
     });
 
-    // Default is Today: 1 receipt, 10 units, 2,000 value
+    // Default is All: 3 receipts, 35 units, 10,000 value
     expect(screen.getByText("Total Stock Value")).toBeInTheDocument();
-    expect(screen.getAllByText(/2,000/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/1 receipt/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/10 units/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/10,000/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/3 receipts/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/35 units/).length).toBeGreaterThanOrEqual(1);
 
     // Presets exist
     expect(screen.getByRole("button", { name: "All" })).toBeInTheDocument();
@@ -389,13 +389,13 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     expect(screen.getByRole("button", { name: "This Month" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Custom" })).toBeInTheDocument();
 
-    // Click "All" to view all receipts
-    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    // Click "Today" to view today's receipts only
+    fireEvent.click(screen.getByRole("button", { name: "Today" }));
     await waitFor(() => {
-      expect(screen.getAllByText(/10,000/).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/2,000/).length).toBeGreaterThanOrEqual(1);
     });
-    expect(screen.getAllByText(/3 receipts/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/35 units/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/1 receipt/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/10 units/).length).toBeGreaterThanOrEqual(1);
   });
 
   it("filters to 'Today' and dynamically updates total value to today's receipts only", async () => {
@@ -930,10 +930,10 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
 
     wrap(<GoodsReceiptPage />);
 
-    // Initially "Today" is active, showing Guinness bottle (today) and not Yesterday Soda
+    // Initially "All" is active, showing all receipts including Guinness bottle and Yesterday Soda
     await waitFor(() => {
       expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
-      expect(screen.queryByText("Yesterday Soda")).not.toBeInTheDocument();
+      expect(screen.getByText("Yesterday Soda")).toBeInTheDocument();
     });
 
     // Next day button is disabled on Today

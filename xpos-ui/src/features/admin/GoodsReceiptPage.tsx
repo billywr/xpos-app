@@ -318,7 +318,7 @@ export function GoodsReceiptPage({
   const [selectedBranchId, setSelectedBranchId] = useState<string>(initialBranchId ?? "");
   const [activePreset, setActivePreset] = useState<DatePreset>(() => {
     const saved = getSavedGoodsReceiptFilterRange(initialOrgId, initialBranchId);
-    return (saved.preset as DatePreset) || "today";
+    return (saved.preset as DatePreset) || "all";
   });
   const [todayOffset, setTodayOffset] = useState<number>(0);
   const [customStartDate, setCustomStartDate] = useState<string>(() => {
