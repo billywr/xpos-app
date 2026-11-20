@@ -173,6 +173,8 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       return new StdStockCountSheetDto(businessDate, branchId, List.of());
     }
 
+    List<Item> sortedItems = sortItemsBySalesVelocity(orgId, branchId, items, businessDate, zone);
+
     List<StdStockCountSnapshot> todaySnapshots =
         snapshotRepository.findAllByBranchIdAndBusinessDate(branchId, businessDate);
     Map<UUID, StdStockCountSnapshot> todayByItem =
@@ -186,7 +188,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
         priorSnapshots.stream().collect(Collectors.groupingBy(s -> s.getItem().getId()));
 
     Set<LocalDate> neededDates = new HashSet<>();
-    for (Item item : items) {
+    for (Item item : sortedItems) {
       collectNeededDates(item.getId(), businessDate, priorByItem, blankSaveDates, neededDates);
     }
 
@@ -242,7 +244,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
 
     List<StdStockCountRowDto> rows =
         buildSheetRows(
-            items,
+            sortedItems,
             addedGrnByItem,
             stockTakeAddedByItem,
             firstStockAddedAtByItem,
@@ -253,6 +255,28 @@ public class StdStockCountServiceImpl implements StdStockCountService {
             businessDate);
 
     return new StdStockCountSheetDto(businessDate, branchId, rows);
+  }
+
+  private List<Item> sortItemsBySalesVelocity(
+      UUID orgId, UUID branchId, List<Item> items, LocalDate businessDate, ZoneId zone) {
+    Instant salesSince = businessDate.minusDays(90).atStartOfDay(zone).toInstant();
+    List<Object[]> soldRows =
+        stockMovementRepository.sumSoldQtyByItemIdForBranchSince(orgId, branchId, salesSince);
+    if (soldRows.isEmpty()) {
+      soldRows = stockMovementRepository.sumSoldQtyByItemIdForBranch(orgId, branchId);
+    }
+    Map<UUID, BigDecimal> soldQtyByItem = new HashMap<>();
+    for (Object[] r : soldRows) {
+      soldQtyByItem.put((UUID) r[0], (BigDecimal) r[1]);
+    }
+
+    List<Item> sortedItems = new ArrayList<>(items);
+    sortedItems.sort(
+        Comparator.<Item, BigDecimal>comparing(
+                item -> soldQtyByItem.getOrDefault(item.getId(), BigDecimal.ZERO),
+                Comparator.reverseOrder())
+            .thenComparing(Item::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)));
+    return sortedItems;
   }
 
   private record PartitionedDateData(

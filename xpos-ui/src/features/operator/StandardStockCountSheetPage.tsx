@@ -853,6 +853,7 @@ export function StandardStockCountSheetPage({
     sortColumn,
     sortDirection,
     toggleSort,
+    setSort,
   } = useDataTable(tableInputRows, undefined, {
     searchQuery,
     setSearchQuery,
@@ -860,6 +861,8 @@ export function StandardStockCountSheetPage({
     size: pageSize,
     setPage,
     sortAccessors: STANDARD_STOCK_SORT,
+    getDefaultDirection: (col) =>
+      col === "sold" || col === "amount" ? "desc" : "asc",
   });
 
   const addedStockSignature = useMemo(
@@ -1458,6 +1461,54 @@ export function StandardStockCountSheetPage({
                 onChange={setSearchQuery}
                 placeholder="Search all columns…"
               />
+            </div>
+            {/* Quick view / ordering mode pills */}
+            <div
+              className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs font-medium dark:border-slate-700 dark:bg-slate-800 shrink-0"
+              role="group"
+              aria-label="Table ordering"
+            >
+              <button
+                type="button"
+                onClick={() => setSort(null)}
+                className={cn(
+                  "rounded-md px-2 py-1 transition-colors",
+                  sortColumn === null
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white font-semibold"
+                    : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                )}
+                title="Order by frequently sold items (most frequently sold first)"
+              >
+                <span className="hidden sm:inline">Frequently sold</span>
+                <span className="sm:hidden">Freq</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSort("sold", "desc")}
+                className={cn(
+                  "rounded-md px-2 py-1 transition-colors",
+                  sortColumn === "sold" && sortDirection === "desc"
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white font-semibold"
+                    : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                )}
+                title="Sort by highest sold units on this sheet"
+              >
+                <span className="hidden sm:inline">Sold today</span>
+                <span className="sm:hidden">Sold</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSort("item", "asc")}
+                className={cn(
+                  "rounded-md px-2 py-1 transition-colors",
+                  sortColumn === "item" && sortDirection === "asc"
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white font-semibold"
+                    : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                )}
+                title="Sort alphabetically A-Z"
+              >
+                A-Z
+              </button>
             </div>
             {/* Total Sales pill for small/smaller screens (< xl) */}
             <div

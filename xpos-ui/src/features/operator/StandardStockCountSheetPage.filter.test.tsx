@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent, act, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act, cleanup, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -2516,6 +2516,127 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
       // Verify auto-save is never triggered on load
       await new Promise((resolve) => setTimeout(resolve, 300));
       expect(stdApi.saveStdStockCount).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("StandardStockCountSheetPage ordering modes", () => {
+    const mockRows = [
+      {
+        itemId: "item-1",
+        sku: "SKU-001",
+        name: "Zebra Gin", // highest sold historically (first from server)
+        openingStock: 20,
+        addedStock: 0,
+        addedTodayStock: 0,
+        sellingPrice: 100,
+        closingStock: 19, // 1 sold today
+        lastSavedAt: "2026-11-20T08:00:00Z",
+        comments: null,
+      },
+      {
+        itemId: "item-2",
+        sku: "SKU-002",
+        name: "Alpha Whiskey", // moderate sold historically (second from server)
+        openingStock: 20,
+        addedStock: 0,
+        addedTodayStock: 0,
+        sellingPrice: 150,
+        closingStock: 15, // 5 sold today (highest sold today!)
+        lastSavedAt: "2026-11-20T08:00:00Z",
+        comments: null,
+      },
+      {
+        itemId: "item-3",
+        sku: "SKU-003",
+        name: "Beta Beer",
+        openingStock: 10,
+        addedStock: 0,
+        addedTodayStock: 0,
+        sellingPrice: 80,
+        closingStock: 10, // 0 sold today
+        lastSavedAt: "2026-11-20T08:00:00Z",
+        comments: null,
+      },
+    ];
+
+    beforeEach(() => {
+      sessionStorage.clear();
+      vi.mocked(stdApi.autoSyncStdStockCount).mockResolvedValue({
+        syncedDates: [],
+        syncedRowCount: 0,
+      });
+      vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+        date: localTodayStr(),
+        outletId: "branch-1",
+        rows: mockRows,
+      });
+    });
+
+    it("defaults to Frequently sold preserving server order", async () => {
+      wrap(<StandardStockCountSheetPage />);
+      await waitFor(() => {
+        expect(screen.getByText("Zebra Gin")).toBeInTheDocument();
+      });
+
+      const freqButton = screen.getByRole("button", { name: /frequently sold/i });
+      expect(freqButton).toHaveClass("font-semibold");
+
+      const names = screen.getAllByRole("cell", { name: /Zebra Gin|Alpha Whiskey|Beta Beer/i });
+      expect(names[0]).toHaveTextContent("Zebra Gin");
+      expect(names[1]).toHaveTextContent("Alpha Whiskey");
+      expect(names[2]).toHaveTextContent("Beta Beer");
+    });
+
+    it("switches to Sold today sorting by units sold descending", async () => {
+      wrap(<StandardStockCountSheetPage />);
+      await waitFor(() => {
+        expect(screen.getByText("Zebra Gin")).toBeInTheDocument();
+      });
+
+      const soldTodayBtn = screen.getByRole("button", { name: /sold today/i });
+      fireEvent.click(soldTodayBtn);
+
+      await waitFor(() => {
+        const names = screen.getAllByRole("cell", { name: /Zebra Gin|Alpha Whiskey|Beta Beer/i });
+        expect(names[0]).toHaveTextContent("Alpha Whiskey");
+        expect(names[1]).toHaveTextContent("Zebra Gin");
+        expect(names[2]).toHaveTextContent("Beta Beer");
+      });
+    });
+
+    it("switches to A-Z sorting alphabetically by item name", async () => {
+      wrap(<StandardStockCountSheetPage />);
+      await waitFor(() => {
+        expect(screen.getByText("Zebra Gin")).toBeInTheDocument();
+      });
+
+      const azBtn = screen.getByRole("button", { name: "A-Z" });
+      fireEvent.click(azBtn);
+
+      await waitFor(() => {
+        const names = screen.getAllByRole("cell", { name: /Zebra Gin|Alpha Whiskey|Beta Beer/i });
+        expect(names[0]).toHaveTextContent("Alpha Whiskey");
+        expect(names[1]).toHaveTextContent("Beta Beer");
+        expect(names[2]).toHaveTextContent("Zebra Gin");
+      });
+    });
+
+    it("clicking Sold column header defaults to descending sort", async () => {
+      wrap(<StandardStockCountSheetPage />);
+      await waitFor(() => {
+        expect(screen.getByText("Zebra Gin")).toBeInTheDocument();
+      });
+
+      const soldHeader = screen.getByRole("columnheader", { name: /sold/i });
+      const sortBtn = within(soldHeader).getByRole("button");
+      fireEvent.click(sortBtn);
+
+      await waitFor(() => {
+        const names = screen.getAllByRole("cell", { name: /Zebra Gin|Alpha Whiskey|Beta Beer/i });
+        expect(names[0]).toHaveTextContent("Alpha Whiskey");
+        expect(names[1]).toHaveTextContent("Zebra Gin");
+        expect(names[2]).toHaveTextContent("Beta Beer");
+      });
     });
   });
 });

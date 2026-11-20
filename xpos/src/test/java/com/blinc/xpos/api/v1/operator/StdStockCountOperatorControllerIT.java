@@ -1797,6 +1797,64 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.lines.length()").value(0));
   }
 
+  @Test
+  void getSheetOrdersItemsBySalesVelocityDescendingThenNameAscending() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID itemZebra = createItem(orgId, "Zebra Gin");
+    UUID itemAlpha = createItem(orgId, "Alpha Whiskey");
+    UUID itemBeta = createItem(orgId, "Beta Beer");
+    UUID itemDelta = createItem(orgId, "Delta Wine");
+
+    jdbcTemplate.update(
+        """
+        INSERT INTO stock_movement (id, org_id, branch_id, item_id, movement_type, source_type, source_id, qty, created_at)
+        VALUES (?, ?, ?, ?, 'OUT', 'SALE', ?, ?, ?)
+        """,
+        UUID.randomUUID(),
+        orgId,
+        branchId,
+        itemZebra,
+        UUID.randomUUID(),
+        BigDecimal.valueOf(50),
+        Timestamp.from(Instant.now()));
+
+    jdbcTemplate.update(
+        """
+        INSERT INTO stock_movement (id, org_id, branch_id, item_id, movement_type, source_type, source_id, qty, created_at)
+        VALUES (?, ?, ?, ?, 'OUT', 'SALE', ?, ?, ?)
+        """,
+        UUID.randomUUID(),
+        orgId,
+        branchId,
+        itemAlpha,
+        UUID.randomUUID(),
+        BigDecimal.valueOf(10),
+        Timestamp.from(Instant.now()));
+
+    String date = LocalDate.now().toString();
+    String url =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count?date="
+            + date;
+
+    mockMvc
+        .perform(get(url).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows.length()").value(4))
+        .andExpect(jsonPath("$.rows[0].name").value("Zebra Gin"))
+        .andExpect(jsonPath("$.rows[1].name").value("Alpha Whiskey"))
+        .andExpect(jsonPath("$.rows[2].name").value("Beta Beer"))
+        .andExpect(jsonPath("$.rows[3].name").value("Delta Wine"));
+  }
+
   private void setOnHandQty(UUID orgId, UUID branchId, UUID itemId, BigDecimal qty) {
     jdbcTemplate.update(
         "UPDATE inventory_item SET on_hand_qty = ? WHERE org_id = ? AND branch_id = ? AND item_id = ?",

@@ -10,7 +10,14 @@ function buildStorageKey(pathname: string, storageSuffix?: string): string {
   return storageSuffix ? `${pathname}::${storageSuffix}` : pathname;
 }
 
-export function useTableSort(storageSuffix?: string) {
+export interface UseTableSortOptions {
+  getDefaultDirection?: (column: string) => SortDirection;
+}
+
+export function useTableSort(
+  storageSuffix?: string,
+  options?: UseTableSortOptions
+) {
   const { pathname } = useLocation();
   const storageKey = buildStorageKey(pathname, storageSuffix);
   const stored = getStoredTableSort(storageKey);
@@ -37,11 +44,26 @@ export function useTableSort(storageSuffix?: string) {
         setStoredTableSort(storageKey, { column, direction: nextDirection });
         return;
       }
+      const initialDirection =
+        options?.getDefaultDirection?.(column) ?? "asc";
       setSortColumn(column);
-      setSortDirection("asc");
-      setStoredTableSort(storageKey, { column, direction: "asc" });
+      setSortDirection(initialDirection);
+      setStoredTableSort(storageKey, { column, direction: initialDirection });
     },
-    [sortColumn, sortDirection, storageKey]
+    [sortColumn, sortDirection, storageKey, options]
+  );
+
+  const setSort = useCallback(
+    (column: string | null, direction: SortDirection = "asc") => {
+      setSortColumn(column);
+      setSortDirection(direction);
+      if (column) {
+        setStoredTableSort(storageKey, { column, direction });
+      } else {
+        setStoredTableSort(storageKey, null);
+      }
+    },
+    [storageKey]
   );
 
   const isSortActive = useCallback(
@@ -53,6 +75,7 @@ export function useTableSort(storageSuffix?: string) {
     sortColumn,
     sortDirection,
     toggleSort,
+    setSort,
     isSortActive,
   };
 }

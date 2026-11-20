@@ -12,6 +12,7 @@ export interface UseDataTableOptions<T>
   > {
   sortAccessors?: SortAccessors<T>;
   setPage?: (page: number) => void;
+  getDefaultDirection?: (column: string) => import("@/utils/tableSort").SortDirection;
 }
 
 /**
@@ -22,8 +23,9 @@ export function useDataTable<T>(
   storageSuffix?: string,
   options?: UseDataTableOptions<T>
 ) {
-  const { sortAccessors, setPage, ...searchOptions } = options ?? {};
-  const sort = useTableSort(storageSuffix);
+  const { sortAccessors, setPage, getDefaultDirection, ...searchOptions } =
+    options ?? {};
+  const sort = useTableSort(storageSuffix, { getDefaultDirection });
 
   const getSortValue: SortValueGetter<T> = (row, column) => {
     const accessor = sortAccessors?.[column];
@@ -47,6 +49,7 @@ export function useDataTable<T>(
     sortColumn: sort.sortColumn,
     sortDirection: sort.sortDirection,
     toggleSort: sort.toggleSort,
+    setSort: sort.setSort,
     isSortActive: sort.isSortActive,
   };
 }
