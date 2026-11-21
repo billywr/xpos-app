@@ -30,7 +30,7 @@ export function generateStockCountPdf(
 
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text("Stock Count Report", margin, y);
+  doc.text("Stock count report", margin, y);
   y += 10;
 
   doc.setFontSize(10);
@@ -71,12 +71,12 @@ export function generateStockCountPdf(
       head: [
         [
           "Item",
-          "System Qty",
-          "Counted Qty",
+          "System qty",
+          "Counted qty",
           "Variance",
-          "Unit Cost",
-          "Qty Sold",
-          "Selling Price",
+          "Unit cost",
+          "Qty sold",
+          "Selling price",
         ],
       ],
       body: tableData,
@@ -151,7 +151,7 @@ export function generateStockCountPdf(
   y += 8;
   doc.setFontSize(9);
   doc.text(
-    `Generated ${formatDateTime(new Date())} — ${effectiveAppName} Stock Count`,
+    `Generated ${formatDateTime(new Date())} — ${effectiveAppName} stock count`,
     margin,
     y
   );
@@ -190,7 +190,7 @@ export function shareStockCountPdf(
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
     navigator
       .share({
-        title: "Stock Count Report",
+        title: "Stock count report",
         text: `Stock count ${session.status} — ${branchName ?? "Branch"}`,
         files: [file],
       })

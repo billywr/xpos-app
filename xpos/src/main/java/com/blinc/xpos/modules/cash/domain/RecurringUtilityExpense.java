@@ -13,11 +13,14 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PostLoad;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -48,6 +51,12 @@ public class RecurringUtilityExpense {
 
   @Column(name = "amount", nullable = false)
   private BigDecimal amount;
+
+  @Column(name = "effective_from", nullable = false)
+  private LocalDate effectiveFrom;
+
+  @Column(name = "effective_to")
+  private LocalDate effectiveTo;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "apply_timing", nullable = false, columnDefinition = "text")
@@ -98,6 +107,19 @@ public class RecurringUtilityExpense {
     }
     if (this.dueDayOfMonth == null) {
       this.dueDayOfMonth = 1;
+    }
+    if (this.effectiveFrom == null) {
+      this.effectiveFrom = LocalDate.now().withDayOfMonth(1);
+    }
+  }
+
+  @PostLoad
+  public void onPostLoad() {
+    if (this.effectiveFrom == null) {
+      this.effectiveFrom =
+          this.createdAt != null
+              ? this.createdAt.atZone(ZoneOffset.UTC).toLocalDate().withDayOfMonth(1)
+              : LocalDate.now().withDayOfMonth(1);
     }
   }
 

@@ -62,14 +62,14 @@ export const OPERATOR_NAV_ITEMS: OperatorNavItemConfig[] = [
 
   navItem(
     "/operator/tables",
-    "Manage table",
+    "Manage tables",
     "Manage",
     true,
     UtensilsCrossed,
     true
   ),
-  navItem("/operator/dishes", "Manage dish", "Manage", true, ChefHat),
-  navItem("/operator/payments", "Manage payment", "Manage", true, CreditCard),
+  navItem("/operator/dishes", "Manage dishes", "Manage", true, ChefHat),
+  navItem("/operator/payments", "Manage payments", "Manage", true, CreditCard),
 ];
 
 export const OPERATOR_GROUP_ORDER = ["Main", "Manage"];

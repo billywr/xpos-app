@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
 import { setCredentials } from "@/store/slices/authSlice";
@@ -33,16 +33,51 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showServerModal, setShowServerModal] = useState(false);
 
-  const isLoginFormValid = Boolean(username.trim() && password);
+  const usernameInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync values if browser autofill populates DOM inputs without triggering React synthetic events
+  const syncAutofill = useCallback(() => {
+    const domUser = usernameInputRef.current?.value ?? "";
+    const domPass = passwordInputRef.current?.value ?? "";
+    if (domUser && domUser !== username) {
+      setUsername(domUser);
+    }
+    if (domPass && domPass !== password) {
+      setPassword(domPass);
+    }
+  }, [username, password]);
+
+  useEffect(() => {
+    syncAutofill();
+    // Browser password managers often fill credentials asynchronously after mount/redirect
+    const delays = [50, 150, 300, 600, 1000, 1500];
+    const timers = delays.map((ms) => setTimeout(syncAutofill, ms));
+    return () => timers.forEach(clearTimeout);
+  }, [syncAutofill]);
 
   const keycloakUrl = getEnv("VITE_KEYCLOAK_URL") ?? "";
   const realm = getEnv("VITE_KEYCLOAK_REALM") ?? "xpos";
   const clientId = getEnv("VITE_KEYCLOAK_CLIENT_ID") ?? "xpos-client-api";
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    if (!username.trim() || !password) {
+
+    const form = e.currentTarget;
+    const domUser =
+      (form.elements.namedItem("username") as HTMLInputElement)?.value ??
+      usernameInputRef.current?.value ??
+      "";
+    const domPass =
+      (form.elements.namedItem("password") as HTMLInputElement)?.value ??
+      passwordInputRef.current?.value ??
+      "";
+
+    const effectiveUsername = (username || domUser).trim();
+    const effectivePassword = password || domPass;
+
+    if (!effectiveUsername || !effectivePassword) {
       setError("Username and password are required.");
       return;
     }
@@ -56,14 +91,30 @@ export function LoginPage() {
         keycloakUrl,
         realm,
         clientId,
-        username: username.trim(),
-        password,
+        username: effectiveUsername,
+        password: effectivePassword,
       });
       const roles = getRolesFromToken(token);
       const keycloakUsername = getUsernameFromToken(token);
       clearAllStoredDatePersistence();
-      dispatch(setCredentials({ token, iamUserId, username: keycloakUsername ?? undefined, expiresAt: expiresAt ?? undefined, refreshToken, roles }));
-      setStoredAuth({ token, iamUserId, username: keycloakUsername, expiresAt: expiresAt ?? null, refreshToken, roles });
+      dispatch(
+        setCredentials({
+          token,
+          iamUserId,
+          username: keycloakUsername ?? undefined,
+          expiresAt: expiresAt ?? undefined,
+          refreshToken,
+          roles,
+        })
+      );
+      setStoredAuth({
+        token,
+        iamUserId,
+        username: keycloakUsername,
+        expiresAt: expiresAt ?? null,
+        refreshToken,
+        roles,
+      });
       navigate(returnTo, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -112,7 +163,13 @@ export function LoginPage() {
         <p className="mb-6 text-center text-sm text-slate-500 dark:text-slate-400">
           Use your credentials to access the backend.
         </p>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form
+          onSubmit={handleSubmit}
+          onAnimationStart={syncAutofill}
+          onFocusCapture={syncAutofill}
+          onMouseEnter={syncAutofill}
+          className="flex flex-col gap-4"
+        >
           <div>
             <label
               htmlFor="login-username"
@@ -121,11 +178,14 @@ export function LoginPage() {
               Username
             </label>
             <input
+              ref={usernameInputRef}
               id="login-username"
+              name="username"
               type="text"
               autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              onInput={syncAutofill}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               placeholder="Username"
               disabled={loading}
@@ -139,11 +199,14 @@ export function LoginPage() {
               Password
             </label>
             <input
+              ref={passwordInputRef}
               id="login-password"
+              name="password"
               type="password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onInput={syncAutofill}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               placeholder="Password"
               disabled={loading}
@@ -159,7 +222,7 @@ export function LoginPage() {
           )}
           <button
             type="submit"
-            disabled={loading || !isLoginFormValid}
+            disabled={loading}
             className="w-full rounded-lg bg-primary-600 py-2.5 font-medium text-white transition hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Signing in…" : "Sign in"}

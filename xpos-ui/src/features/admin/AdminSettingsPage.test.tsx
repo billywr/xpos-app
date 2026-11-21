@@ -137,7 +137,7 @@ describe("AdminSettingsPage", () => {
 
     // Default tab is Top Bar
     expect(screen.getByText("Top navigation bar")).toBeInTheDocument();
-    expect(screen.queryByText("Admin sidebar")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Admin sidebar" })).not.toBeInTheDocument();
   });
 
   it("switches tabs when tab buttons are clicked", () => {
@@ -145,7 +145,7 @@ describe("AdminSettingsPage", () => {
 
     // Switch to Admin Sidebar tab
     fireEvent.click(screen.getByRole("tab", { name: /admin sidebar/i }));
-    expect(screen.getByText("Admin sidebar")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Admin sidebar" })).toBeInTheDocument();
     expect(screen.queryByText("Top navigation bar")).not.toBeInTheDocument();
 
     // Switch to POS & Features tab
@@ -156,24 +156,24 @@ describe("AdminSettingsPage", () => {
 
     // Switch to Forms & Sheets tab
     fireEvent.click(screen.getByRole("tab", { name: /forms & sheets/i }));
-    expect(screen.getByText("Form & Sheet Customization")).toBeInTheDocument();
+    expect(screen.getByText("Form & sheet customization")).toBeInTheDocument();
 
     // Switch to Appearance tab
     fireEvent.click(screen.getByRole("tab", { name: /appearance/i }));
-    expect(screen.getByText("Dark Mode Theme")).toBeInTheDocument();
+    expect(screen.getByText("Dark mode theme")).toBeInTheDocument();
   });
 
   it("reads tab from URL query param", () => {
     renderSettingsPage(["/admin/settings?tab=appearance"]);
 
-    expect(screen.getByText("Dark Mode Theme")).toBeInTheDocument();
+    expect(screen.getByText("Dark mode theme")).toBeInTheDocument();
     expect(screen.queryByText("Top navigation bar")).not.toBeInTheDocument();
   });
 
   it("reads forms tab from URL query param", () => {
     renderSettingsPage(["/admin/settings?tab=forms"]);
 
-    expect(screen.getByText("Form & Sheet Customization")).toBeInTheDocument();
+    expect(screen.getByText("Form & sheet customization")).toBeInTheDocument();
     expect(screen.queryByText("Top navigation bar")).not.toBeInTheDocument();
   });
 
@@ -188,7 +188,7 @@ describe("AdminSettingsPage", () => {
 
     // Should display the Barcode section and its parent tab badge
     expect(screen.getByText("Barcode (per screen)")).toBeInTheDocument();
-    expect(screen.getByText("Tab: POS & Features")).toBeInTheDocument();
+    expect(screen.getByText("Tab: POS & features")).toBeInTheDocument();
 
     // Top Bar shouldn't be shown since it doesn't match
     expect(screen.queryByText("Top navigation bar")).not.toBeInTheDocument();
@@ -200,13 +200,13 @@ describe("AdminSettingsPage", () => {
     const searchInput = screen.getByRole("textbox", { name: /search sections or settings/i });
     fireEvent.change(searchInput, { target: { value: "theme" } });
 
-    expect(screen.getByText("Dark Mode Theme")).toBeInTheDocument();
+    expect(screen.getByText("Dark mode theme")).toBeInTheDocument();
     const goToTabBtn = screen.getByRole("button", { name: /go to tab/i });
     fireEvent.click(goToTabBtn);
 
     // Search query should be cleared and Appearance tab should be active
     expect(searchInput).toHaveValue("");
-    expect(screen.getByText("Dark Mode Theme")).toBeInTheDocument();
+    expect(screen.getByText("Dark mode theme")).toBeInTheDocument();
     expect(screen.queryByText(/matching/i)).not.toBeInTheDocument();
   });
 

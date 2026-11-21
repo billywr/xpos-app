@@ -61,10 +61,10 @@ export const statChipTones = {
 } as const;
 
 export const statChipLabelTones = {
-  debt: "text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400",
-  expense: "text-xs font-medium uppercase tracking-wide text-rose-700 dark:text-rose-400",
-  sales: "text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-400",
-  neutral: "text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400",
+  debt: "text-xs font-medium text-amber-700 dark:text-amber-400",
+  expense: "text-xs font-medium text-rose-700 dark:text-rose-400",
+  sales: "text-xs font-medium text-emerald-700 dark:text-emerald-400",
+  neutral: "text-xs font-medium text-slate-600 dark:text-slate-400",
 } as const;
 
 export const statChipValueTones = {
@@ -87,7 +87,7 @@ export const tableHeadRow = "bg-slate-50 dark:bg-slate-700";
 
 /** Debts & Expenses reference scale — use on all datatables except the frozen debts pages. */
 export const tableHeadCell =
-  "px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300";
+  "px-4 py-3 text-left text-lg font-semibold tracking-normal text-slate-700 sm:px-6 sm:py-3 sm:text-xl dark:text-slate-300";
 
 /** Uniform row hover — pairs with .xpos-table-row rules in index.css */
 export const tableBodyRow = "xpos-table-row";
@@ -116,7 +116,7 @@ export const tableRowNoColStyle = {
 } as const;
 
 export const tableRowNoHead =
-  "box-border w-[2.25rem] min-w-[2.25rem] max-w-[2.25rem] px-0.5 py-3 text-center text-base font-semibold uppercase tracking-wide text-slate-700 sm:py-3 sm:text-lg dark:text-slate-300";
+  "box-border w-[2.25rem] min-w-[2.25rem] max-w-[2.25rem] px-0.5 py-3 text-center text-base font-semibold tracking-normal text-slate-700 sm:py-3 sm:text-lg dark:text-slate-300";
 
 export const tableRowNoCell =
   "box-border w-[2.25rem] min-w-[2.25rem] max-w-[2.25rem] px-0.5 py-2 text-center text-base tabular-nums text-slate-600 sm:py-2.5 sm:text-lg dark:text-slate-400";

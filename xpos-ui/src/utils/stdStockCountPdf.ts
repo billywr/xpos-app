@@ -63,7 +63,7 @@ export function downloadStdStockCountPdf(
 
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text("Stock Count Sheet", margin, y);
+  doc.text("Stock count sheet", margin, y);
   y += 8;
 
   doc.setFontSize(10);
@@ -86,12 +86,12 @@ export function downloadStdStockCountPdf(
       "Item",
       "Opening",
       "Added",
-      "Total Stock",
+      "Total stock",
       "Closing",
-      "Units Sold",
-      "Selling Price",
+      "Units sold",
+      "Selling price",
       "Amount",
-      "comments",
+      "Comments",
     ];
     const tableData: string[][] = rows.map((r) => [
       r.sku ? `${r.sku} · ${r.name}` : r.name || "—",
@@ -126,7 +126,7 @@ export function downloadStdStockCountPdf(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.text(
-      `Totals: Units Sold = ${formatQty(totals.unitsSold)} | Total Sales = ${formatKsh(totals.amount)}`,
+      `Totals: Units sold = ${formatQty(totals.unitsSold)} | Total sales = ${formatKsh(totals.amount)}`,
       margin,
       y
     );
@@ -142,7 +142,7 @@ export function downloadStdStockCountPdf(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.text(
-      `Today Debts: ${formatKsh(summary.dayDebtsTotal)}   |   Total Debts: ${formatKsh(summary.allDebtsTotal)}   |   Expenses: ${formatKsh(summary.expensesTotal)}   |   Total Sales: ${formatKsh(totals.amount)}`,
+      `Today debts: ${formatKsh(summary.dayDebtsTotal)}   |   Total debts: ${formatKsh(summary.allDebtsTotal)}   |   Expenses: ${formatKsh(summary.expensesTotal)}   |   Total sales: ${formatKsh(totals.amount)}`,
       margin,
       y
     );
@@ -156,7 +156,7 @@ export function downloadStdStockCountPdf(
       y += 2;
 
       autoTable(doc, {
-        head: [["Customer", "Phone", "Issued by", "Outstanding", "Due Date", "Recorded"]],
+        head: [["Customer", "Phone", "Issued by", "Outstanding", "Due date", "Recorded"]],
         body: summary.dayDebts.map((d) => [
           d.customerName,
           d.customerPhone ?? "—",
@@ -184,11 +184,11 @@ export function downloadStdStockCountPdf(
     if (summary.allDebts.length > 0) {
       doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
-      doc.text("All Outstanding Debtors", margin, y);
+      doc.text("All outstanding debtors", margin, y);
       y += 2;
 
       autoTable(doc, {
-        head: [["Customer", "Phone", "Issued by", "Outstanding", "Due Date", "Recorded"]],
+        head: [["Customer", "Phone", "Issued by", "Outstanding", "Due date", "Recorded"]],
         body: summary.allDebts.map((d) => [
           d.customerName,
           d.customerPhone ?? "—",
@@ -217,7 +217,7 @@ export function downloadStdStockCountPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.text(
-    `Generated ${formatDateTime(new Date())} — ${appName} Standard Stock Count`,
+    `Generated ${formatDateTime(new Date())} — ${appName} standard stock count`,
     margin,
     y
   );

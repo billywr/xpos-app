@@ -1555,7 +1555,7 @@ export function GoodsReceiptPage({
               className="flex flex-col justify-between rounded-xl border border-slate-200/80 border-l-4 border-l-emerald-500 bg-white p-2.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_35px_-10px_rgba(0,0,0,0.15)] sm:p-3 dark:border-white/10 dark:border-l-emerald-500 dark:bg-slate-800/90 dark:shadow-[0_10px_30px_-5px_rgba(0,0,0,0.7),0_4px_12px_rgba(0,0,0,0.5)] dark:hover:shadow-[0_15px_40px_-5px_rgba(0,0,0,0.85)]"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                   Total
                 </span>
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 shadow-sm dark:bg-emerald-950/40 dark:text-emerald-400">
@@ -1572,7 +1572,7 @@ export function GoodsReceiptPage({
               className="flex flex-col justify-between rounded-xl border border-slate-200/80 border-l-4 border-l-indigo-500 bg-white p-2.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_35px_-10px_rgba(0,0,0,0.15)] sm:p-3 dark:border-white/10 dark:border-l-indigo-500 dark:bg-slate-800/90 dark:shadow-[0_10px_30px_-5px_rgba(0,0,0,0.7),0_4px_12px_rgba(0,0,0,0.5)] dark:hover:shadow-[0_15px_40px_-5px_rgba(0,0,0,0.85)]"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                   Units
                 </span>
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 shadow-sm dark:bg-indigo-950/40 dark:text-indigo-400">

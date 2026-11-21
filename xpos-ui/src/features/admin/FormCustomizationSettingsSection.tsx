@@ -207,7 +207,7 @@ export function FormCustomizationSettingsSection() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
-            Form & Sheet Customization
+            Form & sheet customization
           </h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Configure data capture sheets across the system. Hide or reveal optional fields, rename field labels, rearrange field order, and toggle or customize input placeholders.
@@ -338,8 +338,8 @@ export function FormCustomizationSettingsSection() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Field Editor List (7 cols) */}
         <div className="lg:col-span-7 space-y-3">
-          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1">
-            <span>Fields & Order</span>
+          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400 px-1">
+            <span>Fields & order</span>
             <span>Controls</span>
           </div>
 
@@ -565,8 +565,8 @@ export function FormCustomizationSettingsSection() {
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary-500" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                  Live Sheet Preview
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Live sheet preview
                 </span>
               </div>
               <span className="rounded bg-primary-100 px-2 py-0.5 text-[10px] font-medium text-primary-800 dark:bg-primary-950/60 dark:text-primary-300">

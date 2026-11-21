@@ -189,7 +189,7 @@ export function SelectContextPage() {
       {/* Step 1: Org (hidden when only one organization) */}
       {orgs.length !== 1 && (
       <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <h2 className="mb-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
           1. Organization
         </h2>
         {orgsLoading ? (
@@ -226,7 +226,7 @@ export function SelectContextPage() {
       {/* Step 2: Branch (hidden when only one branch) */}
       {branches.length !== 1 && (
         <section className="mb-8">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <h2 className="mb-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
             {orgs.length === 1 ? "1. Branch" : "2. Branch"}
           </h2>
           {!selectedOrgId ? (
@@ -266,7 +266,7 @@ export function SelectContextPage() {
 
       {/* Step 3: Terminal */}
       <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <h2 className="mb-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
           {orgs.length === 1 && branches.length === 1
             ? "1. Terminal"
             : orgs.length === 1 || branches.length === 1

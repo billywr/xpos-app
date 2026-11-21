@@ -716,22 +716,22 @@ export function RevenueDashboardPage() {
           animate="visible"
           className="space-y-6"
         >
-          <div className="grid grid-cols-1 gap-2.5 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 xl:gap-3.5">
+          <div className="grid grid-cols-1 gap-2 xs:grid-cols-2 md:grid-cols-5 xl:gap-2.5">
             {/* 0. Revenue */}
             <motion.div
               variants={cardVariants}
               custom={0}
-              className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-emerald-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-emerald-950/30 dark:to-slate-800"
+              className="min-w-0 overflow-hidden rounded-xl border border-slate-200/90 border-b-[3px] border-b-emerald-500 bg-white shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08),0_2px_4px_-1px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_25px_-4px_rgba(0,0,0,0.12),0_4px_10px_-2px_rgba(0,0,0,0.08)] dark:border-slate-700/80 dark:border-b-emerald-500 dark:bg-slate-800 dark:shadow-[0_4px_16px_-2px_rgba(0,0,0,0.45),0_2px_6px_-1px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:shadow-[0_12px_28px_-4px_rgba(0,0,0,0.55),0_6px_14px_-2px_rgba(0,0,0,0.4)]"
             >
-              <div className="p-3 sm:p-3.5 xl:p-4">
+              <div className="p-2.5 sm:p-3 xl:p-3.5">
                 <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 min-w-0">
-                  <DollarSign className="h-4 w-4 shrink-0" />
+                  <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                   <span className="text-xs xl:text-sm font-semibold truncate">Revenue</span>
                 </div>
-                <p className="mt-1.5 text-lg sm:text-xl xl:text-2xl font-bold tabular-nums text-slate-900 dark:text-white truncate">
+                <p className="mt-1 text-base sm:text-lg xl:text-xl font-bold tabular-nums text-slate-900 dark:text-white truncate">
                   <AnimatedNumber value={dashboard.summary.revenueTotal} />
                 </p>
-                <p className="mt-0.5 sm:mt-1 text-[11px] xl:text-xs text-slate-500 dark:text-slate-400 truncate">
+                <p className="mt-0.5 text-[10px] xl:text-xs text-slate-500 dark:text-slate-400 truncate">
                   Total gross · <AnimatedCount value={dashboard.summary.saleCount} /> sales
                 </p>
               </div>
@@ -741,17 +741,17 @@ export function RevenueDashboardPage() {
             <motion.div
               variants={cardVariants}
               custom={1}
-              className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-rose-50 to-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:from-rose-950/30 dark:to-slate-800"
+              className="min-w-0 overflow-hidden rounded-xl border border-slate-200/90 border-b-[3px] border-b-rose-500 bg-white shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08),0_2px_4px_-1px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_25px_-4px_rgba(0,0,0,0.12),0_4px_10px_-2px_rgba(0,0,0,0.08)] dark:border-slate-700/80 dark:border-b-rose-500 dark:bg-slate-800 dark:shadow-[0_4px_16px_-2px_rgba(0,0,0,0.45),0_2px_6px_-1px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:shadow-[0_12px_28px_-4px_rgba(0,0,0,0.55),0_6px_14px_-2px_rgba(0,0,0,0.4)]"
             >
-              <div className="p-3 sm:p-3.5 xl:p-4">
+              <div className="p-2.5 sm:p-3 xl:p-3.5">
                 <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 min-w-0">
-                  <Package className="h-4 w-4 shrink-0" />
+                  <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                   <span className="text-xs xl:text-sm font-semibold truncate">Cost of goods</span>
                 </div>
-                <p className="mt-1.5 text-lg sm:text-xl xl:text-2xl font-bold tabular-nums text-slate-900 dark:text-white truncate">
+                <p className="mt-1 text-base sm:text-lg xl:text-xl font-bold tabular-nums text-slate-900 dark:text-white truncate">
                   <AnimatedNumber value={dashboard.summary.cogsTotal} />
                 </p>
-                <p className="mt-0.5 sm:mt-1 text-[11px] xl:text-xs text-slate-500 dark:text-slate-400 truncate">Direct product cost</p>
+                <p className="mt-0.5 text-[10px] xl:text-xs text-slate-500 dark:text-slate-400 truncate">Direct product cost</p>
               </div>
             </motion.div>
 
@@ -759,22 +759,22 @@ export function RevenueDashboardPage() {
             <motion.div
               variants={cardVariants}
               custom={2}
-              className="min-w-0 overflow-hidden rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50 to-white shadow-sm transition hover:shadow-md dark:border-teal-800/60 dark:from-teal-950/30 dark:to-slate-800"
+              className="min-w-0 overflow-hidden rounded-xl border border-slate-200/90 border-b-[3px] border-b-teal-500 bg-white shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08),0_2px_4px_-1px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_25px_-4px_rgba(0,0,0,0.12),0_4px_10px_-2px_rgba(0,0,0,0.08)] dark:border-slate-700/80 dark:border-b-teal-500 dark:bg-slate-800 dark:shadow-[0_4px_16px_-2px_rgba(0,0,0,0.45),0_2px_6px_-1px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:shadow-[0_12px_28px_-4px_rgba(0,0,0,0.55),0_6px_14px_-2px_rgba(0,0,0,0.4)]"
             >
-              <div className="p-3 sm:p-3.5 xl:p-4">
+              <div className="p-2.5 sm:p-3 xl:p-3.5">
                 <div className="flex items-center justify-between gap-1">
                   <div className="flex items-center gap-1.5 text-teal-600 dark:text-teal-400 min-w-0 truncate">
-                    <TrendingUp className="h-4 w-4 shrink-0" />
+                    <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                     <span className="text-xs xl:text-sm font-semibold truncate">Profit</span>
                   </div>
                   <span className="rounded-full bg-teal-100 px-1.5 py-0.5 text-[10px] sm:text-xs font-semibold text-teal-700 dark:bg-teal-900/50 dark:text-teal-300 shrink-0">
                     {formatPercent(grossMargin, 2)}
                   </span>
                 </div>
-                <p className="mt-1.5 text-lg sm:text-xl xl:text-2xl font-bold tabular-nums text-slate-900 dark:text-white truncate">
+                <p className="mt-1 text-base sm:text-lg xl:text-xl font-bold tabular-nums text-slate-900 dark:text-white truncate">
                   <AnimatedNumber value={grossProfit} />
                 </p>
-                <p className="mt-0.5 sm:mt-1 text-[11px] xl:text-xs text-slate-500 dark:text-slate-400 truncate">Before expenses</p>
+                <p className="mt-0.5 text-[10px] xl:text-xs text-slate-500 dark:text-slate-400 truncate">Before expenses</p>
               </div>
             </motion.div>
 
@@ -783,12 +783,12 @@ export function RevenueDashboardPage() {
               variants={cardVariants}
               custom={3}
               onClick={() => setShowExpenseModal(true)}
-              className="group relative cursor-pointer min-w-0 overflow-hidden rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white shadow-sm transition-all duration-200 hover:border-amber-400 hover:shadow-md dark:border-slate-700 dark:from-amber-950/30 dark:to-slate-800 dark:hover:border-amber-500"
+              className="group relative cursor-pointer min-w-0 overflow-hidden rounded-xl border border-slate-200/90 border-b-[3px] border-b-amber-500 bg-white shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08),0_2px_4px_-1px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)] transition-all duration-200 hover:-translate-y-1 hover:border-amber-400 hover:shadow-[0_10px_25px_-4px_rgba(0,0,0,0.12),0_4px_10px_-2px_rgba(0,0,0,0.08)] dark:border-slate-700/80 dark:border-b-amber-500 dark:bg-slate-800 dark:shadow-[0_4px_16px_-2px_rgba(0,0,0,0.45),0_2px_6px_-1px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:border-amber-400 dark:hover:shadow-[0_12px_28px_-4px_rgba(0,0,0,0.55),0_6px_14px_-2px_rgba(0,0,0,0.4)]"
               title="Click to see breakdown of expenses for this period"
             >
-              <div className="p-3 sm:p-3.5 xl:p-4">
+              <div className="p-2.5 sm:p-3 xl:p-3.5">
                 <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 min-w-0">
-                  <CreditCard className="h-4 w-4 shrink-0" />
+                  <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                   <span className="text-xs xl:text-sm font-semibold truncate">
                     Tot exp:{" "}
                     <span className="font-extrabold text-amber-700 dark:text-amber-300">
@@ -796,16 +796,16 @@ export function RevenueDashboardPage() {
                     </span>
                   </span>
                 </div>
-                <div className="mt-1.5 sm:mt-2 space-y-0.5 sm:space-y-1">
-                  <div className="flex items-center justify-between gap-1 text-[11px] xl:text-xs">
+                <div className="mt-1 sm:mt-1.5 space-y-0.5">
+                  <div className="flex items-center justify-between gap-1 text-[10px] xl:text-xs">
                     <span className="text-slate-500 dark:text-slate-400 shrink-0">Expense :</span>
-                    <span className="text-xs sm:text-sm font-bold tabular-nums text-slate-900 dark:text-white truncate">
+                    <span className="text-[11px] sm:text-xs xl:text-sm font-bold tabular-nums text-slate-900 dark:text-white truncate">
                       <AnimatedNumber value={expenseTotal} />
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-1 text-[11px] xl:text-xs">
+                  <div className="flex items-center justify-between gap-1 text-[10px] xl:text-xs">
                     <span className="text-slate-500 dark:text-slate-400 shrink-0">Utilities :</span>
-                    <span className="text-xs sm:text-sm font-bold tabular-nums text-slate-900 dark:text-white truncate">
+                    <span className="text-[11px] sm:text-xs xl:text-sm font-bold tabular-nums text-slate-900 dark:text-white truncate">
                       <AnimatedNumber value={utilitiesTotal} />
                     </span>
                   </div>
@@ -818,13 +818,13 @@ export function RevenueDashboardPage() {
               variants={cardVariants}
               custom={4}
               className={cn(
-                "min-w-0 overflow-hidden rounded-xl border shadow-sm transition hover:shadow-md col-span-1 xs:col-span-2 sm:col-span-2 lg:col-span-1",
+                "min-w-0 overflow-hidden rounded-xl border border-slate-200/90 border-b-[3px] bg-white shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08),0_2px_4px_-1px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_25px_-4px_rgba(0,0,0,0.12),0_4px_10px_-2px_rgba(0,0,0,0.08)] dark:border-slate-700/80 dark:bg-slate-800 dark:shadow-[0_4px_16px_-2px_rgba(0,0,0,0.45),0_2px_6px_-1px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:shadow-[0_12px_28px_-4px_rgba(0,0,0,0.55),0_6px_14px_-2px_rgba(0,0,0,0.4)]",
                 netProfit >= 0
-                  ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-800/60 dark:from-emerald-950/30 dark:to-slate-800"
-                  : "border-rose-200 bg-gradient-to-br from-rose-50 to-white dark:border-rose-800/60 dark:from-rose-950/30 dark:to-slate-800"
+                  ? "border-b-emerald-500 dark:border-b-emerald-500"
+                  : "border-b-rose-500 dark:border-b-rose-500"
               )}
             >
-              <div className="p-3 sm:p-3.5 xl:p-4">
+              <div className="p-2.5 sm:p-3 xl:p-3.5">
                 <div className="flex items-center justify-between gap-1">
                   <div
                     className={cn(
@@ -834,7 +834,7 @@ export function RevenueDashboardPage() {
                         : "text-rose-600 dark:text-rose-400"
                     )}
                   >
-                    <CircleDollarSign className="h-4 w-4 shrink-0" />
+                    <CircleDollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                     <span className="text-xs xl:text-sm font-semibold truncate">Net profit</span>
                   </div>
                   <span
@@ -848,10 +848,10 @@ export function RevenueDashboardPage() {
                     {formatPercent(netMargin, 2)}
                   </span>
                 </div>
-                <p className="mt-1.5 text-lg sm:text-xl xl:text-2xl font-bold tabular-nums text-slate-900 dark:text-white truncate">
+                <p className="mt-1 text-base sm:text-lg xl:text-xl font-bold tabular-nums text-slate-900 dark:text-white truncate">
                   <AnimatedNumber value={netProfit} />
                 </p>
-                <p className="mt-0.5 sm:mt-1 text-[11px] xl:text-xs text-slate-500 dark:text-slate-400 truncate">
+                <p className="mt-0.5 text-[10px] xl:text-xs text-slate-500 dark:text-slate-400 truncate">
                   {utilitiesTotal > 0 ? "Profit - (Expenses + Utilities)" : "Profit - Expenses"}
                 </p>
               </div>

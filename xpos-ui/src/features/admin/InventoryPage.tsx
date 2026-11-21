@@ -694,7 +694,7 @@ function StatusCard({
       </div>
       <div className="min-w-0">
         <div className={`text-2xl font-bold tabular-nums ${t.text}`}>{value}</div>
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+        <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
           {label}
         </div>
         <div className="text-[11px] text-slate-500 dark:text-slate-400">{hint}</div>
@@ -718,7 +718,7 @@ function MetricCard({
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
         <Icon className="h-4 w-4" />
         {label}
       </div>

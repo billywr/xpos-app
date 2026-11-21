@@ -8,6 +8,8 @@ export interface RecurringUtility {
   branchId: string;
   name: string;
   amount: number;
+  effectiveFrom: string;
+  effectiveTo: string | null;
   applyTiming: RecurringUtilityApplyTiming;
   dueDayOfMonth: number;
   payee: string | null;
@@ -24,6 +26,8 @@ export interface RecurringUtility {
 export interface RecurringUtilityCreateRequest {
   name: string;
   amount: number;
+  effectiveFrom?: string;
+  effectiveTo?: string | null;
   applyTiming?: RecurringUtilityApplyTiming;
   dueDayOfMonth?: number;
   payee?: string;
@@ -35,6 +39,9 @@ export interface RecurringUtilityCreateRequest {
 export interface RecurringUtilityUpdateRequest {
   name?: string;
   amount?: number;
+  effectiveFrom?: string;
+  effectiveTo?: string | null;
+  isRateChange?: boolean;
   applyTiming?: RecurringUtilityApplyTiming;
   dueDayOfMonth?: number;
   payee?: string;

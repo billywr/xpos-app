@@ -219,6 +219,8 @@ export interface RecurringUtilityResponse {
   branchId: string;
   name: string;
   amount: number;
+  effectiveFrom?: string;
+  effectiveTo?: string | null;
   applyTiming: RecurringUtilityApplyTiming;
   notes?: string | null;
   active: boolean;
@@ -230,6 +232,8 @@ export interface RecurringUtilityResponse {
 export interface RecurringUtilityCreateRequest {
   name: string;
   amount: number;
+  effectiveFrom?: string;
+  effectiveTo?: string | null;
   applyTiming?: RecurringUtilityApplyTiming;
   notes?: string;
 }
@@ -237,6 +241,9 @@ export interface RecurringUtilityCreateRequest {
 export interface RecurringUtilityUpdateRequest {
   name?: string;
   amount?: number;
+  effectiveFrom?: string;
+  effectiveTo?: string | null;
+  isRateChange?: boolean;
   applyTiming?: RecurringUtilityApplyTiming;
   active?: boolean;
   notes?: string;

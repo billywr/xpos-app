@@ -169,6 +169,8 @@ describe("RevenueDashboardPage", () => {
           branchId: "branch-1",
           name: "Electricity",
           amount: 5000,
+          effectiveFrom: "2025-01-01",
+          effectiveTo: null,
           applyTiming: "BEGINNING_OF_MONTH",
           dueDayOfMonth: 5,
           payee: "Power Co",
@@ -291,7 +293,7 @@ describe("RevenueDashboardPage", () => {
     fireEvent.click(expensesTile);
 
     await waitFor(() => {
-      expect(screen.getByText("Expenses & Utilities")).toBeInTheDocument();
+      expect(screen.getByText("Expenses & utilities")).toBeInTheDocument();
       expect(screen.getByPlaceholderText(/Search expenses and utilities/i)).toBeInTheDocument();
       expect(screen.getByText("Period")).toBeInTheDocument();
       expect(screen.getByText("Exp")).toBeInTheDocument();

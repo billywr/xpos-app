@@ -66,6 +66,8 @@ public class RecurringUtilityOperatorController {
             branchId,
             request.name(),
             request.amount(),
+            request.effectiveFrom(),
+            request.effectiveTo(),
             request.applyTiming(),
             request.dueDayOfMonth(),
             request.payee(),
@@ -133,6 +135,9 @@ public class RecurringUtilityOperatorController {
             utilityId,
             request.name(),
             request.amount(),
+            request.effectiveFrom(),
+            request.effectiveTo(),
+            request.isRateChange(),
             request.applyTiming(),
             request.dueDayOfMonth(),
             request.payee(),
@@ -159,12 +164,24 @@ public class RecurringUtilityOperatorController {
     if (u.getCreatedBy() != null) {
       staffName = u.getCreatedBy().getUsername();
     }
+    java.time.LocalDate effectiveFrom = u.getEffectiveFrom();
+    if (effectiveFrom == null) {
+      effectiveFrom =
+          u.getCreatedAt() != null
+              ? u.getCreatedAt()
+                  .atZone(java.time.ZoneId.systemDefault())
+                  .toLocalDate()
+                  .withDayOfMonth(1)
+              : java.time.LocalDate.now().withDayOfMonth(1);
+    }
     return new RecurringUtilityResponse(
         u.getId(),
         u.getOrg().getId(),
         u.getBranch().getId(),
         u.getName(),
         u.getAmount(),
+        effectiveFrom,
+        u.getEffectiveTo(),
         u.getApplyTiming(),
         u.getDueDayOfMonth() != null ? u.getDueDayOfMonth() : 1,
         u.getPayee(),

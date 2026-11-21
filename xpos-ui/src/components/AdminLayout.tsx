@@ -7,6 +7,7 @@ import { useNavVisibilityContext } from "@/contexts/NavVisibilityContext";
 import { isNavItemVisible } from "@/hooks/useAdminNavVisibility";
 import { ADMIN_NAV_ITEMS, ADMIN_GROUP_ORDER } from "@/config/adminNavItems";
 import { AssistantWidget } from "@/components/AssistantWidget";
+import { toSentenceCase } from "@/utils/textCase";
 
 function groupNavItems(items: typeof ADMIN_NAV_ITEMS) {
   const byGroup = new Map<string, typeof ADMIN_NAV_ITEMS>();
@@ -93,7 +94,7 @@ export function AdminLayout() {
               <button
                 type="button"
                 onClick={() => toggleGroup(groupLabel)}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-300"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-300"
                 aria-expanded={isOpen}
               >
                 {isOpen ? (
@@ -101,12 +102,12 @@ export function AdminLayout() {
                 ) : (
                   <ChevronRight className="h-3.5 w-3.5 shrink-0" />
                 )}
-                {groupLabel}
+                {toSentenceCase(groupLabel)}
               </button>
             ) : null}
             {(singleItem || !showLabels || isOpen) &&
               groupItems.map(({ to, label, icon: Icon, end }) => {
-                const displayLabel = getAdminLabel(to, label);
+                const displayLabel = toSentenceCase(getAdminLabel(to, label));
                 return (
                 <NavLink
                   key={to}

@@ -40,7 +40,7 @@ export function generateDebtsPdf(
 
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
-  doc.text("Customer Debts Report", margin, y);
+  doc.text("Customer debts report", margin, y);
   y += 9;
 
   doc.setFontSize(11);
@@ -326,7 +326,7 @@ export function generateGroupedDebtsPdf(
 
   doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
-  doc.text(`Customer Debts Report (Grouped by ${groupByLabel})`, margin, y);
+  doc.text(`Customer debts report (grouped by ${(groupByLabel ?? "group").toLowerCase()})`, margin, y);
   y += 9;
 
   doc.setFontSize(11);

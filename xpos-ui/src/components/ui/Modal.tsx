@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { toSentenceCase } from "@/utils/textCase";
 import { IconButton } from "./IconButton";
 import { modalOverlay, modalPanel } from "./styles";
 
@@ -105,7 +106,7 @@ export function Modal({
               id="modal-title"
               className="text-base font-semibold text-slate-900 sm:text-lg dark:text-white"
             >
-              {title}
+              {toSentenceCase(title)}
             </h3>
           ) : (
             <span />

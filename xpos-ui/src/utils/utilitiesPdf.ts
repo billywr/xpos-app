@@ -2,7 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { RecurringUtility } from "@/api/recurringUtilities";
 import { formatAmount } from "@/utils/formatCurrency";
-import { formatDateTime } from "@/utils/formatDate";
+import { formatDateTime, formatDate } from "@/utils/formatDate";
 
 export interface UtilitiesPdfOptions {
   branchName?: string | null;
@@ -24,7 +24,7 @@ export function generateUtilitiesPdf(
 
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text("Recurring Utility Bills Report", margin, y);
+  doc.text("Recurring utility bills report", margin, y);
   y += 8;
 
   doc.setFontSize(10);
@@ -59,28 +59,40 @@ export function generateUtilitiesPdf(
   const head = [
     [
       "#",
-      "Utility Name",
+      "Utility name",
       "Amount",
-      "Deduction Timing",
+      "Effective period",
+      "Deduction timing",
       "Status",
       "Notes",
     ],
   ];
 
-  const body = utilities.map((u, i) => [
-    String(i + 1),
-    u.name,
-    formatAmount(Number(u.amount)),
-    u.applyTiming === "END_OF_MONTH" ? "End of month (Last day)" : "Beginning of month (1st)",
-    u.active ? "Active" : "Inactive",
-    u.notes ?? "—",
-  ]);
+  const body = utilities.map((u, i) => {
+    const effectiveDate =
+      u.effectiveFrom || (u.createdAt ? u.createdAt.slice(0, 10) : undefined);
+    const effectiveDisplay = effectiveDate
+      ? u.effectiveTo
+        ? `${formatDate(effectiveDate)} (ended ${formatDate(u.effectiveTo)})`
+        : `From ${formatDate(effectiveDate)}`
+      : "—";
+    return [
+      String(i + 1),
+      u.name,
+      formatAmount(Number(u.amount)),
+      effectiveDisplay,
+      u.applyTiming === "END_OF_MONTH" ? "End of month (Last day)" : "Beginning of month (1st)",
+      u.active ? "Active" : "Inactive",
+      u.notes ?? "—",
+    ];
+  });
 
   const foot = [
     [
-      "Total Active Monthly",
+      "Total active monthly",
       "",
       formatAmount(finalTotal),
+      "",
       "",
       "",
       "",

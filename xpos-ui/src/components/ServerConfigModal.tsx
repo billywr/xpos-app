@@ -86,8 +86,8 @@ export function ServerConfigModal({ open, onClose, onSaved }: ServerConfigModalP
 
         {/* Environment Presets */}
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Environment Presets
+          <label className="mb-2 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+            Environment presets
           </label>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {/* Production */}
@@ -146,7 +146,7 @@ export function ServerConfigModal({ open, onClose, onSaved }: ServerConfigModalP
                     "text-xs font-bold",
                     isDevActive ? "text-primary-900 dark:text-primary-200" : "text-slate-800 dark:text-white"
                   )}>
-                    Local Dev (Localhost)
+                    Local dev (localhost)
                   </span>
                   {isDevActive && <CheckCircle2 className="h-4 w-4 text-primary-600 dark:text-primary-400" />}
                 </div>

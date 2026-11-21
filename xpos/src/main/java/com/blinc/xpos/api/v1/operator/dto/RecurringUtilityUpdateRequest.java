@@ -6,10 +6,14 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public record RecurringUtilityUpdateRequest(
     @Size(max = 150) String name,
     @DecimalMin(value = "0.01", message = "Amount must be positive") BigDecimal amount,
+    LocalDate effectiveFrom,
+    LocalDate effectiveTo,
+    Boolean isRateChange,
     RecurringUtilityApplyTiming applyTiming,
     @Min(value = 1, message = "Due day of month must be between 1 and 31")
         @Max(value = 31, message = "Due day of month must be between 1 and 31")

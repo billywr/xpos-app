@@ -7,7 +7,7 @@ import authReducer from "@/store/slices/authSlice";
 import orgContextReducer from "@/store/slices/orgContextSlice";
 import cartReducer from "@/store/slices/cartSlice";
 import { ToastProvider } from "@/contexts/ToastContext";
-import { UtilitiesTabPanel } from "./UtilitiesTabPanel";
+import { UtilitiesTabPanel, getUtilityStatus } from "./UtilitiesTabPanel";
 import * as recurringApi from "@/api/recurringUtilities";
 
 vi.mock("@/api/recurringUtilities");
@@ -55,6 +55,8 @@ describe("UtilitiesTabPanel", () => {
           branchId: "branch-1",
           name: "Rent",
           amount: 50000,
+          effectiveFrom: "2026-10-01",
+          effectiveTo: null,
           applyTiming: "BEGINNING_OF_MONTH",
           dueDayOfMonth: 1,
           payee: "Plaza Management",
@@ -73,6 +75,8 @@ describe("UtilitiesTabPanel", () => {
           branchId: "branch-1",
           name: "Electricity (KPLC)",
           amount: 12000,
+          effectiveFrom: undefined as any,
+          effectiveTo: null,
           applyTiming: "END_OF_MONTH",
           dueDayOfMonth: 28,
           payee: "Kenya Power",
@@ -98,7 +102,7 @@ describe("UtilitiesTabPanel", () => {
     });
   });
 
-  it("renders utilities table with deduction timing badges and monthly summary", async () => {
+  it("renders utilities table with deduction timing badges, effective date and monthly summary", async () => {
     wrap(
       <UtilitiesTabPanel
         orgId="org-1"
@@ -114,14 +118,16 @@ describe("UtilitiesTabPanel", () => {
       expect(screen.getByText("Electricity (KPLC)")).toBeInTheDocument();
     });
 
-    // Deduction timing badges
-    expect(screen.getByText(/Beginning of month \(1st\)/)).toBeInTheDocument();
-    expect(screen.getByText(/End of month \(Last day\)/)).toBeInTheDocument();
+    // Effective from and Effective to table headers and formatted dates
+    expect(screen.getByText("Effective from")).toBeInTheDocument();
+    expect(screen.getByText("Effective to")).toBeInTheDocument();
+    expect(screen.getAllByText("01/10/2026")).toHaveLength(2);
 
     // Summary chip
     expect(screen.getByText(/KSH 62,000/)).toBeInTheDocument();
 
     // Verify removed columns are absent
+    expect(screen.queryByText("Deduction Timing")).not.toBeInTheDocument();
     expect(screen.queryByText("Due Day")).not.toBeInTheDocument();
     expect(screen.queryByText("Payee / Vendor")).not.toBeInTheDocument();
     expect(screen.queryByText("Account / Ref")).not.toBeInTheDocument();
@@ -167,5 +173,155 @@ describe("UtilitiesTabPanel", () => {
 
     // Form value should now be set to "Solar Battery Maintenance"
     expect(combobox).toHaveValue("Solar Battery Maintenance");
+  });
+
+  it("submits create utility with effectiveFrom date", async () => {
+    vi.mocked(recurringApi.createRecurringUtility).mockResolvedValue({
+      id: "util-3",
+      orgId: "org-1",
+      branchId: "branch-1",
+      name: "Water",
+      amount: 3000,
+      effectiveFrom: "2026-11-01",
+      effectiveTo: null,
+      applyTiming: "BEGINNING_OF_MONTH",
+      dueDayOfMonth: 1,
+      payee: null,
+      accountNumber: null,
+      incurredBy: null,
+      notes: null,
+      active: true,
+      createdByStaffUserId: "user-1",
+      createdByStaffUserName: "operator",
+      createdAt: "2026-11-01T00:00:00Z",
+      updatedAt: "2026-11-01T00:00:00Z",
+    });
+
+    wrap(
+      <UtilitiesTabPanel
+        orgId="org-1"
+        branchId="branch-1"
+        branchName="Main Branch"
+        isCreateOpen={true}
+        setIsCreateOpen={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Add recurring utility")).toBeInTheDocument();
+    });
+
+    const combobox = screen.getByPlaceholderText(
+      "Select preset or type custom utility name..."
+    );
+    fireEvent.focus(combobox);
+    fireEvent.change(combobox, { target: { value: "Water" } });
+    fireEvent.keyDown(combobox, { key: "Enter" });
+
+    const amountInput = screen.getByPlaceholderText("0.00");
+    fireEvent.change(amountInput, { target: { value: "3000" } });
+
+    const saveBtn = screen.getByRole("button", { name: /^Save$/i });
+    expect(saveBtn).not.toBeDisabled();
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(recurringApi.createRecurringUtility).toHaveBeenCalledWith(
+        "test-token",
+        "org-1",
+        "branch-1",
+        expect.objectContaining({
+          name: "Water Bill",
+          amount: 3000,
+          effectiveFrom: expect.any(String),
+        })
+      );
+    });
+  });
+
+  it("getUtilityStatus correctly classifies active, ended, upcoming, and paused utilities", () => {
+    expect(
+      getUtilityStatus({
+        id: "1",
+        active: false,
+        name: "Rent",
+        amount: 5000,
+        effectiveFrom: "2026-01-01",
+        effectiveTo: null,
+      } as any).label
+    ).toBe("PAUSED");
+
+    expect(
+      getUtilityStatus({
+        id: "2",
+        active: true,
+        name: "Rent",
+        amount: 5000,
+        effectiveFrom: "2020-01-01",
+        effectiveTo: "2020-05-31",
+      } as any).label
+    ).toBe("ENDED");
+
+    expect(
+      getUtilityStatus({
+        id: "3",
+        active: true,
+        name: "Rent",
+        amount: 5000,
+        effectiveFrom: "2099-01-01",
+        effectiveTo: null,
+      } as any).label
+    ).toBe("UPCOMING");
+
+    expect(
+      getUtilityStatus({
+        id: "4",
+        active: true,
+        name: "Rent",
+        amount: 5000,
+        effectiveFrom: "2026-01-01",
+        effectiveTo: null,
+      } as any).label
+    ).toBe("ACTIVE");
+  });
+
+  it("enforces min attribute on Effective to month and shows inline error if earlier than from month", async () => {
+    wrap(
+      <UtilitiesTabPanel
+        orgId="org-1"
+        branchId="branch-1"
+        branchName="Main Branch"
+        isCreateOpen={true}
+        setIsCreateOpen={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Add recurring utility")).toBeInTheDocument();
+    });
+
+    const monthInputs = screen.getAllByDisplayValue(/\d{4}-\d{2}/);
+    // First month input is effectiveFrom (defaults to current month YYYY-MM)
+    const effectiveFromInput = monthInputs[0];
+    fireEvent.change(effectiveFromInput, { target: { value: "2026-10" } });
+
+    // Effective to input
+    const effectiveToInput = screen.getByLabelText(/Effective to/i);
+    expect(effectiveToInput).toHaveAttribute("min", "2026-10");
+
+    // If an earlier month is input (e.g. 2026-06 as in user report)
+    fireEvent.change(effectiveToInput, { target: { value: "2026-06" } });
+
+    // Inline validation error is rendered
+    expect(
+      screen.getByText(/Effective to month cannot be earlier than Effective from month/i)
+    ).toBeInTheDocument();
+
+    // If user changes effectiveFrom forward to 2026-12, effectiveTo (2026-06) is auto-cleared
+    fireEvent.change(effectiveFromInput, { target: { value: "2026-12" } });
+    expect(effectiveToInput).toHaveValue("");
+    expect(
+      screen.queryByText(/Effective to month cannot be earlier than Effective from month/i)
+    ).not.toBeInTheDocument();
   });
 });

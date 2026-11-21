@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { toSentenceCase } from "@/utils/textCase";
 
 /**
  * Single tab configuration for AdminTabList.
@@ -64,7 +65,7 @@ export function AdminTabList({
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" aria-hidden />
-              {tab.label}
+              {toSentenceCase(tab.label)}
             </button>
           );
         })}

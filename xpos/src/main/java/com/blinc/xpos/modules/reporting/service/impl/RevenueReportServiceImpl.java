@@ -78,7 +78,7 @@ public class RevenueReportServiceImpl implements RevenueReportService {
         miscExpenseRepository.findListByOrgIdAndBranchIdAndCreatedAtBetween(
             orgId, branchId, start, end);
     List<RecurringUtilityExpense> utilities =
-        recurringUtilityRepository.findAllActiveByOrgIdAndBranchId(orgId, branchId);
+        recurringUtilityRepository.findApplicableForPeriod(orgId, branchId, startDate, endDate);
 
     BigDecimal revenueTotal = BigDecimal.ZERO;
     BigDecimal taxTotal = BigDecimal.ZERO;
@@ -163,10 +163,24 @@ public class RevenueReportServiceImpl implements RevenueReportService {
                 : currentYm.atDay(1);
 
         if (!applicationDate.isBefore(startDate) && !applicationDate.isAfter(endDate)) {
-          BigDecimal amt = util.getAmount() != null ? util.getAmount() : BigDecimal.ZERO;
-          total = total.add(amt);
-          utilitiesByDate.merge(applicationDate, amt, BigDecimal::add);
-          byDate.computeIfAbsent(applicationDate, k -> new DailyAggregate());
+          YearMonth utilStartYm =
+              util.getEffectiveFrom() != null
+                  ? YearMonth.from(util.getEffectiveFrom())
+                  : (util.getCreatedAt() != null
+                      ? YearMonth.from(util.getCreatedAt().atZone(java.time.ZoneId.systemDefault()))
+                      : currentYm);
+          YearMonth utilEndYm =
+              util.getEffectiveTo() != null ? YearMonth.from(util.getEffectiveTo()) : null;
+
+          boolean effective =
+              !currentYm.isBefore(utilStartYm)
+                  && (utilEndYm == null || !currentYm.isAfter(utilEndYm));
+          if (effective) {
+            BigDecimal amt = util.getAmount() != null ? util.getAmount() : BigDecimal.ZERO;
+            total = total.add(amt);
+            utilitiesByDate.merge(applicationDate, amt, BigDecimal::add);
+            byDate.computeIfAbsent(applicationDate, k -> new DailyAggregate());
+          }
         }
       }
       currentYm = currentYm.plusMonths(1);

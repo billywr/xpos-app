@@ -70,7 +70,7 @@ describe("FormCustomizationSettingsSection", () => {
   it("renders section title and category selector", () => {
     renderSection();
 
-    expect(screen.getByText("Form & Sheet Customization")).toBeInTheDocument();
+    expect(screen.getByText("Form & sheet customization")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "All forms" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Operations" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Catalog" })).toBeInTheDocument();

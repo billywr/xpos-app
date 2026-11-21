@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/utils/cn";
+import { toSentenceCase } from "@/utils/textCase";
 import { badgeBase, badgeVariants } from "./styles";
 import { getStatusBadgeVariant, type BadgeVariant } from "@/utils/statusBadge";
 
@@ -16,9 +17,10 @@ export interface BadgeProps {
 
 export function Badge({ variant, status, children, className, title }: BadgeProps) {
   const resolvedVariant = variant ?? (status ? getStatusBadgeVariant(status) : "neutral");
+  const displayContent = typeof children === "string" ? toSentenceCase(children) : children;
   return (
     <span title={title} className={cn(badgeBase, badgeVariants[resolvedVariant], className)}>
-      {children}
+      {displayContent}
     </span>
   );
 }

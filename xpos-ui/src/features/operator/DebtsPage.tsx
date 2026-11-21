@@ -727,7 +727,7 @@ export function DebtsPage() {
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className={`${tableStickyHeadCell} px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300`}
+                        className={`${tableStickyHeadCell} px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300`}
                       />
                       {showPhoneCol && (
                         <SortableTableHead
@@ -736,13 +736,13 @@ export function DebtsPage() {
                           sortColumn={sortColumn}
                           sortDirection={sortDirection}
                           onSort={toggleSort}
-                          className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                          className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                         />
                       )}
-                      <SortableTableHead columnKey="amount" label="Original" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300" />
-                      <SortableTableHead columnKey="amountSettled" label="Repaid" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300" />
-                      <SortableTableHead columnKey="outstanding" label="Balance" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300" />
-                      <SortableTableHead columnKey="status" label="Status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300" />
+                      <SortableTableHead columnKey="amount" label="Original" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300" />
+                      <SortableTableHead columnKey="amountSettled" label="Repaid" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300" />
+                      <SortableTableHead columnKey="outstanding" label="Balance" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300" />
+                      <SortableTableHead columnKey="status" label="Status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={toggleSort} className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300" />
                       {showDueCol && (
                         <SortableTableHead
                           columnKey="dueDate"
@@ -750,7 +750,7 @@ export function DebtsPage() {
                           sortColumn={sortColumn}
                           sortDirection={sortDirection}
                           onSort={toggleSort}
-                          className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                          className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                         />
                       )}
                       <SortableTableHead
@@ -759,7 +759,7 @@ export function DebtsPage() {
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                       />
                       {showNotesCol && (
                         <SortableTableHead
@@ -768,7 +768,7 @@ export function DebtsPage() {
                           sortColumn={sortColumn}
                           sortDirection={sortDirection}
                           onSort={toggleSort}
-                          className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                          className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                         />
                       )}
                       <SortableTableHead
@@ -778,7 +778,7 @@ export function DebtsPage() {
                         sortDirection={sortDirection}
                         onSort={toggleSort}
                         sortable={false}
-                        className="px-4 py-3 text-left text-base font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
+                        className="px-4 py-3 text-left text-base font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-2xl dark:text-slate-300"
                       />
                     </tr>
                   </thead>

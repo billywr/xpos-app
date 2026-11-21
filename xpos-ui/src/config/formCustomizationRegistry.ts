@@ -21,7 +21,7 @@ export interface FormDefinition {
 export const FORM_REGISTRY: Record<string, FormDefinition> = {
   expense: {
     id: "expense",
-    title: "Miscellaneous Expenses",
+    title: "Miscellaneous expenses",
     category: "Operations",
     description: "Sheet for recording operational expenses (utilities, supplies, maintenance).",
     sheetTitle: "Record expenses",
@@ -68,7 +68,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
       },
       {
         key: "receiptRef",
-        defaultLabel: "Receipt / Voucher Ref",
+        defaultLabel: "Receipt / voucher ref",
         defaultPlaceholder: "e.g. REC-1234",
         required: false,
         canHide: true,
@@ -78,7 +78,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
   },
   "customer-debt": {
     id: "customer-debt",
-    title: "Customer Debts",
+    title: "Customer debts",
     category: "Operations",
     description: "Sheet for recording customer debts, tabs, and credit sales.",
     sheetTitle: "Record customer debt",
@@ -141,7 +141,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
       },
       {
         key: "notes",
-        defaultLabel: "Notes / Description",
+        defaultLabel: "Notes / description",
         defaultPlaceholder: "e.g. Tab for Friday order",
         required: false,
         canHide: true,
@@ -151,7 +151,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
   },
   "stock-receipt": {
     id: "stock-receipt",
-    title: "Stock Receiving / Add Stock",
+    title: "Stock receiving / add stock",
     category: "Operations",
     description: "Sheet for receiving inventory stock from suppliers (Goods Receipt Note).",
     sheetTitle: "Add stock",
@@ -192,7 +192,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
   },
   item: {
     id: "item",
-    title: "Items & Products",
+    title: "Items & products",
     category: "Catalog",
     description: "Sheet for creating and editing products and services in the catalog.",
     sheetTitle: "Add / edit item",
@@ -207,7 +207,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
       },
       {
         key: "sku",
-        defaultLabel: "SKU / Code",
+        defaultLabel: "SKU / code",
         defaultPlaceholder: "e.g. BEV-001",
         required: true,
         canHide: false,
@@ -396,7 +396,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
   },
   staff: {
     id: "staff",
-    title: "Staff Members",
+    title: "Staff members",
     category: "Directory",
     description: "Sheet for creating and updating team member profiles and system roles.",
     sheetTitle: "Add / edit staff member",
@@ -453,14 +453,14 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
   },
   table: {
     id: "table",
-    title: "Dining Tables",
+    title: "Dining tables",
     category: "POS & Settings",
     description: "Sheet for setting up dining tables and seating capacity.",
     sheetTitle: "Add / edit table",
     fields: [
       {
         key: "name",
-        defaultLabel: "Table name / Number",
+        defaultLabel: "Table name / number",
         defaultPlaceholder: "e.g. Table 12",
         required: true,
         canHide: false,
@@ -476,7 +476,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
       },
       {
         key: "area",
-        defaultLabel: "Area / Section",
+        defaultLabel: "Area / section",
         defaultPlaceholder: "Select area…",
         required: true,
         canHide: false,
@@ -494,7 +494,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
   },
   utility: {
     id: "utility",
-    title: "Recurring Utilities",
+    title: "Recurring utilities",
     category: "Operations",
     description: "Sheet for scheduled recurring expenses (electricity, water, rent, internet).",
     sheetTitle: "Add / edit utility preset",

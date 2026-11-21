@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { toSentenceCase } from "@/utils/textCase";
 import { IconButton } from "./IconButton";
 import { modalOverlay } from "./styles";
 
@@ -76,7 +77,7 @@ export function SlideOver({
       >
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-6 sm:py-4 dark:border-slate-700">
           <h2 id="slideover-title" className="text-base font-semibold text-slate-900 sm:text-lg dark:text-white">
-            {title}
+            {toSentenceCase(title)}
           </h2>
           <div className="flex items-center gap-2">
             {headerAction}

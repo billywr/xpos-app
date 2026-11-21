@@ -11,7 +11,7 @@ describe("SlideOver", () => {
     );
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText("Test Sheet")).toBeInTheDocument();
+    expect(screen.getByText("Test sheet")).toBeInTheDocument();
     expect(screen.getByText("Sheet Content")).toBeInTheDocument();
 
     const panel = screen.getByRole("dialog").querySelector(".fixed.inset-y-0.right-0");

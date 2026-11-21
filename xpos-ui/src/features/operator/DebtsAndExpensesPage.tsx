@@ -2047,7 +2047,7 @@ export function DebtsAndExpensesPage({
                     <div className="flex items-center gap-1.5">
                       <label
                         htmlFor="debt-status-filter"
-                        className="text-xs font-semibold uppercase text-slate-500 whitespace-nowrap dark:text-slate-400"
+                        className="text-xs font-semibold text-slate-500 whitespace-nowrap dark:text-slate-400"
                       >
                         Status
                       </label>
@@ -2069,7 +2069,7 @@ export function DebtsAndExpensesPage({
                     <div className="flex items-center gap-1.5">
                       <label
                         htmlFor="debt-group-by"
-                        className="text-xs font-semibold uppercase text-slate-500 whitespace-nowrap dark:text-slate-400"
+                        className="text-xs font-semibold text-slate-500 whitespace-nowrap dark:text-slate-400"
                       >
                         Group by
                       </label>
@@ -2142,7 +2142,7 @@ export function DebtsAndExpensesPage({
                             {debtGroupBy !== "none" ? (
                               <>
                                 <th
-                                  className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
+                                  className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
                                 >
                                   {debtGroupBy === "customer"
                                     ? "Customer"
@@ -2152,13 +2152,13 @@ export function DebtsAndExpensesPage({
                                         ? "Status"
                                         : "Date"}
                                 </th>
-                                <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                                <th className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
                                   Original
                                 </th>
-                                <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                                <th className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
                                   Repaid
                                 </th>
-                                <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                                <th className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
                                   Balance
                                 </th>
                               </>
@@ -2170,7 +2170,7 @@ export function DebtsAndExpensesPage({
                                   sortColumn={debtSortColumn}
                                   sortDirection={debtSortDirection}
                                   onSort={toggleDebtSort}
-                                  className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
+                                  className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
                                 />
                                 {showDebtPhoneCol && (
                                   <SortableTableHead
@@ -2179,7 +2179,7 @@ export function DebtsAndExpensesPage({
                                     sortColumn={debtSortColumn}
                                     sortDirection={debtSortDirection}
                                     onSort={toggleDebtSort}
-                                    className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                    className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                                   />
                                 )}
                                 <SortableTableHead
@@ -2188,7 +2188,7 @@ export function DebtsAndExpensesPage({
                                   sortColumn={debtSortColumn}
                                   sortDirection={debtSortDirection}
                                   onSort={toggleDebtSort}
-                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                  className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                                 />
                                 <SortableTableHead
                                   columnKey="amountSettled"
@@ -2196,7 +2196,7 @@ export function DebtsAndExpensesPage({
                                   sortColumn={debtSortColumn}
                                   sortDirection={debtSortDirection}
                                   onSort={toggleDebtSort}
-                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                  className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                                 />
                                 <SortableTableHead
                                   columnKey="outstanding"
@@ -2204,7 +2204,7 @@ export function DebtsAndExpensesPage({
                                   sortColumn={debtSortColumn}
                                   sortDirection={debtSortDirection}
                                   onSort={toggleDebtSort}
-                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                  className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                                 />
                                 <SortableTableHead
                                   columnKey="status"
@@ -2212,7 +2212,7 @@ export function DebtsAndExpensesPage({
                                   sortColumn={debtSortColumn}
                                   sortDirection={debtSortDirection}
                                   onSort={toggleDebtSort}
-                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                  className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                                 />
                                 {showDebtDueCol && (
                                   <SortableTableHead
@@ -2221,7 +2221,7 @@ export function DebtsAndExpensesPage({
                                     sortColumn={debtSortColumn}
                                     sortDirection={debtSortDirection}
                                     onSort={toggleDebtSort}
-                                    className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                    className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                                   />
                                 )}
                                 {showDebtIssuedByCol && (
@@ -2231,7 +2231,7 @@ export function DebtsAndExpensesPage({
                                     sortColumn={debtSortColumn}
                                     sortDirection={debtSortDirection}
                                     onSort={toggleDebtSort}
-                                    className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                    className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                                   />
                                 )}
                                 <SortableTableHead
@@ -2240,7 +2240,7 @@ export function DebtsAndExpensesPage({
                                   sortColumn={debtSortColumn}
                                   sortDirection={debtSortDirection}
                                   onSort={toggleDebtSort}
-                                  className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
+                                  className="hidden px-4 py-3 text-left text-lg font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
                                 />
                                 {showDebtNotesCol && (
                                   <SortableTableHead
@@ -2249,7 +2249,7 @@ export function DebtsAndExpensesPage({
                                     sortColumn={debtSortColumn}
                                     sortDirection={debtSortDirection}
                                     onSort={toggleDebtSort}
-                                    className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
+                                    className="hidden px-4 py-3 text-left text-lg font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
                                   />
                                 )}
                                 <SortableTableHead
@@ -2259,7 +2259,7 @@ export function DebtsAndExpensesPage({
                                   sortDirection={debtSortDirection}
                                   onSort={toggleDebtSort}
                                   sortable={false}
-                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                  className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                                 />
                               </>
                             )}
@@ -2618,7 +2618,7 @@ export function DebtsAndExpensesPage({
                   <div className="hidden xl:flex items-center gap-2 shrink-0">
                     <label
                       htmlFor="exp-group-by"
-                      className="text-xs font-semibold uppercase text-slate-500 whitespace-nowrap dark:text-slate-400"
+                      className="text-xs font-semibold text-slate-500 whitespace-nowrap dark:text-slate-400"
                     >
                       Group by
                     </label>
@@ -2690,7 +2690,7 @@ export function DebtsAndExpensesPage({
                             {expGroupBy !== "none" ? (
                               <>
                                 <th
-                                  className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
+                                  className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
                                 >
                                   {expGroupBy === "category"
                                     ? "Category"
@@ -2698,7 +2698,7 @@ export function DebtsAndExpensesPage({
                                       ? "Incurred by"
                                       : "Date"}
                                 </th>
-                                <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                                <th className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
                                   Amount
                                 </th>
                               </>
@@ -2711,7 +2711,7 @@ export function DebtsAndExpensesPage({
                                     sortColumn={expSortColumn}
                                     sortDirection={expSortDirection}
                                     onSort={toggleExpSort}
-                                    className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
+                                    className={`${tableStickyHeadCell} px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300`}
                                   />
                                 )}
                                 <SortableTableHead
@@ -2720,7 +2720,7 @@ export function DebtsAndExpensesPage({
                                   sortColumn={expSortColumn}
                                   sortDirection={expSortDirection}
                                   onSort={toggleExpSort}
-                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                  className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                                 />
                                 <SortableTableHead
                                   columnKey="category"
@@ -2728,7 +2728,7 @@ export function DebtsAndExpensesPage({
                                   sortColumn={expSortColumn}
                                   sortDirection={expSortDirection}
                                   onSort={toggleExpSort}
-                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                  className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                                 />
                                 <SortableTableHead
                                   columnKey="description"
@@ -2736,7 +2736,7 @@ export function DebtsAndExpensesPage({
                                   sortColumn={expSortColumn}
                                   sortDirection={expSortDirection}
                                   onSort={toggleExpSort}
-                                  className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
+                                  className="hidden px-4 py-3 text-left text-lg font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
                                 />
                                 {showExpReceiptRefCol && (
                                   <SortableTableHead
@@ -2745,7 +2745,7 @@ export function DebtsAndExpensesPage({
                                     sortColumn={expSortColumn}
                                     sortDirection={expSortDirection}
                                     onSort={toggleExpSort}
-                                    className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
+                                    className="hidden px-4 py-3 text-left text-lg font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
                                   />
                                 )}
                                 <SortableTableHead
@@ -2754,7 +2754,7 @@ export function DebtsAndExpensesPage({
                                   sortColumn={expSortColumn}
                                   sortDirection={expSortDirection}
                                   onSort={toggleExpSort}
-                                  className="hidden px-4 py-3 text-left text-lg font-semibold uppercase tracking-wide text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
+                                  className="hidden px-4 py-3 text-left text-lg font-semibold text-slate-700 sm:px-6 sm:py-3 sm:text-xl xl:table-cell dark:text-slate-300"
                                 />
                                 <SortableTableHead
                                   columnKey="actions"
@@ -2763,7 +2763,7 @@ export function DebtsAndExpensesPage({
                                   sortDirection={expSortDirection}
                                   onSort={toggleExpSort}
                                   sortable={false}
-                                  className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
+                                  className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300"
                                 />
                               </>
                             )}
@@ -3237,7 +3237,7 @@ export function DebtsAndExpensesPage({
                 </p>
                 <div className="max-h-56 overflow-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                    <thead className="bg-slate-100 text-left text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                       <tr>
                         <th className="px-3 py-2">Recorded</th>
                         <th className="px-3 py-2 text-left">Outstanding</th>
@@ -3629,7 +3629,7 @@ export function DebtsAndExpensesPage({
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
               <table className="w-full text-lg">
-                <thead className="sticky top-0 bg-slate-100 text-left text-lg font-bold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                <thead className="sticky top-0 bg-slate-100 text-left text-lg font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
                   <tr>
                     <th className="px-6 py-3 text-left">Customer</th>
                     <th className="px-6 py-3 text-left">Outstanding</th>
@@ -3722,7 +3722,7 @@ export function DebtsAndExpensesPage({
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
               <table className="w-full text-lg">
-                <thead className="sticky top-0 bg-slate-100 text-left text-lg font-bold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                <thead className="sticky top-0 bg-slate-100 text-left text-lg font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
                   <tr>
                     <th className="px-6 py-3 text-left">Category</th>
                     <th className="px-6 py-3 text-left">Total</th>

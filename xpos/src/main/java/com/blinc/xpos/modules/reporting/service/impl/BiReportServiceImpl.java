@@ -99,7 +99,7 @@ public class BiReportServiceImpl implements BiReportService {
             orgId, branchId, start, end);
 
     List<RecurringUtilityExpense> utilities =
-        recurringUtilityRepository.findAllActiveByOrgIdAndBranchId(orgId, branchId);
+        recurringUtilityRepository.findApplicableForPeriod(orgId, branchId, fromDate, toDate);
     BigDecimal utilitiesTotal = calculateUtilitiesTotal(utilities, fromDate, toDate);
 
     try {
@@ -160,8 +160,22 @@ public class BiReportServiceImpl implements BiReportService {
                 ? currentYm.atEndOfMonth()
                 : currentYm.atDay(1);
         if (!applicationDate.isBefore(fromDate) && !applicationDate.isAfter(toDate)) {
-          BigDecimal amt = util.getAmount() != null ? util.getAmount() : BigDecimal.ZERO;
-          total = total.add(amt);
+          YearMonth utilStartYm =
+              util.getEffectiveFrom() != null
+                  ? YearMonth.from(util.getEffectiveFrom())
+                  : (util.getCreatedAt() != null
+                      ? YearMonth.from(util.getCreatedAt().atZone(java.time.ZoneId.systemDefault()))
+                      : currentYm);
+          YearMonth utilEndYm =
+              util.getEffectiveTo() != null ? YearMonth.from(util.getEffectiveTo()) : null;
+
+          boolean effective =
+              !currentYm.isBefore(utilStartYm)
+                  && (utilEndYm == null || !currentYm.isAfter(utilEndYm));
+          if (effective) {
+            BigDecimal amt = util.getAmount() != null ? util.getAmount() : BigDecimal.ZERO;
+            total = total.add(amt);
+          }
         }
       }
       currentYm = currentYm.plusMonths(1);

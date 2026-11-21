@@ -8,12 +8,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public record RecurringUtilityCreateRequest(
     @NotBlank(message = "Utility name is required") @Size(max = 150) String name,
     @NotNull(message = "Amount is required")
         @DecimalMin(value = "0.01", message = "Amount must be positive")
         BigDecimal amount,
+    LocalDate effectiveFrom,
+    LocalDate effectiveTo,
     RecurringUtilityApplyTiming applyTiming,
     @Min(value = 1, message = "Due day of month must be between 1 and 31")
         @Max(value = 31, message = "Due day of month must be between 1 and 31")

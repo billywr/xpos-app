@@ -81,13 +81,13 @@ export type SettingsTabId =
   | "appearance";
 
 export const SETTINGS_TABS: AdminTabItem[] = [
-  { id: "top-bar", label: "Top Bar", icon: SlidersHorizontal, enabled: true },
-  { id: "admin-sidebar", label: "Admin Sidebar", icon: LayoutDashboard, enabled: true },
-  { id: "operator-sidebar", label: "Operator Sidebar", icon: Store, enabled: true },
-  { id: "pos", label: "POS & Features", icon: ShoppingBag, enabled: true },
-  { id: "forms", label: "Forms & Sheets", icon: FileText, enabled: true },
+  { id: "top-bar", label: "Top bar", icon: SlidersHorizontal, enabled: true },
+  { id: "admin-sidebar", label: "Admin sidebar", icon: LayoutDashboard, enabled: true },
+  { id: "operator-sidebar", label: "Operator sidebar", icon: Store, enabled: true },
+  { id: "pos", label: "POS & features", icon: ShoppingBag, enabled: true },
+  { id: "forms", label: "Forms & sheets", icon: FileText, enabled: true },
   { id: "mpesa", label: "M-Pesa", icon: Smartphone, enabled: true },
-  { id: "assistant", label: "AI Assistant", icon: Sparkles, enabled: true },
+  { id: "assistant", label: "AI assistant", icon: Sparkles, enabled: true },
   { id: "appearance", label: "Appearance", icon: Palette, enabled: true },
 ];
 
@@ -453,7 +453,7 @@ function AssistantUsageSection() {
         )}
         {usage?.topIntents && usage.topIntents.length > 0 && (
           <div className="mt-4 border-t border-slate-200 pt-3 dark:border-slate-600">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
               Top intents
             </p>
             <ul className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
@@ -578,7 +578,7 @@ export function AdminSettingsPage() {
             key={groupLabel}
             className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
           >
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <h3 className="mb-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
               {groupLabel}
             </h3>
             <div className="space-y-3">
@@ -632,7 +632,7 @@ export function AdminSettingsPage() {
             key={groupLabel}
             className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
           >
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <h3 className="mb-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
               {groupLabel}
             </h3>
             <div className="space-y-3">
@@ -782,7 +782,7 @@ export function AdminSettingsPage() {
       </p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <h3 className="mb-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
             Admin
           </h3>
           <div className="space-y-4">
@@ -802,7 +802,7 @@ export function AdminSettingsPage() {
           </div>
         </div>
         <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <h3 className="mb-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
             Operator
           </h3>
           <div className="space-y-4">
@@ -977,7 +977,7 @@ export function AdminSettingsPage() {
   const renderAppearance = () => (
     <section>
       <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-white">
-        Dark Mode Theme
+        Dark mode theme
       </h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {DARK_THEMES.map((theme) => {
@@ -1056,7 +1056,7 @@ export function AdminSettingsPage() {
       {
         id: "top-nav",
         tabId: "top-bar",
-        tabLabel: "Top Bar",
+        tabLabel: "Top bar",
         title: "Top navigation bar",
         description:
           "System logo and app name (shown in header, operator bar). Home, Admin, Operator, Org links. Database values (org dropdown, user name) are shown as-is.",
@@ -1084,7 +1084,7 @@ export function AdminSettingsPage() {
       {
         id: "admin-sidebar",
         tabId: "admin-sidebar",
-        tabLabel: "Admin Sidebar",
+        tabLabel: "Admin sidebar",
         title: "Admin sidebar",
         description:
           "Configure visible menu items and custom labels for the admin navigation sidebar across all functional groups.",
@@ -1101,7 +1101,7 @@ export function AdminSettingsPage() {
       {
         id: "operator-sidebar",
         tabId: "operator-sidebar",
-        tabLabel: "Operator Sidebar",
+        tabLabel: "Operator sidebar",
         title: "Operator sidebar",
         description:
           "Configure visible menu items and custom labels for the operator navigation sidebar.",
@@ -1119,7 +1119,7 @@ export function AdminSettingsPage() {
       {
         id: "pos-screen",
         tabId: "pos",
-        tabLabel: "POS & Features",
+        tabLabel: "POS & features",
         title: "POS (operator)",
         description:
           "Show or hide elements on the operator POS screen: order type (Dine-in / Takeaway / Delivery), table selector, the item list (categories and search), and the Hide OOS toggle.",
@@ -1143,7 +1143,7 @@ export function AdminSettingsPage() {
       {
         id: "stock-count",
         tabId: "pos",
-        tabLabel: "POS & Features",
+        tabLabel: "POS & features",
         title: "Standard stock count",
         description:
           "Show or hide toolbar buttons on the operator Standard Stock Taking page.",
@@ -1163,7 +1163,7 @@ export function AdminSettingsPage() {
       {
         id: "barcode",
         tabId: "pos",
-        tabLabel: "POS & Features",
+        tabLabel: "POS & features",
         title: "Barcode (per screen)",
         description:
           "Show or hide barcode scan / barcode field on each screen. When hidden, the barcode input is not shown on that screen.",
@@ -1184,7 +1184,7 @@ export function AdminSettingsPage() {
       {
         id: "stock-receiving",
         tabId: "pos",
-        tabLabel: "POS & Features",
+        tabLabel: "POS & features",
         title: "Stock receiving (Add stock)",
         description:
           "Limit quantities when receiving stock to prevent fat-finger entry errors. Configure maximum default quantity (e.g. 100, 200) and digit constraints.",
@@ -1207,8 +1207,8 @@ export function AdminSettingsPage() {
       {
         id: "form-customization",
         tabId: "forms",
-        tabLabel: "Forms & Sheets",
-        title: "Forms & Sheets",
+        tabLabel: "Forms & sheets",
+        title: "Forms & sheets",
         description:
           "Configure data capture sheets and forms across the system: hide or reveal fields, rename field labels, rearrange field order, and toggle or customize input placeholders.",
         keywords: [
@@ -1245,7 +1245,7 @@ export function AdminSettingsPage() {
         id: "mpesa",
         tabId: "mpesa",
         tabLabel: "M-Pesa",
-        title: "M-Pesa Settings",
+        title: "M-Pesa settings",
         description:
           "Configure Safaricom Daraja M-PESA STK Push, C2B integration, credentials, paybill, till numbers, and branch overrides.",
         keywords: [
@@ -1274,8 +1274,8 @@ export function AdminSettingsPage() {
       {
         id: "assistant",
         tabId: "assistant",
-        tabLabel: "AI Assistant",
-        title: "XPOS Assistant",
+        tabLabel: "AI assistant",
+        title: "XPOS assistant",
         description:
           "Show or hide the branch insights assistant button (bottom-right) in admin and operator layouts. Hidden by default until enabled for this organization.",
         keywords: [
@@ -1293,7 +1293,7 @@ export function AdminSettingsPage() {
       {
         id: "assistant-usage",
         tabId: "assistant",
-        tabLabel: "AI Assistant",
+        tabLabel: "AI assistant",
         title: "AI usage & governance",
         description:
           "Branch-scoped assistant queries are logged with tool name, latency, and optional LLM routing. LLM model and token budget are configured on the server.",
@@ -1315,7 +1315,7 @@ export function AdminSettingsPage() {
         id: "appearance",
         tabId: "appearance",
         tabLabel: "Appearance",
-        title: "Dark Mode Theme",
+        title: "Dark mode theme",
         description:
           "Choose from 13 dark theme variants for the user interface.",
         keywords: [
@@ -1521,7 +1521,7 @@ export function AdminSettingsPage() {
                   className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:p-6 dark:border-slate-700 dark:bg-slate-900/30"
                 >
                   <div className="mb-4 flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-700">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200/80 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200/80 px-2.5 py-0.5 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
                       Tab: {section.tabLabel}
                     </span>
                     <button

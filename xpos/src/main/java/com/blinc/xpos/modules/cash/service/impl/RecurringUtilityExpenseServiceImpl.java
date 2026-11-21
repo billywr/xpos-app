@@ -13,6 +13,8 @@ import com.blinc.xpos.modules.organization.service.BranchService;
 import com.blinc.xpos.modules.organization.service.StaffUserService;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -44,6 +46,8 @@ public class RecurringUtilityExpenseServiceImpl implements RecurringUtilityExpen
       UUID branchId,
       String name,
       BigDecimal amount,
+      LocalDate effectiveFrom,
+      LocalDate effectiveTo,
       RecurringUtilityApplyTiming applyTiming,
       Integer dueDayOfMonth,
       String payee,
@@ -61,6 +65,15 @@ public class RecurringUtilityExpenseServiceImpl implements RecurringUtilityExpen
     if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
       throw new BadRequestException("INVALID_AMOUNT", "Amount must be greater than zero.");
     }
+    LocalDate start =
+        effectiveFrom != null
+            ? YearMonth.from(effectiveFrom).atDay(1)
+            : LocalDate.now().withDayOfMonth(1);
+    if (effectiveTo != null && YearMonth.from(effectiveTo).isBefore(YearMonth.from(start))) {
+      throw new BadRequestException(
+          "INVALID_EFFECTIVE_PERIOD",
+          "Effective to month cannot be earlier than effective from month.");
+    }
     int day = dueDayOfMonth != null ? dueDayOfMonth : 1;
     if (day < 1 || day > 31) {
       throw new BadRequestException(
@@ -72,6 +85,8 @@ public class RecurringUtilityExpenseServiceImpl implements RecurringUtilityExpen
     utility.setBranch(branch);
     utility.setName(name.trim());
     utility.setAmount(amount);
+    utility.setEffectiveFrom(start);
+    utility.setEffectiveTo(effectiveTo != null ? YearMonth.from(effectiveTo).atEndOfMonth() : null);
     utility.setApplyTiming(
         applyTiming != null ? applyTiming : RecurringUtilityApplyTiming.BEGINNING_OF_MONTH);
     utility.setDueDayOfMonth(day);
@@ -105,6 +120,9 @@ public class RecurringUtilityExpenseServiceImpl implements RecurringUtilityExpen
       UUID utilityId,
       String name,
       BigDecimal amount,
+      LocalDate effectiveFrom,
+      LocalDate effectiveTo,
+      Boolean isRateChange,
       RecurringUtilityApplyTiming applyTiming,
       Integer dueDayOfMonth,
       String payee,
@@ -113,29 +131,71 @@ public class RecurringUtilityExpenseServiceImpl implements RecurringUtilityExpen
       Boolean active,
       String notes,
       UUID updatedByStaffUserId) {
-    staffUserService.require(orgId, updatedByStaffUserId);
+    StaffUser staffUser = staffUserService.require(orgId, updatedByStaffUserId);
     RecurringUtilityExpense utility = require(orgId, branchId, utilityId);
 
+    validateUpdateInputs(name, amount, dueDayOfMonth);
+
+    LocalDate currentEffectiveFrom = utility.getEffectiveFrom();
+    if (currentEffectiveFrom == null) {
+      currentEffectiveFrom =
+          utility.getCreatedAt() != null
+              ? utility
+                  .getCreatedAt()
+                  .atZone(java.time.ZoneId.systemDefault())
+                  .toLocalDate()
+                  .withDayOfMonth(1)
+              : LocalDate.now().withDayOfMonth(1);
+      utility.setEffectiveFrom(currentEffectiveFrom);
+    }
+
+    boolean rateChange =
+        Boolean.TRUE.equals(isRateChange)
+            || (isRateChange == null
+                && effectiveFrom != null
+                && YearMonth.from(effectiveFrom).isAfter(YearMonth.from(currentEffectiveFrom)));
+
+    if (rateChange && effectiveFrom != null) {
+      return createRateChangeRecord(
+          utility,
+          name,
+          amount,
+          effectiveFrom,
+          effectiveTo,
+          applyTiming,
+          dueDayOfMonth,
+          payee,
+          accountNumber,
+          incurredBy,
+          active,
+          notes,
+          staffUser);
+    }
+
     if (name != null) {
-      if (name.isBlank()) {
-        throw new BadRequestException("INVALID_NAME", "Utility name cannot be blank.");
-      }
       utility.setName(name.trim());
     }
     if (amount != null) {
-      if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-        throw new BadRequestException("INVALID_AMOUNT", "Amount must be greater than zero.");
-      }
       utility.setAmount(amount);
+    }
+    if (effectiveFrom != null) {
+      utility.setEffectiveFrom(YearMonth.from(effectiveFrom).atDay(1));
+    }
+    if (effectiveTo != null) {
+      LocalDate activeFrom = utility.getEffectiveFrom();
+      if (activeFrom != null && YearMonth.from(effectiveTo).isBefore(YearMonth.from(activeFrom))) {
+        throw new BadRequestException(
+            "INVALID_EFFECTIVE_PERIOD",
+            "Effective to month cannot be earlier than effective from month.");
+      }
+      utility.setEffectiveTo(YearMonth.from(effectiveTo).atEndOfMonth());
+    } else if (effectiveFrom != null) {
+      utility.setEffectiveTo(null);
     }
     if (applyTiming != null) {
       utility.setApplyTiming(applyTiming);
     }
     if (dueDayOfMonth != null) {
-      if (dueDayOfMonth < 1 || dueDayOfMonth > 31) {
-        throw new BadRequestException(
-            "INVALID_DUE_DAY", "Due day of month must be between 1 and 31.");
-      }
       utility.setDueDayOfMonth(dueDayOfMonth);
     }
     if (payee != null) {
@@ -155,6 +215,19 @@ public class RecurringUtilityExpenseServiceImpl implements RecurringUtilityExpen
     }
 
     return repository.save(utility);
+  }
+
+  private void validateUpdateInputs(String name, BigDecimal amount, Integer dueDayOfMonth) {
+    if (name != null && name.isBlank()) {
+      throw new BadRequestException("INVALID_NAME", "Utility name cannot be blank.");
+    }
+    if (amount != null && amount.compareTo(BigDecimal.ZERO) <= 0) {
+      throw new BadRequestException("INVALID_AMOUNT", "Amount must be greater than zero.");
+    }
+    if (dueDayOfMonth != null && (dueDayOfMonth < 1 || dueDayOfMonth > 31)) {
+      throw new BadRequestException(
+          "INVALID_DUE_DAY", "Due day of month must be between 1 and 31.");
+    }
   }
 
   @Override
@@ -187,6 +260,14 @@ public class RecurringUtilityExpenseServiceImpl implements RecurringUtilityExpen
 
   @Override
   @Transactional(readOnly = true)
+  public List<RecurringUtilityExpense> listApplicableForPeriod(
+      UUID orgId, UUID branchId, LocalDate startDate, LocalDate endDate) {
+    branchService.require(orgId, branchId);
+    return repository.findApplicableForPeriod(orgId, branchId, startDate, endDate);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public BigDecimal sumActiveMonthlyAmount(UUID orgId, UUID branchId) {
     branchService.require(orgId, branchId);
     return repository.sumActiveMonthlyAmountByOrgIdAndBranchId(orgId, branchId);
@@ -197,5 +278,55 @@ public class RecurringUtilityExpenseServiceImpl implements RecurringUtilityExpen
   public long countActive(UUID orgId, UUID branchId) {
     branchService.require(orgId, branchId);
     return repository.countActiveByOrgIdAndBranchId(orgId, branchId);
+  }
+
+  private RecurringUtilityExpense createRateChangeRecord(
+      RecurringUtilityExpense utility,
+      String name,
+      BigDecimal amount,
+      LocalDate effectiveFrom,
+      LocalDate effectiveTo,
+      RecurringUtilityApplyTiming applyTiming,
+      Integer dueDayOfMonth,
+      String payee,
+      String accountNumber,
+      String incurredBy,
+      Boolean active,
+      String notes,
+      StaffUser staffUser) {
+    LocalDate normalizedEffectiveFrom = YearMonth.from(effectiveFrom).atDay(1);
+    if (effectiveTo != null
+        && YearMonth.from(effectiveTo).isBefore(YearMonth.from(normalizedEffectiveFrom))) {
+      throw new BadRequestException(
+          "INVALID_EFFECTIVE_PERIOD",
+          "Effective to month cannot be earlier than effective from month.");
+    }
+    LocalDate previousEffectiveTo = YearMonth.from(effectiveFrom).minusMonths(1).atEndOfMonth();
+    utility.setEffectiveTo(previousEffectiveTo);
+    utility.setActive(false);
+    repository.save(utility);
+
+    RecurringUtilityExpense next = new RecurringUtilityExpense();
+    next.setOrg(utility.getOrg());
+    next.setBranch(utility.getBranch());
+    next.setName(name != null && !name.isBlank() ? name.trim() : utility.getName());
+    next.setAmount(amount != null ? amount : utility.getAmount());
+    next.setEffectiveFrom(normalizedEffectiveFrom);
+    next.setEffectiveTo(effectiveTo != null ? YearMonth.from(effectiveTo).atEndOfMonth() : null);
+    next.setApplyTiming(applyTiming != null ? applyTiming : utility.getApplyTiming());
+    next.setDueDayOfMonth(dueDayOfMonth != null ? dueDayOfMonth : utility.getDueDayOfMonth());
+    next.setPayee(payee != null ? (!payee.isBlank() ? payee.trim() : null) : utility.getPayee());
+    next.setAccountNumber(
+        accountNumber != null
+            ? (!accountNumber.isBlank() ? accountNumber.trim() : null)
+            : utility.getAccountNumber());
+    next.setIncurredBy(
+        incurredBy != null
+            ? (!incurredBy.isBlank() ? incurredBy.trim() : null)
+            : utility.getIncurredBy());
+    next.setActive(active != null ? active : true);
+    next.setNotes(notes != null ? (!notes.isBlank() ? notes.trim() : null) : utility.getNotes());
+    next.setCreatedBy(staffUser);
+    return repository.save(next);
   }
 }

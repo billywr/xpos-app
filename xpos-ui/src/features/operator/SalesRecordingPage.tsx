@@ -907,7 +907,7 @@ function InsightsModal({ top, low, onClose }: InsightsModalProps) {
         </div>
         <div className="grid grid-cols-1 gap-6 overflow-y-auto p-5 md:grid-cols-2">
           <section>
-            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
               <TrendingUp className="h-4 w-4" /> Top selling items
             </h4>
             {top.length === 0 ? (
@@ -926,7 +926,7 @@ function InsightsModal({ top, low, onClose }: InsightsModalProps) {
                     </span>
                     <span className="whitespace-nowrap text-slate-500 dark:text-slate-400">
                       {formatQty(t.qtySold)} &middot;{" "}
-                      {formatAmount(t.totalValue)} KSH
+                      {formatAmount(t.totalValue)} KSh
                     </span>
                   </li>
                 ))}
@@ -934,7 +934,7 @@ function InsightsModal({ top, low, onClose }: InsightsModalProps) {
             )}
           </section>
           <section>
-            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
               <AlertTriangle className="h-4 w-4" /> Low stock alerts
             </h4>
             {low.length === 0 ? (

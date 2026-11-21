@@ -631,7 +631,7 @@ export function StockCountSessionDetailPage({
       {lines.length > 0 && (
         <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-600 dark:bg-slate-800/50">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Total value (counted)
             </span>
             <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
@@ -639,7 +639,7 @@ export function StockCountSessionDetailPage({
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-600 dark:bg-slate-800/50">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Total sold
             </span>
             <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
@@ -647,7 +647,7 @@ export function StockCountSessionDetailPage({
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-600 dark:bg-slate-800/50">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Expected (system)
             </span>
             <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
@@ -658,7 +658,7 @@ export function StockCountSessionDetailPage({
             className="group relative cursor-help rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-600 dark:bg-slate-800/50"
             title="Total variance (in value): Sum of (counted qty − system qty) × price per item. Positive = surplus (more stock than system). Negative = shortage (less stock than system)."
           >
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Total variance
             </span>
             <p className="mt-1 flex items-center gap-2">

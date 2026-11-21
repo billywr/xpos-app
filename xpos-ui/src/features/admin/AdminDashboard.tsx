@@ -42,7 +42,7 @@ export function AdminDashboard() {
                 <h3 className="font-semibold text-slate-800 dark:text-white">
                   {item.label}
                 </h3>
-                <p className="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                <p className="text-xs text-slate-400 dark:text-slate-500">
                   {item.group}
                 </p>
               </div>

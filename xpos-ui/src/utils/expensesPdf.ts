@@ -25,7 +25,7 @@ export function generateExpensesPdf(
 
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text("Miscellaneous Expenses Report", margin, y);
+  doc.text("Miscellaneous expenses report", margin, y);
   y += 8;
 
   doc.setFontSize(10);
@@ -213,7 +213,7 @@ export function generateExpensesPdf(
   doc.setFontSize(8);
   doc.setTextColor(120);
   doc.text(
-    `${appName} — Expenses Report · Generated ${formatDateTime(new Date())}`,
+    `${appName} — Expenses report · Generated ${formatDateTime(new Date())}`,
     margin,
     pageHeight - 6
   );
@@ -265,7 +265,7 @@ export function generateGroupedExpensesPdf(
 
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text(`Miscellaneous Expenses Report (Grouped by ${groupByLabel})`, margin, y);
+  doc.text(`Miscellaneous expenses report (grouped by ${groupByLabel})`, margin, y);
   y += 8;
 
   doc.setFontSize(10);
@@ -346,7 +346,7 @@ export function generateGroupedExpensesPdf(
   doc.setFontSize(8);
   doc.setTextColor(120);
   doc.text(
-    `${appName} — Grouped Expenses Report · Generated ${formatDateTime(new Date())}`,
+    `${appName} — Grouped expenses report · Generated ${formatDateTime(new Date())}`,
     margin,
     pageHeight - 6
   );

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/utils/cn";
+import { toSentenceCase } from "@/utils/textCase";
 import {
   statChipBase,
   statChipLabelTones,
@@ -35,7 +36,7 @@ export function StatChip({
 
   const content = (
     <>
-      <span className={statChipLabelTones[tone]}>{label}</span>
+      <span className={statChipLabelTones[tone]}>{toSentenceCase(label)}</span>
       <span className={statChipValueTones[tone]}>{value}</span>
     </>
   );

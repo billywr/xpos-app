@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
+import { toSentenceCase } from "@/utils/textCase";
 
 export interface PageHeaderProps {
   title: string;
@@ -50,7 +51,7 @@ export function PageHeader({
       <div className="min-w-0 flex-1">
         <h1 className="flex items-center gap-2 text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
           {Icon && <Icon className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />}
-          {title}
+          {toSentenceCase(title)}
         </h1>
         {children}
       </div>

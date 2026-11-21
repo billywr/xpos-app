@@ -27,6 +27,7 @@ import {
 } from "@/components/ui";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { formatAmount, formatAmountWithCommas } from "@/utils/formatCurrency";
+import { formatDate } from "@/utils/formatDate";
 import { generateUtilitiesPdf } from "@/utils/utilitiesPdf";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
@@ -38,7 +39,6 @@ import {
   Pencil,
   Trash2,
   Power,
-  Calendar,
 } from "lucide-react";
 import {
   DEFAULT_UTILITY_PRESETS,
@@ -48,6 +48,51 @@ import {
 } from "@/utils/utilityPresetsStorage";
 
 export { DEFAULT_UTILITY_PRESETS };
+
+export function formatMonthYear(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  const [year, month] = dateStr.slice(0, 7).split("-");
+  if (!year || !month) return dateStr;
+  const monthNames = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  ];
+  const mIdx = parseInt(month, 10) - 1;
+  return `${monthNames[mIdx] ?? month} ${year}`;
+}
+
+export function getUtilityStatus(u: RecurringUtility): {
+  label: "ACTIVE" | "ENDED" | "UPCOMING" | "PAUSED";
+  className: string;
+} {
+  if (!u.active) {
+    return {
+      label: "PAUSED",
+      className: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
+    };
+  }
+  const todayYm = new Date().toISOString().slice(0, 7);
+  const effectiveDate = u.effectiveFrom || (u.createdAt ? u.createdAt.slice(0, 10) : undefined);
+  const fromYm = effectiveDate ? effectiveDate.slice(0, 7) : undefined;
+  const toYm = u.effectiveTo ? u.effectiveTo.slice(0, 7) : undefined;
+
+  if (toYm && toYm < todayYm) {
+    return {
+      label: "ENDED",
+      className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+    };
+  }
+  if (fromYm && fromYm > todayYm) {
+    return {
+      label: "UPCOMING",
+      className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    };
+  }
+  return {
+    label: "ACTIVE",
+    className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  };
+}
 
 export interface UtilitiesTabPanelProps {
   orgId: string;
@@ -71,7 +116,7 @@ export function UtilitiesTabPanel({
   const toast = useToast();
 
   const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("active");
+  const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
   const [page, setPage] = useState(0);
   const pageSize = 50;
 
@@ -82,22 +127,33 @@ export function UtilitiesTabPanel({
   // Form state
   const [formName, setFormName] = useState("");
   const [formAmount, setFormAmount] = useState("");
+  const [formEffectiveFrom, setFormEffectiveFrom] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}-01`;
+  });
+  const [formEffectiveTo, setFormEffectiveTo] = useState("");
   const [formApplyTiming, setFormApplyTiming] =
     useState<RecurringUtilityApplyTiming>("BEGINNING_OF_MONTH");
   const [formNotes, setFormNotes] = useState("");
   const [formActive, setFormActive] = useState(true);
 
-  const isUtilityFormValid = useMemo(() => {
-    if (!formName.trim()) return false;
-    const num = parseFloat(formAmount.replace(/,/g, ""));
-    if (isNaN(num) || num <= 0) return false;
-    return true;
-  }, [formName, formAmount]);
+  const isEffectiveToBeforeFrom = Boolean(
+    formEffectiveFrom &&
+      formEffectiveTo &&
+      formEffectiveTo.slice(0, 7) < formEffectiveFrom.slice(0, 7)
+  );
 
   useEffect(() => {
     if (isCreateOpen) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
       setFormName("");
       setFormAmount("");
+      setFormEffectiveFrom(`${year}-${month}-01`);
+      setFormEffectiveTo("");
       setFormApplyTiming("BEGINNING_OF_MONTH");
       setFormNotes("");
       setFormActive(true);
@@ -232,6 +288,14 @@ export function UtilitiesTabPanel({
     setEditingUtility(u);
     setFormName(u.name);
     setFormAmount(formatAmountWithCommas(String(u.amount)));
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const initialEffective =
+      u.effectiveFrom ||
+      (u.createdAt ? u.createdAt.slice(0, 10) : `${year}-${month}-01`);
+    setFormEffectiveFrom(initialEffective);
+    setFormEffectiveTo(u.effectiveTo || "");
     setFormApplyTiming(u.applyTiming ?? "BEGINNING_OF_MONTH");
     setFormNotes(u.notes ?? "");
     setFormActive(u.active);
@@ -248,6 +312,19 @@ export function UtilitiesTabPanel({
       toast.error("Please enter a valid amount greater than zero.");
       return;
     }
+    if (!formEffectiveFrom) {
+      toast.error("Please select an effective from month.");
+      return;
+    }
+    if (
+      formEffectiveTo &&
+      formEffectiveTo.slice(0, 7) < formEffectiveFrom.slice(0, 7)
+    ) {
+      toast.error(
+        `Effective to month (${formatMonthYear(formEffectiveTo)}) cannot be earlier than Effective from month (${formatMonthYear(formEffectiveFrom)}). It must be ${formatMonthYear(formEffectiveFrom)} or a future month.`
+      );
+      return;
+    }
 
     const trimmedName = formName.trim();
     const updated = addUtilityPreset(orgId, branchId, trimmedName);
@@ -256,6 +333,8 @@ export function UtilitiesTabPanel({
     createMutation.mutate({
       name: trimmedName,
       amount: parsedAmount,
+      effectiveFrom: formEffectiveFrom || undefined,
+      effectiveTo: formEffectiveTo ? `${formEffectiveTo.slice(0, 7)}-01` : undefined,
       applyTiming: formApplyTiming,
       notes: formNotes.trim() || undefined,
     });
@@ -273,6 +352,19 @@ export function UtilitiesTabPanel({
       toast.error("Please enter a valid amount greater than zero.");
       return;
     }
+    if (!formEffectiveFrom) {
+      toast.error("Please select an effective from month.");
+      return;
+    }
+    if (
+      formEffectiveTo &&
+      formEffectiveTo.slice(0, 7) < formEffectiveFrom.slice(0, 7)
+    ) {
+      toast.error(
+        `Effective to month (${formatMonthYear(formEffectiveTo)}) cannot be earlier than Effective from month (${formatMonthYear(formEffectiveFrom)}). It must be ${formatMonthYear(formEffectiveFrom)} or a future month.`
+      );
+      return;
+    }
 
     const trimmedName = formName.trim();
     const updated = addUtilityPreset(orgId, branchId, trimmedName);
@@ -283,6 +375,8 @@ export function UtilitiesTabPanel({
       body: {
         name: trimmedName,
         amount: parsedAmount,
+        effectiveFrom: formEffectiveFrom || undefined,
+        effectiveTo: formEffectiveTo ? `${formEffectiveTo.slice(0, 7)}-01` : null,
         applyTiming: formApplyTiming,
         notes: formNotes.trim() || undefined,
         active: formActive,
@@ -337,15 +431,15 @@ export function UtilitiesTabPanel({
           <div className="hidden xl:flex items-center gap-1.5 shrink-0">
             <label
               htmlFor="utility-status-filter"
-              className="text-xs font-semibold uppercase text-slate-500 whitespace-nowrap dark:text-slate-400"
+              className="text-xs font-semibold text-slate-500 whitespace-nowrap dark:text-slate-400"
             >
               Status
             </label>
             <SearchableSelect
               id="utility-status-filter"
               options={[
-                { value: "active", label: "Active" },
                 { value: "all", label: "All statuses" },
+                { value: "active", label: "Active" },
                 { value: "inactive", label: "Inactive" },
               ]}
               value={activeFilter}
@@ -403,19 +497,22 @@ export function UtilitiesTabPanel({
               <thead className="bg-slate-50 dark:bg-slate-700">
                 <tr>
                   <TableRowNumberHead className={`${tableRowNoHead} hidden xl:table-cell`} />
-                  <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
-                    Utility Name
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                    Utility name
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
                     Amount
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
-                    Deduction Timing
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                    Effective from
                   </th>
-                  <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                    Effective to
+                  </th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
                     Status
                   </th>
-                  <th className="px-2 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
+                  <th className="px-2 py-2 text-right text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
                     Actions
                   </th>
                 </tr>
@@ -449,30 +546,44 @@ export function UtilitiesTabPanel({
                     <td className="px-2 py-1.5 text-left text-xs font-semibold tabular-nums text-slate-700 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-300">
                       {formatAmount(Number(u.amount))}
                     </td>
-                    <td className="px-2 py-1.5 text-xs text-slate-700 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-300">
-                      {u.applyTiming === "END_OF_MONTH" ? (
-                        <span className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-700 dark:border-purple-800/60 dark:bg-purple-950/40 dark:text-purple-300">
-                          <Calendar className="h-3 w-3" />
-                          <span>End of month (Last day)</span>
+                    <td className="px-2 py-1.5 text-left text-xs text-slate-700 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-300">
+                      {(() => {
+                        const effectiveDate =
+                          u.effectiveFrom ||
+                          (u.createdAt ? u.createdAt.slice(0, 10) : undefined);
+                        if (!effectiveDate) {
+                          return <span className="text-slate-400 dark:text-slate-500">—</span>;
+                        }
+                        return (
+                          <span className="font-medium text-slate-900 dark:text-slate-100">
+                            {formatDate(effectiveDate)}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-2 py-1.5 text-left text-xs text-slate-700 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-300">
+                      {u.effectiveTo ? (
+                        <span className="font-medium text-slate-900 dark:text-slate-100">
+                          {formatDate(u.effectiveTo)}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:border-sky-800/60 dark:bg-sky-950/40 dark:text-sky-300">
-                          <Calendar className="h-3 w-3" />
-                          <span>Beginning of month (1st)</span>
-                        </span>
+                        <span className="text-slate-400 dark:text-slate-500">—</span>
                       )}
                     </td>
                     <td className="px-2 py-1.5 sm:px-6 sm:py-2.5">
-                      <span
-                        className={cn(
-                          "inline-flex justify-start rounded-full px-2.5 py-0.5 text-left text-[11px] font-medium sm:text-xs",
-                          u.active
-                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
-                            : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
-                        )}
-                      >
-                        {u.active ? "ACTIVE" : "INACTIVE"}
-                      </span>
+                      {(() => {
+                        const status = getUtilityStatus(u);
+                        return (
+                          <span
+                            className={cn(
+                              "inline-flex justify-start rounded-full px-2.5 py-0.5 text-left text-[11px] font-medium sm:text-xs",
+                              status.className
+                            )}
+                          >
+                            {status.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-2 py-1.5 text-right sm:px-6 sm:py-2.5">
                       <div className="flex items-center justify-end gap-1">
@@ -581,6 +692,51 @@ export function UtilitiesTabPanel({
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+            <div className="space-y-1.5">
+              <label htmlFor="createEffectiveFrom" className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Effective From <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="createEffectiveFrom"
+                type="month"
+                required
+                value={formEffectiveFrom.slice(0, 7)}
+                onChange={(e) => {
+                  const newFrom = e.target.value;
+                  setFormEffectiveFrom(newFrom ? `${newFrom}-01` : "");
+                  if (newFrom && formEffectiveTo && formEffectiveTo.slice(0, 7) < newFrom) {
+                    setFormEffectiveTo("");
+                  }
+                }}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="createEffectiveTo" className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Effective to
+              </label>
+              <input
+                id="createEffectiveTo"
+                type="month"
+                min={formEffectiveFrom ? formEffectiveFrom.slice(0, 7) : undefined}
+                value={formEffectiveTo ? formEffectiveTo.slice(0, 7) : ""}
+                onChange={(e) => setFormEffectiveTo(e.target.value ? `${e.target.value}-01` : "")}
+                className={cn(
+                  "w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1",
+                  isEffectiveToBeforeFrom
+                    ? "border-rose-400 bg-rose-50/30 text-rose-900 focus:border-rose-500 focus:ring-rose-500 dark:border-rose-500 dark:bg-rose-950/20 dark:text-rose-200"
+                    : "border-slate-300 bg-white text-slate-900 focus:border-primary-500 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                )}
+              />
+              {isEffectiveToBeforeFrom && (
+                <p className="text-[11px] font-medium text-rose-600 dark:text-rose-400">
+                  Effective to month cannot be earlier than Effective from month ({formatMonthYear(formEffectiveFrom)}). It must be {formatMonthYear(formEffectiveFrom)} or a future month.
+                </p>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
               Apply on <span className="text-red-500">*</span>
@@ -646,7 +802,7 @@ export function UtilitiesTabPanel({
           <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200 dark:border-slate-700">
             <button
               type="submit"
-              disabled={createMutation.isPending || !isUtilityFormValid}
+              disabled={createMutation.isPending}
               className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
             >
               {createMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -702,6 +858,53 @@ export function UtilitiesTabPanel({
                 placeholder="0.00"
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+            <div className="space-y-1.5">
+              <label htmlFor="editEffectiveFrom" className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Effective From <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="editEffectiveFrom"
+                type="month"
+                required
+                value={formEffectiveFrom.slice(0, 7)}
+                onChange={(e) => {
+                  const newMonth = e.target.value;
+                  setFormEffectiveFrom(newMonth ? `${newMonth}-01` : "");
+                  if (newMonth && formEffectiveTo && formEffectiveTo.slice(0, 7) < newMonth) {
+                    setFormEffectiveTo("");
+                  }
+                }}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="editEffectiveTo" className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Effective to
+              </label>
+              <input
+                id="editEffectiveTo"
+                type="month"
+                min={formEffectiveFrom ? formEffectiveFrom.slice(0, 7) : undefined}
+                value={formEffectiveTo ? formEffectiveTo.slice(0, 7) : ""}
+                onChange={(e) => {
+                  setFormEffectiveTo(e.target.value ? `${e.target.value}-01` : "");
+                }}
+                className={cn(
+                  "w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1",
+                  isEffectiveToBeforeFrom
+                    ? "border-rose-400 bg-rose-50/30 text-rose-900 focus:border-rose-500 focus:ring-rose-500 dark:border-rose-500 dark:bg-rose-950/20 dark:text-rose-200"
+                    : "border-slate-300 bg-white text-slate-900 focus:border-primary-500 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                )}
+              />
+              {isEffectiveToBeforeFrom && (
+                <p className="text-[11px] font-medium text-rose-600 dark:text-rose-400">
+                  Effective to month cannot be earlier than Effective from month ({formatMonthYear(formEffectiveFrom)}). It must be {formatMonthYear(formEffectiveFrom)} or a future month.
+                </p>
+              )}
             </div>
           </div>
 
@@ -782,7 +985,7 @@ export function UtilitiesTabPanel({
           <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200 dark:border-slate-700">
             <button
               type="submit"
-              disabled={updateMutation.isPending || !isUtilityFormValid}
+              disabled={updateMutation.isPending}
               className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
             >
               {updateMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}

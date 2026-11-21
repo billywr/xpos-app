@@ -68,6 +68,7 @@ import { cn } from "@/utils/cn";
 import { downloadStdStockCountPdf } from "@/utils/stdStockCountPdf";
 import {
   Button,
+  IconButton,
   Modal,
   ModalFooter,
   Pagination,
@@ -1636,7 +1637,7 @@ export function StandardStockCountSheetPage({
             disabled={sheetQuery.isFetching || isSyncingOrAdjusting}
             title="Refresh stock counts"
             aria-label="Refresh stock counts"
-            className="p-2 xl:px-3 xl:py-2 shrink-0"
+            className="p-2 shrink-0"
           >
             <RotateCw
               className={cn(
@@ -1644,7 +1645,6 @@ export function StandardStockCountSheetPage({
                 (sheetQuery.isFetching || isSyncingOrAdjusting) && "animate-spin"
               )}
             />
-            <span className="hidden xl:inline">Refresh</span>
           </Button>
 
           {/* PDF button - desktop only */}
@@ -1774,7 +1774,7 @@ export function StandardStockCountSheetPage({
                   <table className="w-full min-w-full divide-y divide-slate-200 xl:min-w-[850px] dark:divide-slate-600">
               <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700">
                 <tr>
-                  <TableRowNumberHead className="w-[2rem] min-w-[2rem] px-0.5 py-1.5 text-center text-xs font-semibold uppercase text-slate-700 sm:py-3 sm:text-base dark:text-slate-300" />
+                  <TableRowNumberHead className="w-[2rem] min-w-[2rem] px-0.5 py-1.5 text-center text-xs font-semibold text-slate-700 sm:py-3 sm:text-base dark:text-slate-300" />
                   <SortableTableHead
                     columnKey="item"
                     label="Item"
@@ -2147,7 +2147,7 @@ export function StandardStockCountSheetPage({
         onConfirm={() => void handleSaveBeforeRecordConfirm()}
         title="Save stock count first?"
         message="Closing counts must be saved before sales can be recorded from the Sold column."
-        confirmLabel="Save and continue"
+        confirmLabel="Save"
         variant="primary"
         loading={saveMutation.isPending || previewLoading}
       />
@@ -2191,16 +2191,16 @@ export function StandardStockCountSheetPage({
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
                 <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-300">
                       Item
                     </th>
-                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600 dark:text-slate-300">
                       On hand (now)
                     </th>
-                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
-                      Reconcile to (Closing)
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      Reconcile to (closing)
                     </th>
-                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600 dark:text-slate-300">
                       Adjustment
                     </th>
                   </tr>
@@ -2268,16 +2268,15 @@ export function StandardStockCountSheetPage({
         onClose={() => setRecordPreview(null)}
         title="Record sales from stock count"
         headerAction={
-          <button
-            type="button"
+          <IconButton
+            variant="bordered"
             onClick={handleRefreshPreview}
             disabled={isRefreshingPreview}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
             title="Refresh preview items"
+            aria-label="Refresh preview items"
           >
-            <RotateCw className={cn("h-3.5 w-3.5", isRefreshingPreview && "animate-spin")} />
-            <span>Refresh</span>
-          </button>
+            <RotateCw className={cn("h-4 w-4", isRefreshingPreview && "animate-spin")} />
+          </IconButton>
         }
       >
         {recordPreview && (
@@ -2309,19 +2308,19 @@ export function StandardStockCountSheetPage({
                 <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-600">
                   <thead className="bg-slate-50 dark:bg-slate-700">
                     <tr>
-                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-300">
                         Item
                       </th>
-                      <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                      <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600 dark:text-slate-300">
                         Implied
                       </th>
-                      <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                      <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600 dark:text-slate-300">
                         Recorded
                       </th>
-                      <th className="px-3 py-2 text-right text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                      <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600 dark:text-slate-300">
                         To record
                       </th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 dark:text-slate-300">
                         Amt
                       </th>
                     </tr>
@@ -2383,7 +2382,7 @@ export function StandardStockCountSheetPage({
                   ) : (
                     <ShoppingBag className="h-4 w-4" />
                   )}
-                  Record sales
+                  Record
                 </button>
                 <button
                   type="button"

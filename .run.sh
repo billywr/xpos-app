@@ -21,6 +21,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 XPOS_DIR="${SCRIPT_DIR}/xpos"
 UI_DIR="${SCRIPT_DIR}/xpos-ui"
 
+# Default Ports
+BACKEND_PORT="${BACKEND_PORT:-9003}"
+UI_PORT="${UI_PORT:-5173}"
+
 # ANSI Colors
 CLR_RESET="\033[0m"
 CLR_BOLD="\033[1m"
@@ -63,6 +67,75 @@ prefix_stream() {
     '
 }
 
+# Discover listening PIDs on a TCP port
+get_port_pids() {
+    local port="$1"
+    local pids=""
+
+    if command -v lsof >/dev/null 2>&1; then
+        pids=$(lsof -ti tcp:"$port" -sTCP:LISTEN 2>/dev/null || true)
+    fi
+
+    if [ -z "$pids" ] && command -v ss >/dev/null 2>&1; then
+        pids=$(ss -lptn "sport = :$port" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u || true)
+    fi
+
+    if [ -z "$pids" ] && command -v fuser >/dev/null 2>&1; then
+        pids=$(fuser "$port"/tcp 2>/dev/null || true)
+    fi
+
+    echo "$pids" | tr '\n' ' ' | (grep -oE '[0-9]+' || true) | sort -u | tr '\n' ' ' | xargs
+}
+
+# Close any process listening on a specified port
+free_port() {
+    local port="$1"
+    local service_name="$2"
+    local pids
+    pids=$(get_port_pids "$port")
+
+    if [ -n "$pids" ]; then
+        log_warn "Port ${port} (${service_name}) is in use by PID(s): ${pids}. Closing existing process..."
+        for pid in $pids; do
+            kill -TERM "$pid" 2>/dev/null || true
+        done
+
+        # Wait up to 3 seconds for graceful shutdown
+        local wait_count=0
+        while [ $wait_count -lt 3 ]; do
+            local still_alive=0
+            for pid in $pids; do
+                if kill -0 "$pid" 2>/dev/null; then
+                    still_alive=1
+                    break
+                fi
+            done
+            if [ $still_alive -eq 0 ]; then
+                break
+            fi
+            sleep 1
+            wait_count=$((wait_count + 1))
+        done
+
+        # Force kill if still lingering
+        for pid in $pids; do
+            if kill -0 "$pid" 2>/dev/null; then
+                log_warn "Process ${pid} on port ${port} did not terminate gracefully; force killing (SIGKILL)..."
+                kill -9 "$pid" 2>/dev/null || true
+            fi
+        done
+
+        sleep 0.5
+        local remaining
+        remaining=$(get_port_pids "$port")
+        if [ -n "$remaining" ]; then
+            log_error "Could not free port ${port}. Process(es) still running: ${remaining}. You may need to terminate them manually."
+        else
+            log_success "Port ${port} (${service_name}) freed."
+        fi
+    fi
+}
+
 show_help() {
     echo -e "${CLR_BOLD}XPOS Monorepo Runner${CLR_RESET}
 
@@ -78,8 +151,8 @@ ${CLR_BOLD}Options:${CLR_RESET}
   --clean           Run Maven clean before starting backend
 
 ${CLR_BOLD}Endpoints (Default Dev):${CLR_RESET}
-  Backend API:      http://localhost:9003/api/v1 (Actuator: http://localhost:9003/actuator/health)
-  Frontend UI:      http://localhost:5173
+  Backend API:      http://localhost:${BACKEND_PORT}/api/v1 (Actuator: http://localhost:${BACKEND_PORT}/actuator/health)
+  Frontend UI:      http://localhost:${UI_PORT}
   Keycloak IAM:     http://localhost:8088 (dev) / http://localhost:8080 (compose)
 "
 }
@@ -121,6 +194,26 @@ cleanup() {
     fi
     if [ -n "$UI_PID" ] && kill -0 "$UI_PID" 2>/dev/null; then
         kill -9 -"$UI_PID" 2>/dev/null || kill -9 "$UI_PID" 2>/dev/null || true
+    fi
+
+    # Ensure ports are released even if child processes detached
+    if [ "$RUN_BACKEND" -eq 1 ]; then
+        local bpids
+        bpids=$(get_port_pids "$BACKEND_PORT")
+        if [ -n "$bpids" ]; then
+            for pid in $bpids; do
+                kill -9 "$pid" 2>/dev/null || true
+            done
+        fi
+    fi
+    if [ "$RUN_UI" -eq 1 ]; then
+        local upids
+        upids=$(get_port_pids "$UI_PORT")
+        if [ -n "$upids" ]; then
+            for pid in $upids; do
+                kill -9 "$pid" 2>/dev/null || true
+            done
+        fi
     fi
 
     log_success "All services stopped."
@@ -230,12 +323,20 @@ fi
 # Setup exit trap
 trap cleanup INT TERM EXIT
 
+# Close ports in use before starting services
+if [ "$RUN_BACKEND" -eq 1 ]; then
+    free_port "$BACKEND_PORT" "xpos backend"
+fi
+if [ "$RUN_UI" -eq 1 ]; then
+    free_port "$UI_PORT" "xpos-ui"
+fi
+
 log_info "Starting XPOS services..."
 log_info "Press Ctrl+C at any time to shut down all processes."
 
 # Start Backend
 if [ "$RUN_BACKEND" -eq 1 ]; then
-    log_info "Launching xpos backend on http://localhost:9003..."
+    log_info "Launching xpos backend on http://localhost:${BACKEND_PORT}..."
     MVN_CMD="./mvnw spring-boot:run"
     if [ "$DO_CLEAN" -eq 1 ]; then
         MVN_CMD="./mvnw clean spring-boot:run"
@@ -249,7 +350,7 @@ fi
 
 # Start Frontend
 if [ "$RUN_UI" -eq 1 ]; then
-    log_info "Launching xpos-ui on http://localhost:5173..."
+    log_info "Launching xpos-ui on http://localhost:${UI_PORT}..."
     (
         cd "${UI_DIR}"
         exec npm run dev 2>&1 | prefix_stream "$CLR_GREEN" "xpos-ui"

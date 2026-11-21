@@ -1657,19 +1657,19 @@ function PaymentModal({
                   </colgroup>
                   <thead className={`border-b border-slate-200 bg-slate-50 dark:border-slate-600 ${tableHeadRow}`}>
                     <tr>
-                      <th className="px-2 py-3 text-center text-lg font-bold uppercase tracking-wide text-slate-700 sm:text-xl dark:text-slate-300">
+                      <th className="px-2 py-3 text-center text-lg font-bold text-slate-700 sm:text-xl dark:text-slate-300">
                         No.
                       </th>
-                      <th className="px-3 py-3 text-left text-lg font-bold uppercase tracking-wide text-slate-700 sm:text-xl dark:text-slate-300">
+                      <th className="px-3 py-3 text-left text-lg font-bold text-slate-700 sm:text-xl dark:text-slate-300">
                         Item
                       </th>
-                      <th className="px-2 py-3 text-right text-lg font-bold uppercase tracking-wide text-slate-700 sm:text-xl dark:text-slate-300">
+                      <th className="px-2 py-3 text-right text-lg font-bold text-slate-700 sm:text-xl dark:text-slate-300">
                         Qty
                       </th>
-                      <th className="px-2 py-3 text-right text-lg font-bold uppercase tracking-wide text-slate-700 sm:text-xl dark:text-slate-300">
+                      <th className="px-2 py-3 text-right text-lg font-bold text-slate-700 sm:text-xl dark:text-slate-300">
                         Unit
                       </th>
-                      <th className="px-2 py-3 text-right text-lg font-bold uppercase tracking-wide text-slate-700 sm:px-4 sm:text-xl dark:text-slate-300">
+                      <th className="px-2 py-3 text-right text-lg font-bold text-slate-700 sm:px-4 sm:text-xl dark:text-slate-300">
                         Subtotal
                       </th>
                     </tr>

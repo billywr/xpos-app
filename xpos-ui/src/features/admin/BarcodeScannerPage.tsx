@@ -142,7 +142,7 @@ export function BarcodeScannerPage() {
 
         {/* Sample barcodes to scan */}
         <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-600 dark:bg-slate-800">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400">
             Sample barcodes to scan
           </h2>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
@@ -175,7 +175,7 @@ export function BarcodeScannerPage() {
         {/* Last scan */}
         {lastScan && (
           <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-600 dark:bg-slate-800">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400">
               Last scan
             </h2>
             <p className="mt-2 break-all font-mono text-xl font-semibold text-slate-900 dark:text-white">

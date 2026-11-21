@@ -13,6 +13,7 @@ import {
 import { getApiErrorMessage } from "@/utils/apiError";
 import { isAssistantWidgetVisible } from "@/config/assistantVisibility";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
+import { toSentenceCase } from "@/utils/textCase";
 
 const INSIGHTS_QUERY_KEY = "assistant-insights";
 
@@ -127,8 +128,8 @@ export function InsightAlertBell() {
                   </p>
                   <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{event.body}</p>
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-[10px] uppercase tracking-wide text-slate-500">
-                      {event.insightType.replace(/_/g, " ")}
+                    <span className="text-[10px] text-slate-500">
+                      {toSentenceCase(event.insightType)}
                     </span>
                     <button
                       type="button"

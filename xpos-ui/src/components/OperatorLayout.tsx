@@ -45,6 +45,7 @@ import { APP_NAME_KEY } from "@/config/headerNavItems";
 import { AssistantWidget } from "@/components/AssistantWidget";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { InsightAlertBell } from "@/components/InsightAlertBell";
+import { toSentenceCase } from "@/utils/textCase";
 
 const MANAGE_TABLE_SUB_ITEMS = [
   { to: "/operator/tables/booked", label: "Booked" },
@@ -171,7 +172,7 @@ export function OperatorLayout() {
     return (
       <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Main">
         {visibleMainNavItems.map(({ to, label, icon: Icon, end }) => {
-          const displayLabel = getOperatorLabel(to, label);
+          const displayLabel = toSentenceCase(getOperatorLabel(to, label));
           return (
           <NavLink
             key={to}
@@ -202,12 +203,12 @@ export function OperatorLayout() {
                 <button
                   type="button"
                   onClick={() => setManageOpen(!manageOpen)}
-                  title={getOperatorLabel("/operator/tables", "Manage table")}
+                  title={toSentenceCase(getOperatorLabel("/operator/tables", "Manage tables"))}
                   className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
                 >
                   <span className="flex items-center gap-3">
                     <UtensilsCrossed className="h-5 w-5 shrink-0" />
-                    {getOperatorLabel("/operator/tables", "Manage table")}
+                    {toSentenceCase(getOperatorLabel("/operator/tables", "Manage tables"))}
                   </span>
                   <ChevronDown
                     className={`h-4 w-4 transition ${manageOpen ? "rotate-180" : ""}`}
@@ -216,7 +217,7 @@ export function OperatorLayout() {
                 {manageOpen && (
                   <div className="ml-4 flex flex-col gap-1 border-l border-slate-200 pl-2 dark:border-white/10">
                     {MANAGE_TABLE_SUB_ITEMS.map(({ to, label }) => {
-                      const displayLabel = getOperatorLabel(to, label);
+                      const displayLabel = toSentenceCase(getOperatorLabel(to, label));
                       return (
                       <NavLink
                         key={to}
@@ -240,7 +241,7 @@ export function OperatorLayout() {
               </>
             )}
             {visibleOtherManageItems.map(({ to, label, icon: Icon }) => {
-              const displayLabel = getOperatorLabel(to, label);
+              const displayLabel = toSentenceCase(getOperatorLabel(to, label));
               return (
               <NavLink
                 key={to}

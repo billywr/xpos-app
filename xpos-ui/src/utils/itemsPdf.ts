@@ -30,7 +30,7 @@ export function generateItemsPdf(
   // Header Title
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text("Items Price List", margin, y);
+  doc.text("Items price list", margin, y);
   y += 8;
 
   // Metadata
@@ -51,7 +51,7 @@ export function generateItemsPdf(
   const generatedDate = formatDateTime(new Date());
   doc.text(`Generated: ${generatedDate}`, margin, y);
   y += 5;
-  doc.text(`Total Items: ${items.length}`, margin, y);
+  doc.text(`Total items: ${items.length}`, margin, y);
   y += 8;
 
   if (items.length === 0) {
@@ -73,7 +73,7 @@ export function generateItemsPdf(
     ]);
 
     autoTable(doc, {
-      head: [["No.", "Name", "Buying Price", "Selling Price"]],
+      head: [["No.", "Name", "Buying price", "Selling price"]],
       body: tableData,
       startY: y,
       margin: { left: margin, right: margin },

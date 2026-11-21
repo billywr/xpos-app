@@ -97,7 +97,7 @@ export function DebtsAndExpensesAdminPage() {
             <div className="flex items-center gap-2">
               <label
                 htmlFor="debt-org-select"
-                className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400"
+                className="text-xs font-semibold text-slate-500 dark:text-slate-400"
               >
                 Org:
               </label>
@@ -119,7 +119,7 @@ export function DebtsAndExpensesAdminPage() {
             <div className="flex items-center gap-2">
               <label
                 htmlFor="debt-branch-select"
-                className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400"
+                className="text-xs font-semibold text-slate-500 dark:text-slate-400"
               >
                 Branch:
               </label>

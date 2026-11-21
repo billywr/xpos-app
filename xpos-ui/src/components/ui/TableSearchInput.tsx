@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { toSentenceCase } from "@/utils/textCase";
 import { TableRefreshButton } from "./TableRefreshButton";
 
 export interface TableSearchInputProps {
@@ -13,7 +14,7 @@ export interface TableSearchInputProps {
 export function TableSearchInput({
   value,
   onChange,
-  placeholder = "Search\u2026",
+  placeholder = "Search…",
   className = "",
   onRefresh,
   isRefreshing = false,
@@ -23,7 +24,7 @@ export function TableSearchInput({
       <Search className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
       <input
         type="search"
-        placeholder={placeholder}
+        placeholder={toSentenceCase(placeholder)}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 sm:max-w-xs"

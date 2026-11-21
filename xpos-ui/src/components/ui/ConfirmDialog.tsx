@@ -4,6 +4,7 @@ import { Button } from "./Button";
 import { ProgressBar } from "./ProgressBar";
 import { cn } from "@/utils/cn";
 import { recordActionDurationMs } from "@/utils/actionDuration";
+import { toSentenceCase } from "@/utils/textCase";
 
 export type ConfirmDialogMaxWidth =
   | "max-w-md"
@@ -163,7 +164,7 @@ export function ConfirmDialog({
               id="confirm-dialog-title"
               className="text-lg font-semibold text-slate-900 dark:text-white"
             >
-              {title}
+              {toSentenceCase(title)}
             </h3>
             <div
               id="confirm-dialog-desc"
@@ -205,7 +206,7 @@ export function ConfirmDialog({
                   <span>Processing…</span>
                 </span>
               ) : (
-                confirmLabel
+                toSentenceCase(confirmLabel)
               )}
             </Button>
             {trailingDangerAction ? (
@@ -222,7 +223,7 @@ export function ConfirmDialog({
                     <span>Processing…</span>
                   </span>
                 ) : (
-                  trailingDangerAction.label
+                  toSentenceCase(trailingDangerAction.label)
                 )}
               </Button>
             ) : null}
@@ -234,7 +235,7 @@ export function ConfirmDialog({
             disabled={anyLoading}
             className="shrink-0"
           >
-            {cancelLabel}
+            {toSentenceCase(cancelLabel)}
           </Button>
         </div>
       </div>

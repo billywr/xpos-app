@@ -3,6 +3,7 @@ package com.blinc.xpos.modules.cash.service;
 import com.blinc.xpos.modules.cash.domain.RecurringUtilityApplyTiming;
 import com.blinc.xpos.modules.cash.domain.RecurringUtilityExpense;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -15,6 +16,8 @@ public interface RecurringUtilityExpenseService {
       UUID branchId,
       String name,
       BigDecimal amount,
+      LocalDate effectiveFrom,
+      LocalDate effectiveTo,
       RecurringUtilityApplyTiming applyTiming,
       Integer dueDayOfMonth,
       String payee,
@@ -31,6 +34,9 @@ public interface RecurringUtilityExpenseService {
       UUID utilityId,
       String name,
       BigDecimal amount,
+      LocalDate effectiveFrom,
+      LocalDate effectiveTo,
+      Boolean isRateChange,
       RecurringUtilityApplyTiming applyTiming,
       Integer dueDayOfMonth,
       String payee,
@@ -46,6 +52,9 @@ public interface RecurringUtilityExpenseService {
       UUID orgId, UUID branchId, Boolean active, String query, Pageable pageable);
 
   List<RecurringUtilityExpense> listAllActive(UUID orgId, UUID branchId);
+
+  List<RecurringUtilityExpense> listApplicableForPeriod(
+      UUID orgId, UUID branchId, LocalDate startDate, LocalDate endDate);
 
   BigDecimal sumActiveMonthlyAmount(UUID orgId, UUID branchId);
 

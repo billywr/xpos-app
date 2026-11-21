@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import type { SortDirection } from "@/utils/tableSort";
+import { toSentenceCase } from "@/utils/textCase";
 
 export interface SortableTableHeadProps {
   columnKey: string;
@@ -25,6 +26,8 @@ export function SortableTableHead({
   className = "",
   title,
 }: SortableTableHeadProps) {
+  const displayLabel = typeof label === "string" ? toSentenceCase(label) : label;
+
   if (!sortable) {
     return (
       <th
@@ -32,7 +35,7 @@ export function SortableTableHead({
         className={className}
         aria-sort="none"
       >
-        {label}
+        {displayLabel}
       </th>
     );
   }
@@ -66,17 +69,17 @@ export function SortableTableHead({
       <button
         type="button"
         onClick={() => onSort(columnKey)}
-        title={title ?? `Sort by ${typeof label === "string" ? label : columnKey}`}
-        className={`group inline-flex w-full min-w-0 items-center gap-1.5 font-inherit uppercase tracking-wide text-inherit transition-colors hover:text-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 dark:hover:text-primary-300 dark:focus-visible:ring-offset-slate-800 ${buttonAlign}`}
+        title={title ?? `Sort by ${typeof displayLabel === "string" ? displayLabel : columnKey}`}
+        className={`group inline-flex w-full min-w-0 items-center gap-1.5 font-inherit tracking-normal text-inherit transition-colors hover:text-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 dark:hover:text-primary-300 dark:focus-visible:ring-offset-slate-800 ${buttonAlign}`}
       >
         {align === "right" ? (
           <>
             <Icon className={iconClass} aria-hidden />
-            <span className="min-w-0 truncate">{label}</span>
+            <span className="min-w-0 truncate">{displayLabel}</span>
           </>
         ) : (
           <>
-            <span className="min-w-0 truncate">{label}</span>
+            <span className="min-w-0 truncate">{displayLabel}</span>
             <Icon className={iconClass} aria-hidden />
           </>
         )}
