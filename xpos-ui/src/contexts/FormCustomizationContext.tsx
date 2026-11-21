@@ -40,7 +40,7 @@ export function computeFieldLayout(
   }
 
   const isInherentlyFullWidth = (key: string) =>
-    key === "notes" || key === "address";
+    key === "notes" || key === "address" || key === "borrowedItems";
 
   let colInRow = 0; // 0 = left column, 1 = right column
 

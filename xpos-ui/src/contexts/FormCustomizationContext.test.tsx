@@ -199,5 +199,22 @@ describe("FormCustomizationContext & useFormCustomization", () => {
       expect(layout.dueDate).toEqual({ colSpan: "col-span-1 sm:col-span-2", isLone: true });
       expect(layout.notes).toEqual({ colSpan: "col-span-1 sm:col-span-2", isLone: true });
     });
+
+    it("treats borrowedItems as inherently full-width", () => {
+      const fields = [
+        { key: "customerName", order: 1, visible: true },
+        { key: "issuedBy", order: 2, visible: true },
+        { key: "amount", order: 3, visible: true },
+        { key: "recordedOn", order: 4, visible: true },
+        { key: "dueDate", order: 5, visible: true },
+        { key: "borrowedItems", order: 6, visible: true },
+        { key: "notes", order: 7, visible: true },
+      ];
+      const layout = computeFieldLayout(fields);
+      expect(layout.dueDate).toEqual({ colSpan: "col-span-1 sm:col-span-2", isLone: true });
+      expect(layout.borrowedItems).toEqual({ colSpan: "col-span-1 sm:col-span-2", isLone: true });
+      expect(layout.notes).toEqual({ colSpan: "col-span-1 sm:col-span-2", isLone: true });
+    });
   });
 });
+

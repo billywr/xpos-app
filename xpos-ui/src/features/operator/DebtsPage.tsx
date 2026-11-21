@@ -910,93 +910,6 @@ export function DebtsPage() {
             </div>
           )}
 
-          <div style={{ order: 9990 }} className="col-span-1 sm:col-span-2">
-            <span
-              id="borrowed-items-label"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Items borrowed
-            </span>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              Add lines from the branch price list (or default selling price). Debt total fills from
-              these lines; use amount below only when you are not listing items.
-            </p>
-            {debtCatalogLoading ? (
-              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Loading catalog…</p>
-            ) : pricedItemsForDebt.length === 0 ? (
-              <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
-                No priced items found. Add items to this branch&apos;s price list (or set default
-                selling prices) to select products here.
-              </p>
-            ) : (
-              <div className="mt-2">
-                <SearchableSelect
-                  aria-label="Add borrowed item"
-                  options={debtAddItemOptions}
-                  value={formAddItemId}
-                  onChange={(v) => handleAddBorrowedItem(v)}
-                  placeholder="Search item…"
-                  unknownValueDisplay="Select item…"
-                  optionsOrder="as_given"
-                  className="w-full"
-                  controlClassName="border-slate-300 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus-within:border-primary-400 dark:focus-within:ring-primary-400"
-                />
-              </div>
-            )}
-            {formBorrowedLines.length > 0 ? (
-              <ul className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50/80 p-2 dark:border-slate-600 dark:bg-slate-900/40">
-                {formBorrowedLines.map((line) => (
-                  <li
-                    key={line.itemId}
-                    className="flex flex-wrap items-center gap-2 rounded-md bg-white px-2 py-2 dark:bg-slate-800"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium text-slate-900 dark:text-white">
-                        {line.itemName}
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">
-                        {formatCurrency(line.unitPrice)} each
-                        {line.sku ? ` · ${line.sku}` : ""}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => adjustBorrowedQty(line.itemId, -1)}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                        aria-label={`Decrease quantity for ${line.itemName}`}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <span className="min-w-[2rem] text-center text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
-                        {line.qty}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => adjustBorrowedQty(line.itemId, 1)}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                        aria-label={`Increase quantity for ${line.itemName}`}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <div className="w-full text-right text-sm font-medium tabular-nums text-slate-800 dark:text-slate-200 sm:w-auto sm:text-left">
-                      {formatCurrency(line.qty * line.unitPrice)}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeBorrowedLine(line.itemId)}
-                      className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-300"
-                      aria-label={`Remove ${line.itemName}`}
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-
           {formCustom.isFieldVisible("amount") && (
             <div style={{ order: formCustom.getFieldOrder("amount") }} className={formCustom.getFieldColSpan("amount")}>
               <label
@@ -1077,8 +990,94 @@ export function DebtsPage() {
             </div>
           )}
 
+          {formCustom.isFieldVisible("borrowedItems") && (
+            <div style={{ order: formCustom.getFieldOrder("borrowedItems") }} className="col-span-1 sm:col-span-2">
+              <span
+                id="borrowed-items-label"
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                {formCustom.getFieldLabel("borrowedItems", "Items borrowed")}
+                {formCustom.isFieldRequired("borrowedItems", false) && " *"}
+              </span>
+              {debtCatalogLoading ? (
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Loading catalog…</p>
+              ) : pricedItemsForDebt.length === 0 ? (
+                <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+                  No priced items found. Add items to this branch&apos;s price list (or set default
+                  selling prices) to select products here.
+                </p>
+              ) : (
+                <div className="mt-2">
+                  <SearchableSelect
+                    aria-label={formCustom.getFieldLabel("borrowedItems", "Add borrowed item")}
+                    options={debtAddItemOptions}
+                    value={formAddItemId}
+                    onChange={(v) => handleAddBorrowedItem(v)}
+                    placeholder={formCustom.getFieldPlaceholder("borrowedItems", "Search item…")}
+                    unknownValueDisplay="Select item…"
+                    optionsOrder="as_given"
+                    className="w-full"
+                    controlClassName="border-slate-300 focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus-within:border-primary-400 dark:focus-within:ring-primary-400"
+                  />
+                </div>
+              )}
+              {formBorrowedLines.length > 0 ? (
+                <ul className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50/80 p-2 dark:border-slate-600 dark:bg-slate-900/40">
+                  {formBorrowedLines.map((line) => (
+                    <li
+                      key={line.itemId}
+                      className="flex flex-wrap items-center gap-2 rounded-md bg-white px-2 py-2 dark:bg-slate-800"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-slate-900 dark:text-white">
+                          {line.itemName}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          {formatCurrency(line.unitPrice)} each
+                          {line.sku ? ` · ${line.sku}` : ""}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => adjustBorrowedQty(line.itemId, -1)}
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                          aria-label={`Decrease quantity for ${line.itemName}`}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                        <span className="min-w-[2rem] text-center text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
+                          {line.qty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => adjustBorrowedQty(line.itemId, 1)}
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-slate-100 text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                          aria-label={`Increase quantity for ${line.itemName}`}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="w-full text-right text-sm font-medium tabular-nums text-slate-800 dark:text-slate-200 sm:w-auto sm:text-left">
+                        {formatCurrency(line.qty * line.unitPrice)}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeBorrowedLine(line.itemId)}
+                        className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-300"
+                        aria-label={`Remove ${line.itemName}`}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          )}
+
           {formCustom.isFieldVisible("notes") && (
-            <div style={{ order: 9998 }} className="col-span-1 sm:col-span-2">
+            <div style={{ order: formCustom.getFieldOrder("notes") }} className="col-span-1 sm:col-span-2">
               <label
                 htmlFor="notes"
                 className="block text-sm font-medium text-slate-700 dark:text-slate-300"
