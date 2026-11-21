@@ -87,4 +87,35 @@ describe("SearchableSelect with add and delete capabilities", () => {
     expect(onAdd).toHaveBeenCalledWith("Internet 5G");
     expect(onChange).toHaveBeenCalledWith("Internet 5G");
   });
+
+  it("defaults to the first value in the dropdown when defaultToFirstOption is true and value is empty", () => {
+    const onChange = vi.fn();
+
+    render(
+      <SearchableSelect
+        options={defaultOptions}
+        value=""
+        onChange={onChange}
+        defaultToFirstOption={true}
+      />
+    );
+
+    // defaultOptions sorted alphabetically: Electricity, Rent, Water
+    expect(onChange).toHaveBeenCalledWith("Electricity");
+  });
+
+  it("does not override an existing non-empty value when defaultToFirstOption is true", () => {
+    const onChange = vi.fn();
+
+    render(
+      <SearchableSelect
+        options={defaultOptions}
+        value="Water"
+        onChange={onChange}
+        defaultToFirstOption={true}
+      />
+    );
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

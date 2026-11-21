@@ -405,6 +405,7 @@ export function StandardStockCountSheetPage({
     if (!orgId || !branchId) return;
     const saved = getSavedStockCountDate(orgId, branchId);
     if (saved && saved !== dateStr) {
+      userHasEditedRef.current = false;
       setLocalClosings({});
       setLocalComments({});
       setDateStr(saved);
@@ -428,6 +429,9 @@ export function StandardStockCountSheetPage({
   const priorAddedStockSignatureRef = useRef("");
   const skipAutoSaveDebounceRef = useRef(false);
   const systemSyncPendingRef = useRef(false);
+  const [isAutoSyncing, setIsAutoSyncing] = useState(false);
+  const [isPendingSystemSync, setIsPendingSystemSync] = useState(false);
+  const userHasEditedRef = useRef(false);
   const suppressAutoSyncUntilRefetchRef = useRef(false);
 
   const inFlightSnapshotRef = useRef<{
@@ -947,6 +951,7 @@ export function StandardStockCountSheetPage({
       }
       if (next !== null) {
         systemSyncPendingRef.current = true;
+        setIsPendingSystemSync(true);
       }
       return next ?? prev;
     });
@@ -1075,6 +1080,7 @@ export function StandardStockCountSheetPage({
       );
 
     if (onlyCarryForward && token && orgId && branchId) {
+      setIsAutoSyncing(true);
       void autoSyncStdStockCount(token, orgId, branchId)
         .then(() => refetch())
         .then(() => {
@@ -1085,6 +1091,10 @@ export function StandardStockCountSheetPage({
           if (!systemSyncMutation.isPending) {
             systemSyncMutation.mutate();
           }
+        })
+        .finally(() => {
+          setIsAutoSyncing(false);
+          setIsPendingSystemSync(false);
         });
       return;
     }
@@ -1092,6 +1102,7 @@ export function StandardStockCountSheetPage({
     if (!systemSyncMutation.isPending) {
       systemSyncMutation.mutate();
     }
+    setIsPendingSystemSync(false);
   }, [
     localClosings,
     localComments,
@@ -1186,15 +1197,35 @@ export function StandardStockCountSheetPage({
     );
   }, [sheet?.rows, alreadyRecordedByItem]);
 
-  const isSyncingStock = systemSyncMutation.isPending || hasStaleClosings;
+  const isSyncingStock =
+    systemSyncMutation.isPending ||
+    hasStaleClosings ||
+    isAutoSyncing ||
+    isPendingSystemSync;
+
+  const isSyncingOrAdjusting =
+    !userHasEditedRef.current &&
+    (isInitialLoad ||
+      hasStaleClosings ||
+      systemSyncMutation.isPending ||
+      isAutoSyncing ||
+      isPendingSystemSync ||
+      reconcileMutation.isPending ||
+      (sheetQuery.isFetching && (sheetQuery.isStale || hasStaleClosings)));
+
+  const handleRefreshAll = useCallback(() => {
+    void refetch();
+    void refetchSalesPreview();
+    void refetchReconcilePreview();
+  }, [refetch, refetchSalesPreview, refetchReconcilePreview]);
 
   const itemsToReconcile = cachedReconcilePreview?.itemsAdjusted ?? 0;
   const showReconcileButton =
     isToday &&
     !hasChanges &&
     !hasErrors &&
-    !hasStaleClosings &&
-    !systemSyncMutation.isPending &&
+    !isSyncingStock &&
+    !isSyncingOrAdjusting &&
     itemsToReconcile > 0;
 
   const latestSavedAt = useMemo(() => {
@@ -1351,6 +1382,7 @@ export function StandardStockCountSheetPage({
   }
 
   function changeDate(newDate: string) {
+    userHasEditedRef.current = false;
     setLocalClosings({});
     setLocalComments({});
     setDateStr(newDate);
@@ -1373,6 +1405,7 @@ export function StandardStockCountSheetPage({
     if (!canEdit) return;
     // Allow empty, an in-progress decimal point, and up to 3 fractional digits.
     if (isValidQtyInput(value)) {
+      userHasEditedRef.current = true;
       lastKeystrokeAtRef.current = Date.now();
       setLocalClosings((prev) => ({ ...prev, [itemId]: value }));
     }
@@ -1505,7 +1538,7 @@ export function StandardStockCountSheetPage({
               />
             </div>
             {/* Total Sales pill for small/smaller screens (< xl) */}
-            {totals.amount > 0 ? (
+            {!isSyncingOrAdjusting && totals.amount > 0 ? (
               <div
                 className="flex xl:hidden shrink-0 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
                 title="Total sales amount"
@@ -1542,7 +1575,7 @@ export function StandardStockCountSheetPage({
 
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {/* Desktop total sales badge before date filter */}
-          {totals.amount > 0 ? (
+          {!isSyncingOrAdjusting && totals.amount > 0 ? (
             <div
               className="hidden xl:flex shrink-0 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
               title="Total sales amount"
@@ -1595,8 +1628,27 @@ export function StandardStockCountSheetPage({
             <span className="mx-0.5 hidden h-4 w-px bg-slate-300 sm:mx-1 sm:block dark:bg-slate-600" aria-hidden />
           </div>
 
+          {/* Refresh button */}
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={handleRefreshAll}
+            disabled={sheetQuery.isFetching || isSyncingOrAdjusting}
+            title="Refresh stock counts"
+            aria-label="Refresh stock counts"
+            className="p-2 xl:px-3 xl:py-2 shrink-0"
+          >
+            <RotateCw
+              className={cn(
+                "h-4 w-4",
+                (sheetQuery.isFetching || isSyncingOrAdjusting) && "animate-spin"
+              )}
+            />
+            <span className="hidden xl:inline">Refresh</span>
+          </Button>
+
           {/* PDF button - desktop only */}
-          {showPdfButton && (
+          {showPdfButton && !isSyncingOrAdjusting && (
             <Button
               variant="secondary"
               size="md"
@@ -1612,7 +1664,7 @@ export function StandardStockCountSheetPage({
           )}
 
           {/* Save button - desktop only */}
-          {showSaveButton && saveButtonActive && (
+          {showSaveButton && saveButtonActive && !isSyncingOrAdjusting && (
             <Button
               size="md"
               onClick={handleSave}
@@ -1624,7 +1676,7 @@ export function StandardStockCountSheetPage({
           )}
 
           {/* Reconcile button - visible on all screens */}
-          {showReconcileButton && showReconcileSetting && (
+          {showReconcileButton && showReconcileSetting && !isSyncingOrAdjusting && (
             <Button
               variant="secondary"
               size="sm"
@@ -1649,7 +1701,7 @@ export function StandardStockCountSheetPage({
           )}
 
           {/* Record sales button - visible only when sales to record exist */}
-          {showRecordSales && (
+          {showRecordSales && !isSyncingOrAdjusting && (
             <Button
               variant="success"
               size="sm"
@@ -1699,8 +1751,27 @@ export function StandardStockCountSheetPage({
       {!isError && (isInitialLoad || sheet) && (
         <div className="flex min-h-0 flex-1 flex-col">
           <div className={tableCard}>
-            <div className="relative min-h-0 flex-1 overflow-auto scrollbar-blend">
-              <table className="w-full min-w-full divide-y divide-slate-200 xl:min-w-[850px] dark:divide-slate-600">
+            {isSyncingOrAdjusting ? (
+              <div
+                data-testid="stock-syncing-spinner"
+                className="flex min-h-[350px] flex-1 flex-col items-center justify-center p-8 text-center"
+              >
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-9 w-9 animate-spin text-primary-600 dark:text-primary-400" />
+                  <div>
+                    <p className="text-base font-semibold text-slate-800 dark:text-slate-100">
+                      Syncing stock adjustments…
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      Updating stock counts with latest receipts before displaying table…
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="relative min-h-0 flex-1 overflow-auto scrollbar-blend">
+                  <table className="w-full min-w-full divide-y divide-slate-200 xl:min-w-[850px] dark:divide-slate-600">
               <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700">
                 <tr>
                   <TableRowNumberHead className="w-[2rem] min-w-[2rem] px-0.5 py-1.5 text-center text-xs font-semibold uppercase text-slate-700 sm:py-3 sm:text-base dark:text-slate-300" />
@@ -1979,35 +2050,46 @@ export function StandardStockCountSheetPage({
                 </div>
               </div>
             )}
+              </>
+            )}
           </div>
 
-          <div className={`mt-4 hidden xl:flex flex-wrap justify-end gap-1.5 sm:gap-3 ${tableExpanded ? "!hidden" : ""}`}>
+          {!isSyncingOrAdjusting && (dayDebtsTotal > 0 || allDebtsTotal > 0 || (analytics?.expenseIntelligence?.todayTotal ?? 0) > 0 || totals.amount > 0) && (
+            <div className={`mt-4 hidden xl:flex flex-wrap justify-end gap-1.5 sm:gap-3 ${tableExpanded ? "!hidden" : ""}`}>
+              {dayDebtsTotal > 0 && (
+                <StatChip
+                  label="Today Debts"
+                  value={formatCurrency(dayDebtsTotal)}
+                  tone="debt"
+                  onClick={dayDebts.length > 0 ? () => setDebtModal("day") : undefined}
+                />
+              )}
+              {allDebtsTotal > 0 && (
+                <StatChip
+                  label="Total Debts"
+                  value={formatCurrency(allDebtsTotal)}
+                  tone="debt"
+                  onClick={allDebts.length > 0 ? () => setDebtModal("all") : undefined}
+                />
+              )}
+              {(analytics?.expenseIntelligence?.todayTotal ?? 0) > 0 && (
+                <StatChip
+                  label="Expenses"
+                  value={formatCurrency(analytics?.expenseIntelligence?.todayTotal ?? 0)}
+                  tone="expense"
+                />
+              )}
+              {totals.amount > 0 && (
+                <StatChip
+                  label="Total Sales"
+                  value={formatCurrency(totals.amount)}
+                  tone="sales"
+                />
+              )}
+            </div>
+          )}
 
-            <StatChip
-              label="Today Debts"
-              value={formatCurrency(dayDebtsTotal)}
-              tone="debt"
-              onClick={dayDebts.length > 0 ? () => setDebtModal("day") : undefined}
-            />
-            <StatChip
-              label="Total Debts"
-              value={formatCurrency(allDebtsTotal)}
-              tone="debt"
-              onClick={allDebts.length > 0 ? () => setDebtModal("all") : undefined}
-            />
-            <StatChip
-              label="Expenses"
-              value={formatCurrency(analytics?.expenseIntelligence?.todayTotal ?? 0)}
-              tone="expense"
-            />
-            <StatChip
-              label="Total Sales"
-              value={formatCurrency(totals.amount)}
-              tone="sales"
-            />
-          </div>
-
-          {computedRows.length === 0 && (
+          {!isSyncingOrAdjusting && computedRows.length === 0 && (
             <p className="mt-4 text-center text-slate-500 dark:text-slate-400">
               No items in price list for this branch. Add items to a price list
               and assign it to the branch.
@@ -2201,12 +2283,11 @@ export function StandardStockCountSheetPage({
         {recordPreview && (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-slate-600 dark:text-slate-300">
-              Evaluates all{" "}
+              Reconciles all{" "}
               <span className="font-semibold text-slate-900 dark:text-white">
                 {recordPreview.lines.length} products
               </span>{" "}
-              on this sheet (every page), not just the rows visible now. Quantities below
-              reconcile with POS and sales already recorded for {dateStr}.
+              for {dateStr}.
             </p>
             {searchQuery.trim().length > 0 && (
               <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-200">
@@ -2220,8 +2301,7 @@ export function StandardStockCountSheetPage({
               </p>
             ) : (
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                The following quantities will be posted as completed cash sales and will reduce
-                inventory on hand.
+                Quantities below will post as cash sales and deduct inventory.
               </p>
             )}
             {recordablePreviewLines.length > 0 && (

@@ -1473,6 +1473,106 @@ describe("StandardStockCountSheetPage reconcile inventory", () => {
     });
     expect(screen.getByText(/syncing stock receipts…/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^reconcile/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("stock-syncing-spinner")).toBeInTheDocument();
+    expect(screen.getByText(/syncing stock adjustments…/i)).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("shows spinner and hides table until background receipt sync settles, then displays table", async () => {
+    const today = localTodayStr();
+    const staleRow: StdStockCountRowResponse = {
+      itemId: "item-sport",
+      sku: "SPORT01",
+      name: "Sport",
+      openingStock: 18,
+      addedStock: 40,
+      addedTodayStock: 0,
+      sellingPrice: 20,
+      closingStock: 18,
+      lastSavedAt: "2026-11-21T07:56:00.000Z",
+      firstStockAddedAt: "2026-11-21T08:00:00.000Z",
+      latestStockAddedAt: "2026-11-21T08:00:00.000Z",
+      comments: null,
+    };
+    const syncedRow: StdStockCountRowResponse = {
+      ...staleRow,
+      closingStock: 58,
+      lastSavedAt: "2026-11-21T08:05:00.000Z",
+    };
+
+    let resolveSync!: (value: stdApi.StdStockCountSheetResponse) => void;
+    const syncPromise = new Promise<stdApi.StdStockCountSheetResponse>((resolve) => {
+      resolveSync = resolve;
+    });
+
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [staleRow],
+    });
+    vi.mocked(stdApi.saveStdStockCount).mockReturnValue(syncPromise);
+
+    wrap(<StandardStockCountSheetPage />);
+
+    // While receipt sync is pending, spinner is visible and table is NOT shown
+    await waitFor(() => {
+      expect(screen.getByTestId("stock-syncing-spinner")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/syncing stock adjustments…/i)).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+
+    // Now resolve the sync save
+    resolveSync({
+      date: today,
+      outletId: "branch-1",
+      rows: [syncedRow],
+    });
+
+    // After settlement, table is revealed with updated closing and spinner is gone
+    await waitFor(() => {
+      expect(screen.getByRole("table")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("stock-syncing-spinner")).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("58")).toBeInTheDocument();
+  });
+
+  it("renders refresh button and clicking it triggers sheet and preview refetches", async () => {
+    const today = localTodayStr();
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU-1",
+          name: "Test Product",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 100,
+          closingStock: 10,
+          lastSavedAt: "2026-11-21T10:00:00.000Z",
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Product")).toBeInTheDocument();
+    });
+
+    const refreshBtn = screen.getByRole("button", { name: /^refresh stock counts$/i });
+    expect(refreshBtn).toBeInTheDocument();
+
+    const priorCalls = vi.mocked(stdApi.fetchStdStockCountSheet).mock.calls.length;
+    fireEvent.click(refreshBtn);
+
+    await waitFor(() => {
+      expect(vi.mocked(stdApi.fetchStdStockCountSheet).mock.calls.length).toBeGreaterThan(priorCalls);
+    });
   });
 });
 
@@ -2787,6 +2887,17 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
         expect(names[1]).toHaveTextContent("Zebra Gin");
         expect(names[2]).toHaveTextContent("Beta Beer");
       });
+    });
+
+    it("does not render summary stat card when its value is 0", async () => {
+      wrap(<StandardStockCountSheetPage />);
+      await waitFor(() => {
+        expect(screen.getByText("Zebra Gin")).toBeInTheDocument();
+      });
+
+      // Today Debts and Total Debts are 0 in default mock, so they shouldn't be rendered
+      expect(screen.queryByText("Today Debts")).not.toBeInTheDocument();
+      expect(screen.queryByText("Total Debts")).not.toBeInTheDocument();
     });
   });
 });

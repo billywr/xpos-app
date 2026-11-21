@@ -90,7 +90,10 @@ export function MiscExpensesPage() {
   const [formAmount, setFormAmount] = useState("");
   const [formCategory, setFormCategory] = useState("Bills");
   const [formDescription, setFormDescription] = useState("");
-  const [formIncurredBy, setFormIncurredBy] = useState("");
+  const [formIncurredBy, setFormIncurredBy] = useState(() => {
+    const list = readSavedIncurredByPresets(orgId, branchId, []);
+    return list[0] ?? "";
+  });
   const [formReceiptRef, setFormReceiptRef] = useState("");
   const [formRecordedOn, setFormRecordedOn] = useState(todayInputValue());
   const [editFormOpen, setEditFormOpen] = useState(false);
@@ -132,7 +135,7 @@ export function MiscExpensesPage() {
       setFormAmount("");
       setFormCategory("Bills");
       setFormDescription("");
-      setFormIncurredBy("");
+      setFormIncurredBy(incurredByOptions[0]?.value ?? "");
       setFormReceiptRef("");
       setFormRecordedOn(todayInputValue());
       toast.success("Expense recorded.", { title: "Miscellaneous expense" });
@@ -247,9 +250,13 @@ export function MiscExpensesPage() {
       .filter((n): n is string => Boolean(n));
   }, [expenses]);
 
-  const [incurredByList, setIncurredByList] = useState<string[]>([]);
+  const [incurredByList, setIncurredByList] = useState<string[]>(() =>
+    readSavedIncurredByPresets(orgId, branchId, [])
+  );
   useEffect(() => {
-    setIncurredByList(readSavedIncurredByPresets(orgId, branchId, seedIncurredBy));
+    const list = readSavedIncurredByPresets(orgId, branchId, seedIncurredBy);
+    setIncurredByList(list);
+    setFormIncurredBy((prev) => (prev ? prev : list[0] ?? ""));
   }, [orgId, branchId, seedIncurredBy]);
 
   const incurredByOptions = useMemo(() => {
@@ -260,6 +267,7 @@ export function MiscExpensesPage() {
     (name: string) => {
       const updated = addIncurredByPreset(orgId, branchId, name, seedIncurredBy);
       setIncurredByList(updated);
+      setFormIncurredBy(name.trim());
       toast.success(`"${name.trim()}" added to suggestions.`);
     },
     [orgId, branchId, seedIncurredBy, toast]
@@ -274,14 +282,14 @@ export function MiscExpensesPage() {
           sensitivity: "base",
         }) === 0
       ) {
-        setFormIncurredBy("");
+        setFormIncurredBy(updated[0] ?? "");
       }
       if (
         editIncurredBy.localeCompare(name.trim(), undefined, {
           sensitivity: "base",
         }) === 0
       ) {
-        setEditIncurredBy("");
+        setEditIncurredBy(updated[0] ?? "");
       }
       toast.success(`"${name.trim()}" removed from suggestions.`);
     },
@@ -381,7 +389,7 @@ export function MiscExpensesPage() {
     setEditAmount(String(e.amount));
     setEditCategory(e.category || "Bills");
     setEditDescription(e.description ?? "");
-    setEditIncurredBy(e.incurredBy ?? "");
+    setEditIncurredBy(e.incurredBy?.trim() || incurredByOptions[0]?.value || "");
     setEditReceiptRef(e.receiptRef ?? "");
     setEditFormOpen(true);
   };
@@ -730,7 +738,7 @@ export function MiscExpensesPage() {
             setFormAmount("");
             setFormCategory("Bills");
             setFormDescription("");
-            setFormIncurredBy("");
+            setFormIncurredBy(incurredByOptions[0]?.value ?? "");
             setFormReceiptRef("");
             setFormRecordedOn(todayInputValue());
           }
@@ -820,6 +828,7 @@ export function MiscExpensesPage() {
                 options={incurredByOptions}
                 value={formIncurredBy}
                 onChange={setFormIncurredBy}
+                defaultToFirstOption
                 allowCustomValue
                 placeholder={formCustom.getFieldPlaceholder("incurredBy", "Type or search person…")}
                 className="mt-1 block w-full"
@@ -971,6 +980,7 @@ export function MiscExpensesPage() {
                   options={incurredByOptions}
                   value={editIncurredBy}
                   onChange={setEditIncurredBy}
+                  defaultToFirstOption
                   allowCustomValue
                   placeholder={formCustom.getFieldPlaceholder("incurredBy", "Type or search person…")}
                   className="mt-1 block w-full"

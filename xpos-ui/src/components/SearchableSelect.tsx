@@ -30,6 +30,8 @@ export interface SearchableSelectProps {
   compact?: boolean;
   /** Use "as_given" to keep option order (e.g. placeholder first); default sorts by label. */
   optionsOrder?: "sort" | "as_given";
+  /** Automatically select the first option in the dropdown when value is empty. */
+  defaultToFirstOption?: boolean;
   /** Allow the user to type a custom value not in the options list (default false). */
   allowCustomValue?: boolean;
   /** Callback when user requests adding a new option value right from dropdown */
@@ -81,6 +83,7 @@ export function SearchableSelect({
   matchOptionValue = false,
   compact = false,
   optionsOrder = "sort",
+  defaultToFirstOption = false,
   allowCustomValue = false,
   onAddOption,
   onDeleteOption,
@@ -127,6 +130,12 @@ export function SearchableSelect({
     const matched = orderedOptions.filter((o) => optionMatches(o, q, matchOptionValue));
     return matched.slice(0, maxSuggestions);
   }, [orderedOptions, q, matchOptionValue, maxSuggestions]);
+
+  useEffect(() => {
+    if (defaultToFirstOption && !value && orderedOptions.length > 0) {
+      onChange(orderedOptions[0].value);
+    }
+  }, [defaultToFirstOption, value, orderedOptions, onChange]);
 
   useEffect(() => {
     if (!open) {

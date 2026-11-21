@@ -814,13 +814,15 @@ export function ManualStockCountSheetPage() {
               )}
             </div>
 
-          <div className="mt-4 flex justify-end">
-            <StatChip
-              label="Total Sales"
-              value={formatCurrency(totals.amount)}
-              tone="sales"
-            />
-          </div>
+          {totals.amount > 0 && (
+            <div className="mt-4 flex justify-end">
+              <StatChip
+                label="Total Sales"
+                value={formatCurrency(totals.amount)}
+                tone="sales"
+              />
+            </div>
+          )}
         </>
       )}
 

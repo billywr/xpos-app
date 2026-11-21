@@ -148,5 +148,17 @@ describe("DebtsAndExpensesPage tab persistence", () => {
     expect(debtsTab).toHaveAttribute("aria-selected", "true");
     expect(sessionStorage.getItem("xpos-tab:debts-expenses")).toBe("debts");
   });
+
+  it("defaults Incurred by to the first dropdown option when opening the expense form", () => {
+    renderPage({}, "/debts");
+    // On expenses tab by default, click Record button
+    const recordBtn = screen.getByRole("button", { name: /record/i });
+    fireEvent.click(recordBtn);
+
+    const incurredByInput = document.getElementById("expIncurredBy") as HTMLInputElement;
+    expect(incurredByInput).toBeInTheDocument();
+    // Default preset list sorted: "Cashier", "Manager", "Owner"
+    expect(incurredByInput.value).toBe("Cashier");
+  });
 });
 

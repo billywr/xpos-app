@@ -528,7 +528,10 @@ export function DebtsAndExpensesPage({
   const [expFormAmount, setExpFormAmount] = useState("");
   const [expFormCategory, setExpFormCategory] = useState("Bills");
   const [expFormDescription, setExpFormDescription] = useState("");
-  const [expFormIncurredBy, setExpFormIncurredBy] = useState("");
+  const [expFormIncurredBy, setExpFormIncurredBy] = useState(() => {
+    const list = readSavedIncurredByPresets(orgId, branchId, []);
+    return list[0] ?? "";
+  });
   const [expFormReceiptRef, setExpFormReceiptRef] = useState("");
   const [expFormRecordedOn, setExpFormRecordedOn] = useState(todayInputValue());
   const [expEditFormOpen, setExpEditFormOpen] = useState(false);
@@ -800,9 +803,13 @@ export function DebtsAndExpensesPage({
       .filter((n): n is string => Boolean(n));
   }, [expensesTotalPage?.content, expensesData?.content]);
 
-  const [incurredByList, setIncurredByList] = useState<string[]>([]);
+  const [incurredByList, setIncurredByList] = useState<string[]>(() =>
+    readSavedIncurredByPresets(orgId, branchId, [])
+  );
   useEffect(() => {
-    setIncurredByList(readSavedIncurredByPresets(orgId, branchId, seedIncurredBy));
+    const list = readSavedIncurredByPresets(orgId, branchId, seedIncurredBy);
+    setIncurredByList(list);
+    setExpFormIncurredBy((prev) => (prev ? prev : list[0] ?? ""));
   }, [orgId, branchId, seedIncurredBy]);
 
   const incurredByOptions = useMemo(() => {
@@ -813,6 +820,7 @@ export function DebtsAndExpensesPage({
     (name: string) => {
       const updated = addIncurredByPreset(orgId, branchId, name, seedIncurredBy);
       setIncurredByList(updated);
+      setExpFormIncurredBy(name.trim());
       toast.success(`"${name.trim()}" added to suggestions.`);
     },
     [orgId, branchId, seedIncurredBy, toast]
@@ -823,10 +831,10 @@ export function DebtsAndExpensesPage({
       const updated = removeIncurredByPreset(orgId, branchId, name, seedIncurredBy);
       setIncurredByList(updated);
       if (expFormIncurredBy.localeCompare(name.trim(), undefined, { sensitivity: "base" }) === 0) {
-        setExpFormIncurredBy("");
+        setExpFormIncurredBy(updated[0] ?? "");
       }
       if (editExpIncurredBy.localeCompare(name.trim(), undefined, { sensitivity: "base" }) === 0) {
-        setEditExpIncurredBy("");
+        setEditExpIncurredBy(updated[0] ?? "");
       }
       toast.success(`"${name.trim()}" removed from suggestions.`);
     },
@@ -1034,7 +1042,7 @@ export function DebtsAndExpensesPage({
       setExpFormAmount("");
       setExpFormCategory("Bills");
       setExpFormDescription("");
-      setExpFormIncurredBy("");
+      setExpFormIncurredBy(incurredByOptions[0]?.value ?? "");
       setExpFormReceiptRef("");
       setExpFormRecordedOn(todayInputValue());
       toast.success("Expense recorded.", { title: "Miscellaneous expense" });
@@ -1646,7 +1654,7 @@ export function DebtsAndExpensesPage({
     setEditExpAmount(String(e.amount));
     setEditExpCategory(e.category || "Bills");
     setEditExpDescription(e.description ?? "");
-    setEditExpIncurredBy(e.incurredBy ?? "");
+    setEditExpIncurredBy(e.incurredBy?.trim() || incurredByOptions[0]?.value || "");
     setEditExpReceiptRef(e.receiptRef ?? "");
     setExpEditFormOpen(true);
   };
@@ -3318,7 +3326,7 @@ export function DebtsAndExpensesPage({
             setExpFormAmount("");
             setExpFormCategory("Bills");
             setExpFormDescription("");
-            setExpFormIncurredBy("");
+            setExpFormIncurredBy(incurredByOptions[0]?.value ?? "");
             setExpFormReceiptRef("");
             setExpFormRecordedOn(todayInputValue());
           }
@@ -3397,6 +3405,7 @@ export function DebtsAndExpensesPage({
                 options={incurredByOptions}
                 value={expFormIncurredBy}
                 onChange={setExpFormIncurredBy}
+                defaultToFirstOption
                 allowCustomValue
                 placeholder={expFormCustom.getFieldPlaceholder("incurredBy", "Type or search person…")}
                 className="mt-1 block w-full"
@@ -3523,6 +3532,7 @@ export function DebtsAndExpensesPage({
                   options={incurredByOptions}
                   value={editExpIncurredBy}
                   onChange={setEditExpIncurredBy}
+                  defaultToFirstOption
                   allowCustomValue
                   placeholder={expFormCustom.getFieldPlaceholder("incurredBy", "Type or search person…")}
                   className="mt-1 block w-full"
