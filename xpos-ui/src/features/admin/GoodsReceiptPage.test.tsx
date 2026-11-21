@@ -1083,6 +1083,8 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
         "org-1",
         "grn-today"
       );
+      expect(screen.getByText("Item deleted")).toBeInTheDocument();
+      expect(screen.queryByText("Saved")).not.toBeInTheDocument();
     });
   });
 

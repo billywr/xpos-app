@@ -525,6 +525,7 @@ export function GoodsReceiptPage({
       if (variables.lines != null) {
         void invalidateInventoryQueries(queryClient);
       }
+      const isDeleting = deleteStartTimeRef.current !== null;
       const elapsedStr = deleteStartTimeRef.current
         ? ` in ${((performance.now() - deleteStartTimeRef.current) / 1000).toFixed(1)}s`
         : "";
@@ -535,7 +536,13 @@ export function GoodsReceiptPage({
       setConfirmDeleteLine(null);
       setFormError(null);
       setSubmitLoading(false);
-      toast.success(`Stock receipt updated${elapsedStr}.`, { title: "Saved" });
+      if (isDeleting) {
+        toast.success(`Stock item deleted${elapsedStr}. Inventory was adjusted.`, {
+          title: "Item deleted",
+        });
+      } else {
+        toast.success(`Stock receipt updated${elapsedStr}.`, { title: "Saved" });
+      }
     },
     onError: (err) => {
       deleteStartTimeRef.current = null;
@@ -570,7 +577,7 @@ export function GoodsReceiptPage({
       setConfirmDeleteLine(null);
       setPermanentDeleteLoading(false);
       toast.success(
-        `Stock item removed${elapsedStr}. Inventory was adjusted.`,
+        `Stock item deleted${elapsedStr}. Inventory was adjusted.`,
         { title: "Item deleted" }
       );
     },

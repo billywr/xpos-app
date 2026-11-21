@@ -2369,6 +2369,45 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
     });
   });
 
+  it("does not show Tot: amount badge when total sales is 0 or less", async () => {
+    const today = localTodayStr();
+    vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      totalQtyToRecord: 0,
+      totalValueToRecord: 0,
+      lines: [],
+    });
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU-1",
+          name: "Product 1",
+          openingStock: 10,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 150,
+          closingStock: 10,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />, "term-1");
+
+    await waitFor(() => {
+      expect(screen.getByText("Product 1")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTitle(/Total sales amount/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tot:/i)).not.toBeInTheDocument();
+  });
+
   it("does not show Record sales button with ghost count when server preview has 0 remaining and no unsaved changes", async () => {
     const today = localTodayStr();
     vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
