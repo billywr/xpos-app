@@ -83,10 +83,15 @@ describe("FormCustomizationSettingsSection", () => {
     // Default form is Miscellaneous Expenses
     expect(screen.getByRole("button", { name: /miscellaneous expenses/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /customer debts/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /stock receiving/i })).toBeInTheDocument();
 
     // Click on Customer Debts
     fireEvent.click(screen.getByRole("button", { name: /customer debts/i }));
     expect(mockContext.getFormConfig).toHaveBeenCalledWith("customer-debt");
+
+    // Click on Stock Receiving
+    fireEvent.click(screen.getByRole("button", { name: /stock receiving/i }));
+    expect(mockContext.getFormConfig).toHaveBeenCalledWith("stock-receipt");
   });
 
   it("renders field configuration cards and triggers label edit", () => {

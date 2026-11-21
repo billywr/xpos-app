@@ -1375,7 +1375,7 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
                 post("/api/v1/admin/orgs/" + orgId + "/suppliers")
                     .with(adminJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"name\":\"Supplier\"}"))
+                    .content("{\"name\":\"Supplier " + UUID.randomUUID() + "\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     return UUID.fromString(
@@ -1790,6 +1790,75 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
             + branchId
             + "/std-stock-count/reconcile-preview?date="
             + date;
+    mockMvc
+        .perform(get(previewUrl).with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.itemsAdjusted").value(0))
+        .andExpect(jsonPath("$.lines.length()").value(0));
+  }
+
+  @Test
+  void reconcilePreviewExcludesStaleSavedClosingWhenStockReceivedAfterSave() throws Exception {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    LocalDate today = LocalDate.now(zone);
+    LocalDate priorDay = today.minusDays(1);
+
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 10, priorDay, zone);
+
+    String savePrior =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":10}]}
+        """
+            .formatted(priorDay, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(savePrior))
+        .andExpect(status().isOk());
+
+    String saveToday =
+        """
+        {"date":"%s","outletId":"%s","counts":[{"itemId":"%s","closingStock":10}]}
+        """
+            .formatted(today, branchId, itemId);
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(saveToday))
+        .andExpect(status().isOk());
+
+    Instant oneHourAgo = Instant.now().minusSeconds(3600);
+    backdateSnapshotLastSavedAt(branchId, itemId, today, oneHourAgo);
+
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 40, today, zone);
+
+    mockMvc
+        .perform(
+            get("/api/v1/admin/orgs/" + orgId + "/inventory-report?branchId=" + branchId)
+                .with(adminJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].onHandQty").value(50));
+
+    String previewUrl =
+        "/api/v1/operator/orgs/"
+            + orgId
+            + "/branches/"
+            + branchId
+            + "/std-stock-count/reconcile-preview?date="
+            + today;
     mockMvc
         .perform(get(previewUrl).with(operatorJwt()))
         .andExpect(status().isOk())

@@ -73,6 +73,8 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
   const [deactivateLoading, setDeactivateLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const isDeviceFormValid = Boolean(formDeviceId.trim() && formBranchId.trim());
+
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
     queryFn: () => fetchOrgs(token, { size: 200 }),
@@ -529,7 +531,7 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 pt-4">
-                <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
+                <Button type="submit" size="md" className="w-full" disabled={submitLoading || !isDeviceFormValid}>
                   {submitLoading ? "Saving…" : "Save"}
                 </Button>
                 <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setSlideOpen(false)}>

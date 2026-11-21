@@ -2,7 +2,9 @@ import { describe, expect, it, beforeEach } from "vitest";
 import {
   addSavedIssuedByName,
   buildIssuedBySelectOptions,
+  readDeletedIssuedByNames,
   readSavedIssuedByNames,
+  removeSavedIssuedByName,
 } from "@/utils/issuedByStorage";
 
 const ORG = "org-1";
@@ -33,5 +35,36 @@ describe("issuedByStorage", () => {
       { value: "Amy", label: "Amy" },
       { value: "Zed", label: "Zed" },
     ]);
+  });
+
+  it("removes a saved name and adds it to deleted list", () => {
+    addSavedIssuedByName(ORG, BRANCH, "billy");
+    addSavedIssuedByName(ORG, BRANCH, "Faith");
+
+    removeSavedIssuedByName(ORG, BRANCH, "billy");
+
+    expect(readSavedIssuedByNames(ORG, BRANCH)).toEqual(["Faith"]);
+    expect(readDeletedIssuedByNames(ORG, BRANCH)).toEqual(["billy"]);
+  });
+
+  it("filters out deleted names when building select options", () => {
+    const options = buildIssuedBySelectOptions(
+      ["billy", "Faith", "Otongolo Brian"],
+      ["billy"]
+    );
+    expect(options).toEqual([
+      { value: "Faith", label: "Faith" },
+      { value: "Otongolo Brian", label: "Otongolo Brian" },
+    ]);
+  });
+
+  it("un-deletes a name when explicitly re-added", () => {
+    addSavedIssuedByName(ORG, BRANCH, "billy");
+    removeSavedIssuedByName(ORG, BRANCH, "billy");
+    expect(readDeletedIssuedByNames(ORG, BRANCH)).toEqual(["billy"]);
+
+    addSavedIssuedByName(ORG, BRANCH, "billy");
+    expect(readDeletedIssuedByNames(ORG, BRANCH)).toEqual([]);
+    expect(readSavedIssuedByNames(ORG, BRANCH)).toEqual(["billy"]);
   });
 });

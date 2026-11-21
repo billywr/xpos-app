@@ -91,6 +91,8 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
   const [deactivateLoading, setDeactivateLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const isRegisterFormValid = Boolean(formUsername.trim());
+
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
     queryFn: () => fetchOrgs(token, { size: 200 }),
@@ -666,7 +668,7 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                 />
               </div>
               <div className="grid grid-cols-2 gap-3 pt-4">
-                <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
+                <Button type="submit" size="md" className="w-full" disabled={submitLoading || !isRegisterFormValid}>
                   {submitLoading ? "Saving…" : "Save"}
                 </Button>
                 <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setRegisterSlideOpen(false)}>
@@ -844,8 +846,8 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                       </label>
                       <button
                         type="submit"
-                        disabled={assignLoading}
-                        className="inline-flex items-center gap-1 rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+                        disabled={assignLoading || !addBranchId}
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
                       >
                         {assignLoading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />

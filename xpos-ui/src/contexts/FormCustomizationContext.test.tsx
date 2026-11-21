@@ -215,6 +215,20 @@ describe("FormCustomizationContext & useFormCustomization", () => {
       expect(layout.borrowedItems).toEqual({ colSpan: "col-span-1 sm:col-span-2", isLone: true });
       expect(layout.notes).toEqual({ colSpan: "col-span-1 sm:col-span-2", isLone: true });
     });
+
+    it("treats stock-receipt lines and barcode as inherently full-width", () => {
+      const fields = [
+        { key: "supplier", order: 1, visible: true },
+        { key: "receivedAt", order: 2, visible: true },
+        { key: "lines", order: 3, visible: true },
+        { key: "barcode", order: 4, visible: true },
+      ];
+      const layout = computeFieldLayout(fields);
+      expect(layout.supplier).toEqual({ colSpan: "", isLone: false });
+      expect(layout.receivedAt).toEqual({ colSpan: "", isLone: false });
+      expect(layout.lines).toEqual({ colSpan: "col-span-1 sm:col-span-2", isLone: true });
+      expect(layout.barcode).toEqual({ colSpan: "col-span-1 sm:col-span-2", isLone: true });
+    });
   });
 });
 

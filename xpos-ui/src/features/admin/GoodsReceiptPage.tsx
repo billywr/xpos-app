@@ -52,6 +52,7 @@ import { downloadItemsPdf } from "@/utils/itemsPdf";
 import { Link } from "react-router-dom";
 import { Plus, PackagePlus, Trash2, Pencil, FileEdit, FileX, RotateCcw, Download, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
+import { useFormCustomization } from "@/contexts/FormCustomizationContext";
 import {
   BARCODE_GOODS_RECEIPT,
   isBarcodeVisible,
@@ -309,6 +310,7 @@ export function GoodsReceiptPage({
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
   const toast = useToast();
+  const formCustom = useFormCustomization("stock-receipt");
   const navContext = useNavVisibilityContextOrNull();
   const showBarcode = isBarcodeVisible(
     navContext?.adminVisibility ?? {},
@@ -631,7 +633,10 @@ export function GoodsReceiptPage({
   }, [lines]);
 
   const isFormValid = useMemo(() => {
-    if (!supplierId || !receivedAt.trim()) {
+    if (formCustom.isFieldRequired("supplier", true) && !supplierId) {
+      return false;
+    }
+    if (formCustom.isFieldRequired("receivedAt", true) && !receivedAt.trim()) {
       return false;
     }
     if (lines.length === 0) {
@@ -644,7 +649,7 @@ export function GoodsReceiptPage({
       const parsed = parseFloat(l.qty);
       return !Number.isNaN(parsed) && parsed > 0;
     });
-  }, [supplierId, receivedAt, lines]);
+  }, [supplierId, receivedAt, lines, formCustom]);
 
   const grns = grnsData?.content ?? [];
 
@@ -980,14 +985,14 @@ export function GoodsReceiptPage({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (!supplierId) {
-      setFormError("Supplier is required");
+    if (formCustom.isFieldRequired("supplier", true) && !supplierId) {
+      setFormError(`${formCustom.getFieldLabel("supplier", "Supplier")} is required`);
       return;
     }
     if (editingGrn) {
       const rt = receivedAt.trim();
-      if (!rt) {
-        setFormError("Received at is required");
+      if (formCustom.isFieldRequired("receivedAt", true) && !rt) {
+        setFormError(`${formCustom.getFieldLabel("receivedAt", "Received at")} is required`);
         return;
       }
       const validLines = lines.filter(
@@ -1170,6 +1175,10 @@ export function GoodsReceiptPage({
       }
     }
     const rt = receivedAt.trim();
+    if (formCustom.isFieldRequired("receivedAt", true) && !rt) {
+      setFormError(`${formCustom.getFieldLabel("receivedAt", "Received at")} is required`);
+      return;
+    }
     setSubmitLoading(true);
     createMutation.mutate({
       branchId: selectedBranchId,
@@ -1810,7 +1819,7 @@ export function GoodsReceiptPage({
             ? editingSingleLineId
               ? "Edit line"
               : "Edit stock receipt"
-            : "Add stock"
+            : formCustom.form?.sheetTitle ?? "Add stock"
         }
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -1823,226 +1832,293 @@ export function GoodsReceiptPage({
             </div>
           )}
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-            <div>
-              <div className="mb-1 flex h-[26px] items-center">
-                <label
-                  htmlFor="grn-supplier"
-                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
-                  Supplier *
-                </label>
-              </div>
-              <SearchableSelect
-                id="grn-supplier"
-                options={[
-                  { value: "", label: "Select supplier…" },
-                  ...suppliers.map((s: Supplier) => ({ value: s.id, label: s.name })),
-                ]}
-                value={supplierId}
-                onChange={setSupplierId}
-                placeholder="Select supplier…"
-                className="w-full"
-              />
-            </div>
-
-            <div>
-              <div className="mb-1 flex h-[26px] items-center justify-between">
-                <label
-                  htmlFor="grn-received-at"
-                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
-                  Received at *
-                </label>
-                {!editingGrn && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const now = formatDateInput(new Date());
-                      setReceivedAt(now);
-                      saveGoodsReceiptReceivedAt(now, selectedOrgId, selectedBranchId);
-                    }}
-                    className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-                  >
-                    Set to today
-                  </button>
-                )}
-              </div>
-              <DateInput
-                id="grn-received-at"
-                value={receivedAt}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setReceivedAt(val);
-                  if (!editingGrn) {
-                    saveGoodsReceiptReceivedAt(val, selectedOrgId, selectedBranchId);
-                  }
-                }}
-                required
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                {editingGrn
-                  ? editingSingleLineId
-                    ? "Line on receipt"
-                    : "Receipt lines"
-                  : "Receive"}
-              </label>
-              <span
-                className="inline-flex items-center gap-1.5 text-[13px] text-slate-600 dark:text-slate-300"
-                aria-label={`Total cost: ${formatCurrency(linesTotalCost)}`}
-              >
-                <span>Total cost:</span>
-                <span className="font-semibold tabular-nums text-slate-900 dark:text-white">
-                  {formatCurrency(linesTotalCost)}
-                </span>
-              </span>
-            </div>
-            {!editingSingleLineId ? (
-              <button
-                type="button"
-                onClick={handleAddLine}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-primary-300 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm transition hover:bg-primary-100 hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-primary-700/80 dark:bg-primary-950/60 dark:text-primary-300 dark:hover:bg-primary-900/60 dark:hover:border-primary-600"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Add line
-              </button>
-            ) : null}
-          </div>
-          {showBarcode && !editingSingleLineId && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-600 dark:bg-transparent">
-              <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                Scan barcode to add item
-              </label>
-              <BarcodeCaptureInput
-                onScan={handleBarcodeScan}
-                placeholder="Scan or type barcode…"
-                disabled={!token || !selectedOrgId}
-              />
-              {barcodeScanMessage && (
-                <p
-                  className={`mt-1.5 text-sm ${
-                    barcodeScanMessage.type === "error"
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-slate-600 dark:text-slate-400"
-                  }`}
-                  role={barcodeScanMessage.type === "error" ? "alert" : "status"}
-                >
-                  {barcodeScanMessage.text}
-                </p>
-              )}
-            </div>
-          )}
-          <div className="space-y-3">
-            {lines.map((line, idx) => {
-              const itemIdsOnOtherLines = new Set(
-                lines
-                  .map((l, i) => (i !== idx && l.itemId ? l.itemId : null))
-                  .filter((id): id is string => Boolean(id))
-              );
-              const selectableItems = items.filter((it) => {
-                if (it.buyingPrice == null) {
-                  return false;
-                }
-                if (it.id === line.itemId) {
-                  return true;
-                }
-                if (itemIdsOnOtherLines.has(it.id)) {
-                  return false;
-                }
-                if (!itemIdsReceivedOnSelectedDateOtherGrns.has(it.id)) {
-                  return true;
-                }
-                return Boolean(editingGrn && originalGrnItemIds.has(it.id));
-              });
-              return (
+            {formCustom.isFieldVisible("supplier") && (
               <div
-                key={idx}
-                className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-600 dark:bg-transparent"
+                style={{ order: formCustom.getFieldOrder("supplier") }}
+                className={formCustom.getFieldColSpan("supplier")}
               >
-                <div className="min-w-[180px] flex-1">
+                <div className="mb-1 flex h-[26px] items-center">
                   <label
-                    className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400"
-                    htmlFor={`grn-item-${idx}`}
+                    htmlFor="grn-supplier"
+                    className="block text-sm font-medium text-slate-700 dark:text-slate-300"
                   >
-                    Item *
+                    {formCustom.getFieldLabel("supplier", "Supplier")}
+                    {formCustom.isFieldRequired("supplier", true) && " *"}
                   </label>
-                  <ItemSearchCombobox
-                    inputId={`grn-item-${idx}`}
-                    items={selectableItems}
-                    value={line.itemId}
-                    onChange={(id) => handleUpdateLine(idx, "itemId", id)}
-                  />
                 </div>
-                <div className="w-full sm:w-24">
-                  <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                    Qty *
-                  </label>
-                  <input
-                    type="number"
-                    min="0.001"
-                    step="0.001"
-                    required
-                    value={line.qty}
-                    onChange={(e) => handleUpdateLine(idx, "qty", e.target.value)}
-                    placeholder="0"
-                    className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm tabular-nums dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  />
-                </div>
-                <div className="w-full sm:w-24">
-                  <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                    Unit cost
-                  </label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={
-                      line.receivedUnitCost
-                        ? formatCurrency(parseFloat(line.receivedUnitCost))
-                        : "—"
-                    }
-                    title="Set from item buying price in Catalog."
-                    className="w-full rounded border border-slate-200 bg-slate-100 px-2 py-1.5 text-sm tabular-nums text-slate-600 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-400"
-                    tabIndex={-1}
-                  />
-                </div>
-                <div className="w-full sm:w-28">
-                  <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                    Total cost
-                  </label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={
-                      line.qty && line.receivedUnitCost
-                        ? formatCurrency(
-                            parseFloat(line.qty) *
-                              parseFloat(line.receivedUnitCost)
-                          )
-                        : "—"
-                    }
-                    className="w-full rounded border border-slate-200 bg-slate-100 px-2 py-1.5 text-sm tabular-nums text-slate-600 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-400"
-                    tabIndex={-1}
-                    aria-label="Total cost (auto-calculated)"
-                  />
-                </div>
-                {!editingSingleLineId ? (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveLine(idx)}
-                    className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-300"
-                    aria-label={`Remove line ${idx + 1}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                ) : null}
+                <SearchableSelect
+                  id="grn-supplier"
+                  options={[
+                    {
+                      value: "",
+                      label:
+                        formCustom.getFieldPlaceholder(
+                          "supplier",
+                          "Select supplier…"
+                        ) ?? "Select supplier…",
+                    },
+                    ...suppliers.map((s: Supplier) => ({
+                      value: s.id,
+                      label: s.name,
+                    })),
+                  ]}
+                  value={supplierId}
+                  onChange={setSupplierId}
+                  placeholder={
+                    formCustom.getFieldPlaceholder(
+                      "supplier",
+                      "Select supplier…"
+                    ) ?? "Select supplier…"
+                  }
+                  className="w-full"
+                />
               </div>
-            );
-            })}
+            )}
+
+            {formCustom.isFieldVisible("receivedAt") && (
+              <div
+                style={{ order: formCustom.getFieldOrder("receivedAt") }}
+                className={formCustom.getFieldColSpan("receivedAt")}
+              >
+                <div className="mb-1 flex h-[26px] items-center justify-between">
+                  <label
+                    htmlFor="grn-received-at"
+                    className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    {formCustom.getFieldLabel("receivedAt", "Received at")}
+                    {formCustom.isFieldRequired("receivedAt", true) && " *"}
+                  </label>
+                  {!editingGrn && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = formatDateInput(new Date());
+                        setReceivedAt(now);
+                        saveGoodsReceiptReceivedAt(
+                          now,
+                          selectedOrgId,
+                          selectedBranchId
+                        );
+                      }}
+                      className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                    >
+                      Set to today
+                    </button>
+                  )}
+                </div>
+                <DateInput
+                  id="grn-received-at"
+                  value={receivedAt}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setReceivedAt(val);
+                    if (!editingGrn) {
+                      saveGoodsReceiptReceivedAt(
+                        val,
+                        selectedOrgId,
+                        selectedBranchId
+                      );
+                    }
+                  }}
+                  required={formCustom.isFieldRequired("receivedAt", true)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                />
+              </div>
+            )}
+
+            {showBarcode &&
+              !editingSingleLineId &&
+              formCustom.isFieldVisible("barcode") && (
+                <div
+                  style={{ order: formCustom.getFieldOrder("barcode") }}
+                  className="col-span-1 sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-600 dark:bg-transparent"
+                >
+                  <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                    {formCustom.getFieldLabel(
+                      "barcode",
+                      "Scan barcode to add item"
+                    )}
+                  </label>
+                  <BarcodeCaptureInput
+                    onScan={handleBarcodeScan}
+                    placeholder={formCustom.getFieldPlaceholder(
+                      "barcode",
+                      "Scan or type barcode…"
+                    )}
+                    disabled={!token || !selectedOrgId}
+                  />
+                  {barcodeScanMessage && (
+                    <p
+                      className={`mt-1.5 text-sm ${
+                        barcodeScanMessage.type === "error"
+                          ? "text-red-600 dark:text-red-400"
+                          : "text-slate-600 dark:text-slate-400"
+                      }`}
+                      role={
+                        barcodeScanMessage.type === "error" ? "alert" : "status"
+                      }
+                    >
+                      {barcodeScanMessage.text}
+                    </p>
+                  )}
+                </div>
+              )}
+
+            {formCustom.isFieldVisible("lines") && (
+              <div
+                style={{ order: formCustom.getFieldOrder("lines") }}
+                className="col-span-1 sm:col-span-2 space-y-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      {editingGrn
+                        ? editingSingleLineId
+                          ? "Line on receipt"
+                          : "Receipt lines"
+                        : formCustom.getFieldLabel("lines", "Receive")}
+                    </label>
+                    <span
+                      className="inline-flex items-center gap-1.5 text-[13px] text-slate-600 dark:text-slate-300"
+                      aria-label={`Total cost: ${formatCurrency(linesTotalCost)}`}
+                    >
+                      <span>Total cost:</span>
+                      <span className="font-semibold tabular-nums text-slate-900 dark:text-white">
+                        {formatCurrency(linesTotalCost)}
+                      </span>
+                    </span>
+                  </div>
+                  {!editingSingleLineId ? (
+                    <button
+                      type="button"
+                      onClick={handleAddLine}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-primary-300 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm transition hover:bg-primary-100 hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-primary-700/80 dark:bg-primary-950/60 dark:text-primary-300 dark:hover:bg-primary-900/60 dark:hover:border-primary-600"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add line
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="space-y-3">
+                  {lines.map((line, idx) => {
+                    const itemIdsOnOtherLines = new Set(
+                      lines
+                        .map((l, i) => (i !== idx && l.itemId ? l.itemId : null))
+                        .filter((id): id is string => Boolean(id))
+                    );
+                    const selectableItems = items.filter((it) => {
+                      if (it.buyingPrice == null) {
+                        return false;
+                      }
+                      if (it.id === line.itemId) {
+                        return true;
+                      }
+                      if (itemIdsOnOtherLines.has(it.id)) {
+                        return false;
+                      }
+                      if (!itemIdsReceivedOnSelectedDateOtherGrns.has(it.id)) {
+                        return true;
+                      }
+                      return Boolean(editingGrn && originalGrnItemIds.has(it.id));
+                    });
+                    return (
+                      <div
+                        key={idx}
+                        className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-600 dark:bg-transparent"
+                      >
+                        <div className="min-w-[180px] flex-1">
+                          <label
+                            className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400"
+                            htmlFor={`grn-item-${idx}`}
+                          >
+                            Item *
+                          </label>
+                          <ItemSearchCombobox
+                            inputId={`grn-item-${idx}`}
+                            items={selectableItems}
+                            value={line.itemId}
+                            onChange={(id) =>
+                              handleUpdateLine(idx, "itemId", id)
+                            }
+                            placeholder={formCustom.getFieldPlaceholder(
+                              "lines",
+                              "Search item name, SKU, barcode…"
+                            )}
+                          />
+                        </div>
+                        <div className="w-full sm:w-24">
+                          <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                            Qty *
+                          </label>
+                          <input
+                            type="number"
+                            min="0.001"
+                            step="0.001"
+                            required
+                            value={line.qty}
+                            onChange={(e) =>
+                              handleUpdateLine(idx, "qty", e.target.value)
+                            }
+                            placeholder="0"
+                            className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm tabular-nums dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                          />
+                        </div>
+                        <div className="w-full sm:w-24">
+                          <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                            Unit cost
+                          </label>
+                          <input
+                            type="text"
+                            readOnly
+                            value={
+                              line.receivedUnitCost
+                                ? formatCurrency(
+                                    parseFloat(line.receivedUnitCost)
+                                  )
+                                : "—"
+                            }
+                            title="Set from item buying price in Catalog."
+                            className="w-full rounded border border-slate-200 bg-slate-100 px-2 py-1.5 text-sm tabular-nums text-slate-600 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-400"
+                            tabIndex={-1}
+                          />
+                        </div>
+                        <div className="w-full sm:w-28">
+                          <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                            Total cost
+                          </label>
+                          <input
+                            type="text"
+                            readOnly
+                            value={
+                              line.qty && line.receivedUnitCost
+                                ? formatCurrency(
+                                    parseFloat(line.qty) *
+                                      parseFloat(line.receivedUnitCost)
+                                  )
+                                : "—"
+                            }
+                            className="w-full rounded border border-slate-200 bg-slate-100 px-2 py-1.5 text-sm tabular-nums text-slate-600 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-400"
+                            tabIndex={-1}
+                            aria-label="Total cost (auto-calculated)"
+                          />
+                        </div>
+                        {!editingSingleLineId ? (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveLine(idx)}
+                            className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-300"
+                            aria-label={`Remove line ${idx + 1}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-4">

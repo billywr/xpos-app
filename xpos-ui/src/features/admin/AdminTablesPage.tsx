@@ -87,6 +87,17 @@ export function AdminTablesPage() {
   const [tableFormError, setTableFormError] = useState<string | null>(null);
   const [tableSubmitLoading, setTableSubmitLoading] = useState(false);
 
+  const isAreaFormValid = Boolean(areaFormName.trim());
+  const isTableFormValid = useMemo(() => {
+    if (!tableFormName.trim()) return false;
+    const capStr = tableFormCapacity.trim();
+    if (capStr !== "") {
+      const parsed = parseInt(capStr, 10);
+      if (Number.isNaN(parsed) || parsed < 0) return false;
+    }
+    return true;
+  }, [tableFormName, tableFormCapacity]);
+
   const { data: areasData, refetch: refetchAreas, isFetching: isAreasFetching } = useQuery({
     queryKey: ["admin-table-areas", token, selectedOrgId, selectedBranchId],
     queryFn: () =>
@@ -729,7 +740,7 @@ export function AdminTablesPage() {
             )}
           </div>
           <div className="grid grid-cols-2 gap-3 pt-4">
-            <Button type="submit" size="md" className="w-full" disabled={areaSubmitLoading}>
+            <Button type="submit" size="md" className="w-full" disabled={areaSubmitLoading || !isAreaFormValid}>
               {areaSubmitLoading ? "Saving…" : "Save"}
             </Button>
             <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setAreaSlideOpen(false)}>
@@ -810,7 +821,7 @@ export function AdminTablesPage() {
             </p>
           )}
           <div className="grid grid-cols-2 gap-3 pt-4">
-            <Button type="submit" size="md" className="w-full" disabled={tableSubmitLoading}>
+            <Button type="submit" size="md" className="w-full" disabled={tableSubmitLoading || !isTableFormValid}>
               {tableSubmitLoading ? "Saving…" : "Save"}
             </Button>
             <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setTableSlideOpen(false)}>

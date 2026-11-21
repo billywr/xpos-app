@@ -1082,6 +1082,14 @@ public class StdStockCountServiceImpl implements StdStockCountService {
 
   /** Saved closing for reconcile, including explicit zero. Empty when no closing is available. */
   private static Optional<BigDecimal> resolveClosingForReconcile(StdStockCountRowDto row) {
+    if (isStaleSavedClosingRow(row)) {
+      // Stock arrived after this closing was saved, with no subsequent sales or count.
+      // Reconciling to this stale pre-receipt closing would incorrectly subtract the received
+      // stock!
+      // Treat target closing as totalStock (which matches POS on-hand after receipt) so variance is
+      // 0.
+      return Optional.of(totalStockFromRow(row));
+    }
     if (row.lastSavedAt() != null) {
       BigDecimal saved =
           row.closingStock() != null

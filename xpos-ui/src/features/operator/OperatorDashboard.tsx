@@ -179,9 +179,9 @@ export function OperatorDashboard() {
                 <button
                   type="submit"
                   disabled={
-                    !closingAmount.trim() || closeMutation.isPending
+                    !closingAmount.trim() || Number.isNaN(Number.parseFloat(closingAmount)) || Number.parseFloat(closingAmount) < 0 || closeMutation.isPending
                   }
-                  className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:bg-slate-700 dark:text-red-300 dark:hover:bg-red-900/30"
+                  className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-red-800 dark:bg-slate-700 dark:text-red-300 dark:hover:bg-red-900/30"
                 >
                   <Lock className="h-4 w-4" />
                   {closeMutation.isPending ? "Closing…" : "Close shift"}
@@ -209,8 +209,8 @@ export function OperatorDashboard() {
               </label>
               <button
                 type="submit"
-                disabled={openMutation.isPending}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 disabled:opacity-50"
+                disabled={openMutation.isPending || (openingFloat.trim() !== "" && (Number.isNaN(Number.parseFloat(openingFloat)) || Number.parseFloat(openingFloat) < 0))}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Unlock className="h-4 w-4" />
                 {openMutation.isPending ? "Opening…" : "Open shift"}

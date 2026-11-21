@@ -99,6 +99,13 @@ export function StockTakingSchedulesPage() {
   const [triggeringId, setTriggeringId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const isScheduleFormValid = useMemo(() => {
+    if (!editingSchedule && !branchId) return false;
+    if (scheduledHour < 0 || scheduledHour > 23 || Number.isNaN(scheduledHour)) return false;
+    if (scheduledMinute < 0 || scheduledMinute > 59 || Number.isNaN(scheduledMinute)) return false;
+    return true;
+  }, [editingSchedule, branchId, scheduledHour, scheduledMinute]);
+
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
     queryFn: () => fetchOrgs(token, { size: 200 }),
@@ -664,7 +671,7 @@ export function StockTakingSchedulesPage() {
               type="submit"
               size="md"
               className="w-full"
-              disabled={createMutation.isPending || updateMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending || !isScheduleFormValid}
             >
               {(createMutation.isPending || updateMutation.isPending) && (
                 <Loader2 className="h-4 w-4 animate-spin" />

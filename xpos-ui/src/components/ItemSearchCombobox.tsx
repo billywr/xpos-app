@@ -9,6 +9,7 @@ export interface ItemSearchComboboxProps {
   disabled?: boolean;
   /** Optional id for label association */
   inputId?: string;
+  placeholder?: string;
 }
 
 export function ItemSearchCombobox({
@@ -17,6 +18,7 @@ export function ItemSearchCombobox({
   onChange,
   disabled = false,
   inputId,
+  placeholder = "Search item name, SKU, barcode…",
 }: ItemSearchComboboxProps) {
   const options = useMemo(
     () =>
@@ -35,7 +37,7 @@ export function ItemSearchCombobox({
       value={value}
       onChange={onChange}
       disabled={disabled}
-      placeholder="Search item name, SKU, barcode…"
+      placeholder={placeholder}
       controlClassName="rounded border border-slate-300 dark:border-slate-600"
       compact
     />

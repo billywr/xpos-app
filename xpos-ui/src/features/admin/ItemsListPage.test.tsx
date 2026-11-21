@@ -177,9 +177,17 @@ describe("ItemsListPage Download PDF", () => {
     expect(within(dialog).getByLabelText(/Buying price/i)).toBeRequired();
     expect(within(dialog).getByLabelText(/Selling price/i)).toBeRequired();
 
-    // Submit button should say "Save" and NOT be disabled when fields are empty
+    // Submit button should say "Save" and be disabled when required fields are empty
     const saveBtn = within(dialog).getByRole("button", { name: "Save" });
     expect(saveBtn).toBeInTheDocument();
+    expect(saveBtn).toBeDisabled();
+
+    // Filling required fields should enable the Save button
+    fireEvent.change(within(dialog).getByLabelText(/Name/i), { target: { value: "New Item" } });
+    fireEvent.change(within(dialog).getByLabelText(/SKU/i), { target: { value: "SKU-001" } });
+    fireEvent.change(within(dialog).getByLabelText(/Buying price/i), { target: { value: "100" } });
+    fireEvent.change(within(dialog).getByLabelText(/Selling price/i), { target: { value: "150" } });
+
     expect(saveBtn).not.toBeDisabled();
   });
 });

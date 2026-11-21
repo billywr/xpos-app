@@ -60,6 +60,8 @@ export function OrgsListPage() {
   const [deactivateLoading, setDeactivateLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const isOrgFormValid = Boolean(formName.trim());
+
   const orgsQuery = useQuery({
     queryKey: ["admin-orgs", token, page, size],
     queryFn: () => fetchOrgs(token, { page, size }),
@@ -432,7 +434,7 @@ export function OrgsListPage() {
             </div>
           )}
           <div className="grid grid-cols-2 gap-3 pt-4">
-            <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
+            <Button type="submit" size="md" className="w-full" disabled={submitLoading || !isOrgFormValid}>
               {submitLoading ? "Saving…" : "Save"}
             </Button>
             <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setSlideOpen(false)}>

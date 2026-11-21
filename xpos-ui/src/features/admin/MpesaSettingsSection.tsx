@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -122,6 +122,14 @@ function ConfigForm({
     setFieldErrors({});
     return true;
   };
+
+  const isMpesaFormValid = useMemo(() => {
+    if (!consumerKey.trim()) return false;
+    if (!consumerSecret.trim()) return false;
+    if (!shortcode.trim()) return false;
+    if (validateCallbackBaseUrl(callbackBaseUrl)) return false;
+    return true;
+  }, [consumerKey, consumerSecret, shortcode, callbackBaseUrl]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -314,13 +322,13 @@ function ConfigForm({
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          disabled={saveMutation.isPending}
+          disabled={saveMutation.isPending || !isMpesaFormValid}
           onClick={() => {
             if (validate()) {
               saveMutation.mutate();
             }
           }}
-          className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 disabled:opacity-50"
+          className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saveMutation.isPending ? "Saving…" : initial ? "Update" : "Save"}
         </button>

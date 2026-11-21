@@ -69,6 +69,8 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
 
+  const isBusinessFormValid = Boolean(formLegalName.trim());
+
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
     queryFn: () => fetchOrgs(token, { size: 200 }),
@@ -514,7 +516,7 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 pt-4">
-                <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
+                <Button type="submit" size="md" className="w-full" disabled={submitLoading || !isBusinessFormValid}>
                   {submitLoading ? "Saving…" : "Save"}
                 </Button>
                 <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setSlideOpen(false)}>

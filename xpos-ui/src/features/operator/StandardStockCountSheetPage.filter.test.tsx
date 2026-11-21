@@ -1425,6 +1425,53 @@ describe("StandardStockCountSheetPage reconcile inventory", () => {
       expect(screen.getByText(/adjusted on-hand for 1 item/i)).toBeInTheDocument();
     });
   });
+
+  it("hides reconcile button and shows syncing indicator when stale saved closing exists", async () => {
+    const today = localTodayStr();
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU001",
+          name: "Sport",
+          openingStock: 18,
+          addedStock: 40,
+          addedTodayStock: 0,
+          sellingPrice: 20,
+          closingStock: 18,
+          lastSavedAt: "2026-11-21T07:56:00.000Z",
+          firstStockAddedAt: "2026-11-21T08:00:00.000Z",
+          latestStockAddedAt: "2026-11-21T08:00:00.000Z",
+          comments: null,
+        },
+      ],
+    });
+    vi.mocked(stdApi.fetchStdStockCountReconcilePreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      itemsAdjusted: 1,
+      itemsAlreadyMatched: 0,
+      lines: [
+        {
+          itemId: "item-1",
+          name: "Sport",
+          closingStock: 18,
+          onHandQty: 58,
+          variance: -40,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("stock-syncing-indicator")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/syncing stock receipts…/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^reconcile/i })).not.toBeInTheDocument();
+  });
 });
 
 describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {

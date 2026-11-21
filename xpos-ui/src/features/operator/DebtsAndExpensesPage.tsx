@@ -76,7 +76,9 @@ import { recordedAtToCreatedAt, todayInputValue } from "@/utils/recordedAt";
 import {
   addSavedIssuedByName,
   buildIssuedBySelectOptions,
+  readDeletedIssuedByNames,
   readSavedIssuedByNames,
+  removeSavedIssuedByName,
 } from "@/utils/issuedByStorage";
 import { useToast } from "@/contexts/ToastContext";
 import { useFormCustomization } from "@/contexts/FormCustomizationContext";
@@ -631,7 +633,8 @@ export function DebtsAndExpensesPage({
       .map((d) => d.issuedBy)
       .filter((name): name is string => !!name && name.trim() !== "");
     const fromStorage = readSavedIssuedByNames(orgId, branchId);
-    return buildIssuedBySelectOptions([...fromDebts, ...fromStorage]);
+    const deletedNames = readDeletedIssuedByNames(orgId, branchId);
+    return buildIssuedBySelectOptions([...fromDebts, ...fromStorage], deletedNames);
   }, [issuedByDebtsPage, orgId, branchId, issuedByNamesRevision]);
 
   const registerIssuedByName = (name: string | undefined) => {
@@ -645,6 +648,33 @@ export function DebtsAndExpensesPage({
       queryKey: ["operator-debts-issued-by-names"],
     });
   };
+
+  const handleAddIssuedBy = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!orgId || !branchId || !trimmed) return;
+      registerIssuedByName(trimmed);
+      toast.success(`"${trimmed}" added to suggestions.`);
+    },
+    [orgId, branchId, toast]
+  );
+
+  const handleDeleteIssuedBy = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!orgId || !branchId || !trimmed) return;
+      removeSavedIssuedByName(orgId, branchId, trimmed);
+      setIssuedByNamesRevision((r) => r + 1);
+      if (debtFormIssuedBy.localeCompare(trimmed, undefined, { sensitivity: "base" }) === 0) {
+        setDebtFormIssuedBy("");
+      }
+      if (editDebtIssuedBy.localeCompare(trimmed, undefined, { sensitivity: "base" }) === 0) {
+        setEditDebtIssuedBy("");
+      }
+      toast.success(`"${trimmed}" removed from suggestions.`);
+    },
+    [orgId, branchId, debtFormIssuedBy, editDebtIssuedBy, toast]
+  );
 
   // Per-customer outstanding totals, sorted max → min, for the "Total pending"
   // breakdown modal. Cancelled debts are excluded to match the pending total.
@@ -1188,6 +1218,104 @@ export function DebtsAndExpensesPage({
     }
     return allocateCustomerDebtPayment(settlingCustomerDebts, amount);
   }, [settleUsesLumpSum, settleAmount, settlingCustomerDebts]);
+
+  const isDebtFormValid = useMemo(() => {
+    if (debtFormCustom.isFieldVisible("customerName") && debtFormCustom.isFieldRequired("customerName", true)) {
+      if (!debtFormCustomerName.trim()) return false;
+    }
+    if (debtFormCustom.isFieldVisible("customerPhone") && debtFormCustom.isFieldRequired("customerPhone", false)) {
+      if (!debtFormCustomerPhone.trim()) return false;
+    }
+    if (debtFormCustom.isFieldVisible("issuedBy") && debtFormCustom.isFieldRequired("issuedBy", false)) {
+      if (!debtFormIssuedBy.trim()) return false;
+    }
+    if (debtFormCustom.isFieldVisible("amount") && debtFormCustom.isFieldRequired("amount", true)) {
+      const hasItems = debtFormBorrowedLines.length > 0 && borrowedItemsSubtotal > 0;
+      const hasAmount = Boolean(debtFormAmount.trim() && !isNaN(parseFloat(debtFormAmount)) && parseFloat(debtFormAmount) > 0);
+      if (!hasItems && !hasAmount) return false;
+    }
+    if (debtFormCustom.isFieldVisible("recordedOn") && debtFormCustom.isFieldRequired("recordedOn", true)) {
+      if (!debtFormRecordedOn.trim()) return false;
+    }
+    if (debtFormCustom.isFieldVisible("dueDate") && debtFormCustom.isFieldRequired("dueDate", false)) {
+      if (!debtFormDueDate.trim()) return false;
+    }
+    if (debtFormCustom.isFieldVisible("borrowedItems") && debtFormCustom.isFieldRequired("borrowedItems", false)) {
+      if (debtFormBorrowedLines.length === 0) return false;
+    }
+    if (debtFormCustom.isFieldVisible("notes") && debtFormCustom.isFieldRequired("notes", false)) {
+      if (!debtFormNotes.trim()) return false;
+    }
+    return true;
+  }, [
+    debtFormCustomerName,
+    debtFormCustomerPhone,
+    debtFormIssuedBy,
+    debtFormAmount,
+    debtFormBorrowedLines,
+    borrowedItemsSubtotal,
+    debtFormRecordedOn,
+    debtFormDueDate,
+    debtFormNotes,
+    debtFormCustom,
+  ]);
+
+  const isEditDebtFormValid = useMemo(() => {
+    if (!editDebtCustomerName.trim()) return false;
+    if (!editDebtAmount.trim() || isNaN(parseFloat(editDebtAmount)) || parseFloat(editDebtAmount) <= 0) return false;
+    return true;
+  }, [editDebtCustomerName, editDebtAmount]);
+
+  const isSettleFormValid = useMemo(() => {
+    const val = parseFloat(settleAmount);
+    return Boolean(settleAmount.trim() && !isNaN(val) && val > 0 && val <= settleMaxAmount);
+  }, [settleAmount, settleMaxAmount]);
+
+  const isExpFormValid = useMemo(() => {
+    if (expFormCustom.isFieldVisible("recordedOn") && expFormCustom.isFieldRequired("recordedOn", true)) {
+      if (!expFormRecordedOn.trim()) return false;
+    }
+    if (expFormCustom.isFieldVisible("amount") && expFormCustom.isFieldRequired("amount", true)) {
+      if (!expFormAmount.trim() || isNaN(parseFloat(expFormAmount)) || parseFloat(expFormAmount) <= 0) return false;
+    }
+    if (expFormCustom.isFieldVisible("category") && expFormCustom.isFieldRequired("category", true)) {
+      if (!expFormCategory.trim()) return false;
+    }
+    if (expFormCustom.isFieldVisible("incurredBy") && expFormCustom.isFieldRequired("incurredBy", true)) {
+      if (!expFormIncurredBy.trim()) return false;
+    }
+    if (expFormCustom.isFieldVisible("description") && expFormCustom.isFieldRequired("description", false)) {
+      if (!expFormDescription.trim()) return false;
+    }
+    if (expFormCustom.isFieldVisible("receiptRef") && expFormCustom.isFieldRequired("receiptRef", false)) {
+      if (!expFormReceiptRef.trim()) return false;
+    }
+    return true;
+  }, [
+    expFormRecordedOn,
+    expFormAmount,
+    expFormCategory,
+    expFormIncurredBy,
+    expFormDescription,
+    expFormReceiptRef,
+    expFormCustom,
+  ]);
+
+  const isEditExpFormValid = useMemo(() => {
+    if (expFormCustom.isFieldVisible("amount") && expFormCustom.isFieldRequired("amount", true)) {
+      if (!editExpAmount.trim() || isNaN(parseFloat(editExpAmount)) || parseFloat(editExpAmount) <= 0) return false;
+    }
+    if (expFormCustom.isFieldVisible("category") && expFormCustom.isFieldRequired("category", true)) {
+      if (!editExpCategory.trim()) return false;
+    }
+    if (expFormCustom.isFieldVisible("incurredBy") && expFormCustom.isFieldRequired("incurredBy", true)) {
+      if (!editExpIncurredBy.trim()) return false;
+    }
+    if (expFormCustom.isFieldVisible("description") && expFormCustom.isFieldRequired("description", false)) {
+      if (!editExpDescription.trim()) return false;
+    }
+    return true;
+  }, [editExpAmount, editExpCategory, editExpIncurredBy, editExpDescription, expFormCustom]);
 
   const openDebtEditForm = (d: CustomerDebtResponse) => {
     setEditingDebt(d);
@@ -2791,6 +2919,9 @@ export function DebtsAndExpensesPage({
                 value={debtFormIssuedBy}
                 onChange={setDebtFormIssuedBy}
                 allowCustomValue
+                onAddOption={handleAddIssuedBy}
+                onDeleteOption={handleDeleteIssuedBy}
+                addOptionPlaceholder="New person name…"
                 placeholder={debtFormCustom.getFieldPlaceholder("issuedBy", "Search or type a name…")}
                 className="mt-1 block w-full"
                 controlClassName="border-slate-300 shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus-within:border-primary-400 dark:focus-within:ring-primary-400"
@@ -2937,7 +3068,7 @@ export function DebtsAndExpensesPage({
           )}
 
           <div style={{ order: 9999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
-            <button type="submit" disabled={debtSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
+            <button type="submit" disabled={debtSubmitting || !isDebtFormValid} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600">
               {debtSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {debtSubmitting ? "Saving…" : "Save"}
             </button>
@@ -2986,6 +3117,9 @@ export function DebtsAndExpensesPage({
                   value={editDebtIssuedBy}
                   onChange={setEditDebtIssuedBy}
                   allowCustomValue
+                  onAddOption={handleAddIssuedBy}
+                  onDeleteOption={handleDeleteIssuedBy}
+                  addOptionPlaceholder="New person name…"
                   placeholder="Search or type a name…"
                   className="mt-1 block w-full"
                   controlClassName="border-slate-300 shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-slate-600 dark:focus-within:border-primary-400 dark:focus-within:ring-primary-400"
@@ -3005,7 +3139,7 @@ export function DebtsAndExpensesPage({
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 pt-4">
-              <button type="submit" disabled={editDebtSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
+              <button type="submit" disabled={editDebtSubmitting || !isEditDebtFormValid} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600">
                 {editDebtSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Pencil className="h-4 w-4" />Save</>}
               </button>
               <button type="button" onClick={() => setDebtEditFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
@@ -3122,8 +3256,8 @@ export function DebtsAndExpensesPage({
             <div className="grid grid-cols-2 gap-3 pt-4">
               <button
                 type="submit"
-                disabled={settleSubmitting || settleBulkMutation.isPending}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                disabled={settleSubmitting || settleBulkMutation.isPending || !isSettleFormValid}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-emerald-600 dark:hover:bg-emerald-500"
               >
                 {settleSubmitting || settleBulkMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -3305,7 +3439,7 @@ export function DebtsAndExpensesPage({
           )}
 
           <div style={{ order: 9999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
-            <button type="submit" disabled={createExpMutation.isPending} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
+            <button type="submit" disabled={createExpMutation.isPending || !isExpFormValid} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600">
               {createExpMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {createExpMutation.isPending ? "Saving…" : "Save"}
             </button>
@@ -3413,7 +3547,7 @@ export function DebtsAndExpensesPage({
             )}
 
             <div style={{ order: 9999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
-              <button type="submit" disabled={editExpSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600">
+              <button type="submit" disabled={editExpSubmitting || !isEditExpFormValid} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600">
                 {editExpSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Pencil className="h-4 w-4" />Save</>}
               </button>
               <button type="button" onClick={() => setExpEditFormOpen(false)} className="inline-flex w-full items-center justify-center rounded-lg border border-slate-300 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>

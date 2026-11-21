@@ -330,6 +330,52 @@ export function MiscExpensesPage() {
     },
   });
 
+  const isExpFormValid = useMemo(() => {
+    if (formCustom.isFieldVisible("recordedOn") && formCustom.isFieldRequired("recordedOn", true)) {
+      if (!formRecordedOn.trim()) return false;
+    }
+    if (formCustom.isFieldVisible("amount") && formCustom.isFieldRequired("amount", true)) {
+      if (!formAmount.trim() || isNaN(parseFloat(formAmount)) || parseFloat(formAmount) <= 0) return false;
+    }
+    if (formCustom.isFieldVisible("category") && formCustom.isFieldRequired("category", true)) {
+      if (!formCategory.trim()) return false;
+    }
+    if (formCustom.isFieldVisible("incurredBy") && formCustom.isFieldRequired("incurredBy", true)) {
+      if (!formIncurredBy.trim()) return false;
+    }
+    if (formCustom.isFieldVisible("description") && formCustom.isFieldRequired("description", false)) {
+      if (!formDescription.trim()) return false;
+    }
+    if (formCustom.isFieldVisible("receiptRef") && formCustom.isFieldRequired("receiptRef", false)) {
+      if (!formReceiptRef.trim()) return false;
+    }
+    return true;
+  }, [
+    formRecordedOn,
+    formAmount,
+    formCategory,
+    formIncurredBy,
+    formDescription,
+    formReceiptRef,
+    formCustom,
+  ]);
+
+  const isEditExpFormValid = useMemo(() => {
+    if (formCustom.isFieldVisible("amount") && formCustom.isFieldRequired("amount", true)) {
+      if (!editAmount.trim() || isNaN(parseFloat(editAmount)) || parseFloat(editAmount) <= 0) return false;
+    }
+    if (formCustom.isFieldVisible("category") && formCustom.isFieldRequired("category", true)) {
+      if (!editCategory.trim()) return false;
+    }
+    if (formCustom.isFieldVisible("incurredBy") && formCustom.isFieldRequired("incurredBy", true)) {
+      if (!editIncurredBy.trim()) return false;
+    }
+    if (formCustom.isFieldVisible("description") && formCustom.isFieldRequired("description", false)) {
+      if (!editDescription.trim()) return false;
+    }
+    return true;
+  }, [editAmount, editCategory, editIncurredBy, editDescription, formCustom]);
+
   const openEditForm = (e: MiscExpenseResponse) => {
     setEditingExpense(e);
     setEditAmount(String(e.amount));
@@ -826,8 +872,8 @@ export function MiscExpensesPage() {
           <div style={{ order: 9999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
             <button
               type="submit"
-              disabled={createMutation.isPending}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+              disabled={createMutation.isPending || !isExpFormValid}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
             >
               {createMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -958,8 +1004,8 @@ export function MiscExpensesPage() {
             <div style={{ order: 9999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
               <button
                 type="submit"
-                disabled={editSubmitting}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+                disabled={editSubmitting || !isEditExpFormValid}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
               >
                 {editSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

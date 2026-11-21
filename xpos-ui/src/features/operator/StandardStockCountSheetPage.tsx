@@ -222,12 +222,15 @@ export function totalStockFromRow(row: StdStockCountRowResponse): number {
   );
 }
 
-/** Saved closing if present; otherwise Total stock (Open + Added + AddedToday) so unsaved rows start at "nothing sold yet" and never exceed Total. If sales were already recorded, closing cannot exceed total - alreadyRecorded. */
+/** Saved closing if present; otherwise Total stock (Open + Added + AddedToday) so unsaved rows start at "nothing sold yet" and never exceed Total. If sales were already recorded, closing cannot exceed total - alreadyRecorded. Stale saved closings default to Total stock. */
 export function defaultClosingFromRow(
   row: StdStockCountRowResponse,
   alreadyRecorded: number = 0
 ): number {
   const total = totalStockFromRow(row);
+  if (isStaleSavedClosing(row, alreadyRecorded)) {
+    return total;
+  }
   if (row.closingStock !== null && row.closingStock !== undefined) {
     if (alreadyRecorded > 0) {
       const maxPhysical = Math.max(0, total - alreadyRecorded);
@@ -1158,11 +1161,21 @@ export function StandardStockCountSheetPage({
     };
   }, [refetchSalesPreview, refetchReconcilePreview]);
 
+  const hasStaleClosings = useMemo(() => {
+    return (sheet?.rows ?? []).some((r) =>
+      isStaleSavedClosing(r, alreadyRecordedByItem[r.itemId] ?? 0)
+    );
+  }, [sheet?.rows, alreadyRecordedByItem]);
+
+  const isSyncingStock = systemSyncMutation.isPending || hasStaleClosings;
+
   const itemsToReconcile = cachedReconcilePreview?.itemsAdjusted ?? 0;
   const showReconcileButton =
     isToday &&
     !hasChanges &&
     !hasErrors &&
+    !hasStaleClosings &&
+    !systemSyncMutation.isPending &&
     itemsToReconcile > 0;
 
   const latestSavedAt = useMemo(() => {
@@ -1482,7 +1495,17 @@ export function StandardStockCountSheetPage({
               </span>
               <span>{formatCurrency(totals.amount)}</span>
             </div>
-            {hasChanges ? (
+            {isSyncingStock ? (
+              <span
+                data-testid="stock-syncing-indicator"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:bg-amber-400/10 dark:text-amber-400"
+                title="Synchronizing new stock receipts into sheet"
+              >
+                <RotateCw className="h-3 w-3 animate-spin" />
+                <span className="hidden xs:inline">Syncing stock receipts…</span>
+                <span className="xs:hidden">Syncing…</span>
+              </span>
+            ) : hasChanges ? (
               <span className="hidden shrink-0 text-xs text-amber-600 xl:inline dark:text-amber-400">
                 {changedItemIds.size} unsaved change{changedItemIds.size > 1 ? "s" : ""}
               </span>

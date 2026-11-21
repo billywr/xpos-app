@@ -143,6 +143,16 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
   const [newModifierGroupId, setNewModifierGroupId] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+
+  const isItemFormValid = useMemo(() => {
+    if (formCustom.isFieldVisible("name") && formCustom.isFieldRequired("name", true) && !formName.trim()) return false;
+    if (formCustom.isFieldVisible("sku") && formCustom.isFieldRequired("sku", true) && !formSku.trim()) return false;
+    if (formCustom.isFieldVisible("category") && formCustom.isFieldRequired("category", false) && !formCategoryId) return false;
+    if (formCustom.isFieldVisible("barcode") && formCustom.isFieldRequired("barcode", false) && !formBarcode.trim()) return false;
+    if (formCustom.isFieldVisible("buyingPrice") && formCustom.isFieldRequired("buyingPrice", false) && !formBuyingPrice.trim()) return false;
+    if (formCustom.isFieldVisible("sellingPrice") && formCustom.isFieldRequired("sellingPrice", false) && !formSellingPrice.trim()) return false;
+    return true;
+  }, [formName, formSku, formCategoryId, formBarcode, formBuyingPrice, formSellingPrice, formCustom]);
   const [priceWarning, setPriceWarning] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<Item | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -1591,7 +1601,8 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                         />
                         <button
                           type="submit"
-                          className="inline-flex items-center gap-1 rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+                          disabled={!newModifierGroupId}
+                          className="inline-flex items-center gap-1 rounded-lg bg-primary-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
                         >
                           <Plus className="h-4 w-4" />
                           <span>Add</span>
@@ -1603,7 +1614,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               )}
 
               <div className="grid grid-cols-2 gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
-                <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
+                <Button type="submit" size="md" className="w-full" disabled={submitLoading || !isItemFormValid}>
                   {submitLoading ? "Saving…" : "Save"}
                 </Button>
                 <Button type="button" variant="secondary" size="md" className="w-full" onClick={closeSlide}>

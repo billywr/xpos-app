@@ -76,6 +76,13 @@ export function SuppliersListPage({
   const [formEmail, setFormEmail] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+
+  const isSupplierFormValid = useMemo(() => {
+    if (supplierCustom.isFieldVisible("name") && supplierCustom.isFieldRequired("name", true) && !formName.trim()) return false;
+    if (supplierCustom.isFieldVisible("phone") && supplierCustom.isFieldRequired("phone", false) && !formPhone.trim()) return false;
+    if (supplierCustom.isFieldVisible("email") && supplierCustom.isFieldRequired("email", false) && !formEmail.trim()) return false;
+    return true;
+  }, [formName, formPhone, formEmail, supplierCustom]);
   const [confirmDeactivate, setConfirmDeactivate] = useState<Supplier | null>(null);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
 
@@ -635,7 +642,7 @@ export function SuppliersListPage({
             </div>
           )}
           <div style={{ order: 999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
-            <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
+            <Button type="submit" size="md" className="w-full" disabled={submitLoading || !isSupplierFormValid}>
               {submitLoading ? "Saving…" : "Save"}
             </Button>
             <Button

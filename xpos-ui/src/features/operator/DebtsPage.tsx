@@ -499,6 +499,54 @@ export function DebtsPage() {
     && Number(d.amountSettled ?? 0) === 0;
   const totalElements = data?.totalElements ?? 0;
 
+  const isDebtFormValid = useMemo(() => {
+    if (formCustom.isFieldVisible("customerName") && formCustom.isFieldRequired("customerName", true)) {
+      if (!formCustomerName.trim()) return false;
+    }
+    if (formCustom.isFieldVisible("customerPhone") && formCustom.isFieldRequired("customerPhone", false)) {
+      if (!formCustomerPhone.trim()) return false;
+    }
+    if (formCustom.isFieldVisible("amount") && formCustom.isFieldRequired("amount", true)) {
+      const hasItems = formBorrowedLines.length > 0 && borrowedItemsSubtotal > 0;
+      const hasAmount = Boolean(formAmount.trim() && !isNaN(parseFloat(formAmount)) && parseFloat(formAmount) > 0);
+      if (!hasItems && !hasAmount) return false;
+    }
+    if (formCustom.isFieldVisible("recordedOn") && formCustom.isFieldRequired("recordedOn", true)) {
+      if (!formRecordedOn.trim()) return false;
+    }
+    if (formCustom.isFieldVisible("dueDate") && formCustom.isFieldRequired("dueDate", false)) {
+      if (!formDueDate.trim()) return false;
+    }
+    if (formCustom.isFieldVisible("borrowedItems") && formCustom.isFieldRequired("borrowedItems", false)) {
+      if (formBorrowedLines.length === 0) return false;
+    }
+    if (formCustom.isFieldVisible("notes") && formCustom.isFieldRequired("notes", false)) {
+      if (!formNotes.trim()) return false;
+    }
+    return true;
+  }, [
+    formCustomerName,
+    formCustomerPhone,
+    formAmount,
+    formBorrowedLines,
+    borrowedItemsSubtotal,
+    formRecordedOn,
+    formDueDate,
+    formNotes,
+    formCustom,
+  ]);
+
+  const isEditDebtFormValid = useMemo(() => {
+    if (!editCustomerName.trim()) return false;
+    if (!editAmount.trim() || isNaN(parseFloat(editAmount)) || parseFloat(editAmount) <= 0) return false;
+    return true;
+  }, [editCustomerName, editAmount]);
+
+  const isSettleFormValid = useMemo(() => {
+    const val = parseFloat(settleAmount);
+    return Boolean(settleAmount.trim() && !isNaN(val) && val > 0 && settlingDebt && val <= settlingDebt.outstanding);
+  }, [settleAmount, settlingDebt]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const isNameRequired = formCustom.isFieldRequired("customerName", true);
@@ -1100,8 +1148,8 @@ export function DebtsPage() {
           <div style={{ order: 9999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
             <button
               type="submit"
-              disabled={submitting}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+              disabled={submitting || !isDebtFormValid}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
             >
               {submitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1227,8 +1275,8 @@ export function DebtsPage() {
             <div className="grid grid-cols-2 gap-3 pt-4">
               <button
                 type="submit"
-                disabled={editSubmitting}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+                disabled={editSubmitting || !isEditDebtFormValid}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
               >
                 {editSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1289,8 +1337,8 @@ export function DebtsPage() {
             <div className="grid grid-cols-2 gap-3 pt-4">
               <button
                 type="submit"
-                disabled={settleSubmitting}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                disabled={settleSubmitting || !isSettleFormValid}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-emerald-600 dark:hover:bg-emerald-500"
               >
                 {settleSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

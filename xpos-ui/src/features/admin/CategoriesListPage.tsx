@@ -70,6 +70,12 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
   const [formType, setFormType] = useState<string>("PRODUCT");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+
+  const isCategoryFormValid = useMemo(() => {
+    if (!formName.trim()) return false;
+    if (categoryCustom.isFieldVisible("type") && categoryCustom.isFieldRequired("type", false) && !formType.trim()) return false;
+    return true;
+  }, [formName, formType, categoryCustom]);
   const [confirmDelete, setConfirmDelete] = useState<Category | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -568,7 +574,7 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                 </div>
               )}
               <div style={{ order: 999 }} className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-3 pt-4">
-                <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
+                <Button type="submit" size="md" className="w-full" disabled={submitLoading || !isCategoryFormValid}>
                   {submitLoading ? "Saving…" : "Save"}
                 </Button>
                 <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setSlideOpen(false)}>

@@ -87,6 +87,13 @@ export function UtilitiesTabPanel({
   const [formNotes, setFormNotes] = useState("");
   const [formActive, setFormActive] = useState(true);
 
+  const isUtilityFormValid = useMemo(() => {
+    if (!formName.trim()) return false;
+    const num = parseFloat(formAmount.replace(/,/g, ""));
+    if (isNaN(num) || num <= 0) return false;
+    return true;
+  }, [formName, formAmount]);
+
   useEffect(() => {
     if (isCreateOpen) {
       setFormName("");
@@ -639,8 +646,8 @@ export function UtilitiesTabPanel({
           <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200 dark:border-slate-700">
             <button
               type="submit"
-              disabled={createMutation.isPending}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+              disabled={createMutation.isPending || !isUtilityFormValid}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
             >
               {createMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               <span>{createMutation.isPending ? "Saving…" : "Save"}</span>
@@ -775,8 +782,8 @@ export function UtilitiesTabPanel({
           <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200 dark:border-slate-700">
             <button
               type="submit"
-              disabled={updateMutation.isPending}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+              disabled={updateMutation.isPending || !isUtilityFormValid}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-primary-500 dark:hover:bg-primary-600"
             >
               {updateMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               <span>{updateMutation.isPending ? "Saving…" : "Save"}</span>

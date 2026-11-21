@@ -78,6 +78,9 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
   const [submitLoading, setSubmitLoading] = useState(false);
   const [bindLoading, setBindLoading] = useState(false);
 
+  const isTerminalFormValid = Boolean(formCode.trim());
+  const isBindFormValid = Boolean(formDeviceId.trim());
+
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
     queryFn: () => fetchOrgs(token, { size: 200 }),
@@ -594,7 +597,7 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 pt-4">
-                <Button type="submit" size="md" className="w-full" disabled={submitLoading}>
+                <Button type="submit" size="md" className="w-full" disabled={submitLoading || !isTerminalFormValid}>
                   {submitLoading ? "Saving…" : "Save"}
                 </Button>
                 <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setSlideOpen(false)}>
@@ -640,7 +643,7 @@ export function TerminalsListPage({ initialOrgId }: TerminalsListPageProps = {})
                 )}
               </div>
               <div className="grid grid-cols-2 gap-3 pt-4">
-                <Button type="submit" size="md" className="w-full" disabled={bindLoading}>
+                <Button type="submit" size="md" className="w-full" disabled={bindLoading || !isBindFormValid}>
                   {bindLoading ? "Binding…" : "Bind"}
                 </Button>
                 <Button type="button" variant="secondary" size="md" className="w-full" onClick={() => setBindSlideOpen(false)}>
