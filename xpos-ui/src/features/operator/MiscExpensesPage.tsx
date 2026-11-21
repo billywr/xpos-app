@@ -594,7 +594,7 @@ export function MiscExpensesPage() {
                       <SortableTableHead
                       align="right"
                         columnKey="amount"
-                        label="Amount (KSH)"
+                        label="Amount"
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}

@@ -60,7 +60,7 @@ export function generateUtilitiesPdf(
     [
       "#",
       "Utility Name",
-      "Amount (KES)",
+      "Amount",
       "Deduction Timing",
       "Status",
       "Notes",

@@ -1,5 +1,4 @@
-import { useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useMemo } from "react";
 import { useAdminContextSelection } from "@/hooks/useAdminContextSelection";
 import { AdminTabList, AdminTabPanel } from "@/components/ui/AdminTabs";
 import { SuppliersListPage } from "@/features/admin/SuppliersListPage";
@@ -7,6 +6,7 @@ import { GoodsReceiptPage } from "@/features/admin/GoodsReceiptPage";
 import { InventoryPage } from "@/features/admin/InventoryPage";
 import { Truck, PackagePlus, Package } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { usePersistedTab } from "@/hooks/usePersistedTab";
 
 const TAB_LIST_ID = "inventory-receiving";
 
@@ -18,19 +18,15 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-const VALID_TABS: TabId[] = ["suppliers", "stock", "inventory"];
+const VALID_TABS: readonly TabId[] = ["suppliers", "stock", "inventory"] as const;
 
 export function InventoryReceivingPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get("tab");
-
-  const activeTab = useMemo((): TabId => {
-    const normalized = tabParam === "goods-receipt" ? "stock" : tabParam;
-    if (normalized && VALID_TABS.includes(normalized as TabId)) {
-      return normalized as TabId;
-    }
-    return "stock";
-  }, [tabParam]);
+  const [activeTab, handleTabChange] = usePersistedTab<TabId>({
+    tabListId: TAB_LIST_ID,
+    validTabs: VALID_TABS,
+    defaultTab: "stock",
+    normalizeTab: (raw) => (raw === "goods-receipt" ? "stock" : raw),
+  });
 
   const {
     selectedOrgId: contextOrgId,
@@ -44,27 +40,6 @@ export function InventoryReceivingPage() {
   } = useAdminContextSelection();
 
   const hasOrgs = orgs.length > 0;
-
-  useEffect(() => {
-    if (tabParam === "goods-receipt") {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set("tab", "stock");
-          return next;
-        },
-        { replace: true }
-      );
-    }
-  }, [tabParam, setSearchParams]);
-
-  const handleTabChange = (id: TabId) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("tab", id);
-      return next;
-    });
-  };
 
   const tabItems = useMemo(
     () =>

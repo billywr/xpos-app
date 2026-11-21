@@ -24,7 +24,7 @@ export function LoginPage() {
   const logoUrl = branding?.logoDataUrl ?? null;
 
   useEffect(() => {
-    document.title = appName ? `${appName} — Sign in` : "XPOS";
+    document.title = appName ? `${appName} - Sign in` : "XPOS";
   }, [appName]);
 
   const [username, setUsername] = useState("");

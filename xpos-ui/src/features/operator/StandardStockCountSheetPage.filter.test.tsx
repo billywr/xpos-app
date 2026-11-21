@@ -1404,13 +1404,15 @@ describe("StandardStockCountSheetPage reconcile inventory", () => {
       ).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /reconcile inventory/i }));
+    const previewModal = screen.getByRole("dialog", { name: "Reconcile inventory to closings" });
+    fireEvent.click(within(previewModal).getByRole("button", { name: /^reconcile$/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/reconcile inventory to closings\?/i)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /^reconcile$/i }));
+    const confirmDialog = screen.getByRole("dialog", { name: /reconcile inventory to closings\?/i });
+    fireEvent.click(within(confirmDialog).getByRole("button", { name: /^reconcile$/i }));
 
     await waitFor(() => {
       expect(stdApi.reconcileStdStockCountInventory).toHaveBeenCalledWith(
@@ -2570,6 +2572,28 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
       expect(computed.amount).toBe(875);
       expect(computed.closingStale).toBe(false);
       expect(computed.closingUnsaved).toBe(false);
+    });
+
+    it("computeRow handles server-clamped row after stock deletion with zero error", () => {
+      // Backend clamps closingStock to 3 when receipt of 12 was deleted
+      const predatorRow: StdStockCountRowResponse = {
+        itemId: "item-predator",
+        sku: "PRED",
+        name: "Predator",
+        openingStock: 3,
+        addedStock: 0,
+        addedTodayStock: 0,
+        sellingPrice: 80,
+        closingStock: 3,
+        lastSavedAt: "2026-11-21T08:49:00Z",
+        firstStockAddedAt: null,
+        comments: null,
+      };
+      const computed = computeRow(predatorRow, undefined, undefined, 0);
+      expect(computed.closingStock).toBe(3);
+      expect(computed.totalStock).toBe(3);
+      expect(computed.unitsSold).toBe(0);
+      expect(computed.closingError).toBeUndefined();
     });
 
     it("UI does not auto-save corrupted closing to total stock when sales were recorded", async () => {

@@ -275,7 +275,7 @@ export function ShiftsListPage() {
                     <SortableTableHead
                       align="right"
                       columnKey="openingFloatAmount"
-                      label="Float (KSH)"
+                      label="Float"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
@@ -285,7 +285,7 @@ export function ShiftsListPage() {
                       <SortableTableHead
                       align="right"
                         columnKey="closingCountedAmount"
-                        label="Counted (KSH)"
+                        label="Counted"
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
@@ -296,7 +296,7 @@ export function ShiftsListPage() {
                       <SortableTableHead
                       align="right"
                         columnKey="varianceAmount"
-                        label="Variance (KSH)"
+                        label="Variance"
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}

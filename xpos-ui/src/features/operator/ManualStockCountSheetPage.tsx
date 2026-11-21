@@ -615,7 +615,7 @@ export function ManualStockCountSheetPage() {
                     <SortableTableHead
                       align="right"
                       columnKey="price"
-                      label="Price (KSH)"
+                      label="Price"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
@@ -624,7 +624,7 @@ export function ManualStockCountSheetPage() {
                     <SortableTableHead
                       align="right"
                       columnKey="amount"
-                      label="Amt (KSH)"
+                      label="Amt"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
@@ -837,23 +837,23 @@ export function ManualStockCountSheetPage() {
               placeholder="Search item…"
               className="mb-4 w-full"
             />
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-row flex-nowrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={addFromCatalog}
+                className="rounded-lg bg-primary-600 px-3.5 py-1.5 text-sm font-medium text-white hover:bg-primary-500 shrink-0"
+              >
+                Add
+              </button>
               <button
                 type="button"
                 onClick={() => {
                   setAddModal(null);
                   setCatalogItemId("");
                 }}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm dark:border-slate-600"
+                className="rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 shrink-0"
               >
                 Cancel
-              </button>
-              <button
-                type="button"
-                onClick={addFromCatalog}
-                className="rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white"
-              >
-                Add
               </button>
             </div>
           </div>
@@ -884,7 +884,14 @@ export function ManualStockCountSheetPage() {
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
               />
             </label>
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-row flex-nowrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={addCustom}
+                className="rounded-lg bg-primary-600 px-3.5 py-1.5 text-sm font-medium text-white hover:bg-primary-500 shrink-0"
+              >
+                Add
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -892,16 +899,9 @@ export function ManualStockCountSheetPage() {
                   setCustomName("");
                   setCustomSku("");
                 }}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm dark:border-slate-600"
+                className="rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 shrink-0"
               >
                 Cancel
-              </button>
-              <button
-                type="button"
-                onClick={addCustom}
-                className="rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white"
-              >
-                Add
               </button>
             </div>
           </div>

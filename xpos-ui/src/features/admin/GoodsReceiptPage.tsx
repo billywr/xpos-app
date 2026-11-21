@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useDataTable } from "@/hooks/useDataTable";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
@@ -39,7 +39,6 @@ import {
   tableEmptyCell,
   tableBodyCellNumDebts,
   tableCard,
-  StatChip,
   DateInput,
 } from "@/components/ui";
 import { cn } from "@/utils/cn";
@@ -47,16 +46,23 @@ import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { formatQty } from "@/utils/formatQuantity";
 import { useToast } from "@/contexts/ToastContext";
+import { formatDurationMs } from "@/utils/actionDuration";
 import { invalidateInventoryQueries } from "@/utils/invalidateInventoryQueries";
 import { downloadItemsPdf } from "@/utils/itemsPdf";
 import { Link } from "react-router-dom";
-import { Plus, PackagePlus, Trash2, Pencil, FileEdit, FileX, RotateCcw, Download, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, PackagePlus, Trash2, Pencil, RotateCcw, Download, Loader2, ChevronLeft, ChevronRight, X, Coins, Package } from "lucide-react";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { useFormCustomization } from "@/contexts/FormCustomizationContext";
 import {
   BARCODE_GOODS_RECEIPT,
   isBarcodeVisible,
 } from "@/config/barcodeVisibility";
+import {
+  getStockReceiptMaxQty,
+  isStockReceiptDigitsOnly,
+  isStockReceiptShowLimit,
+  sanitizeStockReceiptQty,
+} from "@/config/goodsReceiptSettings";
 import { BarcodeCaptureInput } from "@/components/BarcodeCaptureInput";
 import { filterRowsBySearch } from "@/utils/tableSearchMatch";
 import { ItemSearchCombobox } from "@/components/ItemSearchCombobox";
@@ -77,8 +83,7 @@ const GRN_RECEIVE_CONTEXT_PAGE_SIZE = 400;
 
 type GrnFlattenedRow = {
   grn: GoodsReceiptNoteResponse;
-  line: GrnLineResponse | null;
-  isFirstLineOfReceipt: boolean;
+  line: GrnLineResponse;
 };
 
 function grnFlattenedRowSearchText(row: GrnFlattenedRow): string {
@@ -91,25 +96,38 @@ function grnFlattenedRowSearchText(row: GrnFlattenedRow): string {
       // ignore invalid dates in search haystack
     }
   }
-  if (row.line) {
-    parts.push(
-      row.line.itemName ?? "",
-      row.line.barcode ?? "",
-      String(row.line.qty),
-      row.line.receivedUnitCost != null ? String(row.line.receivedUnitCost) : ""
-    );
-  }
+  parts.push(
+    row.line.itemName ?? "",
+    row.line.barcode ?? "",
+    String(row.line.qty),
+    row.line.receivedUnitCost != null ? String(row.line.receivedUnitCost) : ""
+  );
   return parts.join(" ");
+}
+function getRowAddedTime(grn: GoodsReceiptNoteResponse, line: GrnLineResponse): number {
+  if (line.createdAt) {
+    const t = new Date(line.createdAt).getTime();
+    if (!Number.isNaN(t) && t > 0) return t;
+  }
+  if (grn.createdAt) {
+    const t = new Date(grn.createdAt).getTime();
+    if (!Number.isNaN(t) && t > 0) return t;
+  }
+  if (grn.receivedAt) {
+    const t = new Date(grn.receivedAt).getTime();
+    if (!Number.isNaN(t) && t > 0) return t;
+  }
+  return 0;
 }
 
 const GRN_SORT = {
   received: (row: GrnFlattenedRow) => row.grn.receivedAt,
-  name: (row: GrnFlattenedRow) => row.line?.itemName ?? "",
-  barcode: (row: GrnFlattenedRow) => row.line?.barcode ?? "",
-  qty: (row: GrnFlattenedRow) => row.line?.qty ?? 0,
-  buyPrice: (row: GrnFlattenedRow) => row.line?.receivedUnitCost ?? 0,
+  name: (row: GrnFlattenedRow) => row.line.itemName ?? "",
+  barcode: (row: GrnFlattenedRow) => row.line.barcode ?? "",
+  qty: (row: GrnFlattenedRow) => row.line.qty ?? 0,
+  buyPrice: (row: GrnFlattenedRow) => row.line.receivedUnitCost ?? 0,
   total: (row: GrnFlattenedRow) =>
-    row.line ? row.line.qty * (row.line.receivedUnitCost ?? 0) : 0,
+    row.line.qty * (row.line.receivedUnitCost ?? 0),
 };
 
 /** Parse date field value; returns null if empty/invalid. */
@@ -316,6 +334,9 @@ export function GoodsReceiptPage({
     navContext?.adminVisibility ?? {},
     BARCODE_GOODS_RECEIPT
   );
+  const maxQty = getStockReceiptMaxQty(navContext?.adminLabels);
+  const digitsOnly = isStockReceiptDigitsOnly(navContext?.adminLabels);
+  const showLimit = isStockReceiptShowLimit(navContext?.adminLabels);
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [selectedBranchId, setSelectedBranchId] = useState<string>(initialBranchId ?? "");
   const [activePreset, setActivePreset] = useState<DatePreset>(() => {
@@ -353,16 +374,21 @@ export function GoodsReceiptPage({
   const [receivedAt, setReceivedAt] = useState<string>(
     () => getSavedGoodsReceiptReceivedAt(initialOrgId, initialBranchId) || formatDateInput(new Date())
   );
+  const isReceivedAtToday = Boolean(
+    receivedAt && formatDateInput(receivedAt) === formatDateInput(new Date())
+  );
   const [lines, setLines] = useState<GrnLineForm[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
-  const [confirmDeleteReceipt, setConfirmDeleteReceipt] =
-    useState<GoodsReceiptNoteResponse | null>(null);
   const [confirmDeleteLine, setConfirmDeleteLine] = useState<{
     grn: GoodsReceiptNoteResponse;
     line: GrnLineResponse;
   } | null>(null);
   const [permanentDeleteLoading, setPermanentDeleteLoading] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set());
+  const [confirmMultiDelete, setConfirmMultiDelete] = useState(false);
+  const [multiDeleteLoading, setMultiDeleteLoading] = useState(false);
+  const deleteStartTimeRef = useRef<number | null>(null);
   const [barcodeScanMessage, setBarcodeScanMessage] = useState<{
     type: "error" | "info";
     text: string;
@@ -499,15 +525,20 @@ export function GoodsReceiptPage({
       if (variables.lines != null) {
         void invalidateInventoryQueries(queryClient);
       }
+      const elapsedStr = deleteStartTimeRef.current
+        ? ` in ${((performance.now() - deleteStartTimeRef.current) / 1000).toFixed(1)}s`
+        : "";
+      deleteStartTimeRef.current = null;
       setSlideOpen(false);
       setEditingGrn(null);
       setEditingSingleLineId(null);
       setConfirmDeleteLine(null);
       setFormError(null);
       setSubmitLoading(false);
-      toast.success("Stock receipt updated.", { title: "Saved" });
+      toast.success(`Stock receipt updated${elapsedStr}.`, { title: "Saved" });
     },
     onError: (err) => {
+      deleteStartTimeRef.current = null;
       setSubmitLoading(false);
       const requestId = getApiErrorRequestId(err);
       toast.error(getApiErrorMessage(err), {
@@ -520,6 +551,10 @@ export function GoodsReceiptPage({
     mutationFn: (grnId: string) =>
       deleteGoodsReceiptNotePermanently(token, selectedOrgId, grnId),
     onSuccess: () => {
+      const elapsedStr = deleteStartTimeRef.current
+        ? ` in ${((performance.now() - deleteStartTimeRef.current) / 1000).toFixed(1)}s`
+        : "";
+      deleteStartTimeRef.current = null;
       queryClient.invalidateQueries({
         queryKey: ["admin-grns", token, selectedOrgId, selectedBranchId],
       });
@@ -532,14 +567,15 @@ export function GoodsReceiptPage({
         ],
       });
       void invalidateInventoryQueries(queryClient);
-      setConfirmDeleteReceipt(null);
+      setConfirmDeleteLine(null);
       setPermanentDeleteLoading(false);
       toast.success(
-        "Receipt and its stock movements were removed. Inventory was adjusted.",
-        { title: "Receipt deleted" }
+        `Stock item removed${elapsedStr}. Inventory was adjusted.`,
+        { title: "Item deleted" }
       );
     },
     onError: (err) => {
+      deleteStartTimeRef.current = null;
       setPermanentDeleteLoading(false);
       const requestId = getApiErrorRequestId(err);
       toast.error(getApiErrorMessage(err), {
@@ -623,7 +659,7 @@ export function GoodsReceiptPage({
 
   const linesTotalCost = useMemo(() => {
     return lines.reduce((sum, l) => {
-      const q = parseFloat(l.qty);
+      const q = parseFloat(l.qty.replace(/,/g, ""));
       const c = parseFloat(l.receivedUnitCost);
       if (!Number.isNaN(q) && !Number.isNaN(c) && q > 0 && c > 0) {
         return sum + q * c;
@@ -646,10 +682,17 @@ export function GoodsReceiptPage({
       if (!l.itemId || !l.qty) {
         return false;
       }
-      const parsed = parseFloat(l.qty);
-      return !Number.isNaN(parsed) && parsed > 0;
+      const cleanQty = l.qty.replace(/,/g, "");
+      const parsed = parseFloat(cleanQty);
+      if (Number.isNaN(parsed) || parsed <= 0 || parsed > maxQty) {
+        return false;
+      }
+      if (digitsOnly && !/^\d+$/.test(cleanQty)) {
+        return false;
+      }
+      return true;
     });
-  }, [supplierId, receivedAt, lines, formCustom]);
+  }, [supplierId, receivedAt, lines, formCustom, maxQty, digitsOnly]);
 
   const grns = grnsData?.content ?? [];
 
@@ -669,19 +712,39 @@ export function GoodsReceiptPage({
     });
   }, [grns, filterSupplierId, activePreset, customStartDate, customEndDate, todayOffset]);
 
-  /** Flattened rows: one entry per receipt line (or one placeholder per empty receipt). */
+  /** Flattened rows: one entry per receipt line, sorted so the last to be added is at the top. */
   const allRows = useMemo(() => {
-    const rows: GrnFlattenedRow[] = [];
-    for (const grn of filteredGrns) {
-      if (grn.lines.length === 0) {
-        rows.push({ grn, line: null, isFirstLineOfReceipt: true });
-      } else {
-        grn.lines.forEach((line, idx) => {
-          rows.push({ grn, line, isFirstLineOfReceipt: idx === 0 });
+    type IndexedGrnRow = GrnFlattenedRow & { grnIdx: number; lineIdx: number };
+    const rawRows: IndexedGrnRow[] = [];
+    filteredGrns.forEach((grn, grnIdx) => {
+      if (grn.lines && grn.lines.length > 0) {
+        grn.lines.forEach((line, lineIdx) => {
+          rawRows.push({ grn, line, grnIdx, lineIdx });
         });
       }
-    }
-    return rows;
+    });
+
+    rawRows.sort((a, b) => {
+      const timeA = getRowAddedTime(a.grn, a.line);
+      const timeB = getRowAddedTime(b.grn, b.line);
+      if (timeA !== timeB) {
+        return timeB - timeA;
+      }
+      // If from the same receipt and same timestamp, later line in receipt was added later
+      if (a.grn.id === b.grn.id) {
+        return b.lineIdx - a.lineIdx;
+      }
+      // If from different receipts with equal line timestamp, compare receipt creation time
+      const grnTimeA = a.grn.createdAt ? new Date(a.grn.createdAt).getTime() : 0;
+      const grnTimeB = b.grn.createdAt ? new Date(b.grn.createdAt).getTime() : 0;
+      if (grnTimeA !== grnTimeB) {
+        return grnTimeB - grnTimeA;
+      }
+      // Fallback: order in filteredGrns
+      return a.grnIdx - b.grnIdx;
+    });
+
+    return rawRows.map(({ grn, line }) => ({ grn, line }));
   }, [filteredGrns]);
 
   const {
@@ -699,6 +762,7 @@ export function GoodsReceiptPage({
     setPage,
     getSearchableText: grnFlattenedRowSearchText,
     sortAccessors: GRN_SORT,
+    getDefaultDirection: (col) => (col === "received" ? "desc" : "asc"),
   });
 
   const supplierFilterOptions = useMemo(
@@ -845,26 +909,88 @@ export function GoodsReceiptPage({
     () => pagedRows.some((r) => r.line?.receivedUnitCost != null),
     [pagedRows]
   );
-  const visibleColCount = 7 + (showBarcodeCol ? 1 : 0) + (showBuyPriceCol ? 1 : 0);
+  const visibleColCount = 8 + (showBarcodeCol ? 1 : 0) + (showBuyPriceCol ? 1 : 0);
 
   const totalFilteredAmount = useMemo(() => {
     return allFilteredRows.reduce((sum, r) => {
-      if (!r.line) return sum;
       return sum + r.line.qty * (r.line.receivedUnitCost ?? 0);
     }, 0);
   }, [allFilteredRows]);
 
   const totalFilteredUnits = useMemo(() => {
     return allFilteredRows.reduce((sum, r) => {
-      if (!r.line) return sum;
       return sum + r.line.qty;
     }, 0);
   }, [allFilteredRows]);
 
-  const totalFilteredReceipts = useMemo(() => {
-    const uniqueReceiptIds = new Set(allFilteredRows.map((r) => r.grn.id));
-    return uniqueReceiptIds.size;
-  }, [allFilteredRows]);
+  // Clean up any orphaned empty receipts (0 lines) that might exist in the database
+  useEffect(() => {
+    if (!token || !selectedOrgId || !grnsData?.content) return;
+    const emptyGrns = grnsData.content.filter((g) => !g.lines || g.lines.length === 0);
+    if (emptyGrns.length > 0) {
+      emptyGrns.forEach((g) => {
+        deleteGoodsReceiptNotePermanently(token, selectedOrgId, g.id)
+          .then(() => {
+            queryClient.invalidateQueries({
+              queryKey: ["admin-grns", token, selectedOrgId, selectedBranchId],
+            });
+            queryClient.invalidateQueries({
+              queryKey: [
+                "admin-grns-receive-context",
+                token,
+                selectedOrgId,
+                selectedBranchId,
+              ],
+            });
+          })
+          .catch(() => {});
+      });
+    }
+  }, [grnsData?.content, token, selectedOrgId, selectedBranchId, queryClient]);
+
+  const isAllPageSelected = useMemo(() => {
+    return (
+      pagedRows.length > 0 &&
+      pagedRows.every((r) => selectedRowKeys.has(`${r.grn.id}::${r.line.id}`))
+    );
+  }, [pagedRows, selectedRowKeys]);
+
+  // Clear selection whenever filter, branch, or search changes
+  useEffect(() => {
+    setSelectedRowKeys(new Set());
+  }, [selectedOrgId, selectedBranchId, activePreset, filterSupplierId, searchQuery]);
+
+  const toggleSelectAll = () => {
+    if (isAllPageSelected) {
+      setSelectedRowKeys((prev) => {
+        const next = new Set(prev);
+        for (const r of pagedRows) {
+          next.delete(`${r.grn.id}::${r.line.id}`);
+        }
+        return next;
+      });
+    } else {
+      setSelectedRowKeys((prev) => {
+        const next = new Set(prev);
+        for (const r of pagedRows) {
+          next.add(`${r.grn.id}::${r.line.id}`);
+        }
+        return next;
+      });
+    }
+  };
+
+  const toggleSelectRow = (key: string) => {
+    setSelectedRowKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (initialOrgId && initialOrgId !== selectedOrgId) {
@@ -895,9 +1021,13 @@ export function GoodsReceiptPage({
   };
 
   const handleUpdateLine = (idx: number, field: keyof GrnLineForm, value: string) => {
+    let sanitizedValue = value;
+    if (field === "qty") {
+      sanitizedValue = sanitizeStockReceiptQty(value, maxQty, digitsOnly);
+    }
     setLines((prev) => {
       const next = [...prev];
-      next[idx] = { ...next[idx], [field]: value };
+      next[idx] = { ...next[idx], [field]: sanitizedValue };
       if (field === "itemId") {
         const item = items.find((i) => i.id === value);
         next[idx].itemName = item?.name ?? "";
@@ -914,6 +1044,13 @@ export function GoodsReceiptPage({
       setBarcodeScanMessage(null);
       try {
         const item = await fetchItemByBarcode(token, selectedOrgId, barcode.trim());
+        if (!item.active) {
+          setBarcodeScanMessage({
+            type: "error",
+            text: `"${item.name}" is inactive. Reactivate it in Catalog before receiving stock.`,
+          });
+          return;
+        }
         if (
           itemIdsReceivedOnSelectedDateOtherGrns.has(item.id) &&
           !(editingGrn && originalGrnItemIds.has(item.id))
@@ -985,6 +1122,20 @@ export function GoodsReceiptPage({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+    const invalidQtyLine = lines.find((l) => {
+      if (!l.qty) return false;
+      const cleanQty = l.qty.replace(/,/g, "");
+      const q = parseFloat(cleanQty);
+      if (Number.isNaN(q) || q <= 0 || q > maxQty) return true;
+      if (digitsOnly && !/^\d+$/.test(cleanQty)) return true;
+      return false;
+    });
+    if (invalidQtyLine) {
+      setFormError(
+        `Quantity cannot exceed ${maxQty.toLocaleString("en-US")}${digitsOnly ? " and must be a whole number" : ""}.`
+      );
+      return;
+    }
     if (formCustom.isFieldRequired("supplier", true) && !supplierId) {
       setFormError(`${formCustom.getFieldLabel("supplier", "Supplier")} is required`);
       return;
@@ -996,7 +1147,7 @@ export function GoodsReceiptPage({
         return;
       }
       const validLines = lines.filter(
-        (l) => l.itemId && l.qty && parseFloat(l.qty) > 0
+        (l) => l.itemId && l.qty && parseFloat(l.qty.replace(/,/g, "")) > 0
       );
       if (validLines.length === 0) {
         setFormError("At least one line with item and quantity is required");
@@ -1004,7 +1155,7 @@ export function GoodsReceiptPage({
       }
       const mapFormToReq = (l: (typeof validLines)[number]): GrnLineRequest => ({
         itemId: l.itemId,
-        qty: parseFloat(l.qty),
+        qty: parseFloat(l.qty.replace(/,/g, "")),
         receivedUnitCost: l.receivedUnitCost ? parseFloat(l.receivedUnitCost) : null,
       });
 
@@ -1145,10 +1296,14 @@ export function GoodsReceiptPage({
       }
     }
     const validLines = lines
-      .filter((l) => l.itemId && l.qty && parseFloat(l.qty) > 0)
+      .filter((l) => {
+        if (!l.itemId || !l.qty) return false;
+        const q = parseFloat(l.qty.replace(/,/g, ""));
+        return !Number.isNaN(q) && q > 0;
+      })
       .map((l): GrnLineRequest => ({
         itemId: l.itemId,
-        qty: parseFloat(l.qty),
+        qty: parseFloat(l.qty.replace(/,/g, "")),
 
         receivedUnitCost: l.receivedUnitCost
           ? parseFloat(l.receivedUnitCost)
@@ -1188,28 +1343,6 @@ export function GoodsReceiptPage({
     });
   };
 
-  const handleEdit = (grn: GoodsReceiptNoteResponse) => {
-    setEditingGrn(grn);
-    setEditingSingleLineId(null);
-    setSupplierId(grn.supplierId);
-    setReceivedAt(
-      grn.receivedAt ? formatDateInput(grn.receivedAt) : formatDateInput(new Date())
-    );
-    setLines(
-      grn.lines.length > 0
-        ? grn.lines.map((l) => ({
-            itemId: l.itemId,
-            itemName: l.itemName,
-            qty: String(l.qty),
-            receivedUnitCost:
-              l.receivedUnitCost != null ? String(l.receivedUnitCost) : "",
-          }))
-        : [{ itemId: "", itemName: "", qty: "", receivedUnitCost: "" }]
-    );
-    setFormError(null);
-    setBarcodeScanMessage(null);
-    setSlideOpen(true);
-  };
 
   const handleEditLine = (grn: GoodsReceiptNoteResponse, line: GrnLineResponse) => {
     setEditingGrn(grn);
@@ -1224,7 +1357,7 @@ export function GoodsReceiptPage({
       {
         itemId: line.itemId,
         itemName: line.itemName,
-        qty: String(line.qty),
+        qty: sanitizeStockReceiptQty(String(line.qty), maxQty, digitsOnly),
         receivedUnitCost:
           line.receivedUnitCost != null ? String(line.receivedUnitCost) : "",
       },
@@ -1236,21 +1369,89 @@ export function GoodsReceiptPage({
 
   const handleConfirmDeleteLine = () => {
     if (!confirmDeleteLine) return;
+    deleteStartTimeRef.current = performance.now();
     const { grn, line } = confirmDeleteLine;
     const remaining = grn.lines
       .filter((l) => l.id !== line.id)
       .map(grnLineResponseToRequest);
-    updateMutation.mutate({
-      grnId: grn.id,
-      supplierId: grn.supplierId,
-      receivedAt: grn.receivedAt,
-      lines: remaining,
-    });
+    if (remaining.length === 0) {
+      setPermanentDeleteLoading(true);
+      permanentDeleteMutation.mutate(grn.id);
+    } else {
+      updateMutation.mutate({
+        grnId: grn.id,
+        supplierId: grn.supplierId,
+        receivedAt: grn.receivedAt,
+        lines: remaining,
+      });
+    }
   };
 
-  const handlePermanentDelete = (grn: GoodsReceiptNoteResponse) => {
-    setPermanentDeleteLoading(true);
-    permanentDeleteMutation.mutate(grn.id);
+  const handleConfirmMultiDelete = async () => {
+    if (!token || !selectedOrgId || selectedRowKeys.size === 0) return;
+    setMultiDeleteLoading(true);
+    const startTime = performance.now();
+    try {
+      const selectedByGrnId = new Map<string, Set<string>>();
+      for (const key of selectedRowKeys) {
+        const [grnId, lineId] = key.split("::");
+        if (!selectedByGrnId.has(grnId)) {
+          selectedByGrnId.set(grnId, new Set());
+        }
+        selectedByGrnId.get(grnId)!.add(lineId);
+      }
+
+      const count = selectedRowKeys.size;
+      const tasks: Promise<unknown>[] = [];
+
+      for (const [grnId, lineIdSet] of selectedByGrnId.entries()) {
+        const grn = grnsData?.content?.find((g) => g.id === grnId);
+        if (!grn) continue;
+        const remaining = grn.lines.filter((l) => !lineIdSet.has(l.id));
+        if (remaining.length === 0) {
+          tasks.push(deleteGoodsReceiptNotePermanently(token, selectedOrgId, grnId));
+        } else {
+          tasks.push(
+            updateGoodsReceiptNote(token, selectedOrgId, grnId, {
+              supplierId: grn.supplierId,
+              receivedAt: grn.receivedAt,
+              lines: remaining.map(grnLineResponseToRequest),
+            })
+          );
+        }
+      }
+
+      await Promise.all(tasks);
+
+      const elapsedMs = performance.now() - startTime;
+      const formattedDuration = formatDurationMs(elapsedMs);
+
+      queryClient.invalidateQueries({
+        queryKey: ["admin-grns", token, selectedOrgId, selectedBranchId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [
+          "admin-grns-receive-context",
+          token,
+          selectedOrgId,
+          selectedBranchId,
+        ],
+      });
+      void invalidateInventoryQueries(queryClient);
+      setSelectedRowKeys(new Set());
+      setConfirmMultiDelete(false);
+      setMultiDeleteLoading(false);
+      toast.success(
+        `Deleted ${count} stock item${count === 1 ? "" : "s"}. Inventory was adjusted.`,
+        { title: "Stock items deleted", timeTaken: formattedDuration }
+      );
+    } catch (err) {
+      setMultiDeleteLoading(false);
+      const requestId = getApiErrorRequestId(err);
+      toast.error(getApiErrorMessage(err), {
+        detail: requestId ? `Reference: ${requestId}` : undefined,
+      });
+    }
   };
 
   if (isError && !grnsData && selectedOrgId && selectedBranchId) {
@@ -1330,33 +1531,54 @@ export function GoodsReceiptPage({
             className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-500 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
           >
             <Plus className="h-5 w-5" />
-            Add stock
+            Add
           </button>
         </div>
       </div>
 
       {selectedOrgId && selectedBranchId && (
-        <div className="mb-5 flex flex-col gap-4">
-          {/* Intelligence KPI Summary Banner */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <StatChip
-              label="Total Stock Value"
-              value={formatCurrency(totalFilteredAmount)}
-              tone="sales"
-              className="w-full"
-            />
-            <StatChip
-              label="Receipts"
-              value={`${totalFilteredReceipts} receipt${totalFilteredReceipts === 1 ? "" : "s"}`}
-              tone="neutral"
-              className="w-full"
-            />
-            <StatChip
-              label="Units Received"
-              value={`${formatQty(totalFilteredUnits)} unit${totalFilteredUnits === 1 ? "" : "s"}`}
-              tone="neutral"
-              className="w-full"
-            />
+        <div className="mb-5 flex flex-col gap-6 sm:gap-7">
+          {/* Intelligence KPI Summary: Cards with 3D Shadows */}
+          <div
+            aria-label="Stock KPI summary"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4"
+          >
+            {/* Card 1: Total */}
+            <div
+              className="flex flex-col justify-between rounded-xl border border-slate-200/80 border-l-4 border-l-emerald-500 bg-white p-2.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_35px_-10px_rgba(0,0,0,0.15)] sm:p-3 dark:border-white/10 dark:border-l-emerald-500 dark:bg-slate-800/90 dark:shadow-[0_10px_30px_-5px_rgba(0,0,0,0.7),0_4px_12px_rgba(0,0,0,0.5)] dark:hover:shadow-[0_15px_40px_-5px_rgba(0,0,0,0.85)]"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                  Total
+                </span>
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 shadow-sm dark:bg-emerald-950/40 dark:text-emerald-400">
+                  <Coins className="h-3.5 w-3.5" />
+                </div>
+              </div>
+              <div className="mt-1.5 text-xl font-bold tabular-nums text-slate-900 sm:text-2xl dark:text-white">
+                {formatCurrency(totalFilteredAmount)}
+              </div>
+            </div>
+
+            {/* Card 2: Units Received */}
+            <div
+              className="flex flex-col justify-between rounded-xl border border-slate-200/80 border-l-4 border-l-indigo-500 bg-white p-2.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_35px_-10px_rgba(0,0,0,0.15)] sm:p-3 dark:border-white/10 dark:border-l-indigo-500 dark:bg-slate-800/90 dark:shadow-[0_10px_30px_-5px_rgba(0,0,0,0.7),0_4px_12px_rgba(0,0,0,0.5)] dark:hover:shadow-[0_15px_40px_-5px_rgba(0,0,0,0.85)]"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Units
+                </span>
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 shadow-sm dark:bg-indigo-950/40 dark:text-indigo-400">
+                  <Package className="h-3.5 w-3.5" />
+                </div>
+              </div>
+              <div className="mt-1.5 flex items-baseline gap-1.5 text-xl font-bold tabular-nums text-slate-900 sm:text-2xl dark:text-white">
+                <span>{formatQty(totalFilteredUnits)}</span>
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  units
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Filters Bar: Search, Supplier, Presets, Custom Date Range & Reset Action */}
@@ -1548,6 +1770,44 @@ export function GoodsReceiptPage({
         </div>
       ) : (
         <>
+          <div className="mb-2 flex h-9 items-center justify-end gap-2">
+            {selectedRowKeys.size > 0 && (
+              <>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setConfirmMultiDelete(true)}
+                  disabled={multiDeleteLoading}
+                  aria-label={`Delete selected (${selectedRowKeys.size})`}
+                  className="flex items-center gap-1.5"
+                >
+                  {multiDeleteLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  <span>Delete</span>
+                  <span
+                    className={cn(
+                      "inline-flex h-5 items-center justify-center rounded-full bg-white text-xs font-bold leading-none text-red-600 shadow-sm pt-[1px]",
+                      selectedRowKeys.size < 10 ? "w-5" : "min-w-5 px-1.5"
+                    )}
+                  >
+                    {selectedRowKeys.size}
+                  </span>
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRowKeys(new Set())}
+                  title="Clear selection"
+                  aria-label="Clear selection"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200 shadow-sm"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </>
+            )}
+          </div>
           <p className="mb-1 text-center text-[11px] text-slate-400 sm:hidden dark:text-slate-500">← swipe table to see all columns →</p>
           <div className={tableCard}>
             <div className="relative min-h-0 flex-1 overflow-auto">
@@ -1555,6 +1815,15 @@ export function GoodsReceiptPage({
               <table className="w-full table-auto divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "960px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
+                    <th scope="col" className="w-10 px-3 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isAllPageSelected}
+                        onChange={toggleSelectAll}
+                        aria-label="Select all rows on this page"
+                        className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:checked:bg-primary-500 cursor-pointer"
+                      />
+                    </th>
                     <TableRowNumberHead />
                     <SortableTableHead
                       columnKey="received"
@@ -1593,7 +1862,7 @@ export function GoodsReceiptPage({
                     {showBuyPriceCol && (
                       <SortableTableHead
                         columnKey="buyPrice"
-                        label="Buy price (KSH)"
+                        label="Buy price"
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
@@ -1602,7 +1871,7 @@ export function GoodsReceiptPage({
                     )}
                     <SortableTableHead
                       columnKey="total"
-                      label="Total (KSH)"
+                      label="Total"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
@@ -1638,105 +1907,76 @@ export function GoodsReceiptPage({
                       </td>
                     </tr>
                   ) : (
-                    pagedRows.map(({ grn, line, isFirstLineOfReceipt }, index) => {
-                        const lineTotal =
-                          line != null
-                            ? line.qty * (line.receivedUnitCost ?? 0)
-                            : 0;
-                        const isFirstOfReceipt = isFirstLineOfReceipt;
-                        return (
-                          <tr
-                            key={
-                              line
-                                ? `${grn.id}-${line.id}`
-                                : `${grn.id}-no-lines`
-                            }
-                            className={tableBodyRow}
-                          >
-                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
-                            <td className={tableStickyFirstBody}>
-                              {formatDateTime(grn.receivedAt)}
-                            </td>
-                            <td className={tableBodyCell}>
-                              {line?.itemName ?? "—"}
-                            </td>
-                            {showBarcodeCol && (
-                              <td className={`${tableBodyCell} font-mono`}>
-                                {line?.barcode?.trim()
-                                  ? line.barcode
-                                  : "—"}
-                              </td>
-                            )}
-                            <td className={tableBodyCellNumDebts}>
-                              {line != null ? formatQty(line.qty) : "—"}
-                            </td>
-                            {showBuyPriceCol && (
-                              <td className={tableBodyCellNumDebts}>
-                                {line != null && line.receivedUnitCost != null
-                                  ? formatAmount(line.receivedUnitCost)
-                                  : "—"}
-                              </td>
-                            )}
-                            <td className={`${tableBodyCellNumDebts} font-bold text-slate-700 dark:text-slate-300`}>
-                              {line != null
-                                ? formatAmount(lineTotal)
+                    pagedRows.map(({ grn, line }, index) => {
+                      const lineTotal = line.qty * (line.receivedUnitCost ?? 0);
+                      const rowKey = `${grn.id}::${line.id}`;
+                      const isSelected = selectedRowKeys.has(rowKey);
+                      return (
+                        <tr
+                          key={`${grn.id}-${line.id}`}
+                          className={cn(tableBodyRow, isSelected && "bg-primary-50/40 dark:bg-primary-950/20")}
+                        >
+                          <td className="w-10 px-3 py-2 text-center align-middle">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelectRow(rowKey)}
+                              aria-label={`Select ${line.itemName}`}
+                              className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:checked:bg-primary-500 cursor-pointer"
+                            />
+                          </td>
+                          <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
+                          <td className={tableStickyFirstBody}>
+                            {formatDate(grn.receivedAt)}
+                          </td>
+                          <td className={tableBodyCell}>
+                            {line.itemName}
+                          </td>
+                          {showBarcodeCol && (
+                            <td className={`${tableBodyCell} font-mono`}>
+                              {line.barcode?.trim()
+                                ? line.barcode
                                 : "—"}
                             </td>
-                            <td className={`${tableBodyCell} whitespace-nowrap align-middle`}>
-                              <div className="flex items-center gap-1">
-                                {line != null && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleEditLine(grn, line)}
-                                      className="rounded p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-200"
-                                      title="Edit this line"
-                                      aria-label={`Edit line ${line.itemName}`}
-                                    >
-                                      <Pencil className="h-4 w-4" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setConfirmDeleteLine({ grn, line })}
-                                      className="rounded p-2 text-slate-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-slate-600 dark:hover:text-red-300"
-                                      title="Remove this line from receipt"
-                                      aria-label={`Remove line ${line.itemName}`}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
-                                  </>
-                                )}
-                                {isFirstOfReceipt && (
-                                  <>
-                                    <span
-                                      aria-hidden
-                                      className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-600"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => handleEdit(grn)}
-                                      className="rounded p-2 text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/30"
-                                      title="Edit all lines on this receipt"
-                                      aria-label="Edit all lines on this receipt"
-                                    >
-                                      <FileEdit className="h-4 w-4" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setConfirmDeleteReceipt(grn)}
-                                      className="rounded p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
-                                      title="Delete entire receipt"
-                                      aria-label="Delete entire receipt"
-                                    >
-                                      <FileX className="h-4 w-4" />
-                                    </button>
-                                  </>
-                                )}
-                              </div>
+                          )}
+                          <td className={tableBodyCellNumDebts}>
+                            {formatQty(line.qty)}
+                          </td>
+                          {showBuyPriceCol && (
+                            <td className={tableBodyCellNumDebts}>
+                              {line.receivedUnitCost != null
+                                ? formatAmount(line.receivedUnitCost)
+                                : "—"}
                             </td>
-                          </tr>
-                        );
-                      })
+                          )}
+                          <td className={`${tableBodyCellNumDebts} font-bold text-slate-700 dark:text-slate-300`}>
+                            {formatAmount(lineTotal)}
+                          </td>
+                          <td className={`${tableBodyCell} whitespace-nowrap align-middle`}>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleEditLine(grn, line)}
+                                className="rounded p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-200"
+                                title="Edit this line"
+                                aria-label={`Edit line ${line.itemName}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteLine({ grn, line })}
+                                className="rounded p-2 text-slate-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-slate-600 dark:hover:text-red-300"
+                                title="Remove this line from receipt"
+                                aria-label={`Remove line ${line.itemName}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -1762,49 +2002,45 @@ export function GoodsReceiptPage({
       )}
 
       <ConfirmDialog
-        open={Boolean(confirmDeleteReceipt)}
+        open={confirmMultiDelete}
         onClose={() => {
-          setConfirmDeleteReceipt(null);
-          setPermanentDeleteLoading(false);
-        }}
-        onConfirm={() => {
-          if (confirmDeleteReceipt) {
-            handlePermanentDelete(confirmDeleteReceipt);
+          if (!multiDeleteLoading) {
+            setConfirmMultiDelete(false);
           }
         }}
-        title="Delete receipt?"
+        onConfirm={handleConfirmMultiDelete}
+        title="Delete selected items?"
         message={
-          confirmDeleteReceipt ? (
-            <>
-              This removes the receipt from <strong>{confirmDeleteReceipt.supplierName}</strong>,{" "}
-              deletes its lines, and reverses the stock that was received. This cannot be undone. The
-              operation fails if you have already sold or moved more stock than would remain after
-              the reversal.
-            </>
-          ) : null
+          <>
+            Delete{" "}
+            <strong>
+              {selectedRowKeys.size} selected stock item
+              {selectedRowKeys.size === 1 ? "" : "s"}
+            </strong>
+            ? Stock on hand will be reduced. This cannot be undone.
+          </>
         }
-        confirmLabel="Delete receipt"
+        confirmLabel={multiDeleteLoading ? "Deleting..." : "Delete"}
         variant="danger"
-        loading={permanentDeleteLoading}
+        loading={multiDeleteLoading}
       />
 
       <ConfirmDialog
         open={Boolean(confirmDeleteLine)}
         onClose={() => setConfirmDeleteLine(null)}
         onConfirm={handleConfirmDeleteLine}
-        title="Remove this line from the receipt?"
+        title="Remove receipt item?"
         message={
           confirmDeleteLine ? (
             <>
-              <strong>{confirmDeleteLine.line.itemName}</strong> (qty{" "}
-              {formatQty(confirmDeleteLine.line.qty)}) will be removed and stock on hand will be
-              adjusted to match.
+              Remove <strong>{confirmDeleteLine.line.itemName}</strong> (qty{" "}
+              {formatQty(confirmDeleteLine.line.qty)})? Stock on hand will be adjusted.
             </>
           ) : null
         }
-        confirmLabel="Remove line"
+        confirmLabel="Delete"
         variant="danger"
-        loading={updateMutation.isPending}
+        loading={updateMutation.isPending || permanentDeleteLoading}
       />
 
       <SlideOver
@@ -1888,7 +2124,7 @@ export function GoodsReceiptPage({
                     {formCustom.getFieldLabel("receivedAt", "Received at")}
                     {formCustom.isFieldRequired("receivedAt", true) && " *"}
                   </label>
-                  {!editingGrn && (
+                  {!editingGrn && !isReceivedAtToday && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1980,9 +2216,9 @@ export function GoodsReceiptPage({
                     </label>
                     <span
                       className="inline-flex items-center gap-1.5 text-[13px] text-slate-600 dark:text-slate-300"
-                      aria-label={`Total cost: ${formatCurrency(linesTotalCost)}`}
+                      aria-label={`Total: ${formatCurrency(linesTotalCost)}`}
                     >
-                      <span>Total cost:</span>
+                      <span>Total:</span>
                       <span className="font-semibold tabular-nums text-slate-900 dark:text-white">
                         {formatCurrency(linesTotalCost)}
                       </span>
@@ -2008,6 +2244,9 @@ export function GoodsReceiptPage({
                         .filter((id): id is string => Boolean(id))
                     );
                     const selectableItems = items.filter((it) => {
+                      if (!it.active) {
+                        return false;
+                      }
                       if (it.buyingPrice == null) {
                         return false;
                       }
@@ -2038,6 +2277,7 @@ export function GoodsReceiptPage({
                             inputId={`grn-item-${idx}`}
                             items={selectableItems}
                             value={line.itemId}
+                            unknownValueDisplay={line.itemName}
                             onChange={(id) =>
                               handleUpdateLine(idx, "itemId", id)
                             }
@@ -2048,32 +2288,60 @@ export function GoodsReceiptPage({
                           />
                         </div>
                         <div className="w-full sm:w-24">
-                          <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                            Qty *
-                          </label>
+                          <div className="mb-0.5 flex items-center justify-between">
+                            <label
+                              htmlFor={`grn-qty-${idx}`}
+                              className="whitespace-nowrap block text-xs font-medium text-slate-600 dark:text-slate-400"
+                            >
+                              Qty*
+                            </label>
+                            {showLimit && (
+                              <span
+                                className="whitespace-nowrap text-[10px] text-slate-400 dark:text-slate-500"
+                                title={`Configured maximum quantity is ${maxQty.toLocaleString("en-US")}`}
+                              >
+                                max {maxQty.toLocaleString("en-US")}
+                              </span>
+                            )}
+                          </div>
                           <input
-                            type="number"
-                            min="0.001"
-                            step="0.001"
+                            id={`grn-qty-${idx}`}
+                            type="text"
+                            inputMode={digitsOnly ? "numeric" : "decimal"}
+                            max={maxQty}
                             required
                             value={line.qty}
+                            onKeyDown={(e) => {
+                              if (
+                                digitsOnly &&
+                                ["e", "E", "+", "-", "."].includes(e.key)
+                              ) {
+                                e.preventDefault();
+                              }
+                            }}
                             onChange={(e) =>
                               handleUpdateLine(idx, "qty", e.target.value)
                             }
                             placeholder="0"
-                            className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm tabular-nums dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                            className={`w-full rounded border px-2 py-1.5 text-sm tabular-nums focus:outline-none ${
+                              line.qty &&
+                              (parseFloat(line.qty.replace(/,/g, "")) > maxQty ||
+                                (digitsOnly && !/^\d+$/.test(line.qty.replace(/,/g, ""))))
+                                ? "border-red-500 bg-red-50 text-red-900 focus:border-red-500 focus:ring-1 focus:ring-red-500 dark:border-red-500 dark:bg-red-950/40 dark:text-red-200"
+                                : "border-slate-300 bg-white text-slate-900 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                            }`}
                           />
                         </div>
                         <div className="w-full sm:w-24">
                           <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                            Unit cost
+                            Units
                           </label>
                           <input
                             type="text"
                             readOnly
                             value={
                               line.receivedUnitCost
-                                ? formatCurrency(
+                                ? formatAmount(
                                     parseFloat(line.receivedUnitCost)
                                   )
                                 : "—"
@@ -2085,22 +2353,22 @@ export function GoodsReceiptPage({
                         </div>
                         <div className="w-full sm:w-28">
                           <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                            Total cost
+                            Total
                           </label>
                           <input
                             type="text"
                             readOnly
                             value={
                               line.qty && line.receivedUnitCost
-                                ? formatCurrency(
-                                    parseFloat(line.qty) *
+                                ? formatAmount(
+                                    parseFloat(line.qty.replace(/,/g, "")) *
                                       parseFloat(line.receivedUnitCost)
                                   )
                                 : "—"
                             }
                             className="w-full rounded border border-slate-200 bg-slate-100 px-2 py-1.5 text-sm tabular-nums text-slate-600 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-400"
                             tabIndex={-1}
-                            aria-label="Total cost (auto-calculated)"
+                            aria-label="Total (auto-calculated)"
                           />
                         </div>
                         {!editingSingleLineId ? (
@@ -2132,8 +2400,8 @@ export function GoodsReceiptPage({
                 : editingSingleLineId
                   ? "Save line"
                   : editingGrn
-                    ? "Update stock"
-                    : "Add stock"}
+                    ? "Save"
+                    : "+ Save"}
             </button>
             <button
               type="button"

@@ -216,31 +216,30 @@ export function ServerConfigModal({ open, onClose, onSaved }: ServerConfigModalP
 
         {/* Modal Actions */}
         <div className="flex items-center justify-between pt-2">
-          <button
-            type="button"
-            onClick={handleReset}
-            className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            <span>Reset to default</span>
-          </button>
-
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={onClose}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
               onClick={handleSave}
-              className="rounded-lg bg-primary-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-primary-500 transition"
+              className="rounded-lg bg-primary-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-primary-500 transition shrink-0"
             >
               {isSaved ? "Saved!" : "Save & Apply"}
             </button>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>Reset to default</span>
+            </button>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 shrink-0"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </Modal>

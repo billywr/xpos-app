@@ -1,5 +1,4 @@
 import { useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
@@ -9,6 +8,7 @@ import { CategoriesListPage } from "@/features/admin/CategoriesListPage";
 import { ItemsListPage } from "@/features/admin/ItemsListPage";
 import { FolderTree, Package } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { usePersistedTab } from "@/hooks/usePersistedTab";
 
 const TAB_LIST_ID = "catalog";
 
@@ -19,19 +19,14 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-const VALID_TAB_IDS: TabId[] = TABS.map((t) => t.id);
-
-function catalogTabFromQuery(tabParam: string | null): TabId {
-  if (tabParam && VALID_TAB_IDS.includes(tabParam as TabId)) {
-    return tabParam as TabId;
-  }
-  return "items";
-}
+const VALID_TAB_IDS: readonly TabId[] = TABS.map((t) => t.id);
 
 export function CatalogPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get("tab");
-  const activeTab = useMemo(() => catalogTabFromQuery(tabParam), [tabParam]);
+  const [activeTab, handleTabChange] = usePersistedTab<TabId>({
+    tabListId: TAB_LIST_ID,
+    validTabs: VALID_TAB_IDS,
+    defaultTab: "items",
+  });
 
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
@@ -42,14 +37,6 @@ export function CatalogPage() {
     orgSelectOptions,
   } = useAdminContextSelection();
   const hasOrgs = orgs.length > 0;
-
-  const handleTabChange = (id: TabId) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("tab", id);
-      return next;
-    });
-  };
 
   // When switching to Items tab, invalidate categories so dropdown shows latest (e.g. newly created on Categories tab)
   useEffect(() => {

@@ -69,6 +69,7 @@ import { downloadStdStockCountPdf } from "@/utils/stdStockCountPdf";
 import {
   Button,
   Modal,
+  ModalFooter,
   Pagination,
   SortableTableHead,
   TableRowNumberHead,
@@ -916,14 +917,32 @@ export function StandardStockCountSheetPage({
     setLocalClosings((prev) => {
       let next: Record<string, string> | null = null;
       for (const row of rows) {
-        if (prev[row.itemId] !== undefined) continue;
         const priorAdded = priorAddedByItem.get(row.itemId);
         const addedIncreased =
           priorAdded !== undefined && row.addedStock > priorAdded;
         const alreadyRecorded = alreadyRecordedByItem[row.itemId] ?? 0;
+        const total = totalStockFromRow(row);
+        const maxPhysical = Math.max(0, total - alreadyRecorded);
+
+        const existingLocal = prev[row.itemId];
+        if (existingLocal !== undefined) {
+          const num = Number(existingLocal);
+          if (!Number.isNaN(num) && num > maxPhysical) {
+            if (next === null) next = { ...prev };
+            next[row.itemId] = String(maxPhysical);
+          }
+          continue;
+        }
+
         if (shouldAutoSyncClosing(row, { addedIncreased, priorAdded, alreadyRecorded })) {
           if (next === null) next = { ...prev };
-          next[row.itemId] = String(totalStockFromRow(row));
+          const targetClosing =
+            row.closingStock != null && row.closingStock > maxPhysical
+              ? maxPhysical
+              : alreadyRecorded > 0
+              ? maxPhysical
+              : total;
+          next[row.itemId] = String(targetClosing);
         }
       }
       if (next !== null) {
@@ -1737,7 +1756,7 @@ export function StandardStockCountSheetPage({
                   />
                   <SortableTableHead
                     columnKey="price"
-                    label="Price (KSH)"
+                    label="Price"
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
@@ -1746,7 +1765,7 @@ export function StandardStockCountSheetPage({
                   />
                   <SortableTableHead
                     columnKey="amount"
-                    label="Amt (KSH)"
+                    label="Amt"
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}
@@ -2132,28 +2151,28 @@ export function StandardStockCountSheetPage({
                 not be changed.
               </p>
             )}
-            <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-600">
-              <button
-                type="button"
-                onClick={() => setReconcileModalOpen(false)}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-              >
-                Cancel
-              </button>
+            <ModalFooter className="shrink-0 border-slate-200 pt-4 dark:border-slate-600">
               <button
                 type="button"
                 onClick={handleReconcileProceed}
                 disabled={reconcileMutation.isPending}
-                className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600"
+                className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-600 shrink-0"
               >
                 {reconcileMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <GitCompare className="h-4 w-4" />
                 )}
-                Reconcile inventory
+                Reconcile
               </button>
-            </div>
+              <button
+                type="button"
+                onClick={() => setReconcileModalOpen(false)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 shrink-0"
+              >
+                Cancel
+              </button>
+            </ModalFooter>
           </div>
         )}
       </Modal>
@@ -2219,7 +2238,7 @@ export function StandardStockCountSheetPage({
                         To record
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-300">
-                        Amt (KSH)
+                        Amt
                       </th>
                     </tr>
                   </thead>

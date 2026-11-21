@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useNavVisibilityContext } from "@/contexts/NavVisibilityContext";
 import { useAppSelector } from "@/hooks/useAppSelector";
+import { usePersistedTab } from "@/hooks/usePersistedTab";
 import { selectToken } from "@/store/selectors/authSelectors";
 import { selectOrgId } from "@/store/selectors/orgContextSelectors";
 import { fetchAssistantSettings, fetchAssistantUsage } from "@/api/assistant";
@@ -26,6 +26,15 @@ import {
   isBarcodeVisible,
 } from "@/config/barcodeVisibility";
 import {
+  STOCK_RECEIPT_MAX_QTY_KEY,
+  STOCK_RECEIPT_DIGITS_ONLY_KEY,
+  STOCK_RECEIPT_SHOW_LIMIT_KEY,
+  STOCK_RECEIPT_QTY_PRESETS,
+  getStockReceiptMaxQty,
+  isStockReceiptDigitsOnly,
+  isStockReceiptShowLimit,
+} from "@/config/goodsReceiptSettings";
+import {
   STD_STOCK_COUNT_SHOW_PDF,
   STD_STOCK_COUNT_SHOW_SAVE,
   STD_STOCK_COUNT_SHOW_RECONCILE,
@@ -36,6 +45,10 @@ import {
   ASSISTANT_SHOW_WIDGET,
   isAssistantWidgetVisible,
 } from "@/config/assistantVisibility";
+import {
+  isToastTimeVisible,
+  setToastTimeVisible,
+} from "@/config/toastSettings";
 import {
   Settings,
   Upload,
@@ -78,14 +91,9 @@ export const SETTINGS_TABS: AdminTabItem[] = [
   { id: "appearance", label: "Appearance", icon: Palette, enabled: true },
 ];
 
-const VALID_TAB_IDS = new Set<string>(SETTINGS_TABS.map((t) => t.id));
-
-function settingsTabFromQuery(tabParam: string | null): SettingsTabId {
-  if (tabParam && VALID_TAB_IDS.has(tabParam)) {
-    return tabParam as SettingsTabId;
-  }
-  return "top-bar";
-}
+const VALID_SETTINGS_TAB_IDS: readonly SettingsTabId[] = SETTINGS_TABS.map(
+  (t) => t.id as SettingsTabId
+);
 
 const DARK_THEMES = [
   { id: "petrol", name: "Petrol", colors: ["#011f2a", "#022633", "#063142", "#06b6d4"] },
@@ -332,10 +340,14 @@ function MenuOrderVisibilityRow({
   label,
   visible,
   onToggle,
+  activeLabel = "Visible",
+  inactiveLabel = "Hidden",
 }: {
   label: string;
   visible: boolean;
   onToggle: (visible: boolean) => void;
+  activeLabel?: string;
+  inactiveLabel?: string;
 }) {
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -343,13 +355,14 @@ function MenuOrderVisibilityRow({
       <label className="relative flex shrink-0 cursor-pointer items-center gap-2">
         <input
           type="checkbox"
+          aria-label={label}
           checked={visible}
           onChange={(e) => onToggle(e.target.checked)}
           className="peer sr-only"
         />
         <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:bg-slate-600 dark:after:border-slate-500 dark:peer-focus:ring-primary-800" />
         <span className="text-sm text-slate-600 dark:text-slate-400">
-          {visible ? "Visible" : "Hidden"}
+          {visible ? activeLabel : inactiveLabel}
         </span>
       </label>
     </div>
@@ -459,18 +472,12 @@ function AssistantUsageSection() {
 }
 
 export function AdminSettingsPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get("tab");
-  const activeTab = useMemo(() => settingsTabFromQuery(tabParam), [tabParam]);
+  const [activeTab, handleTabChange] = usePersistedTab<SettingsTabId>({
+    tabListId: "settings-tabs",
+    validTabs: VALID_SETTINGS_TAB_IDS,
+    defaultTab: "top-bar",
+  });
   const [searchQuery, setSearchQuery] = useState("");
-
-  const handleTabChange = (id: SettingsTabId) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("tab", id);
-      return next;
-    });
-  };
 
   const handleTabSelect = (tabId: SettingsTabId) => {
     setSearchQuery("");
@@ -813,6 +820,135 @@ export function AdminSettingsPage() {
     </section>
   );
 
+  const renderStockReceiving = () => {
+    const maxQty = getStockReceiptMaxQty(adminLabels);
+    const digitsOnly = isStockReceiptDigitsOnly(adminLabels);
+    const showLimit = isStockReceiptShowLimit(adminLabels);
+    const configuredRaw = adminLabels[STOCK_RECEIPT_MAX_QTY_KEY];
+
+    return (
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+          Stock receiving (Add stock)
+        </h2>
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+          Limit quantities when adding stock to prevent fat-finger entry errors. By default, quantity is limited to 2 digits (max 99). You can configure a higher maximum default quantity (e.g. 100, 200, 500) for your organization.
+        </p>
+        <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="space-y-5">
+            <div>
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="stock-max-qty"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Maximum quantity per line
+                </label>
+                <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                  Active limit: {maxQty}
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Quantity in &ldquo;Add stock&rdquo; cannot exceed this number. Default is 99 (2 digits).
+              </p>
+
+              {/* Quick Presets */}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {STOCK_RECEIPT_QTY_PRESETS.map((preset) => {
+                  const isSelected =
+                    configuredRaw === String(preset.value) ||
+                    (!configuredRaw && preset.value === 99);
+                  return (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      onClick={() =>
+                        setAdminLabel(
+                          STOCK_RECEIPT_MAX_QTY_KEY,
+                          preset.value === 99 ? "" : String(preset.value)
+                        )
+                      }
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                        isSelected
+                          ? "border-primary-500 bg-primary-50 text-primary-700 ring-1 ring-primary-500 dark:border-primary-400 dark:bg-primary-950/50 dark:text-primary-300"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom input */}
+              <div className="mt-3.5 flex items-center gap-3">
+                <div className="relative w-40">
+                  <input
+                    id="stock-max-qty"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={configuredRaw ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      setAdminLabel(STOCK_RECEIPT_MAX_QTY_KEY, val);
+                    }}
+                    placeholder="99 (default)"
+                    aria-label="Maximum stock receiving quantity"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm tabular-nums text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  />
+                </div>
+                {configuredRaw && (
+                  <button
+                    type="button"
+                    onClick={() => setAdminLabel(STOCK_RECEIPT_MAX_QTY_KEY, "")}
+                    className="text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    Reset to default (99)
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-4 dark:border-slate-700">
+              <MenuOrderVisibilityRow
+                label="Show max limit badge in Add stock"
+                visible={showLimit}
+                onToggle={(v) =>
+                  setAdminLabel(
+                    STOCK_RECEIPT_SHOW_LIMIT_KEY,
+                    v ? "true" : ""
+                  )
+                }
+              />
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                Displays the &ldquo;max {maxQty}&rdquo; badge above the Qty field in the stock receiving form.
+              </p>
+            </div>
+
+            <div className="border-t border-slate-100 pt-4 dark:border-slate-700">
+              <MenuOrderVisibilityRow
+                label="Limit to whole digits only"
+                visible={digitsOnly}
+                activeLabel="Enabled"
+                inactiveLabel="Disabled"
+                onToggle={(v) =>
+                  setAdminLabel(
+                    STOCK_RECEIPT_DIGITS_ONLY_KEY,
+                    v ? "" : "false"
+                  )
+                }
+              />
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                Restricts quantity to integers (0-9) and prevents typing decimal points, negative signs, or non-numeric characters.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  };
+
   const renderForms = () => <FormCustomizationSettingsSection />;
 
   const renderMpesa = () => <MpesaSettingsSection />;
@@ -876,6 +1012,44 @@ export function AdminSettingsPage() {
       </div>
     </section>
   );
+
+  const renderToastSettings = () => {
+    const showDuration = isToastTimeVisible(adminLabels);
+    return (
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+          Toast notifications
+        </h2>
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+          Control notification popup display options and execution timing indicators.
+        </p>
+        <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <label
+                htmlFor="toggle-toast-time"
+                className="block text-sm font-medium text-slate-900 dark:text-white cursor-pointer"
+              >
+                Show action time in toasts
+              </label>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Display execution time badges (e.g. &bull; 40ms or &bull; 1.2s) and timing details when actions complete.
+              </p>
+            </div>
+            <input
+              id="toggle-toast-time"
+              type="checkbox"
+              checked={showDuration}
+              onChange={(e) =>
+                setToastTimeVisible(e.target.checked, (k, v) => setAdminLabel(k, v))
+              }
+              className="h-5 w-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:checked:bg-primary-500 cursor-pointer"
+            />
+          </div>
+        </div>
+      </section>
+    );
+  };
 
   const sections: SettingsSection[] = useMemo(
     () => [
@@ -1008,6 +1182,29 @@ export function AdminSettingsPage() {
         render: renderBarcode,
       },
       {
+        id: "stock-receiving",
+        tabId: "pos",
+        tabLabel: "POS & Features",
+        title: "Stock receiving (Add stock)",
+        description:
+          "Limit quantities when receiving stock to prevent fat-finger entry errors. Configure maximum default quantity (e.g. 100, 200) and digit constraints.",
+        keywords: [
+          "stock",
+          "add stock",
+          "qty",
+          "quantity",
+          "maximum",
+          "limit",
+          "goods receipt",
+          "inventory",
+          "receive",
+          "default qty",
+          "max qty",
+          "digits",
+        ],
+        render: renderStockReceiving,
+      },
+      {
         id: "form-customization",
         tabId: "forms",
         tabLabel: "Forms & Sheets",
@@ -1132,6 +1329,31 @@ export function AdminSettingsPage() {
           ...DARK_THEMES.map((t) => t.id),
         ],
         render: renderAppearance,
+      },
+      {
+        id: "toast-settings",
+        tabId: "appearance",
+        tabLabel: "Appearance",
+        title: "Toast notifications",
+        description:
+          "Configure toast notifications. Show or hide action completion time (ms / seconds) badge and details.",
+        keywords: [
+          "toast",
+          "toasts",
+          "notification",
+          "notifications",
+          "time",
+          "timer",
+          "duration",
+          "timing",
+          "ms",
+          "seconds",
+          "speed",
+          "latency",
+          "alert",
+          "alerts",
+        ],
+        render: renderToastSettings,
       },
     ],
     [

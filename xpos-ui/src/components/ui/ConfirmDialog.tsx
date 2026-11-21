@@ -1,10 +1,19 @@
-import type { ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { AlertTriangle, Info, Loader2, Trash2 } from "lucide-react";
 import { Button } from "./Button";
 import { ProgressBar } from "./ProgressBar";
 import { cn } from "@/utils/cn";
+import { recordActionDurationMs } from "@/utils/actionDuration";
 
-export type ConfirmDialogMaxWidth = "max-w-md" | "max-w-lg" | "max-w-xl" | "max-w-4xl";
+export type ConfirmDialogMaxWidth =
+  | "max-w-md"
+  | "max-w-lg"
+  | "max-w-xl"
+  | "max-w-2xl"
+  | "max-w-3xl"
+  | "max-w-4xl"
+  | "max-w-5xl"
+  | "max-w-2xl sm:max-w-4xl";
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -17,7 +26,7 @@ export interface ConfirmDialogProps {
   variant?: "danger" | "primary" | "warning" | "default";
   icon?: ReactNode;
   loading?: boolean;
-  /** Panel max width (default max-w-md). Use max-w-xl for longer copy. */
+  /** Panel max width (default max-w-lg). */
   maxWidth?: ConfirmDialogMaxWidth;
   /** Optional second action (e.g. permanent delete next to soft delete). Renders after primary confirm. */
   trailingDangerAction?: {
@@ -31,8 +40,8 @@ export interface ConfirmDialogProps {
  * Reusable dynamic confirmation dialog for destructive or critical actions (delete, logout, deactivate, etc.).
  * Features:
  * - Contextual icon badge (danger, warning, primary)
- * - Clear title and concise description (limited to max 2 lines)
- * - Action/OK button and Cancel button side by side at the end of the footer
+ * - Clear title and full readable description (unclipped)
+ * - Action/OK button on the far left, Cancel button on the far right
  */
 export function ConfirmDialog({
   open,
@@ -45,12 +54,47 @@ export function ConfirmDialog({
   variant = "danger",
   icon,
   loading = false,
-  maxWidth = "max-w-md",
+  maxWidth = "max-w-lg",
   trailingDangerAction,
 }: ConfirmDialogProps) {
   if (!open) return null;
 
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
   const anyLoading = loading || Boolean(trailingDangerAction?.loading);
+  const loadingStartRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (anyLoading) {
+      if (loadingStartRef.current === null) {
+        loadingStartRef.current = performance.now();
+      }
+    } else if (loadingStartRef.current !== null) {
+      const durationMs = performance.now() - loadingStartRef.current;
+      recordActionDurationMs(durationMs);
+      loadingStartRef.current = null;
+    }
+  }, [anyLoading]);
+
+  useEffect(() => {
+    if (!open || !anyLoading) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const startTime = Date.now();
+    setElapsedSeconds(0);
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [open, anyLoading]);
+
+  const formatElapsed = (sec: number) => {
+    if (sec < 60) return `${sec}s`;
+    const mins = Math.floor(sec / 60);
+    const remaining = sec % 60;
+    return `${mins}m ${remaining}s`;
+  };
 
   const confirmVariant =
     variant === "danger" ? "danger" : variant === "primary" ? "primary" : "neutral";
@@ -121,12 +165,12 @@ export function ConfirmDialog({
             >
               {title}
             </h3>
-            <p
+            <div
               id="confirm-dialog-desc"
-              className="mt-1 text-sm text-slate-600 line-clamp-2 dark:text-slate-300"
+              className="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-slate-300"
             >
               {message}
-            </p>
+            </div>
           </div>
         </div>
 
@@ -136,48 +180,62 @@ export function ConfirmDialog({
               indeterminate
               size="sm"
               label="Processing request…"
-              sublabel="Please wait"
+              sublabel={
+                elapsedSeconds > 0
+                  ? `Please wait (${formatElapsed(elapsedSeconds)})`
+                  : "Please wait"
+              }
             />
           </div>
         )}
 
-        {/* Footer with action and cancel buttons side by side at end */}
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-2.5 border-t border-slate-100 pt-4 sm:gap-3 dark:border-slate-700/60">
-          <Button
-            variant={confirmVariant}
-            size="md"
-            onClick={onConfirm}
-            disabled={anyLoading}
-          >
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                <span>Processing…</span>
-              </span>
-            ) : (
-              confirmLabel
-            )}
-          </Button>
-          <Button variant="secondary" size="md" onClick={onClose} disabled={anyLoading}>
-            {cancelLabel}
-          </Button>
-          {trailingDangerAction ? (
+        {/* Footer with action button(s) far left and cancel button far right */}
+        <div className="mt-6 flex flex-row flex-nowrap items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-700/60">
+          <div className="flex items-center gap-3">
             <Button
-              variant="danger"
+              variant={confirmVariant}
               size="md"
-              onClick={trailingDangerAction.onClick}
+              onClick={onConfirm}
               disabled={anyLoading}
+              className="shrink-0"
             >
-              {trailingDangerAction.loading ? (
+              {loading ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin shrink-0" />
                   <span>Processing…</span>
                 </span>
               ) : (
-                trailingDangerAction.label
+                confirmLabel
               )}
             </Button>
-          ) : null}
+            {trailingDangerAction ? (
+              <Button
+                variant="danger"
+                size="md"
+                onClick={trailingDangerAction.onClick}
+                disabled={anyLoading}
+                className="shrink-0"
+              >
+                {trailingDangerAction.loading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>Processing…</span>
+                  </span>
+                ) : (
+                  trailingDangerAction.label
+                )}
+              </Button>
+            ) : null}
+          </div>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={onClose}
+            disabled={anyLoading}
+            className="shrink-0"
+          >
+            {cancelLabel}
+          </Button>
         </div>
       </div>
     </div>

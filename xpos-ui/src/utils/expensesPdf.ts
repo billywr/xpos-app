@@ -60,7 +60,7 @@ export function generateExpensesPdf(
     ]);
 
     autoTable(doc, {
-      head: [["Recorded", "Category", "Description", "Incurred by", "Receipt ref", "Amount (KSH)"]],
+      head: [["Recorded", "Category", "Description", "Incurred by", "Receipt ref", "Amount"]],
       body: tableData,
       startY: y,
       margin: { left: margin, right: margin },
@@ -92,7 +92,7 @@ export function generateExpensesPdf(
     y += 5;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Total (KSH): ${formatAmount(computedTotal)}`, margin, y);
+    doc.text(`Total: ${formatAmount(computedTotal)}`, margin, y);
     y += 6;
 
     if (byCategory.size > 0) {
@@ -112,7 +112,7 @@ export function generateExpensesPdf(
 
       // Category/Total columns are both left-aligned (per-cell styles.halign
       // is the highest-precedence style — columnStyles.halign alone gets
-      // ignored on the header row) so "Total (KSH)" sits directly above the
+      // ignored on the header row) so "Total" sits directly above the
       // amounts instead of drifting apart.
       //
       // How many side-by-side sub-tables we render is picked based on how many
@@ -157,7 +157,7 @@ export function generateExpensesPdf(
       const catHead = [
         [
           { content: "Category", styles: { halign: "left" as const } },
-          { content: "Total (KSH)", styles: { halign: "left" as const } },
+          { content: "Total", styles: { halign: "left" as const } },
         ],
       ];
       const catTableStyles = {
@@ -300,7 +300,7 @@ export function generateGroupedExpensesPdf(
     ]);
 
     autoTable(doc, {
-      head: [["#", groupByLabel, "Expenses", "Amount (KSH)"]],
+      head: [["#", groupByLabel, "Expenses", "Amount"]],
       body: tableData,
       startY: y,
       margin: { left: margin, right: margin },
@@ -336,7 +336,7 @@ export function generateGroupedExpensesPdf(
     doc.text(`${totalCount}`, col1, y + 5);
     doc.setFont("helvetica", "normal");
 
-    doc.text("Total (KSH)", col2, y);
+    doc.text("Total", col2, y);
     doc.setFont("helvetica", "bold");
     doc.text(formatAmount(totalAmt), col2, y + 5);
     doc.setFont("helvetica", "normal");

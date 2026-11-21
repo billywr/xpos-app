@@ -4,20 +4,24 @@ import {
   useContext,
   useRef,
   useState,
+  useEffect,
   type ReactNode,
 } from "react";
 import { Toast, type ToastItem, type ToastVariant } from "@/components/ui/Toast";
 import { generateUuid } from "@/utils/uuid";
+import { getLastActionDuration, clearLastActionDuration } from "@/utils/actionDuration";
+import { isToastTimeVisible } from "@/config/toastSettings";
 
 const DEFAULT_SUCCESS_DURATION = 5_000;
 const DEFAULT_ERROR_DURATION = 7_000;
 const EXIT_MS = 300;
 
-interface ToastOptions {
+export interface ToastOptions {
   title?: string;
   detail?: string;
   duration?: number;
   action?: { label: string; href: string };
+  timeTaken?: string;
 }
 
 interface ToastContextValue {
@@ -34,7 +38,25 @@ interface ToastEntry {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [entries, setEntries] = useState<ToastEntry[]>([]);
+  const [, setShowTime] = useState<boolean>(() => isToastTimeVisible());
   const exitTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    const handleVisibilityChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ visible: boolean }>;
+      if (customEvent.detail && typeof customEvent.detail.visible === "boolean") {
+        setShowTime(customEvent.detail.visible);
+      } else {
+        setShowTime(isToastTimeVisible());
+      }
+    };
+    window.addEventListener("toast-time-visibility-changed", handleVisibilityChange);
+    window.addEventListener("storage", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("toast-time-visibility-changed", handleVisibilityChange);
+      window.removeEventListener("storage", handleVisibilityChange);
+    };
+  }, []);
 
   const remove = useCallback((id: string) => {
     setEntries((prev) => {
@@ -63,14 +85,47 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         options?.duration ??
         (variant === "success" ? DEFAULT_SUCCESS_DURATION : DEFAULT_ERROR_DURATION);
 
+      let timeTaken = options?.timeTaken;
+      if (variant === "success") {
+        if (!timeTaken) {
+          const lastDuration = getLastActionDuration();
+          if (lastDuration) {
+            timeTaken = lastDuration;
+          }
+        }
+      } else {
+        // Clear any recorded action duration so failure doesn't leak duration into later toasts
+        clearLastActionDuration();
+      }
+
+      const isTimeVisible = isToastTimeVisible();
+      if (!isTimeVisible) {
+        timeTaken = undefined;
+      }
+
+      let finalMessage = message;
+      if (!isTimeVisible) {
+        finalMessage = finalMessage.replace(/\s+in\s+\d+(\.\d+)?(s|ms)\b/gi, "");
+      } else if (variant === "success" && timeTaken) {
+        const alreadyHasDuration = /\bin\s+\d+(\.\d+)?(s|ms)\b/i.test(finalMessage);
+        if (!alreadyHasDuration) {
+          if (finalMessage.includes(".")) {
+            finalMessage = finalMessage.replace(/^([^.]+)/, `$1 in ${timeTaken}`);
+          } else {
+            finalMessage = `${finalMessage} in ${timeTaken}`;
+          }
+        }
+      }
+
       const toast: ToastItem = {
         id,
         variant,
         title,
-        message,
+        message: finalMessage,
         detail: options?.detail,
         action: options?.action,
         duration,
+        timeTaken,
       };
 
       // Close previous toast before displaying current (no stacking)

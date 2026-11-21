@@ -88,9 +88,9 @@ export function generateDebtsPdf(
           "Customer",
           "Phone",
           "Issued by",
-          "Original (KSH)",
-          "Repaid (KSH)",
-          "Balance (KSH)",
+          "Original",
+          "Repaid",
+          "Balance",
           "Status",
           "Due",
           "Recorded",
@@ -136,19 +136,19 @@ export function generateDebtsPdf(
     const col1 = margin;
     const col2 = margin + 70;
     const col3 = margin + 140;
-    doc.text("Total original (KSH)", col1, y);
+    doc.text("Total original", col1, y);
     doc.setFont("helvetica", "bold");
     doc.text(formatAmount(totalOriginal), col1, y + 6);
     doc.setFont("helvetica", "normal");
 
-    doc.text("Total repaid (KSH)", col2, y);
+    doc.text("Total repaid", col2, y);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(5, 150, 105);
     doc.text(formatAmount(totalRepaid), col2, y + 6);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
 
-    doc.text("Total outstanding (KSH)", col3, y);
+    doc.text("Total outstanding", col3, y);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(220, 38, 38);
     doc.text(formatAmount(totalOutstanding), col3, y + 6);
@@ -212,7 +212,7 @@ export function generateDebtsPdf(
       const custHead = [
         [
           { content: "Customer", styles: { halign: "left" as const } },
-          { content: "Outstanding (KSH)", styles: { halign: "left" as const } },
+          { content: "Outstanding", styles: { halign: "left" as const } },
         ],
       ];
       const custTableStyles = {
@@ -372,9 +372,9 @@ export function generateGroupedDebtsPdf(
           "#",
           groupByLabel,
           "Debts",
-          "Original (KSH)",
-          "Repaid (KSH)",
-          "Balance (KSH)",
+          "Original",
+          "Repaid",
+          "Balance",
         ],
       ],
       body: tableData,
@@ -427,19 +427,19 @@ export function generateGroupedDebtsPdf(
     doc.text(`${totalCount}`, col1, y + 6);
     doc.setFont("helvetica", "normal");
 
-    doc.text("Total original (KSH)", col2, y);
+    doc.text("Total original", col2, y);
     doc.setFont("helvetica", "bold");
     doc.text(formatAmount(totalOriginal), col2, y + 6);
     doc.setFont("helvetica", "normal");
 
-    doc.text("Total repaid (KSH)", col3, y);
+    doc.text("Total repaid", col3, y);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(5, 150, 105);
     doc.text(formatAmount(totalRepaid), col3, y + 6);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
 
-    doc.text("Total outstanding (KSH)", col4, y);
+    doc.text("Total outstanding", col4, y);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(220, 38, 38);
     doc.text(formatAmount(totalOutstanding), col4, y + 6);

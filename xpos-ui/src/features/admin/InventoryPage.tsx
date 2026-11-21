@@ -602,7 +602,7 @@ function AnalyticsPanel({
         />
         <MetricCard
           icon={Coins}
-          label="On-hand value (KSH)"
+          label="On-hand value"
           value={formatAmount(totalOnHandCost)}
           valueClass="text-primary-700 dark:text-primary-300"
           hint={

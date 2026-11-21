@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { ProgressBar } from "./ProgressBar";
 
@@ -56,6 +56,37 @@ describe("ConfirmDialog", () => {
     // Cancel button is also disabled while loading
     const cancelBtn = screen.getByRole("button", { name: "Cancel" });
     expect(cancelBtn).toBeDisabled();
+  });
+
+  it("updates elapsed time in progress bar sublabel when loading persists", () => {
+    vi.useFakeTimers();
+    render(
+      <ConfirmDialog
+        open={true}
+        title="Delete selected items?"
+        message="Are you sure you want to delete 1 selected stock item?"
+        confirmLabel="Delete item"
+        loading={true}
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Please wait")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(screen.getByText("Please wait (5s)")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(60000);
+    });
+
+    expect(screen.getByText("Please wait (1m 5s)")).toBeInTheDocument();
+
+    vi.useRealTimers();
   });
 
   it("renders with custom icon and side-by-side buttons in footer", () => {

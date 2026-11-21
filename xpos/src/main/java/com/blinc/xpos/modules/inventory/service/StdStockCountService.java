@@ -45,4 +45,11 @@ public interface StdStockCountService {
    * today (branch timezone). Idempotent; safe to run on a schedule.
    */
   StdStockCountAutoSyncResponse autoSyncCarryForward(UUID orgId, UUID branchId);
+
+  /**
+   * Recalibrate and persist closing snapshots for a business date through today (branch timezone),
+   * clamping any snapshots whose saved closing exceeds physical available stock (e.g. after stock
+   * receipt deletion or reduction).
+   */
+  int syncSnapshotsForDate(UUID orgId, UUID branchId, LocalDate businessDate);
 }

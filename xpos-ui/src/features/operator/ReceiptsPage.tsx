@@ -297,7 +297,7 @@ export function ReceiptsPage() {
                   <SortableTableHead
                       align="right"
                     columnKey="total"
-                    label="Total (KSH)"
+                    label="Total"
                     sortColumn={sortColumn}
                     sortDirection={sortDirection}
                     onSort={toggleSort}

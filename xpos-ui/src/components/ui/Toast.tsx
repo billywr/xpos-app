@@ -17,6 +17,7 @@ export interface ToastItem {
   detail?: string;
   action?: ToastAction;
   duration?: number;
+  timeTaken?: string;
 }
 
 export interface ToastProps {
@@ -74,7 +75,25 @@ export function Toast({ toast, isExiting, onDismiss }: ToastProps) {
         )}
       </div>
       <div className="min-w-0 flex-1 px-4 py-3">
-        <p className="text-sm font-semibold text-slate-900 dark:text-white">{toast.title}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-slate-900 dark:text-white">{toast.title}</p>
+          {toast.timeTaken && (
+            <span
+              className={
+                isSuccess
+                  ? "shrink-0 inline-flex items-center gap-1 rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium font-mono text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  : "shrink-0 inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium font-mono text-red-800 dark:bg-red-950/60 dark:text-red-300"
+              }
+            >
+              <span
+                className={`inline-block h-1.5 w-1.5 rounded-full ${
+                  isSuccess ? "bg-emerald-500" : "bg-red-500"
+                }`}
+              />
+              {toast.timeTaken}
+            </span>
+          )}
+        </div>
         <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">{toast.message}</p>
         {toast.detail && (
           <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">{toast.detail}</p>

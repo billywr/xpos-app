@@ -407,7 +407,7 @@ export function UtilitiesTabPanel({
                     Utility Name
                   </th>
                   <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
-                    Amount (KES)
+                    Amount
                   </th>
                   <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-700 sm:text-sm xl:px-6 xl:py-3 xl:text-xl dark:text-slate-300">
                     Deduction Timing

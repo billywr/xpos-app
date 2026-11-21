@@ -28,6 +28,30 @@ export interface ModalProps {
 }
 
 
+export interface ModalFooterProps {
+  children: ReactNode;
+  className?: string;
+}
+
+/**
+ * Standard footer container for modal/popup action buttons.
+ * Enforces system-wide UX standard:
+ * - Other/action button far left, Cancel button far right
+ * - Guaranteed shrink-0 / flex-nowrap to prevent awkward wrapping
+ */
+export function ModalFooter({ children, className }: ModalFooterProps) {
+  return (
+    <div
+      className={cn(
+        "mt-6 flex flex-row flex-nowrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700",
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 /**
  * Centered modal dialog shell. Use for info/breakdown dialogs;
  * destructive flows should use ConfirmDialog.

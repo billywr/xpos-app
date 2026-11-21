@@ -237,4 +237,77 @@ describe("AdminSettingsPage", () => {
     expect(screen.getByText("No settings sections found")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /clear search/i }).length).toBeGreaterThan(0);
   });
+
+  it("renders Stock receiving settings under POS & Features and updates max quantity presets", () => {
+    renderSettingsPage(["/admin/settings?tab=pos"]);
+
+    expect(screen.getByRole("heading", { name: "Stock receiving (Add stock)" })).toBeInTheDocument();
+    expect(screen.getByText(/limit quantities when adding stock/i)).toBeInTheDocument();
+
+    // Verify preset buttons exist
+    const preset100 = screen.getByRole("button", { name: "100" });
+    const preset200 = screen.getByRole("button", { name: "200" });
+    expect(preset100).toBeInTheDocument();
+    expect(preset200).toBeInTheDocument();
+
+    // Click 100 preset
+    fireEvent.click(preset100);
+    expect(mockContextValue.setAdminLabel).toHaveBeenCalledWith(
+      "admin.goods_receipt.max_qty",
+      "100"
+    );
+
+    // Click 200 preset
+    fireEvent.click(preset200);
+    expect(mockContextValue.setAdminLabel).toHaveBeenCalledWith(
+      "admin.goods_receipt.max_qty",
+      "200"
+    );
+
+    // Test custom max quantity input
+    const maxQtyInput = screen.getByLabelText(/maximum stock receiving quantity/i);
+    fireEvent.change(maxQtyInput, { target: { value: "150" } });
+    expect(mockContextValue.setAdminLabel).toHaveBeenCalledWith(
+      "admin.goods_receipt.max_qty",
+      "150"
+    );
+
+    // Verify Show max limit badge toggle
+    expect(screen.getByText("Show max limit badge in Add stock")).toBeInTheDocument();
+    const showLimitCheckbox = screen.getByLabelText("Show max limit badge in Add stock");
+    expect(showLimitCheckbox).not.toBeChecked();
+    fireEvent.click(showLimitCheckbox);
+    expect(mockContextValue.setAdminLabel).toHaveBeenCalledWith(
+      "admin.goods_receipt.show_limit",
+      "true"
+    );
+
+    // Verify Limit to whole digits only toggle has Enabled/Disabled text (not Hidden)
+    expect(screen.getByText("Limit to whole digits only")).toBeInTheDocument();
+    expect(screen.getByText("Enabled")).toBeInTheDocument();
+    const digitsCheckbox = screen.getByLabelText("Limit to whole digits only");
+    expect(digitsCheckbox).toBeChecked();
+    fireEvent.click(digitsCheckbox);
+    expect(mockContextValue.setAdminLabel).toHaveBeenCalledWith(
+      "admin.goods_receipt.digits_only",
+      "false"
+    );
+  });
+
+  it("renders Toast notifications settings under Appearance tab and toggles show action time in toasts", () => {
+    renderSettingsPage(["/admin/settings?tab=appearance"]);
+
+    expect(screen.getByRole("heading", { name: "Toast notifications" })).toBeInTheDocument();
+    expect(screen.getByText(/show action time in toasts/i)).toBeInTheDocument();
+
+    const checkbox = screen.getByLabelText(/show action time in toasts/i) as HTMLInputElement;
+    expect(checkbox.checked).toBe(true);
+
+    fireEvent.click(checkbox);
+    expect(mockContextValue.setAdminLabel).toHaveBeenCalledWith(
+      "ui.toast.show_time",
+      "false"
+    );
+  });
 });
+

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
+import { usePersistedTab } from "@/hooks/usePersistedTab";
 import { selectToken } from "@/store/selectors/authSelectors";
 import { fetchOrgs } from "@/api/orgs";
 import { fetchBusinesses } from "@/api/businesses";
@@ -35,10 +36,15 @@ const TABS = [
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
+const VALID_TAB_IDS: readonly TabId[] = TABS.map((t) => t.id);
 
 export function OrgSetupPage() {
   const token = useAppSelector(selectToken);
-  const [activeTab, setActiveTab] = useState<TabId>("org");
+  const [activeTab, setActiveTab] = usePersistedTab<TabId>({
+    tabListId: TAB_LIST_ID,
+    validTabs: VALID_TAB_IDS,
+    defaultTab: "org",
+  });
   const [contextOrgId, setContextOrgId] = useState<string>("");
 
   const { data: orgsData } = useQuery({

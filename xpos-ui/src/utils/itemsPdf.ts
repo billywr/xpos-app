@@ -73,7 +73,7 @@ export function generateItemsPdf(
     ]);
 
     autoTable(doc, {
-      head: [["No.", "Name", "Buying Price (KSH)", "Selling Price (KSH)"]],
+      head: [["No.", "Name", "Buying Price", "Selling Price"]],
       body: tableData,
       startY: y,
       margin: { left: margin, right: margin },

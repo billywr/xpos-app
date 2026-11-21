@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -45,7 +45,10 @@ vi.mock("@/api/customers", () => ({
   createCustomer: vi.fn().mockResolvedValue({}),
 }));
 
-function renderPage(props: Parameters<typeof DebtsAndExpensesPage>[0] = {}) {
+function renderPage(
+  props: Parameters<typeof DebtsAndExpensesPage>[0] = {},
+  initialUrl = "/debts"
+) {
   const store = configureStore({
     reducer: {
       auth: authReducer,
@@ -82,7 +85,7 @@ function renderPage(props: Parameters<typeof DebtsAndExpensesPage>[0] = {}) {
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <MemoryRouter>
+          <MemoryRouter initialEntries={[initialUrl]}>
             <DebtsAndExpensesPage {...props} />
           </MemoryRouter>
         </ToastProvider>
@@ -113,3 +116,37 @@ describe("DebtsAndExpensesPage page header and title", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("DebtsAndExpensesPage tab persistence", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    localStorage.clear();
+  });
+
+  it("defaults to expenses tab when no query or storage exists", () => {
+    renderPage({}, "/debts");
+    const expensesTab = screen.getByRole("tab", { name: /expenses/i });
+    expect(expensesTab).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("opens debts tab when ?tab=debts is in URL", () => {
+    renderPage({}, "/debts?tab=debts");
+    const debtsTab = screen.getByRole("tab", { name: /debts/i });
+    expect(debtsTab).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("opens utilities tab when ?tab=utilities is in URL", () => {
+    renderPage({}, "/debts?tab=utilities");
+    const utilitiesTab = screen.getByRole("tab", { name: /utilities/i });
+    expect(utilitiesTab).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("switches tabs and updates active state on click", () => {
+    renderPage({}, "/debts");
+    const debtsTab = screen.getByRole("tab", { name: /debts/i });
+    fireEvent.click(debtsTab);
+    expect(debtsTab).toHaveAttribute("aria-selected", "true");
+    expect(sessionStorage.getItem("xpos-tab:debts-expenses")).toBe("debts");
+  });
+});
+

@@ -156,7 +156,7 @@ export function StockCountSessionDetailPage({
   });
 
   const items = itemsData?.content ?? [];
-  const trackedItems = items.filter((i: Item) => i.trackInventory);
+  const trackedItems = items.filter((i: Item) => i.trackInventory && i.active);
 
   const addLineItemOptions = useMemo(
     () => [
@@ -478,7 +478,7 @@ export function StockCountSessionDetailPage({
                     <SortableTableHead
                       align="right"
                       columnKey="unitCost"
-                      label="Unit cost (KSH)"
+                      label="Unit cost"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}
@@ -498,7 +498,7 @@ export function StockCountSessionDetailPage({
                     <SortableTableHead
                       align="right"
                       columnKey="sellPrice"
-                      label="Sell price (KSH)"
+                      label="Sell price"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}

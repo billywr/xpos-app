@@ -89,8 +89,8 @@ export function downloadStdStockCountPdf(
       "Total Stock",
       "Closing",
       "Units Sold",
-      "Selling Price (KSH)",
-      "Amount (KSH)",
+      "Selling Price",
+      "Amount",
       "comments",
     ];
     const tableData: string[][] = rows.map((r) => [
@@ -156,7 +156,7 @@ export function downloadStdStockCountPdf(
       y += 2;
 
       autoTable(doc, {
-        head: [["Customer", "Phone", "Issued by", "Outstanding (KSH)", "Due Date", "Recorded"]],
+        head: [["Customer", "Phone", "Issued by", "Outstanding", "Due Date", "Recorded"]],
         body: summary.dayDebts.map((d) => [
           d.customerName,
           d.customerPhone ?? "—",
@@ -188,7 +188,7 @@ export function downloadStdStockCountPdf(
       y += 2;
 
       autoTable(doc, {
-        head: [["Customer", "Phone", "Issued by", "Outstanding (KSH)", "Due Date", "Recorded"]],
+        head: [["Customer", "Phone", "Issued by", "Outstanding", "Due Date", "Recorded"]],
         body: summary.allDebts.map((d) => [
           d.customerName,
           d.customerPhone ?? "—",

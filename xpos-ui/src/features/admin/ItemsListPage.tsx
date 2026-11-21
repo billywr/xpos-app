@@ -1076,7 +1076,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                       <SortableTableHead
                       align="right"
                         columnKey="buyingPrice"
-                        label="Buying (KSH)"
+                        label="Buying"
                         sortColumn={sortColumn}
                         sortDirection={sortDirection}
                         onSort={toggleSort}
@@ -1086,7 +1086,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                     <SortableTableHead
                       align="right"
                       columnKey="defaultSellingPrice"
-                      label="Selling (KSH)"
+                      label="Selling"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={toggleSort}

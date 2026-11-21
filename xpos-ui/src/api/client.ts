@@ -1,6 +1,7 @@
 import type { ApiError } from "@/types/api";
 import { generateUuid } from "@/utils/uuid";
 import { getEnv } from "@/utils/env";
+import { recordMutationStart, recordMutationEnd } from "@/utils/actionDuration";
 
 const REQUEST_ID_HEADER = "X-Request-Id";
 
@@ -75,15 +76,22 @@ export async function apiFetch<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  let res: Response;
+  const method = (init.method || "GET").toUpperCase();
+  const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
+  if (isMutation) {
+    recordMutationStart();
+  }
+
   try {
-    res = await fetch(url, {
-      ...init,
-      headers,
-      body:
-        body !== undefined && body !== null ? JSON.stringify(body) : undefined,
-    });
-  } catch (err) {
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        ...init,
+        headers,
+        body:
+          body !== undefined && body !== null ? JSON.stringify(body) : undefined,
+      });
+    } catch (err) {
     const isTimeout =
       err instanceof Error &&
       (err.name === "TimeoutError" || err.name === "AbortError");
@@ -133,6 +141,11 @@ export async function apiFetch<T>(
   }
 
   return data as T;
+  } finally {
+    if (isMutation) {
+      recordMutationEnd();
+    }
+  }
 }
 
 

@@ -4,6 +4,7 @@ import static com.blinc.xpos.TestJwtFactory.adminJwt;
 import static com.blinc.xpos.TestJwtFactory.operatorJwt;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -1300,13 +1301,18 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
   }
 
   private UUID createStaffUser(UUID orgId) throws Exception {
+    return createStaffUserWithIam(orgId, "operator");
+  }
+
+  private UUID createStaffUserWithIam(UUID orgId, String iamUserId) throws Exception {
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/v1/admin/orgs/" + orgId + "/staff-users")
                     .with(adminJwt())
                     .contentType(APPLICATION_JSON)
-                    .content("{\"iamUserId\":\"operator\",\"username\":\"operator\"}"))
+                    .content(
+                        "{\"iamUserId\":\"" + iamUserId + "\",\"username\":\"" + iamUserId + "\"}"))
             .andExpect(status().isCreated())
             .andReturn();
     return UUID.fromString(
@@ -2003,6 +2009,90 @@ class StdStockCountOperatorControllerIT extends AbstractIntegrationTest {
         branchId,
         itemId,
         businessDate);
+  }
+
+  @Test
+  void deleteGrnAfterSaveAutomaticallyAdjustsClosingAndSnapshot() throws Exception {
+    UUID orgId = createOrg();
+    UUID businessId = createBusiness(orgId);
+    UUID branchId = createBranch(orgId, businessId);
+    UUID staffUserId = createStaffUser(orgId);
+    assignStaffToBranch(orgId, staffUserId, branchId);
+    UUID adminStaffUserId = createStaffUserWithIam(orgId, "admin");
+    assignStaffToBranch(orgId, adminStaffUserId, branchId);
+    UUID supplierId = createSupplier(orgId);
+    UUID itemId = createItem(orgId);
+
+    LocalDate today = LocalDate.now();
+    LocalDate yesterday = today.minusDays(1);
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+
+    // 1. Initial 3 units received yesterday and saved with closing 3
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 3, yesterday, zone);
+    saveStdCount(orgId, branchId, yesterday, itemId, 3);
+
+    // 2. Receive 12 units today and save closing 15
+    createGrnForItemOnDate(orgId, branchId, supplierId, itemId, 12, today, zone);
+    saveStdCount(orgId, branchId, today, itemId, 15);
+
+    String query =
+        "SELECT closing_qty FROM std_stock_count_snapshot WHERE branch_id = ? AND item_id = ? AND business_date = ?";
+    BigDecimal closingBefore =
+        jdbcTemplate.queryForObject(query, BigDecimal.class, branchId, itemId, today);
+    assertEquals(0, new BigDecimal("15").compareTo(closingBefore));
+
+    // 3. Delete today's GRN receipt permanently
+    UUID grnId =
+        jdbcTemplate.queryForObject(
+            "SELECT grn_id FROM grn_line WHERE item_id = ? ORDER BY created_at DESC LIMIT 1",
+            UUID.class,
+            itemId);
+    mockMvc
+        .perform(
+            delete("/api/v1/admin/orgs/" + orgId + "/goods-receipt-notes/" + grnId)
+                .with(adminJwt()))
+        .andExpect(status().isNoContent());
+
+    // 4. Verify getSheet today: Closing automatically clamped to 3 (NOT 15)
+    mockMvc
+        .perform(
+            get("/api/v1/operator/orgs/"
+                    + orgId
+                    + "/branches/"
+                    + branchId
+                    + "/std-stock-count?date="
+                    + today)
+                .with(operatorJwt()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rows[0].openingStock").value(3))
+        .andExpect(jsonPath("$.rows[0].addedStock").value(0))
+        .andExpect(jsonPath("$.rows[0].closingStock").value(3));
+
+    // 5. Verify DB snapshot for today was clamped from 15 to 3
+    BigDecimal closingAfter =
+        jdbcTemplate.queryForObject(query, BigDecimal.class, branchId, itemId, today);
+    assertEquals(0, new BigDecimal("3").compareTo(closingAfter));
+  }
+
+  private void saveStdCount(UUID orgId, UUID branchId, LocalDate date, UUID itemId, int closing)
+      throws Exception {
+    String payload =
+        "{\"date\":\""
+            + date
+            + "\",\"outletId\":\""
+            + branchId
+            + "\",\"counts\":[{\"itemId\":\""
+            + itemId
+            + "\",\"closingStock\":"
+            + closing
+            + "}]}";
+    mockMvc
+        .perform(
+            put("/api/v1/operator/orgs/" + orgId + "/branches/" + branchId + "/std-stock-count")
+                .with(operatorJwt())
+                .contentType(APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isOk());
   }
 
   private void createGrnForItem(UUID orgId, UUID branchId, UUID supplierId, UUID itemId)

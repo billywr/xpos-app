@@ -1667,10 +1667,10 @@ function PaymentModal({
                         Qty
                       </th>
                       <th className="px-2 py-3 text-right text-lg font-bold uppercase tracking-wide text-slate-700 sm:text-xl dark:text-slate-300">
-                        Unit (KSH)
+                        Unit
                       </th>
                       <th className="px-2 py-3 text-right text-lg font-bold uppercase tracking-wide text-slate-700 sm:px-4 sm:text-xl dark:text-slate-300">
-                        Subtotal (KSH)
+                        Subtotal
                       </th>
                     </tr>
                   </thead>

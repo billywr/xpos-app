@@ -59,6 +59,7 @@ import { rowMatchesSearch } from "@/utils/tableSearchMatch";
 import { sortTableRows } from "@/utils/tableSort";
 import { useToast } from "@/contexts/ToastContext";
 import { useTableSort } from "@/hooks/useTableSort";
+import { cn } from "@/utils/cn";
 import type { Item } from "@/types/catalog";
 
 const BACKDATE_MAX_DAYS = 7;
@@ -556,7 +557,7 @@ export function SalesRecordingPage() {
             Qty: <span className="font-semibold">{formatQty(batchSummary.units)}</span>
           </span>
           <span>
-            Total (KSH):{" "}
+            Total:{" "}
             <span className="font-semibold">{formatAmount(batchSummary.total)}</span>
           </span>
           {saveDraftMutation.isPending ? (
@@ -632,7 +633,7 @@ export function SalesRecordingPage() {
                 />
                 <SortableTableHead
                   columnKey="price"
-                  label="Price (KSH)"
+                  label="Price"
                   sortColumn={sortColumn}
                   sortDirection={sortDirection}
                   onSort={toggleSort}
@@ -649,7 +650,7 @@ export function SalesRecordingPage() {
                 />
                 <SortableTableHead
                   columnKey="lineTotal"
-                  label="Line total (KSH)"
+                  label="Line total"
                   sortColumn={sortColumn}
                   sortDirection={sortDirection}
                   onSort={toggleSort}
@@ -809,7 +810,7 @@ function StatsCards({ stats, loading }: StatsProps) {
     <div className="mb-6">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatChip
-          label="Total sales (KSH)"
+          label="Total sales"
           value={loading ? "…" : formatAmount(total)}
           tone="sales"
         />
@@ -838,7 +839,12 @@ function StatsCards({ stats, loading }: StatsProps) {
           <BarChart3 className="h-4 w-4" />
           View insights
           {low.length > 0 && (
-            <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/95 px-1.5 text-xs font-bold text-amber-700">
+            <span
+              className={cn(
+                "ml-1 inline-flex h-5 items-center justify-center rounded-full bg-white/95 text-xs font-bold leading-none text-amber-700 shadow-sm pt-[1px]",
+                low.length < 10 ? "w-5" : "min-w-5 px-1.5"
+              )}
+            >
               {low.length}
             </span>
           )}

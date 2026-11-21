@@ -52,7 +52,7 @@ export function Layout() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useLayoutEffect(() => {
-    document.title = appName ? `${appName} — POS` : "XPOS";
+    document.title = appName ? `${appName} - POS` : "XPOS";
   }, [appName]);
 
   useEffect(() => {

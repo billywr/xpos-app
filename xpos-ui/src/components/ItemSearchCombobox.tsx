@@ -10,6 +10,7 @@ export interface ItemSearchComboboxProps {
   /** Optional id for label association */
   inputId?: string;
   placeholder?: string;
+  unknownValueDisplay?: string;
 }
 
 export function ItemSearchCombobox({
@@ -19,14 +20,17 @@ export function ItemSearchCombobox({
   disabled = false,
   inputId,
   placeholder = "Search item name, SKU, barcode…",
+  unknownValueDisplay,
 }: ItemSearchComboboxProps) {
   const options = useMemo(
     () =>
-      items.map((it) => ({
-        value: it.id,
-        label: it.name,
-        detail: [it.sku, it.barcode].filter(Boolean).join(" · ") || undefined,
-      })),
+      items
+        .filter((it) => it.active)
+        .map((it) => ({
+          value: it.id,
+          label: it.name,
+          detail: [it.sku, it.barcode].filter(Boolean).join(" · ") || undefined,
+        })),
     [items]
   );
 
@@ -38,6 +42,7 @@ export function ItemSearchCombobox({
       onChange={onChange}
       disabled={disabled}
       placeholder={placeholder}
+      unknownValueDisplay={unknownValueDisplay}
       controlClassName="rounded border border-slate-300 dark:border-slate-600"
       compact
     />

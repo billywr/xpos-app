@@ -1158,20 +1158,64 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     int rowsSynced = 0;
     Instant now = clock.instant();
     for (LocalDate date = startDate; !date.isAfter(today); date = date.plusDays(1)) {
-      rowsSynced += autoSyncSnapshotsForDate(orgId, branch, branchId, date, now);
+      rowsSynced += autoSyncSnapshotsForDate(orgId, branch, branchId, date, now, false);
     }
     return new StdStockCountAutoSyncResponse(today, rowsSynced);
   }
 
+  @Override
+  @Transactional
+  public int syncSnapshotsForDate(UUID orgId, UUID branchId, LocalDate businessDate) {
+    Branch branch = branchService.require(orgId, branchId);
+    ZoneId zone = ZoneId.of(branch.getTimezone());
+    LocalDate today = LocalDate.now(clock.withZone(zone));
+
+    LocalDate startDate = businessDate != null ? businessDate : today;
+    LocalDate minStart = today.minusDays(autoSyncMaxBackfillDays);
+    if (startDate.isBefore(minStart)) {
+      startDate = minStart;
+    }
+    if (startDate.isAfter(today)) {
+      startDate = today;
+    }
+
+    int rowsSynced = 0;
+    Instant now = clock.instant();
+    for (LocalDate date = startDate; !date.isAfter(today); date = date.plusDays(1)) {
+      rowsSynced += autoSyncSnapshotsForDate(orgId, branch, branchId, date, now, true);
+    }
+    return rowsSynced;
+  }
+
   private int autoSyncSnapshotsForDate(
-      UUID orgId, Branch branch, UUID branchId, LocalDate businessDate, Instant now) {
+      UUID orgId,
+      Branch branch,
+      UUID branchId,
+      LocalDate businessDate,
+      Instant now,
+      boolean onlyClampExceeding) {
     StdStockCountSheetDto sheet = getSheet(orgId, branchId, businessDate);
     Map<UUID, BigDecimal> alreadyRecorded =
         loadAlreadyRecordedQtyByItem(orgId, branchId, businessDate);
+    Map<UUID, StdStockCountSnapshot> existingSnapByItem =
+        snapshotRepository.findAllByBranchIdAndBusinessDate(branchId, businessDate).stream()
+            .collect(Collectors.toMap(s -> s.getItem().getId(), s -> s, (a, b) -> a));
     List<StdStockCountCountDto> counts = new ArrayList<>();
     for (StdStockCountRowDto row : sheet.rows()) {
       BigDecimal recorded = alreadyRecorded.getOrDefault(row.itemId(), BigDecimal.ZERO);
-      if (shouldAutoSyncClosingRow(row, recorded)) {
+      StdStockCountSnapshot existingSnap = existingSnapByItem.get(row.itemId());
+      BigDecimal total = totalStockFromRow(row);
+      BigDecimal maxPhysical =
+          recorded.signum() > 0
+              ? total.subtract(recorded).max(BigDecimal.ZERO).setScale(SCALE, ROUNDING)
+              : total;
+
+      boolean snapshotExceedsPhysical =
+          existingSnap != null && existingSnap.getClosingQty().compareTo(maxPhysical) > 0;
+
+      if (snapshotExceedsPhysical) {
+        counts.add(new StdStockCountCountDto(row.itemId(), maxPhysical, Optional.empty()));
+      } else if (!onlyClampExceeding && shouldAutoSyncClosingRow(row, recorded)) {
         BigDecimal syncClosing =
             recorded.signum() > 0
                 ? totalStockFromRow(row)

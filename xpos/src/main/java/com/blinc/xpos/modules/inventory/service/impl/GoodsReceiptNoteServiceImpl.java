@@ -18,6 +18,7 @@ import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
 import com.blinc.xpos.modules.inventory.service.GoodsReceiptNoteService;
 import com.blinc.xpos.modules.inventory.service.InventoryItemService;
 import com.blinc.xpos.modules.inventory.service.PurchaseOrderService;
+import com.blinc.xpos.modules.inventory.service.StdStockCountService;
 import com.blinc.xpos.modules.inventory.service.SupplierService;
 import com.blinc.xpos.modules.organization.domain.Branch;
 import com.blinc.xpos.modules.organization.domain.StaffUser;
@@ -27,6 +28,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -64,8 +66,10 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
   private final StaffUserService staffUserService;
   private final ItemService itemService;
   private final UomService uomService;
+  private final StdStockCountService stdStockCountService;
   private final Clock clock;
 
+  @SuppressWarnings("checkstyle:ParameterNumber")
   public GoodsReceiptNoteServiceImpl(
       GoodsReceiptNoteRepository grnRepository,
       GrnLineRepository grnLineRepository,
@@ -77,6 +81,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
       StaffUserService staffUserService,
       ItemService itemService,
       UomService uomService,
+      StdStockCountService stdStockCountService,
       Clock clock) {
     this.grnRepository = Objects.requireNonNull(grnRepository, "grnRepository");
     this.grnLineRepository = Objects.requireNonNull(grnLineRepository, "grnLineRepository");
@@ -91,6 +96,8 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
     this.staffUserService = Objects.requireNonNull(staffUserService, "staffUserService");
     this.itemService = Objects.requireNonNull(itemService, "itemService");
     this.uomService = Objects.requireNonNull(uomService, "uomService");
+    this.stdStockCountService =
+        Objects.requireNonNull(stdStockCountService, "stdStockCountService");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
 
@@ -529,6 +536,16 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
       grnLineRepository.deleteAll(existingLines);
       persistReplacementGrnLinesOnly(grn, orgId, normalizedNew, now);
     }
+
+    boolean linesChanged = lines != null;
+    boolean deactivated = active != null && !active && previouslyActive;
+    if (linesChanged || deactivated) {
+      String tz = grn.getBranch().getTimezone();
+      ZoneId zone = tz != null && !tz.isBlank() ? ZoneId.of(tz) : GOODS_RECEIPT_MERGE_DAY_ZONE;
+      LocalDate businessDate = grn.getReceivedAt().atZone(zone).toLocalDate();
+      stdStockCountService.syncSnapshotsForDate(orgId, grn.getBranch().getId(), businessDate);
+    }
+
     return grn;
   }
 
@@ -537,12 +554,17 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
   public void deletePermanently(UUID orgId, UUID grnId) {
     GoodsReceiptNote grn = require(orgId, grnId);
     UUID branchId = grn.getBranch().getId();
+    String tz = grn.getBranch().getTimezone();
+    ZoneId zone = tz != null && !tz.isBlank() ? ZoneId.of(tz) : GOODS_RECEIPT_MERGE_DAY_ZONE;
+    LocalDate businessDate = grn.getReceivedAt().atZone(zone).toLocalDate();
+
     reverseStockMovementsForGrnAndPurgePricing(orgId, grnId, branchId);
     List<GrnLine> lines = grnLineRepository.findByGrnIdOrderByCreatedAt(grnId);
     if (!lines.isEmpty()) {
       grnLineRepository.deleteAll(lines);
     }
     grnRepository.delete(grn);
+    stdStockCountService.syncSnapshotsForDate(orgId, branchId, businessDate);
   }
 
   private void reverseStockMovementsForGrnAndPurgePricing(UUID orgId, UUID grnId, UUID branchId) {
