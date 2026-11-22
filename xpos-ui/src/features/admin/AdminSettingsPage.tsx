@@ -50,6 +50,10 @@ import {
   setToastTimeVisible,
 } from "@/config/toastSettings";
 import {
+  isPosExpandedByDefault,
+  setPosExpandedByDefault,
+} from "@/config/posAppearanceSettings";
+import {
   Settings,
   Upload,
   Trash2,
@@ -1057,6 +1061,44 @@ export function AdminSettingsPage() {
     );
   };
 
+  const renderPosExpandedSettings = () => {
+    const isExpandedDefault = isPosExpandedByDefault(adminLabels);
+    return (
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+          POS layout
+        </h2>
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+          Control default display mode when opening the POS ordering interface.
+        </p>
+        <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <label
+                htmlFor="toggle-pos-expanded-default"
+                className="block text-sm font-medium text-slate-900 dark:text-white cursor-pointer"
+              >
+                Launch POS expanded by default
+              </label>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Automatically opens the POS terminal in full-screen expanded view, hiding sidebars and headers for a dedicated cashier experience.
+              </p>
+            </div>
+            <input
+              id="toggle-pos-expanded-default"
+              type="checkbox"
+              checked={isExpandedDefault}
+              onChange={(e) =>
+                setPosExpandedByDefault(e.target.checked, (k, v) => setAdminLabel(k, v))
+              }
+              className="h-5 w-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:checked:bg-primary-500 cursor-pointer"
+            />
+          </div>
+        </div>
+      </section>
+    );
+  };
+
   const sections: SettingsSection[] = useMemo(
     () => [
       {
@@ -1079,6 +1121,7 @@ export function AdminSettingsPage() {
           "admin",
           "operator",
           "counter",
+          "pos",
           "org",
           "organization",
           "visibility",
@@ -1373,6 +1416,27 @@ export function AdminSettingsPage() {
           ...DARK_THEMES.map((t) => t.id),
         ],
         render: renderAppearance,
+      },
+      {
+        id: "pos-expanded-settings",
+        tabId: "appearance",
+        tabLabel: "Appearance",
+        title: "POS layout",
+        description:
+          "Configure default POS layout. Launch POS in full-screen expanded view by default.",
+        keywords: [
+          "pos",
+          "layout",
+          "fullscreen",
+          "full screen",
+          "expanded",
+          "expand",
+          "appearance",
+          "screen",
+          "cashier",
+          "terminal",
+        ],
+        render: renderPosExpandedSettings,
       },
       {
         id: "toast-settings",

@@ -103,6 +103,18 @@ class GlobalExceptionHandlerIT extends AbstractIntegrationTest {
         .andExpect(jsonPath("$.code").value("BUSINESS_NOT_FOUND"));
   }
 
+  @Test
+  void nonExistentStaticResourceReturnsResourceNotFound() throws Exception {
+    mockMvc
+        .perform(
+            get(
+                "/uploads/items/b55b2e19-35c0-4084-924a-f60181f5c195/137f53ea-ea3d-46fe-a61f-eda66ba884b9.jpg"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
+        .andExpect(jsonPath("$.message").isString())
+        .andExpect(jsonPath("$.requestId").exists());
+  }
+
   private UUID createOrg() throws Exception {
     String body =
         objectMapper.writeValueAsString(

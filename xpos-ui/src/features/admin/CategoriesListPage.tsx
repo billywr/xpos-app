@@ -26,6 +26,7 @@ import {
   TableSkeleton,
   FormLabel,
   tableBodyRow,
+  tableBodyRowZebra,
   tableStickyHeadCell,
   tableStickyFirstBody,
   tableEmptyCell,
@@ -437,7 +438,7 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                       const isEven = index % 2 === 1;
                       const zebraClass =
                         tableCustom.zebraStriping && isEven
-                          ? "bg-slate-50/60 dark:bg-slate-700/20"
+                          ? tableBodyRowZebra
                           : "";
                       return (
                         <tr

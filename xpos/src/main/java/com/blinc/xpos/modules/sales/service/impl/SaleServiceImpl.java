@@ -356,8 +356,16 @@ public class SaleServiceImpl implements SaleService {
                 sale.getBranch().getId(), line.getItem().getId(), businessDate)
             .ifPresent(
                 snap -> {
+                  BigDecimal onHand =
+                      inventoryItemService.getOnHandQty(
+                          orgId, sale.getBranch().getId(), line.getItem().getId());
                   BigDecimal newClosing =
                       snap.getClosingQty().subtract(line.getQty()).max(BigDecimal.ZERO);
+                  if (onHand != null
+                      && newClosing.compareTo(onHand) < 0
+                      && snap.getClosingQty().compareTo(onHand) < 0) {
+                    newClosing = onHand;
+                  }
                   snap.setClosingQty(newClosing.setScale(SCALE, RoundingMode.HALF_UP));
                   snap.setLastSavedAt(now);
                   stdStockCountSnapshotRepository.save(snap);
@@ -446,7 +454,15 @@ public class SaleServiceImpl implements SaleService {
                 sale.getBranch().getId(), line.getItem().getId(), refundBusinessDate)
             .ifPresent(
                 snap -> {
+                  BigDecimal onHand =
+                      inventoryItemService.getOnHandQty(
+                          orgId, sale.getBranch().getId(), line.getItem().getId());
                   BigDecimal newClosing = snap.getClosingQty().add(line.getQty());
+                  if (onHand != null
+                      && newClosing.compareTo(onHand) < 0
+                      && snap.getClosingQty().compareTo(onHand) < 0) {
+                    newClosing = onHand;
+                  }
                   snap.setClosingQty(newClosing.setScale(SCALE, RoundingMode.HALF_UP));
                   snap.setLastSavedAt(now);
                   stdStockCountSnapshotRepository.save(snap);

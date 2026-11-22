@@ -618,6 +618,84 @@ body {
 [data-theme]:not([data-theme=""]).dark .xpos-table-sticky-head {
   background-color: var(--table-header) !important;
 }
+
+/*
+ * Uniform datatable alternating / zebra striping.
+ * Ensure all cells, especially sticky columns (.xpos-table-sticky-first), match the
+ * striped background so sticky columns don't punch dark/broken boxes into alternate rows.
+ */
+.xpos-table-row-zebra > td,
+.xpos-table-row-zebra > th,
+tr.bg-slate-50\/60 > td,
+tr.bg-slate-50\/60 > th,
+tr.bg-slate-50\/70 > td,
+tr.bg-slate-50\/70 > th,
+tr.even\:bg-slate-50\/60:nth-child(even) > td,
+tr.even\:bg-slate-50\/60:nth-child(even) > th,
+tr.odd\:bg-slate-50\/60:nth-child(odd) > td,
+tr.odd\:bg-slate-50\/60:nth-child(odd) > th {
+  background-color: color-mix(in srgb, rgb(248 250 252) 60%, #ffffff);
+}
+
+.xpos-table-row-zebra > .xpos-table-sticky-first,
+tr.bg-slate-50\/60 > .xpos-table-sticky-first,
+tr.bg-slate-50\/70 > .xpos-table-sticky-first,
+tr.even\:bg-slate-50\/60:nth-child(even) > .xpos-table-sticky-first,
+tr.odd\:bg-slate-50\/60:nth-child(odd) > .xpos-table-sticky-first {
+  background-color: color-mix(in srgb, rgb(248 250 252) 60%, #ffffff) !important;
+}
+
+.dark .xpos-table-row-zebra > td,
+.dark .xpos-table-row-zebra > th,
+[data-theme]:not([data-theme=""]).dark .xpos-table-row-zebra > td,
+[data-theme]:not([data-theme=""]).dark .xpos-table-row-zebra > th,
+.dark tr.dark\:bg-slate-700\/20 > td,
+.dark tr.dark\:bg-slate-700\/20 > th,
+[data-theme]:not([data-theme=""]).dark tr.dark\:bg-slate-700\/20 > td,
+[data-theme]:not([data-theme=""]).dark tr.dark\:bg-slate-700\/20 > th,
+.dark tr.dark\:even\:bg-slate-700\/20:nth-child(even) > td,
+.dark tr.dark\:even\:bg-slate-700\/20:nth-child(even) > th,
+.dark tr.dark\:odd\:bg-slate-700\/20:nth-child(odd) > td,
+.dark tr.dark\:odd\:bg-slate-700\/20:nth-child(odd) > th,
+[data-theme]:not([data-theme=""]).dark tr.dark\:even\:bg-slate-700\/20:nth-child(even) > td,
+[data-theme]:not([data-theme=""]).dark tr.dark\:even\:bg-slate-700\/20:nth-child(even) > th,
+[data-theme]:not([data-theme=""]).dark tr.dark\:odd\:bg-slate-700\/20:nth-child(odd) > td,
+[data-theme]:not([data-theme=""]).dark tr.dark\:odd\:bg-slate-700\/20:nth-child(odd) > th {
+  background-color: color-mix(in srgb, rgb(51 65 85) 20%, var(--table-bg)) !important;
+}
+
+.dark .xpos-table-row-zebra > .xpos-table-sticky-first,
+[data-theme]:not([data-theme=""]).dark .xpos-table-row-zebra > .xpos-table-sticky-first,
+.dark tr.dark\:bg-slate-700\/20 > .xpos-table-sticky-first,
+[data-theme]:not([data-theme=""]).dark tr.dark\:bg-slate-700\/20 > .xpos-table-sticky-first,
+.dark tr.dark\:even\:bg-slate-700\/20:nth-child(even) > .xpos-table-sticky-first,
+.dark tr.dark\:odd\:bg-slate-700\/20:nth-child(odd) > .xpos-table-sticky-first,
+[data-theme]:not([data-theme=""]).dark tr.dark\:even\:bg-slate-700\/20:nth-child(even) > .xpos-table-sticky-first,
+[data-theme]:not([data-theme=""]).dark tr.dark\:odd\:bg-slate-700\/20:nth-child(odd) > .xpos-table-sticky-first {
+  background-color: color-mix(in srgb, rgb(51 65 85) 20%, var(--table-bg)) !important;
+}
+
+.dark tr.dark\:bg-slate-700\/30 > td,
+.dark tr.dark\:bg-slate-700\/30 > th,
+[data-theme]:not([data-theme=""]).dark tr.dark\:bg-slate-700\/30 > td,
+[data-theme]:not([data-theme=""]).dark tr.dark\:bg-slate-700\/30 > th {
+  background-color: color-mix(in srgb, rgb(51 65 85) 30%, var(--table-bg)) !important;
+}
+
+.dark tr.dark\:bg-slate-700\/30 > .xpos-table-sticky-first,
+[data-theme]:not([data-theme=""]).dark tr.dark\:bg-slate-700\/30 > .xpos-table-sticky-first {
+  background-color: color-mix(in srgb, rgb(51 65 85) 30%, var(--table-bg)) !important;
+}
+
+/* Selected row: sticky cell matches selected row tint */
+tr.bg-primary-50\/40 > .xpos-table-sticky-first {
+  background-color: color-mix(in srgb, rgb(239 246 255) 60%, #ffffff) !important;
+}
+.dark tr.dark\:bg-primary-950\/20 > .xpos-table-sticky-first,
+[data-theme]:not([data-theme=""]).dark tr.dark\:bg-primary-950\/20 > .xpos-table-sticky-first {
+  background-color: color-mix(in srgb, var(--accent-600) 25%, var(--table-bg)) !important;
+}
+
 .xpos-table-row:hover > td,
 .xpos-table-row:hover > th {
   background-color: rgb(241 245 249);
@@ -628,7 +706,10 @@ body {
 [data-theme]:not([data-theme=""]).dark .xpos-table-row:hover > th {
   background-color: var(--table-row-hover) !important;
 }
-/* Sticky first column: beat rest-state + Tailwind dark:bg-slate-800 remap on hover */
+/* Sticky first column: beat rest-state, zebra-state + Tailwind dark:bg-slate-800 remap on hover */
+.xpos-table-row:hover > .xpos-table-sticky-first {
+  background-color: rgb(241 245 249) !important;
+}
 .dark .xpos-table-row:hover > .xpos-table-sticky-first,
 [data-theme]:not([data-theme=""]).dark .xpos-table-row:hover > .xpos-table-sticky-first {
   background-color: var(--table-row-hover) !important;
@@ -653,10 +734,14 @@ body {
 }
 .dark .dark\:border-slate-700,
 .dark .dark\:border-slate-600,
+.dark .dark\:divide-slate-700 > :not([hidden]) ~ :not([hidden]),
 .dark .dark\:divide-slate-600 > :not([hidden]) ~ :not([hidden]),
+.dark .dark\:lg\:divide-slate-700 > :not([hidden]) ~ :not([hidden]),
 [data-theme]:not([data-theme=""]).dark .dark\:border-slate-700,
 [data-theme]:not([data-theme=""]).dark .dark\:border-slate-600,
-[data-theme]:not([data-theme=""]).dark .dark\:divide-slate-600 > :not([hidden]) ~ :not([hidden]) {
+[data-theme]:not([data-theme=""]).dark .dark\:divide-slate-700 > :not([hidden]) ~ :not([hidden]),
+[data-theme]:not([data-theme=""]).dark .dark\:divide-slate-600 > :not([hidden]) ~ :not([hidden]),
+[data-theme]:not([data-theme=""]).dark .dark\:lg\:divide-slate-700 > :not([hidden]) ~ :not([hidden]) {
   border-color: var(--table-border) !important;
 }
 .dark .dark\:bg-slate-700\/50,
@@ -681,8 +766,14 @@ body {
 }
 .dark .hover\:bg-primary-700:hover,
 .dark .dark\:hover\:bg-primary-600:hover,
+.dark .hover\:bg-primary-600:hover,
+.dark .dark\:hover\:bg-primary-500:hover,
+.dark .hover\:bg-primary-500:hover,
 [data-theme]:not([data-theme=""]).dark .hover\:bg-primary-700:hover,
-[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-primary-600:hover {
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-primary-600:hover,
+[data-theme]:not([data-theme=""]).dark .hover\:bg-primary-600:hover,
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-primary-500:hover,
+[data-theme]:not([data-theme=""]).dark .hover\:bg-primary-500:hover {
   background-color: var(--accent-700) !important;
 }
 .dark .text-primary-600,
@@ -700,21 +791,45 @@ body {
 .dark .focus\:ring-primary-500:focus,
 .dark .focus-within\:border-primary-500:focus-within,
 .dark .focus-within\:ring-primary-500:focus-within,
+.dark .ring-primary-500,
 [data-theme]:not([data-theme=""]).dark .border-primary-500,
 [data-theme]:not([data-theme=""]).dark .focus\:border-primary-500:focus,
 [data-theme]:not([data-theme=""]).dark .focus\:ring-primary-500:focus,
 [data-theme]:not([data-theme=""]).dark .focus-within\:border-primary-500:focus-within,
-[data-theme]:not([data-theme=""]).dark .focus-within\:ring-primary-500:focus-within {
+[data-theme]:not([data-theme=""]).dark .focus-within\:ring-primary-500:focus-within,
+[data-theme]:not([data-theme=""]).dark .ring-primary-500 {
   border-color: var(--accent-500) !important;
   --tw-ring-color: var(--accent-500) !important;
 }
+.dark .dark\:border-primary-500\/50,
+.dark .dark\:border-primary-500\/40,
+.dark .dark\:border-primary-500\/30,
+[data-theme]:not([data-theme=""]).dark .dark\:border-primary-500\/50,
+[data-theme]:not([data-theme=""]).dark .dark\:border-primary-500\/40,
+[data-theme]:not([data-theme=""]).dark .dark\:border-primary-500\/30 {
+  border-color: color-mix(in srgb, var(--accent-500) 40%, transparent) !important;
+}
 /* Active nav / selected state */
 .dark .dark\:bg-indigo-500\/30,
+.dark .dark\:bg-primary-950\/40,
+.dark .dark\:bg-primary-900\/40,
 .dark .dark\:bg-primary-900\/30,
+.dark .dark\:bg-primary-500\/20,
+.dark .dark\:bg-primary-500\/10,
+.dark .dark\:hover\:bg-primary-900\/60:hover,
 .dark .dark\:hover\:bg-primary-900\/30:hover,
+.dark .dark\:hover\:bg-primary-500\/30:hover,
+.dark .dark\:hover\:bg-primary-500\/20:hover,
 [data-theme]:not([data-theme=""]).dark .dark\:bg-indigo-500\/30,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-primary-950\/40,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-primary-900\/40,
 [data-theme]:not([data-theme=""]).dark .dark\:bg-primary-900\/30,
-[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-primary-900\/30:hover {
+[data-theme]:not([data-theme=""]).dark .dark\:bg-primary-500\/20,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-primary-500\/10,
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-primary-900\/60:hover,
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-primary-900\/30:hover,
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-primary-500\/30:hover,
+[data-theme]:not([data-theme=""]).dark .dark\:hover\:bg-primary-500\/20:hover {
   background-color: var(--accent-bg-active) !important;
 }
 .dark .dark\:text-indigo-100,
@@ -753,9 +868,13 @@ body {
 [data-theme]:not([data-theme=""]).dark .dark\:bg-slate-900 {
   background-color: var(--app-bg-start) !important;
 }
+.dark .dark\:bg-slate-900\/80,
+.dark .dark\:bg-slate-900\/70,
 .dark .dark\:bg-slate-900\/60,
 .dark .dark\:bg-slate-900\/50,
 .dark .dark\:bg-slate-900\/40,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-900\/80,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-900\/70,
 [data-theme]:not([data-theme=""]).dark .dark\:bg-slate-900\/60,
 [data-theme]:not([data-theme=""]).dark .dark\:bg-slate-900\/50,
 [data-theme]:not([data-theme=""]).dark .dark\:bg-slate-900\/40 {
@@ -786,7 +905,9 @@ body {
   background-color: color-mix(in srgb, var(--table-bg) 95%, transparent) !important;
 }
 .dark .dark\:bg-slate-800\/90,
-[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-800\/90 {
+.dark .dark\:bg-slate-800\/80,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-800\/90,
+[data-theme]:not([data-theme=""]).dark .dark\:bg-slate-800\/80 {
   background-color: color-mix(in srgb, var(--table-bg) 90%, transparent) !important;
 }
 /* Operator layout: top nav, sidebar, main bg, search input */
@@ -1191,3 +1312,54 @@ button:not([class*="text-"]),
     grid-column: span 2 / span 2;
   }
 }
+
+/* ========================================================================= */
+/* POS Center Workspace: Responsive Product Grid (Container Query Aware)     */
+/* Adapts to available width between left nav and right order panel          */
+/* ========================================================================= */
+.pos-grid-container {
+  container-type: inline-size;
+}
+
+.pos-product-grid {
+  display: grid;
+  gap: 1rem; /* 16px horizontal and vertical gaps */
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* Small screens: 2 columns */
+}
+
+@container (min-width: 540px) {
+  .pos-product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)); /* Medium: 3 columns */
+  }
+}
+
+@container (min-width: 880px) {
+  .pos-product-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)); /* Standard desktop (~1680x720): 4 columns */
+  }
+}
+
+@container (min-width: 1360px) {
+  .pos-product-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)); /* Large desktop: 5 columns max */
+  }
+}
+
+@supports not (container-type: inline-size) {
+  @media (min-width: 640px) {
+    .pos-product-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 1024px) {
+    .pos-product-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 1536px) {
+    .pos-product-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+}
+

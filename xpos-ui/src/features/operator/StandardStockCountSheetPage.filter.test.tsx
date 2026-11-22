@@ -2684,6 +2684,32 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
       ).toBe(false);
     });
 
+    it("isStaleSavedClosing returns true when closing + alreadyRecorded matches openingStock but total exceeds opening", () => {
+      // Best gin: opening 30, added 44 (total 74), sold 20, saved closing was decremented from pre-receipt 30 to 10
+      const bestGinPreReceiptRow: StdStockCountRowResponse = {
+        ...rowBase,
+        openingStock: 30,
+        addedStock: 44,
+        addedTodayStock: 0,
+        closingStock: 10,
+        sellingPrice: 900,
+      };
+      expect(isStaleSavedClosing(bestGinPreReceiptRow, 20)).toBe(true);
+      expect(defaultClosingFromRow(bestGinPreReceiptRow, 20)).toBe(54);
+      expect(
+        shouldAutoSyncClosing(bestGinPreReceiptRow, {
+          addedIncreased: false,
+          alreadyRecorded: 20,
+        })
+      ).toBe(true);
+
+      const computed = computeRow(bestGinPreReceiptRow, undefined, undefined, 20);
+      expect(computed.closingStock).toBe(54);
+      expect(computed.unitsSold).toBe(20);
+      expect(computed.amount).toBe(18000);
+      expect(computed.closingError).toBeUndefined();
+    });
+
     it("defaultClosingFromRow clamps corrupted historical closing to max physical stock", () => {
       // Bug in prior versions saved closing = 16.5 (total stock) even though 2.5 were sold
       const corruptedRow: StdStockCountRowResponse = {

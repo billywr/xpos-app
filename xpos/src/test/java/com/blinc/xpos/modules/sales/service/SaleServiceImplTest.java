@@ -243,6 +243,58 @@ class SaleServiceImplTest {
   }
 
   @Test
+  void shouldHealStalePreReceiptSnapshotToOnHandWhenCompletingSale() {
+    Sale sale = new Sale();
+    sale.setId(saleId);
+    sale.setOrg(org);
+    sale.setBranch(branch);
+    sale.setTerminal(terminal);
+    sale.setStatus(SaleStatus.OPEN);
+    sale.setTotal(new BigDecimal("18000.00"));
+    sale.setCreatedByStaffUser(staffUser);
+    sale.setBusinessDate(LocalDate.of(2026, 11, 22));
+
+    SaleLine line = new SaleLine();
+    line.setSale(sale);
+    line.setItem(item);
+    line.setQty(new BigDecimal("20.000"));
+
+    Tender tender = new Tender();
+    tender.setAmount(new BigDecimal("18000.00"));
+
+    // Snapshot has 30 (pre-receipt baseline), but onHand after 20 sold from 74 total is 54
+    StdStockCountSnapshot snap = new StdStockCountSnapshot();
+    snap.setId(UUID.randomUUID());
+    snap.setBranch(branch);
+    snap.setItem(item);
+    snap.setBusinessDate(LocalDate.of(2026, 11, 22));
+    snap.setClosingQty(new BigDecimal("30.00"));
+
+    when(tenderService.listBySale(orgId, saleId)).thenReturn(List.of(tender));
+    when(saleLineRepository.findBySaleIdOrderByCreatedAtWithItemAndUom(saleId))
+        .thenReturn(List.of(line));
+    when(inventoryItemService.getOnHandQty(orgId, branchId, itemId))
+        .thenReturn(new BigDecimal("74.000"), new BigDecimal("54.000"));
+    when(stockMovementRepository.findLatestInByOrgAndBranchAndItem(
+            eq(orgId), eq(branchId), eq(itemId), any(PageRequest.class)))
+        .thenReturn(new PageImpl<>(List.of()));
+    when(stdStockCountSnapshotRepository.findByBranchIdAndItemIdAndBusinessDate(
+            branchId, itemId, LocalDate.of(2026, 11, 22)))
+        .thenReturn(Optional.of(snap));
+    when(receiptService.createForSale(sale)).thenReturn(new Receipt());
+    when(saleRepository.save(any(Sale.class))).thenAnswer(inv -> inv.getArgument(0));
+    when(saleRepository.findByIdAndOrgIdWithAssociations(saleId, orgId))
+        .thenReturn(Optional.of(sale));
+
+    Sale completed = service.complete(orgId, saleId);
+
+    assertEquals(SaleStatus.COMPLETED, completed.getStatus());
+    // Closing qty must heal to 54.00 (onHand) instead of dropping to 10.00 (30 - 20)
+    assertEquals(new BigDecimal("54.00"), snap.getClosingQty());
+    verify(stdStockCountSnapshotRepository).save(snap);
+  }
+
+  @Test
   void shouldThrowConflictWhenInsufficientStockOnComplete() {
     Sale sale = new Sale();
     sale.setId(saleId);

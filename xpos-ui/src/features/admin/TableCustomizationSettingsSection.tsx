@@ -12,7 +12,7 @@ import {
   type TableDefinition,
   type TableCategory,
 } from "@/config/tableCustomizationRegistry";
-import { ConfirmDialog } from "@/components/ui";
+import { ConfirmDialog, tableBodyRowZebra } from "@/components/ui";
 import {
   Eye,
   EyeOff,
@@ -625,7 +625,7 @@ export function TableCustomizationSettingsSection() {
                       const isEven = rowIdx % 2 === 1;
                       const zebraClass =
                         zebraStriping && isEven
-                          ? "bg-slate-50/70 dark:bg-slate-700/30"
+                          ? tableBodyRowZebra
                           : "";
                       return (
                         <tr

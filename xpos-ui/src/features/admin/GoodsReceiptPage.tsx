@@ -32,6 +32,7 @@ import {
   TableSearchInput,
   TableSkeleton,
   tableBodyRow,
+  tableBodyRowZebra,
   tableStickyHeadCell,
   tableStickyFirstBody,
   tableEmptyCell,
@@ -1898,7 +1899,7 @@ export function GoodsReceiptPage({
                       const isEven = index % 2 === 1;
                       const zebraClass =
                         tableCustom.zebraStriping && isEven
-                          ? "bg-slate-50/60 dark:bg-slate-700/20"
+                          ? tableBodyRowZebra
                           : "";
 
                       return (
@@ -1982,7 +1983,8 @@ export function GoodsReceiptPage({
                                   <td
                                     key={col.key}
                                     className={cn(
-                                      tableCustom.densityStyles.tdNum,
+                                      tableCustom.densityStyles.td,
+                                      "tabular-nums",
                                       alignClass
                                     )}
                                   >
@@ -1994,7 +1996,8 @@ export function GoodsReceiptPage({
                                   <td
                                     key={col.key}
                                     className={cn(
-                                      tableCustom.densityStyles.tdNum,
+                                      tableCustom.densityStyles.td,
+                                      "tabular-nums",
                                       alignClass
                                     )}
                                   >
@@ -2008,8 +2011,8 @@ export function GoodsReceiptPage({
                                   <td
                                     key={col.key}
                                     className={cn(
-                                      tableCustom.densityStyles.tdNum,
-                                      "font-bold text-slate-700 dark:text-slate-300",
+                                      tableCustom.densityStyles.td,
+                                      "tabular-nums font-bold text-slate-700 dark:text-slate-300",
                                       alignClass
                                     )}
                                   >
@@ -2030,7 +2033,8 @@ export function GoodsReceiptPage({
                                       className={cn(
                                         "flex items-center gap-1",
                                         col.align === "right" && "justify-end",
-                                        col.align === "center" && "justify-center"
+                                        col.align === "center" && "justify-center",
+                                        (!col.align || col.align === "left") && "justify-start"
                                       )}
                                     >
                                       <button

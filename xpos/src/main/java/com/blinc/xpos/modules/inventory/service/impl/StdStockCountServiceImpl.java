@@ -359,11 +359,28 @@ public class StdStockCountServiceImpl implements StdStockCountService {
       String rowComments = snap != null ? snap.getComments() : null;
 
       BigDecimal recordedSales = recordedSalesTodayByItem.getOrDefault(itemId, BigDecimal.ZERO);
-      if (recordedSales.signum() > 0) {
-        BigDecimal dayTotal = opening.add(addedGrn).add(addedToday).setScale(SCALE, ROUNDING);
-        BigDecimal maxPhysicalStock =
-            dayTotal.subtract(recordedSales).max(BigDecimal.ZERO).setScale(SCALE, ROUNDING);
-        if (closing != null && closing.compareTo(maxPhysicalStock) > 0) {
+      BigDecimal dayTotal = opening.add(addedGrn).add(addedToday).setScale(SCALE, ROUNDING);
+      BigDecimal maxPhysicalStock =
+          recordedSales.signum() > 0
+              ? dayTotal.subtract(recordedSales).max(BigDecimal.ZERO).setScale(SCALE, ROUNDING)
+              : dayTotal;
+      if (closing != null) {
+        BigDecimal addedStock = addedGrn.add(addedToday).setScale(SCALE, ROUNDING);
+        Instant stockAddedAt =
+            latestStockAddedAtByItem.get(itemId) != null
+                ? latestStockAddedAtByItem.get(itemId)
+                : firstStockAddedAtByItem.get(itemId);
+        boolean isStalePreReceipt =
+            addedStock.signum() > 0
+                && ((recordedSales.signum() == 0
+                        && closing.compareTo(opening) == 0
+                        && lastSavedAt != null
+                        && stockAddedAt != null
+                        && lastSavedAt.isBefore(stockAddedAt))
+                    || (recordedSales.signum() > 0
+                        && closing.add(recordedSales).compareTo(opening) == 0));
+        if (isStalePreReceipt
+            || (recordedSales.signum() > 0 && closing.compareTo(maxPhysicalStock) > 0)) {
           closing = maxPhysicalStock;
         }
       }
@@ -1182,7 +1199,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     int rowsSynced = 0;
     Instant now = clock.instant();
     for (LocalDate date = startDate; !date.isAfter(today); date = date.plusDays(1)) {
-      rowsSynced += autoSyncSnapshotsForDate(orgId, branch, branchId, date, now, true);
+      rowsSynced += autoSyncSnapshotsForDate(orgId, branch, branchId, date, now, false);
     }
     return rowsSynced;
   }
@@ -1212,17 +1229,24 @@ public class StdStockCountServiceImpl implements StdStockCountService {
 
       boolean snapshotExceedsPhysical =
           existingSnap != null && existingSnap.getClosingQty().compareTo(maxPhysical) > 0;
+      boolean snapshotDiffersFromSheet =
+          existingSnap != null
+              && row.closingStock() != null
+              && existingSnap.getClosingQty().compareTo(row.closingStock()) != 0;
 
       if (snapshotExceedsPhysical) {
         counts.add(new StdStockCountCountDto(row.itemId(), maxPhysical, Optional.empty()));
-      } else if (!onlyClampExceeding && shouldAutoSyncClosingRow(row, recorded)) {
+      } else if (!onlyClampExceeding
+          && (snapshotDiffersFromSheet || shouldAutoSyncClosingRow(row, recorded))) {
         BigDecimal syncClosing =
-            recorded.signum() > 0
-                ? totalStockFromRow(row)
-                    .subtract(recorded)
-                    .max(BigDecimal.ZERO)
-                    .setScale(SCALE, ROUNDING)
-                : totalStockFromRow(row);
+            row.closingStock() != null
+                ? row.closingStock()
+                : (recorded.signum() > 0
+                    ? totalStockFromRow(row)
+                        .subtract(recorded)
+                        .max(BigDecimal.ZERO)
+                        .setScale(SCALE, ROUNDING)
+                    : totalStockFromRow(row));
         counts.add(new StdStockCountCountDto(row.itemId(), syncClosing, Optional.empty()));
       }
     }
@@ -1236,11 +1260,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
   /** Mirrors frontend {@code shouldAutoSyncClosing} for carry-forward / stale-receipt cases. */
   private static boolean shouldAutoSyncClosingRow(
       StdStockCountRowDto row, BigDecimal recordedSales) {
-    if (recordedSales != null && recordedSales.signum() > 0) {
-      BigDecimal total = totalStockFromRow(row);
-      return row.closingStock() == null && total.signum() > 0;
-    }
-    if (isStaleSavedClosingRow(row)) {
+    if (isStaleSavedClosingRow(row, recordedSales)) {
       return true;
     }
     BigDecimal total = totalStockFromRow(row);
@@ -1248,15 +1268,36 @@ public class StdStockCountServiceImpl implements StdStockCountService {
   }
 
   private static boolean isStaleSavedClosingRow(StdStockCountRowDto row) {
-    Instant stockAddedAt =
-        row.latestStockAddedAt() != null ? row.latestStockAddedAt() : row.firstStockAddedAt();
-    if (row.closingStock() == null || row.lastSavedAt() == null || stockAddedAt == null) {
+    return isStaleSavedClosingRow(row, BigDecimal.ZERO);
+  }
+
+  private static boolean isStaleSavedClosingRow(StdStockCountRowDto row, BigDecimal recordedSales) {
+    if (row.closingStock() == null) {
       return false;
     }
     BigDecimal total = totalStockFromRow(row);
-    return row.closingStock().compareTo(total) < 0
-        && row.closingStock().compareTo(row.openingStock()) == 0
-        && row.lastSavedAt().isBefore(stockAddedAt);
+    if (row.closingStock().compareTo(total) >= 0) {
+      return false;
+    }
+    BigDecimal addedStock =
+        row.addedStock()
+            .add(row.addedTodayStock() != null ? row.addedTodayStock() : BigDecimal.ZERO)
+            .setScale(SCALE, ROUNDING);
+    if (addedStock.signum() <= 0) {
+      return false;
+    }
+    if (recordedSales == null || recordedSales.signum() == 0) {
+      Instant stockAddedAt =
+          row.latestStockAddedAt() != null ? row.latestStockAddedAt() : row.firstStockAddedAt();
+      if (row.lastSavedAt() == null || stockAddedAt == null) {
+        return false;
+      }
+      return row.closingStock().compareTo(row.openingStock()) == 0
+          && row.lastSavedAt().isBefore(stockAddedAt);
+    }
+    BigDecimal impliedPreSale = row.closingStock().add(recordedSales);
+    return impliedPreSale.compareTo(row.openingStock()) == 0
+        && total.compareTo(row.openingStock()) > 0;
   }
 
   private static BigDecimal totalStockFromRow(StdStockCountRowDto row) {

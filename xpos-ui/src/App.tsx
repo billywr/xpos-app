@@ -157,6 +157,7 @@ function App() {
           <Route path="settings" element={<AdminSettingsPage />} />
         </Route>
         <Route path="select-context" element={<SelectContextPage />} />
+        <Route path="pos" element={<Navigate to="/operator/menu-order" replace />} />
         <Route
           path="operator"
           element={

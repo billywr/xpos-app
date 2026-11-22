@@ -20,6 +20,7 @@ import {
   TableSkeleton,
   StatChip,
   tableBodyRow,
+  tableBodyRowZebra,
   tableStickyFirstCell,
   tableHeadCell,
   tableBodyCell,
@@ -372,7 +373,7 @@ export function SalesListPage({ initialOrgId, initialBranchId }: SalesListPagePr
                       const isEven = index % 2 === 1;
                       const zebraClass =
                         tableCustom.zebraStriping && isEven
-                          ? "bg-slate-50/60 dark:bg-slate-700/20"
+                          ? tableBodyRowZebra
                           : "";
                       return (
                         <Fragment key={sale.id}>

@@ -18,13 +18,13 @@ import {
   TableSearchInput,
   TableSkeleton,
   tableBodyRow,
+  tableBodyRowZebra,
   tableStickyHeadCell,
-  tableHeadCell,
-  tableBodyCellNumDebts,
   tableStickyFirstBody,
   tableEmptyCell,
   tableCard,
 } from "@/components/ui";
+import { cn } from "@/utils/cn";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useDataTable } from "@/hooks/useDataTable";
 import { TABLE_SEARCH_FETCH_SIZE } from "@/constants/tableSearch";
@@ -390,7 +390,7 @@ export function InventoryPage({
                           sortDirection={sortDirection}
                           onSort={toggleSort}
                           sortable={col.sortable}
-                          className={`${isSticky ? tableStickyHeadCell : ""} ${tableHeadCell} ${tableCustom.densityStyles.th}`}
+                          className={cn(isSticky && tableStickyHeadCell, tableCustom.densityStyles.th)}
                         />
                       );
                     })}
@@ -433,12 +433,12 @@ export function InventoryPage({
                       const isEven = index % 2 === 1;
                       const zebraClass =
                         tableCustom.zebraStriping && isEven
-                          ? "bg-slate-50/60 dark:bg-slate-700/20"
+                          ? tableBodyRowZebra
                           : "";
                       return (
                         <tr
                           key={line.itemId}
-                          className={`${tableBodyRow} ${zebraClass}`}
+                          className={cn(tableBodyRow, zebraClass)}
                         >
                           {tableCustom.showRowNumbers && (
                             <TableRowNumberCell
@@ -449,12 +449,19 @@ export function InventoryPage({
                             />
                           )}
                           {tableCustom.visibleColumns.map((col) => {
+                            const alignClass =
+                              col.align === "right"
+                                ? "text-right"
+                                : col.align === "center"
+                                ? "text-center"
+                                : "text-left";
+
                             switch (col.key) {
                               case "itemName":
                                 return (
                                   <td
                                     key={col.key}
-                                    className={`${tableStickyFirstBody} ${tableCustom.densityStyles.td}`}
+                                    className={cn(tableStickyFirstBody, tableCustom.densityStyles.td, alignClass)}
                                   >
                                     <span>{line.itemName}</span>
                                     {!line.trackInventory && (
@@ -468,7 +475,7 @@ export function InventoryPage({
                                 return (
                                   <td
                                     key={col.key}
-                                    className={`${tableBodyCellNumDebts} ${tableCustom.densityStyles.td}`}
+                                    className={cn(tableCustom.densityStyles.td, "tabular-nums", alignClass)}
                                   >
                                     {formatQty(line.receivedQty)}
                                   </td>
@@ -477,9 +484,15 @@ export function InventoryPage({
                                 return (
                                   <td
                                     key={col.key}
-                                    className={`${tableBodyCellNumDebts} ${tableCustom.densityStyles.td}`}
+                                    className={cn(tableCustom.densityStyles.td, "tabular-nums", alignClass)}
                                   >
-                                    <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+                                    <span
+                                      className={cn(
+                                        "inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400",
+                                        col.align === "right" && "justify-end",
+                                        col.align === "center" && "justify-center"
+                                      )}
+                                    >
                                       <TrendingUp className="h-4 w-4" />
                                       {formatQty(line.onHandQty)}
                                     </span>
@@ -489,9 +502,15 @@ export function InventoryPage({
                                 return (
                                   <td
                                     key={col.key}
-                                    className={`${tableBodyCellNumDebts} ${tableCustom.densityStyles.td}`}
+                                    className={cn(tableCustom.densityStyles.td, "tabular-nums", alignClass)}
                                   >
-                                    <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400">
+                                    <span
+                                      className={cn(
+                                        "inline-flex items-center gap-1 text-amber-700 dark:text-amber-400",
+                                        col.align === "right" && "justify-end",
+                                        col.align === "center" && "justify-center"
+                                      )}
+                                    >
                                       <TrendingDown className="h-4 w-4" />
                                       {formatQty(line.soldQty)}
                                     </span>

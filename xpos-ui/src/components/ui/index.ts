@@ -32,6 +32,7 @@ export {
   tableHeadRow,
   tableHeadCell,
   tableBodyRow,
+  tableBodyRowZebra,
   tableBodyCell,
   tableBodyCellNum,
   tableBodyCellNumDebts,

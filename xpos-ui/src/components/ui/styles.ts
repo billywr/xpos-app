@@ -92,6 +92,10 @@ export const tableHeadCell =
 /** Uniform row hover — pairs with .xpos-table-row rules in index.css */
 export const tableBodyRow = "xpos-table-row";
 
+/** Uniform alternating / zebra row styling — pairs with .xpos-table-row-zebra in index.css */
+export const tableBodyRowZebra =
+  "xpos-table-row-zebra bg-slate-50/60 dark:bg-slate-700/20";
+
 export const tableBodyCell =
   "px-4 py-2 text-lg text-slate-600 sm:px-6 sm:py-2.5 sm:text-xl dark:text-slate-400";
 

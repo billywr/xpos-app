@@ -34,6 +34,7 @@ import {
   TableSkeleton,
   FormLabel,
   tableBodyRow,
+  tableBodyRowZebra,
   tableHeadCell,
   tableBodyCell,
   tableStickyFirstBody,
@@ -579,7 +580,7 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                       const isEven = index % 2 === 1;
                       const zebraClass =
                         tableCustom.zebraStriping && isEven
-                          ? "bg-slate-50/60 dark:bg-slate-700/20"
+                          ? tableBodyRowZebra
                           : "";
                       return (
                         <tr

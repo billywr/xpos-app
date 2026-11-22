@@ -32,6 +32,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -233,6 +235,20 @@ public class GlobalExceptionHandler {
             ? "Request cannot be completed in the current state."
             : safeMessage(ex.getMessage());
     return build(HttpStatus.BAD_REQUEST, "INVALID_STATE", message, request, List.of());
+  }
+
+  @ExceptionHandler(NoResourceFoundException.class)
+  public ResponseEntity<ApiError> handleNoResourceFound(
+      NoResourceFoundException ex, HttpServletRequest request) {
+    String message = "Static resource not found: " + safeMessage(ex.getResourcePath());
+    return build(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", message, request, List.of());
+  }
+
+  @ExceptionHandler(NoHandlerFoundException.class)
+  public ResponseEntity<ApiError> handleNoHandlerFound(
+      NoHandlerFoundException ex, HttpServletRequest request) {
+    String message = "Endpoint not found: " + safeMessage(ex.getRequestURL());
+    return build(HttpStatus.NOT_FOUND, "NOT_FOUND", message, request, List.of());
   }
 
   @ExceptionHandler(Exception.class)

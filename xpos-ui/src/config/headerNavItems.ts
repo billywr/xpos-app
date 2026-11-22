@@ -20,5 +20,6 @@ export const HEADER_NAV_ITEMS: HeaderNavItemConfig[] = [
   { path: "/", label: "Home", canHide: true },
   { path: "/admin", label: "Admin", canHide: true },
   { path: "/operator", label: "Operator", canHide: true },
+  { path: "/operator/menu-order", label: "POS", canHide: true },
   { path: "/select-context", label: "Org", canHide: true },
 ];

@@ -45,3 +45,7 @@ export function getItemImageUrl(url: string | null | undefined): string | null {
   const base = (getEnv("VITE_API_BASE_URL") ?? "").replace(/\/$/, "");
   return base ? `${base}${trimmed.startsWith("/") ? "" : "/"}${trimmed}` : trimmed;
 }
+
+/** Default placeholder image URL when no product image is provided. */
+export const DEFAULT_PRODUCT_PLACEHOLDER = "/placeholder-product.svg";
+

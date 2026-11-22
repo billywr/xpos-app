@@ -82,6 +82,7 @@ import {
   tableHeadCell,
   tableBodyCellNumDebts,
   tableBodyRow,
+  tableBodyRowZebra,
   tableStickyFirstBody,
   tableStickyHeadCell,
   tableCard,
@@ -158,20 +159,27 @@ const STANDARD_STOCK_SORT = {
   amount: (row: ComputedRow) => row.amount,
 };
 
-/** Saved closing is stale when stock arrived after last save, closing equals opening (no operator count/sales performed), and closing is less than total. Once sales are recorded for an item, closing is NEVER considered stale. */
+/** Saved closing is stale when stock arrived after last save, closing equals opening (no operator count/sales performed), and closing is less than total. When sales exist, it is also stale if closing + alreadyRecorded matches opening stock but total exceeds opening stock (pre-receipt baseline). */
 export function isStaleSavedClosing(
   row: StdStockCountRowResponse,
   alreadyRecorded: number = 0
 ): boolean {
-  if (alreadyRecorded > 0) return false;
-  const stockAddedAt = row.latestStockAddedAt ?? row.firstStockAddedAt;
-  if (row.closingStock == null || !row.lastSavedAt || !stockAddedAt) return false;
+  if (row.closingStock == null) return false;
   const total = totalStockFromRow(row);
-  return (
-    row.closingStock === row.openingStock &&
-    row.closingStock < total &&
-    row.lastSavedAt < stockAddedAt
-  );
+  if (row.closingStock >= total) return false;
+
+  const stockAddedAt = row.latestStockAddedAt ?? row.firstStockAddedAt;
+
+  if (alreadyRecorded <= 0) {
+    if (!row.lastSavedAt || !stockAddedAt) return false;
+    return (
+      row.closingStock === row.openingStock &&
+      row.lastSavedAt < stockAddedAt
+    );
+  }
+
+  const impliedPreSaleStock = roundQty(row.closingStock + alreadyRecorded);
+  return impliedPreSaleStock === row.openingStock && total > row.openingStock;
 }
 
 export interface AutoSyncClosingContext {
@@ -180,17 +188,17 @@ export interface AutoSyncClosingContext {
   alreadyRecorded?: number;
 }
 
-/** Whether closing should be bumped to total and auto-saved (GRN / cross-tab Added increase). */
+/** Whether closing should be bumped to total (or max physical after sales) and auto-saved (GRN / cross-tab Added increase / stale closing). */
 export function shouldAutoSyncClosing(
   row: StdStockCountRowResponse,
   ctx: AutoSyncClosingContext
 ): boolean {
-  if (ctx.alreadyRecorded !== undefined && ctx.alreadyRecorded > 0) {
-    // If sales were already recorded, NEVER auto-sync closing to total stock.
-    return false;
-  }
   if (isStaleSavedClosing(row, ctx.alreadyRecorded ?? 0)) {
     return true;
+  }
+  if (ctx.alreadyRecorded !== undefined && ctx.alreadyRecorded > 0) {
+    // If sales were already recorded and closing is not stale, NEVER auto-sync closing to total stock.
+    return false;
   }
   // Carry-forward / unsaved row with positive total stock — persist closing = total.
   if (row.closingStock == null && totalStockFromRow(row) > 0) {
@@ -225,13 +233,16 @@ export function totalStockFromRow(row: StdStockCountRowResponse): number {
   );
 }
 
-/** Saved closing if present; otherwise Total stock (Open + Added + AddedToday) so unsaved rows start at "nothing sold yet" and never exceed Total. If sales were already recorded, closing cannot exceed total - alreadyRecorded. Stale saved closings default to Total stock. */
+/** Saved closing if present; otherwise Total stock (Open + Added + AddedToday) so unsaved rows start at "nothing sold yet" and never exceed Total. If sales were already recorded, closing cannot exceed total - alreadyRecorded. Stale saved closings default to Total stock (or max physical stock if sales recorded). */
 export function defaultClosingFromRow(
   row: StdStockCountRowResponse,
   alreadyRecorded: number = 0
 ): number {
   const total = totalStockFromRow(row);
   if (isStaleSavedClosing(row, alreadyRecorded)) {
+    if (alreadyRecorded > 0) {
+      return Math.max(0, roundQty(total - alreadyRecorded));
+    }
     return total;
   }
   if (row.closingStock !== null && row.closingStock !== undefined) {
@@ -1854,7 +1865,7 @@ export function StandardStockCountSheetPage({
                   const isEven = index % 2 === 1;
                   const zebraClass =
                     tableCustom.zebraStriping && isEven
-                      ? "bg-slate-50/60 dark:bg-slate-700/20"
+                      ? tableBodyRowZebra
                       : "";
                   return (
                   <tr
@@ -1870,6 +1881,13 @@ export function StandardStockCountSheetPage({
                       />
                     )}
                     {tableCustom.visibleColumns.map((col) => {
+                      const alignClass =
+                        col.align === "right"
+                          ? "text-right"
+                          : col.align === "center"
+                          ? "text-center"
+                          : "text-left";
+
                       switch (col.key) {
                         case "item":
                           return (
@@ -1884,7 +1902,7 @@ export function StandardStockCountSheetPage({
                           return (
                             <td
                               key={col.key}
-                              className={`${tableBodyCellNumDebts} hidden xl:table-cell ${tableCustom.densityStyles.td}`}
+                              className={`${tableBodyCellNumDebts} hidden xl:table-cell ${tableCustom.densityStyles.td} ${alignClass}`}
                             >
                               {formatQty(r.openingStock)}
                             </td>
@@ -1893,7 +1911,7 @@ export function StandardStockCountSheetPage({
                           return (
                             <td
                               key={col.key}
-                              className={`${tableBodyCellNumDebts} hidden xl:table-cell ${tableCustom.densityStyles.td}`}
+                              className={`${tableBodyCellNumDebts} hidden xl:table-cell ${tableCustom.densityStyles.td} ${alignClass}`}
                             >
                               {formatQty(r.addedStock)}
                             </td>
@@ -1902,7 +1920,7 @@ export function StandardStockCountSheetPage({
                           return (
                             <td
                               key={col.key}
-                              className={`px-1.5 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400 ${tableCustom.densityStyles.td}`}
+                              className={`px-1.5 py-1.5 ${alignClass} text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400 ${tableCustom.densityStyles.td}`}
                             >
                               {formatQty(r.totalStock)}
                             </td>
@@ -1911,10 +1929,19 @@ export function StandardStockCountSheetPage({
                           return (
                             <td
                               key={col.key}
-                              className={`${canEdit ? "px-1.5 py-1.5 text-left text-xs sm:px-4 sm:py-2.5 sm:text-lg" : tableBodyCellNumDebts} ${tableCustom.densityStyles.td}`}
+                              className={`${canEdit ? `px-1.5 py-1.5 ${alignClass} text-xs sm:px-4 sm:py-2.5 sm:text-lg` : tableBodyCellNumDebts} ${tableCustom.densityStyles.td}`}
                             >
                               {canEdit ? (
-                                <div className="flex flex-col">
+                                <div
+                                  className={cn(
+                                    "flex flex-col",
+                                    col.align === "right"
+                                      ? "items-end"
+                                      : col.align === "center"
+                                      ? "items-center"
+                                      : "items-start"
+                                  )}
+                                >
                                   <input
                                     ref={(el) => {
                                       inputRefs.current[index] = el;
@@ -1964,7 +1991,7 @@ export function StandardStockCountSheetPage({
                                         }
                                       }
                                     }}
-                                    className={`w-14 rounded border px-1 py-0.5 text-left text-xs font-semibold tabular-nums focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:w-24 sm:px-2 sm:py-1 sm:text-xl ${
+                                    className={`w-14 rounded border px-1 py-0.5 ${alignClass} text-xs font-semibold tabular-nums focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:w-24 sm:px-2 sm:py-1 sm:text-xl ${
                                       r.closingError
                                         ? "border-red-500 bg-red-50 dark:border-red-600 dark:bg-red-950/20"
                                         : r.closingStale
@@ -2004,9 +2031,18 @@ export function StandardStockCountSheetPage({
                           return (
                             <td
                               key={col.key}
-                              className={`px-1.5 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400 ${tableCustom.densityStyles.td}`}
+                              className={`px-1.5 py-1.5 ${alignClass} text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400 ${tableCustom.densityStyles.td}`}
                             >
-                              <div className="flex items-center gap-1 sm:gap-1.5">
+                              <div
+                                className={cn(
+                                  "flex items-center gap-1 sm:gap-1.5",
+                                  col.align === "right"
+                                    ? "justify-end"
+                                    : col.align === "center"
+                                    ? "justify-center"
+                                    : "justify-start"
+                                )}
+                              >
                                 <span>{formatQty(r.unitsSold)}</span>
                                 {(() => {
                                   const already = alreadyRecordedByItem[r.itemId] ?? 0;
@@ -2038,7 +2074,7 @@ export function StandardStockCountSheetPage({
                           return (
                             <td
                               key={col.key}
-                              className={`${tableBodyCellNumDebts} hidden xl:table-cell ${tableCustom.densityStyles.td}`}
+                              className={`${tableBodyCellNumDebts} hidden xl:table-cell ${tableCustom.densityStyles.td} ${alignClass}`}
                             >
                               {formatAmount(r.sellingPrice)}
                             </td>
@@ -2047,7 +2083,7 @@ export function StandardStockCountSheetPage({
                           return (
                             <td
                               key={col.key}
-                              className={`px-1.5 py-1.5 text-left text-xs tabular-nums font-bold text-slate-700 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-300 ${tableCustom.densityStyles.td}`}
+                              className={`px-1.5 py-1.5 ${alignClass} text-xs tabular-nums font-bold text-slate-700 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-300 ${tableCustom.densityStyles.td}`}
                             >
                               {formatAmount(r.amount)}
                             </td>

@@ -27,6 +27,7 @@ const HEADER_NAV_LINKS = [
   { to: "/", label: "Home", end: true },
   { to: "/admin", label: "Admin" },
   { to: "/operator", label: "Operator" },
+  { to: "/operator/menu-order", label: "POS" },
   { to: "/select-context", label: "Org", end: true },
 ];
 
@@ -101,6 +102,7 @@ export function Layout() {
   const filteredNavLinks = HEADER_NAV_LINKS.filter((item) => {
     if (item.to === "/admin" && !isAdmin) return false;
     if (item.to === "/operator" && !isOperator && !isAdmin) return false;
+    if (item.to === "/operator/menu-order" && !isOperator && !isAdmin) return false;
     if (item.to === "/select-context" && activeOrgs.length <= 1) return false;
     return isHeaderNavItemVisible(item.to, true, headerVisibility);
   });
@@ -136,13 +138,19 @@ export function Layout() {
                   key={item.to}
                   to={item.to}
                   end={item.end}
-                  className={({ isActive }) =>
-                    `flex items-center gap-1.5 rounded-lg px-2 py-1.5 ${
-                      isActive
+                  className={({ isActive }) => {
+                    const active =
+                      item.to === "/operator"
+                        ? isActive && location.pathname !== "/operator/menu-order"
+                        : item.to === "/operator/menu-order"
+                        ? isActive || location.pathname === "/admin/pos"
+                        : isActive;
+                    return `flex items-center gap-1.5 rounded-lg px-2 py-1.5 ${
+                      active
                         ? "bg-primary-600 font-semibold text-white dark:bg-primary-500"
                         : "text-slate-600 hover:bg-slate-100 hover:text-primary-600 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
-                    }`
-                  }
+                    }`;
+                  }}
                 >
                   {item.to === "/" && <LayoutDashboard className="h-4 w-4" />}
                   {getHeaderLabel(item.to, item.label)}
@@ -212,13 +220,19 @@ export function Layout() {
                   to={item.to}
                   end={item.end}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium ${
-                      isActive
+                  className={({ isActive }) => {
+                    const active =
+                      item.to === "/operator"
+                        ? isActive && location.pathname !== "/operator/menu-order"
+                        : item.to === "/operator/menu-order"
+                        ? isActive || location.pathname === "/admin/pos"
+                        : isActive;
+                    return `flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium ${
+                      active
                         ? "bg-primary-600 font-semibold text-white dark:bg-primary-500"
                         : "text-slate-600 hover:bg-slate-100 hover:text-primary-600 dark:text-white/90 dark:hover:bg-white/10 dark:hover:text-white"
-                    }`
-                  }
+                    }`;
+                  }}
                 >
                   {item.to === "/" && <LayoutDashboard className="h-4 w-4" />}
                   {getHeaderLabel(item.to, item.label)}

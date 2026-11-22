@@ -118,6 +118,7 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
     Instant effectiveReceivedAt = receivedAt != null ? receivedAt : now;
     List<GrnLineRequest> normalized = normalizeDuplicateLineRequests(lines);
 
+    GoodsReceiptNote grn;
     if (purchaseOrderId == null && normalized != null && !normalized.isEmpty()) {
       Instant dayStart = startOfMergeZoneDay(effectiveReceivedAt, GOODS_RECEIPT_MERGE_DAY_ZONE);
       Instant dayEndExclusive =
@@ -126,13 +127,40 @@ public class GoodsReceiptNoteServiceImpl implements GoodsReceiptNoteService {
           grnRepository.findActiveWithoutPoForMergeSameDay(
               orgId, branchId, supplierId, dayStart, dayEndExclusive, PageRequest.of(0, 1));
       if (!mergeTargets.isEmpty()) {
-        return mergeIntoExistingGrn(
-            mergeTargets.getFirst(), normalized, staffUser, effectiveReceivedAt, now);
+        grn =
+            mergeIntoExistingGrn(
+                mergeTargets.getFirst(), normalized, staffUser, effectiveReceivedAt, now);
+      } else {
+        grn =
+            createNewGrn(
+                branch,
+                supplier,
+                orgId,
+                purchaseOrderId,
+                staffUser,
+                effectiveReceivedAt,
+                now,
+                normalized);
       }
+    } else {
+      grn =
+          createNewGrn(
+              branch,
+              supplier,
+              orgId,
+              purchaseOrderId,
+              staffUser,
+              effectiveReceivedAt,
+              now,
+              normalized);
     }
 
-    return createNewGrn(
-        branch, supplier, orgId, purchaseOrderId, staffUser, effectiveReceivedAt, now, normalized);
+    String tz = branch.getTimezone();
+    ZoneId zone = tz != null && !tz.isBlank() ? ZoneId.of(tz) : GOODS_RECEIPT_MERGE_DAY_ZONE;
+    LocalDate businessDate = effectiveReceivedAt.atZone(zone).toLocalDate();
+    stdStockCountService.syncSnapshotsForDate(orgId, branchId, businessDate);
+
+    return grn;
   }
 
   private static Instant startOfMergeZoneDay(Instant instant, ZoneId zone) {

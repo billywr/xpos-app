@@ -8,6 +8,7 @@ import orgContextReducer from "@/store/slices/orgContextSlice";
 import { NavVisibilityContext } from "@/contexts/NavVisibilityContext";
 import { TableCustomizationProvider } from "./TableCustomizationProvider";
 import { useTableCustomization } from "@/contexts/TableCustomizationContext";
+import { tableBodyRowZebra } from "@/components/ui";
 
 describe("TableCustomizationProvider", () => {
   let mockNavCtx: any;
@@ -172,5 +173,11 @@ describe("TableCustomizationProvider", () => {
 
     expect(result.current.getColumnLabel("sku")).toBe("SKU");
     expect(result.current.density).toBe("comfortable");
+  });
+
+  it("exports canonical tableBodyRowZebra containing xpos-table-row-zebra and slate background classes", () => {
+    expect(tableBodyRowZebra).toContain("xpos-table-row-zebra");
+    expect(tableBodyRowZebra).toContain("bg-slate-50/60");
+    expect(tableBodyRowZebra).toContain("dark:bg-slate-700/20");
   });
 });
