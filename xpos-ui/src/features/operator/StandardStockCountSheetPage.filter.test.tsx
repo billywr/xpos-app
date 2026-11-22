@@ -424,7 +424,8 @@ describe("StandardStockCountSheetPage filter", () => {
       expect(screen.getByRole("heading", { name: /record sales from stock count/i })).toBeInTheDocument();
     });
     expect(screen.getByText(/1 of \d+ products/i)).toBeInTheDocument();
-    expect(screen.getByText(/2 units/i)).toBeInTheDocument();
+    expect(screen.getByText(/Total 200/i)).toBeInTheDocument();
+    expect(screen.queryByText(/units/i)).not.toBeInTheDocument();
     expect(stdApi.fetchStdStockCountSalesPreview).toHaveBeenCalledWith(
       "t",
       "org-1",

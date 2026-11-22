@@ -2412,12 +2412,8 @@ export function StandardStockCountSheetPage({
             )}
             <div className="border-t border-slate-200 pt-4 dark:border-slate-600">
               <div className="mb-3 flex items-baseline gap-2 text-sm text-slate-600 dark:text-slate-300">
-                <span className="font-medium text-slate-700 dark:text-slate-300">
-                  {formatQty(recordPreview.totalQtyToRecord)} units
-                </span>
-                <span>·</span>
                 <span className="text-base font-bold text-slate-900 dark:text-white">
-                  {formatCurrency(recordPreview.totalValueToRecord)}
+                  Total {formatAmount(recordPreview.totalValueToRecord)}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3">
