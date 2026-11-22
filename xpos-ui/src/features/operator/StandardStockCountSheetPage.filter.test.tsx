@@ -1409,13 +1409,6 @@ describe("StandardStockCountSheetPage reconcile inventory", () => {
     fireEvent.click(within(previewModal).getByRole("button", { name: /^reconcile$/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/reconcile inventory to closings\?/i)).toBeInTheDocument();
-    });
-
-    const confirmDialog = screen.getByRole("dialog", { name: /reconcile inventory to closings\?/i });
-    fireEvent.click(within(confirmDialog).getByRole("button", { name: /^reconcile$/i }));
-
-    await waitFor(() => {
       expect(stdApi.reconcileStdStockCountInventory).toHaveBeenCalledWith(
         "t",
         "org-1",

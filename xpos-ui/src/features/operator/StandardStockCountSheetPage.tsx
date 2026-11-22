@@ -433,7 +433,6 @@ export function StandardStockCountSheetPage({
     null
   );
   const [reconcileModalOpen, setReconcileModalOpen] = useState(false);
-  const [reconcileConfirmOpen, setReconcileConfirmOpen] = useState(false);
   const [saveBeforeRecordOpen, setSaveBeforeRecordOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const priorAddedStockSignatureRef = useRef("");
@@ -777,7 +776,6 @@ export function StandardStockCountSheetPage({
         queryKey: ["std-stock-count-reconcile-preview", token, orgId, branchId, dateStr],
       });
       setReconcileModalOpen(false);
-      setReconcileConfirmOpen(false);
       if (result.adjustedCount === 0) {
         toast.success("Inventory already matches saved closings.", {
           title: "Reconcile inventory",
@@ -1306,8 +1304,7 @@ export function StandardStockCountSheetPage({
   }
 
   function handleReconcileProceed() {
-    setReconcileModalOpen(false);
-    setReconcileConfirmOpen(true);
+    reconcileMutation.mutate();
   }
 
   async function handleRecordSalesClick() {
@@ -2217,18 +2214,6 @@ export function StandardStockCountSheetPage({
         loading={saveMutation.isPending || previewLoading}
       />
 
-      <ConfirmDialog
-        open={reconcileConfirmOpen}
-        onClose={() => setReconcileConfirmOpen(false)}
-        onConfirm={() => reconcileMutation.mutate()}
-        title="Reconcile inventory to closings?"
-        message={`POS on-hand will be updated for ${cachedReconcilePreview?.itemsAdjusted ?? 0} item(s) to match today's saved closing counts. This creates stock adjustments in the ledger.`}
-        confirmLabel="Reconcile"
-        variant="primary"
-        maxWidth="max-w-4xl"
-        loading={reconcileMutation.isPending}
-      />
-
       <Modal
         open={reconcileModalOpen}
         onClose={() => setReconcileModalOpen(false)}
@@ -2319,7 +2304,8 @@ export function StandardStockCountSheetPage({
               <button
                 type="button"
                 onClick={() => setReconcileModalOpen(false)}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 shrink-0"
+                disabled={reconcileMutation.isPending}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 shrink-0"
               >
                 Cancel
               </button>
