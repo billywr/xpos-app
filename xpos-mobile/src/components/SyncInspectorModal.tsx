@@ -32,6 +32,7 @@ import { useToast } from "@/context/ToastContext";
 import { outboxEngine, OutboxMutation } from "@/services/outboxEngine";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { CountBadge } from "@/components/ui/CountBadge";
 import { Button } from "@/components/ui/Button";
 import { haptics } from "@/utils/haptics";
 
@@ -216,10 +217,10 @@ export const SyncInspectorModal: React.FC<SyncInspectorModalProps> = ({
         <View style={styles.filterRow}>
           {(
             [
-              { key: "ALL", label: `All (${stats.all})` },
-              { key: "COMMITTED", label: `Synced (${stats.committed})` },
-              { key: "PENDING", label: `Queued (${stats.pending})` },
-              { key: "FAILED", label: `Failed (${stats.failed})` },
+              { key: "ALL", label: "All", count: stats.all, variant: "primary" as const },
+              { key: "COMMITTED", label: "Synced", count: stats.committed, variant: "primary" as const },
+              { key: "PENDING", label: "Queued", count: stats.pending, variant: "warning" as const },
+              { key: "FAILED", label: "Failed", count: stats.failed, variant: "danger" as const },
             ] as const
           ).map((item) => {
             const active = filter === item.key;
@@ -246,6 +247,12 @@ export const SyncInspectorModal: React.FC<SyncInspectorModalProps> = ({
                 >
                   {item.label}
                 </Text>
+                <CountBadge
+                  count={item.count}
+                  variant={item.variant}
+                  active={active}
+                  size="sm"
+                />
               </TouchableOpacity>
             );
           })}
@@ -566,6 +573,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   filterPillText: {
     fontSize: 12,

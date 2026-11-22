@@ -16,6 +16,7 @@ import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { formatDateTime } from "@/utils/formatDate";
 import {
   formatQty,
+  formatQtyInput,
   formatQtyVariance,
   isValidQtyInput,
   parseQty,
@@ -597,7 +598,7 @@ export function StockCountSessionDetailPage({
                               type="button"
                               onClick={() => {
                                 setEditingLineId(l.id);
-                                setEditingQty(formatQty(l.countedQty));
+                                setEditingQty(formatQtyInput(l.countedQty));
                               }}
                               className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
                               title="Edit"

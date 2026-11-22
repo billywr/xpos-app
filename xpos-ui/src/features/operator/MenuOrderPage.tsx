@@ -62,6 +62,7 @@ import {
   tableBodyRow,
   tableHeadRow,
   DateInput,
+  CountBadge,
 } from "@/components/ui";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { BarcodeCaptureInput } from "@/components/BarcodeCaptureInput";
@@ -767,13 +768,18 @@ export function MenuOrderPage() {
           <button
             type="button"
             onClick={() => setSelectedCategoryId(null)}
-            className={`min-h-[44px] snap-start shrink-0 whitespace-nowrap touch-manipulation rounded-lg px-4 py-2.5 text-base font-semibold transition ${
+            className={`min-h-[44px] snap-start shrink-0 whitespace-nowrap touch-manipulation rounded-lg px-4 py-2.5 text-base font-semibold transition inline-flex items-center gap-2 ${
               selectedCategoryId === null
                 ? "bg-primary-600 text-white"
                 : "bg-slate-200 text-slate-700 hover:bg-slate-300 active:scale-[0.98] dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
             }`}
           >
-            All ({visibleCountForCategory(null)})
+            <span>All</span>
+            <CountBadge
+              count={visibleCountForCategory(null)}
+              variant="primary"
+              active={selectedCategoryId === null}
+            />
           </button>
           {categoriesLoading
             ? null
@@ -782,13 +788,18 @@ export function MenuOrderPage() {
                   key={cat.id}
                   type="button"
                   onClick={() => setSelectedCategoryId(cat.id)}
-                  className={`min-h-[44px] snap-start shrink-0 whitespace-nowrap touch-manipulation rounded-lg px-4 py-2.5 text-base font-semibold transition ${
+                  className={`min-h-[44px] snap-start shrink-0 whitespace-nowrap touch-manipulation rounded-lg px-4 py-2.5 text-base font-semibold transition inline-flex items-center gap-2 ${
                     selectedCategoryId === cat.id
                       ? "bg-primary-600 text-white"
                       : "bg-slate-200 text-slate-700 hover:bg-slate-300 active:scale-[0.98] dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
                   }`}
                 >
-                  {cat.name} ({visibleCountForCategory(cat.id)})
+                  <span>{cat.name}</span>
+                  <CountBadge
+                    count={visibleCountForCategory(cat.id)}
+                    variant="primary"
+                    active={selectedCategoryId === cat.id}
+                  />
                 </button>
               ))}
           {showHideOosToggle && (
@@ -1077,9 +1088,11 @@ export function MenuOrderPage() {
         >
           <span className="flex items-center gap-2 text-white">
             <ShoppingCart className="h-5 w-5" />
-            <span className="text-base font-semibold">
-              Cart ({cartLines.reduce((s, l) => s + l.qty, 0)})
-            </span>
+            <span className="text-base font-semibold">Cart</span>
+            <CountBadge
+              count={cartLines.reduce((s, l) => s + l.qty, 0)}
+              className="bg-white text-primary-700 shadow-sm dark:bg-white dark:text-primary-800"
+            />
           </span>
           <span className="text-base font-bold text-white">
             {formatCurrency(total)}

@@ -11,10 +11,18 @@ export async function fetchRecurringUtilities(
   token: string | null,
   orgId: string,
   branchId: string,
-  params?: { active?: boolean; page?: number; size?: number }
+  params?: {
+    active?: boolean;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    size?: number;
+  }
 ): Promise<RecurringUtilityListResponse> {
   const search = new URLSearchParams();
   if (params?.active !== undefined) search.set("active", String(params.active));
+  if (params?.startDate) search.set("startDate", params.startDate);
+  if (params?.endDate) search.set("endDate", params.endDate);
   if (params?.page !== undefined) search.set("page", String(params.page));
   if (params?.size !== undefined) search.set("size", String(params.size));
   const qs = search.toString();

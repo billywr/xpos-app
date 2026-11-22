@@ -34,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class StockCountSessionServiceImpl implements StockCountSessionService {
 
-  private static final int SCALE = 3;
+  private static final int SCALE = 2;
 
   private final StockCountSessionRepository sessionRepository;
   private final StockCountLineRepository lineRepository;

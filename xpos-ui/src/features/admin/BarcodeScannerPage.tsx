@@ -3,6 +3,7 @@ import { QRCodeSVG } from "qrcode.react";
 import JsBarcode from "jsbarcode";
 import { ScanBarcode, Copy, Trash2, Check } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { CountBadge } from "@/components/ui";
 
 const SAMPLE_BARCODES: { label: string; value: string }[] = [
   { label: "Product (EAN-13 style)", value: "5901234123457" },
@@ -190,8 +191,9 @@ export function BarcodeScannerPage() {
         {/* Recent scans list */}
         <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800">
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2 dark:border-slate-600">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-              Recent scans ({scans.length})
+            <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+              <span>Recent scans</span>
+              <CountBadge count={scans.length} variant="neutral" />
             </h2>
             {scans.length > 0 && (
               <button

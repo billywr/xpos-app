@@ -5,6 +5,7 @@ import com.blinc.xpos.api.v1.operator.dto.RecurringUtilityListResponse;
 import com.blinc.xpos.api.v1.operator.dto.RecurringUtilityResponse;
 import com.blinc.xpos.api.v1.operator.dto.RecurringUtilitySummaryResponse;
 import com.blinc.xpos.api.v1.operator.dto.RecurringUtilityUpdateRequest;
+import com.blinc.xpos.common.error.BadRequestException;
 import com.blinc.xpos.common.security.CurrentPrincipalResolver;
 import com.blinc.xpos.common.web.paging.PageRequestFactory;
 import com.blinc.xpos.modules.cash.domain.RecurringUtilityExpense;
@@ -12,11 +13,14 @@ import com.blinc.xpos.modules.cash.service.RecurringUtilityExpenseService;
 import com.blinc.xpos.modules.organization.service.StaffAuthorizationService;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -84,9 +88,38 @@ public class RecurringUtilityOperatorController {
       @PathVariable UUID branchId,
       @RequestParam(required = false) Boolean active,
       @RequestParam(required = false) String query,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate endDate,
       Pageable pageable) {
     staffAuthorizationService.requireStaffUserForBranch(
         orgId, branchId, principalResolver.require().iamUserId());
+
+    if (startDate != null && endDate != null) {
+      if (endDate.isBefore(startDate)) {
+        throw new BadRequestException("INVALID_DATE_RANGE", "endDate must not be before startDate");
+      }
+      List<RecurringUtilityResponse> items =
+          recurringUtilityService
+              .listApplicableForPeriod(orgId, branchId, startDate, endDate)
+              .stream()
+              .filter(
+                  u -> {
+                    if (query == null || query.isBlank()) {
+                      return true;
+                    }
+                    String q = query.trim().toLowerCase();
+                    return (u.getName() != null && u.getName().toLowerCase().contains(q))
+                        || (u.getPayee() != null && u.getPayee().toLowerCase().contains(q))
+                        || (u.getAccountNumber() != null
+                            && u.getAccountNumber().toLowerCase().contains(q));
+                  })
+              .map(RecurringUtilityOperatorController::toResponse)
+              .toList();
+      return new RecurringUtilityListResponse(items, 0, Math.max(items.size(), 1), items.size(), 1);
+    }
+
     Pageable normalized = pageRequestFactory.normalize(pageable, Sort.by("createdAt").descending());
     Page<RecurringUtilityResponse> page =
         recurringUtilityService

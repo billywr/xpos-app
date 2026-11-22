@@ -1397,7 +1397,7 @@ export function AdminSettingsPage() {
       const count = tabMatchCounts.get(tab.id as SettingsTabId) ?? 0;
       return {
         ...tab,
-        label: count > 0 ? `${tab.label} (${count})` : tab.label,
+        badge: count > 0 ? count : undefined,
       };
     });
   }, [isSearching, tabMatchCounts]);

@@ -172,8 +172,12 @@ public class RevenueReportServiceImpl implements RevenueReportService {
           YearMonth utilEndYm =
               util.getEffectiveTo() != null ? YearMonth.from(util.getEffectiveTo()) : null;
 
+          boolean isEnded = utilEndYm != null;
+          boolean isPaused = !util.isActive() && !isEnded;
+
           boolean effective =
-              !currentYm.isBefore(utilStartYm)
+              !isPaused
+                  && !currentYm.isBefore(utilStartYm)
                   && (utilEndYm == null || !currentYm.isAfter(utilEndYm));
           if (effective) {
             BigDecimal amt = util.getAmount() != null ? util.getAmount() : BigDecimal.ZERO;

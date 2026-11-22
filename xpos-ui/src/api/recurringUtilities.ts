@@ -71,6 +71,8 @@ export async function fetchRecurringUtilities(
   params?: {
     active?: boolean;
     query?: string;
+    startDate?: string;
+    endDate?: string;
     page?: number;
     size?: number;
     sort?: string;
@@ -80,6 +82,8 @@ export async function fetchRecurringUtilities(
   const p = params ?? {};
   if (p.active !== undefined) search.set("active", String(p.active));
   if (p.query) search.set("query", p.query);
+  if (p.startDate) search.set("startDate", p.startDate);
+  if (p.endDate) search.set("endDate", p.endDate);
   if (p.page !== undefined) search.set("page", String(p.page));
   if (p.size !== undefined) search.set("size", String(p.size));
   if (p.sort) search.set("sort", p.sort);

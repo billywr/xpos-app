@@ -65,12 +65,6 @@ export function getUtilityStatus(u: RecurringUtility): {
   label: "ACTIVE" | "ENDED" | "UPCOMING" | "PAUSED";
   className: string;
 } {
-  if (!u.active) {
-    return {
-      label: "PAUSED",
-      className: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
-    };
-  }
   const todayYm = new Date().toISOString().slice(0, 7);
   const effectiveDate = u.effectiveFrom || (u.createdAt ? u.createdAt.slice(0, 10) : undefined);
   const fromYm = effectiveDate ? effectiveDate.slice(0, 7) : undefined;
@@ -80,6 +74,12 @@ export function getUtilityStatus(u: RecurringUtility): {
     return {
       label: "ENDED",
       className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+    };
+  }
+  if (!u.active) {
+    return {
+      label: "PAUSED",
+      className: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300",
     };
   }
   if (fromYm && fromYm > todayYm) {
@@ -190,6 +190,8 @@ export function UtilitiesTabPanel({
     queryClient.invalidateQueries({ queryKey: ["recurring-utilities"] });
     queryClient.invalidateQueries({ queryKey: ["recurring-utilities-summary"] });
     queryClient.invalidateQueries({ queryKey: ["revenue-dashboard"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-revenue-dashboard"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-revenue-utilities"] });
   };
 
   const createMutation = useMutation({

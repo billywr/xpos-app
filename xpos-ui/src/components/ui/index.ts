@@ -4,6 +4,8 @@ export { IconButton } from "./IconButton";
 export type { IconButtonProps, IconButtonVariant } from "./IconButton";
 export { Badge } from "./Badge";
 export type { BadgeProps, BadgeVariant } from "./Badge";
+export { CountBadge } from "./CountBadge";
+export type { CountBadgeProps, CountBadgeVariant } from "./CountBadge";
 export { StatChip } from "./StatChip";
 export type { StatChipProps, StatChipTone } from "./StatChip";
 export { Modal, ModalFooter } from "./Modal";

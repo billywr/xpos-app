@@ -38,6 +38,7 @@ import { useSyncStatus } from "@/services/useSyncStatus";
 import { formatCurrency, formatPercent, formatAmount } from "@/utils/formatCurrency";
 import { haptics } from "@/utils/haptics";
 import { Input } from "@/components/ui/Input";
+import { CountBadge } from "@/components/ui/CountBadge";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
@@ -340,12 +341,24 @@ export const RevenueScreen: React.FC = () => {
     data: utilitiesList = [],
     refetch: refetchUtilities,
   } = useQuery({
-    queryKey: ["mobile-revenue-utilities", orgId, branchId],
+    queryKey: ["mobile-revenue-utilities", orgId, branchId, startDate, endDate],
     queryFn: async () => {
-      if (!orgId || !branchId) return [];
+      if (!orgId || !branchId || !startDate || !endDate) return [];
+      if (token && isOnline) {
+        try {
+          const res = await fetchRecurringUtilities(token, orgId, branchId, {
+            startDate,
+            endDate,
+            size: 200,
+          });
+          if (res?.items) {
+            return res.items;
+          }
+        } catch {}
+      }
       return await recurringUtilitiesRepository.getUtilities(orgId, branchId, true);
     },
-    enabled: Boolean(orgId && branchId),
+    enabled: Boolean(orgId && branchId && startDate && endDate),
   });
 
   const isLoading = isDashLoading || isExpLoading;
@@ -1018,8 +1031,14 @@ export const RevenueScreen: React.FC = () => {
                     { color: breakdownTab === "ALL" ? "#fff" : colors.text },
                   ]}
                 >
-                  All ({categorizedExpenses.length + utilitiesList.length})
+                  All
                 </Text>
+                <CountBadge
+                  count={categorizedExpenses.length + utilitiesList.length}
+                  variant="primary"
+                  active={breakdownTab === "ALL"}
+                  size="sm"
+                />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
@@ -1041,8 +1060,14 @@ export const RevenueScreen: React.FC = () => {
                     { color: breakdownTab === "EXPENSES" ? "#fff" : colors.text },
                   ]}
                 >
-                  Expenses ({categorizedExpenses.length})
+                  Expenses
                 </Text>
+                <CountBadge
+                  count={categorizedExpenses.length}
+                  variant="warning"
+                  active={breakdownTab === "EXPENSES"}
+                  size="sm"
+                />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
@@ -1064,8 +1089,14 @@ export const RevenueScreen: React.FC = () => {
                     { color: breakdownTab === "UTILITIES" ? "#fff" : colors.text },
                   ]}
                 >
-                  Utilities ({utilitiesList.length})
+                  Utilities
                 </Text>
+                <CountBadge
+                  count={utilitiesList.length}
+                  variant="purple"
+                  active={breakdownTab === "UTILITIES"}
+                  size="sm"
+                />
               </TouchableOpacity>
             </View>
 
@@ -1509,6 +1540,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   expCatChipText: {
     fontSize: 11,

@@ -41,6 +41,7 @@ import { haptics } from "@/utils/haptics";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { CountBadge } from "@/components/ui/CountBadge";
 import { Button } from "@/components/ui/Button";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { AnimatedModalBackdrop } from "@/components/ui/AnimatedModalBackdrop";
@@ -331,8 +332,14 @@ export const CatalogScreen: React.FC = () => {
                 },
               ]}
             >
-              All Items ({items.length})
+              All Items
             </Text>
+            <CountBadge
+              count={items.length}
+              variant="primary"
+              active={selectedCategoryId === null}
+              size="sm"
+            />
           </ScalePressable>
 
           {categories.map((cat: Category) => {
@@ -746,6 +753,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   pillText: {
     fontSize: 13,

@@ -2700,6 +2700,24 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
       expect(defaultClosingFromRow(corruptedRow, 2.5)).toBe(14.0);
     });
 
+    it("eliminates floating-point subtraction noise (8.95 - 6.95 yields 2 without extra decimals)", () => {
+      const bestGinRow: StdStockCountRowResponse = {
+        ...rowBase,
+        openingStock: 8.95,
+        addedStock: 0,
+        addedTodayStock: 0,
+        closingStock: null,
+        sellingPrice: 250,
+      };
+      // 8.95 - 6.95 in raw IEEE 754 is 1.9999999999999991; must round cleanly to 2
+      expect(defaultClosingFromRow(bestGinRow, 6.95)).toBe(2);
+
+      const computed = computeRow(bestGinRow, undefined, undefined, 6.95);
+      expect(computed.closingStock).toBe(2);
+      expect(computed.unitsSold).toBe(6.95);
+      expect(computed.amount).toBe(1737.5);
+    });
+
     it("computeRow calculates correct unitsSold and 0 unsaved/stale when sales recorded", () => {
       const corruptedRow: StdStockCountRowResponse = {
         ...rowBase,

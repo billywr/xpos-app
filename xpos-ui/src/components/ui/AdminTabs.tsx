@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { toSentenceCase } from "@/utils/textCase";
+import { CountBadge } from "./CountBadge";
 
 /**
  * Single tab configuration for AdminTabList.
@@ -12,6 +13,7 @@ export interface AdminTabItem {
   icon: ComponentType<{ className?: string }>;
   enabled: boolean;
   disabledReason?: string;
+  badge?: number | string;
 }
 
 export interface AdminTabListProps {
@@ -45,6 +47,15 @@ export function AdminTabList({
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
+          const bracketMatch = tab.label.match(/^(.*?)\s*\((\d+)\)$/);
+          const displayLabel = bracketMatch ? bracketMatch[1] : tab.label;
+          const badgeCount =
+            tab.badge !== undefined
+              ? tab.badge
+              : bracketMatch
+                ? Number(bracketMatch[2])
+                : undefined;
+
           return (
             <button
               key={tab.id}
@@ -65,7 +76,15 @@ export function AdminTabList({
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" aria-hidden />
-              {toSentenceCase(tab.label)}
+              <span>{toSentenceCase(displayLabel)}</span>
+              {badgeCount !== undefined && badgeCount !== 0 && (
+                <CountBadge
+                  count={badgeCount}
+                  variant="primary"
+                  active={isActive}
+                  size="sm"
+                />
+              )}
             </button>
           );
         })}

@@ -30,7 +30,7 @@ import { fetchOperatorAnalyticsSnapshot } from "@/api/operatorAnalytics";
 import { fetchDebts } from "@/api/debts";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import { formatDate, formatDateTime } from "@/utils/formatDate";
-import { formatQty, formatQtyVariance, isValidQtyInput, roundQty } from "@/utils/formatQuantity";
+import { formatQty, formatQtyInput, formatQtyVariance, isValidQtyInput, roundQty } from "@/utils/formatQuantity";
 import {
   getApiErrorMessage,
   getApiErrorRequestId,
@@ -217,7 +217,7 @@ export function shouldAutoSyncClosing(
 }
 
 export function totalStockFromRow(row: StdStockCountRowResponse): number {
-  return (
+  return roundQty(
     (row.openingStock ?? 0) +
     (row.addedStock ?? 0) +
     (row.addedTodayStock ?? 0)
@@ -235,13 +235,13 @@ export function defaultClosingFromRow(
   }
   if (row.closingStock !== null && row.closingStock !== undefined) {
     if (alreadyRecorded > 0) {
-      const maxPhysical = Math.max(0, total - alreadyRecorded);
-      return Math.min(row.closingStock, maxPhysical);
+      const maxPhysical = Math.max(0, roundQty(total - alreadyRecorded));
+      return roundQty(Math.min(row.closingStock, maxPhysical));
     }
-    return row.closingStock;
+    return roundQty(row.closingStock);
   }
   if (alreadyRecorded > 0) {
-    return Math.max(0, total - alreadyRecorded);
+    return Math.max(0, roundQty(total - alreadyRecorded));
   }
   return total;
 }
@@ -252,11 +252,12 @@ export function computeRow(
   localComment: string | undefined,
   alreadyRecorded: number = 0
 ): ComputedRow {
-  const closing = localClosing ?? defaultClosingFromRow(row, alreadyRecorded);
-  const total =
-    row.openingStock + row.addedStock + (row.addedTodayStock ?? 0);
-  const unitsSold = Math.max(0, total - closing);
-  const amount = unitsSold * (row.sellingPrice ?? 0);
+  const closing = roundQty(localClosing ?? defaultClosingFromRow(row, alreadyRecorded));
+  const total = roundQty(
+    row.openingStock + row.addedStock + (row.addedTodayStock ?? 0)
+  );
+  const unitsSold = Math.max(0, roundQty(total - closing));
+  const amount = roundQty(unitsSold * (row.sellingPrice ?? 0));
   const comments =
     localComment !== undefined ? localComment : (row.comments ?? "");
 
@@ -527,7 +528,7 @@ export function StandardStockCountSheetPage({
     alreadyRecorded: number = 0
   ): number {
     const s = localClosings[itemId];
-    if (s === undefined) return defaultClosingFromRow(row, alreadyRecorded);
+    if (s === undefined) return roundQty(defaultClosingFromRow(row, alreadyRecorded));
     if (s === "" || s === ".") return 0;
     const n = parseFloat(s);
     if (Number.isNaN(n)) return 0;
@@ -1889,7 +1890,7 @@ export function StandardStockCountSheetPage({
                             value={
                               r.itemId in localClosings
                                 ? localClosings[r.itemId]
-                                : String(r.closingStock)
+                                : formatQtyInput(r.closingStock)
                             }
                             onChange={(e) =>
                               handleClosingChange(r.itemId, e.target.value)
@@ -1960,7 +1961,7 @@ export function StandardStockCountSheetPage({
                           )}
                         </div>
                       ) : (
-                        r.closingStock
+                        formatQty(r.closingStock)
                       )}
                     </td>
                     <td className="px-1.5 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400">

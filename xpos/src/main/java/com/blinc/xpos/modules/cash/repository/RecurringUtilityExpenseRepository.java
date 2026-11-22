@@ -86,8 +86,10 @@ public interface RecurringUtilityExpenseRepository
   @Query(
       """
       select u from RecurringUtilityExpense u
+      left join fetch u.createdBy
       where u.org.id = :orgId and u.branch.id = :branchId and u.deletedAt is null
-        and u.effectiveFrom <= :endDate
+        and (u.active = true or u.effectiveTo is not null)
+        and (u.effectiveFrom is null or u.effectiveFrom <= :endDate)
         and (u.effectiveTo is null or u.effectiveTo >= :startDate)
       order by u.effectiveFrom asc, u.dueDayOfMonth asc, u.name asc
       """)

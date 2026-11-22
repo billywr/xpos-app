@@ -11,7 +11,7 @@ import {
 import { fetchOpenOrHeldSales, voidSale } from "@/api/sales";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { PageHeader } from "@/components/PageHeader";
-import { ConfirmDialog, TableSkeleton } from "@/components/ui";
+import { ConfirmDialog, TableSkeleton, CountBadge } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useToast } from "@/contexts/ToastContext";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
@@ -90,8 +90,9 @@ export function PaymentsPage() {
 
       {!isInitialLoad && sales.length > 0 && (
         <div className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
-            Open sales ({sales.length})
+          <h2 className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+            <span>Open sales</span>
+            <CountBadge count={sales.length} variant="neutral" />
           </h2>
           <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
             {sales.map((sale) => (

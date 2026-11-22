@@ -69,7 +69,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class StdStockCountServiceImpl implements StdStockCountService {
 
-  private static final int SCALE = 3;
+  private static final int SCALE = 2;
   private static final int MONEY_SCALE = 2;
   private static final int BACKDATE_MAX_DAYS = 14;
   private static final int COMMENTS_MAX_LEN = 2000;
@@ -157,7 +157,7 @@ public class StdStockCountServiceImpl implements StdStockCountService {
     if (x == null) {
       return null;
     }
-    BigDecimal s = x.stripTrailingZeros();
+    BigDecimal s = x.setScale(SCALE, ROUNDING).stripTrailingZeros();
     return s.scale() < 0 ? s.setScale(0) : s;
   }
 

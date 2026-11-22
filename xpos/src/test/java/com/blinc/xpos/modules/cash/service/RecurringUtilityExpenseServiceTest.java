@@ -411,4 +411,26 @@ class RecurringUtilityExpenseServiceTest {
     assertNull(result.getEffectiveTo());
     assertTrue(result.isActive());
   }
+
+  @Test
+  void listApplicableForPeriodDelegatesToRepository() {
+    when(branchService.require(orgId, branchId)).thenReturn(branch);
+    LocalDate start = LocalDate.of(2026, 10, 1);
+    LocalDate end = LocalDate.of(2026, 10, 31);
+    RecurringUtilityExpense util = new RecurringUtilityExpense();
+    util.setName("Water Bill");
+    util.setAmount(new BigDecimal("7000.00"));
+    util.setEffectiveFrom(start);
+    util.setEffectiveTo(end);
+
+    when(repository.findApplicableForPeriod(orgId, branchId, start, end))
+        .thenReturn(java.util.List.of(util));
+
+    java.util.List<RecurringUtilityExpense> results =
+        service.listApplicableForPeriod(orgId, branchId, start, end);
+
+    assertEquals(1, results.size());
+    assertEquals("Water Bill", results.get(0).getName());
+    assertEquals(new BigDecimal("7000.00"), results.get(0).getAmount());
+  }
 }

@@ -20,6 +20,7 @@ import { fetchMiscExpenses } from "@/api/miscExpenses";
 import { fetchRecurringUtilities } from "@/api/recurringUtilities";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { formatCurrency, formatPercent, formatAmount } from "@/utils/formatCurrency";
+import { formatMonthYear } from "@/features/operator/UtilitiesTabPanel";
 import { formatDate } from "@/utils/formatDate";
 import { cn } from "@/utils/cn";
 import {
@@ -32,9 +33,10 @@ import {
   Search,
   X,
   RotateCw,
+  Loader2,
 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { DateInput } from "@/components/ui";
+import { DateInput, CountBadge } from "@/components/ui";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -272,7 +274,11 @@ export function RevenueDashboardPage() {
       Boolean(submittedRange),
   });
 
-  const { data: expensesData, refetch: refetchExpenses } = useQuery({
+  const {
+    data: expensesData,
+    isLoading: isExpensesLoading,
+    refetch: refetchExpenses,
+  } = useQuery({
     queryKey: [
       "admin-revenue-expenses",
       token,
@@ -294,22 +300,31 @@ export function RevenueDashboardPage() {
       Boolean(submittedRange),
   });
 
-  const { data: utilitiesData, refetch: refetchUtilities } = useQuery({
+  const {
+    data: utilitiesData,
+    isLoading: isUtilitiesLoading,
+    refetch: refetchUtilities,
+  } = useQuery({
     queryKey: [
       "admin-revenue-utilities",
       token,
       selectedOrgId,
       selectedBranchId,
+      submittedRange?.start,
+      submittedRange?.end,
     ],
     queryFn: () =>
       fetchRecurringUtilities(token, selectedOrgId, selectedBranchId, {
-        active: true,
+        startDate: submittedRange!.start,
+        endDate: submittedRange!.end,
         size: 200,
       }),
     enabled:
       Boolean(token) &&
       Boolean(selectedOrgId) &&
-      Boolean(selectedBranchId),
+      Boolean(selectedBranchId) &&
+      Boolean(submittedRange?.start) &&
+      Boolean(submittedRange?.end),
   });
 
 
@@ -426,7 +441,7 @@ export function RevenueDashboardPage() {
   }, [dashboard, netProfit]);
 
   const utilitiesList = useMemo(() => {
-    return (utilitiesData?.items ?? []).filter((u) => u.active !== false);
+    return utilitiesData?.items ?? [];
   }, [utilitiesData?.items]);
 
   const expensesList = useMemo(() => {
@@ -979,37 +994,52 @@ export function RevenueDashboardPage() {
                 type="button"
                 onClick={() => setBreakdownTab("ALL")}
                 className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-medium transition",
+                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition",
                   breakdownTab === "ALL"
                     ? "bg-slate-800 text-white dark:bg-white dark:text-slate-900"
                     : "border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                 )}
               >
-                All ({categorizedExpenses.length + utilitiesList.length})
+                <span>All</span>
+                <CountBadge
+                  count={categorizedExpenses.length + utilitiesList.length}
+                  variant="neutral"
+                  active={breakdownTab === "ALL"}
+                />
               </button>
               <button
                 type="button"
                 onClick={() => setBreakdownTab("EXPENSES")}
                 className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-medium transition",
+                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition",
                   breakdownTab === "EXPENSES"
                     ? "bg-amber-600 text-white shadow-sm dark:bg-amber-500"
                     : "border border-amber-200 bg-amber-50/70 text-amber-900 hover:bg-amber-100 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
                 )}
               >
-                Expenses ({categorizedExpenses.length})
+                <span>Expenses</span>
+                <CountBadge
+                  count={categorizedExpenses.length}
+                  variant="amber"
+                  active={breakdownTab === "EXPENSES"}
+                />
               </button>
               <button
                 type="button"
                 onClick={() => setBreakdownTab("UTILITIES")}
                 className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-medium transition",
+                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition",
                   breakdownTab === "UTILITIES"
                     ? "bg-indigo-600 text-white shadow-sm dark:bg-indigo-500"
                     : "border border-indigo-200 bg-indigo-50/70 text-indigo-900 hover:bg-indigo-100 dark:border-indigo-800/40 dark:bg-indigo-950/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
                 )}
               >
-                Utilities ({utilitiesList.length})
+                <span>Utilities</span>
+                <CountBadge
+                  count={utilitiesList.length}
+                  variant="indigo"
+                  active={breakdownTab === "UTILITIES"}
+                />
               </button>
             </div>
             <div className="relative flex-1 sm:max-w-xs">
@@ -1035,7 +1065,12 @@ export function RevenueDashboardPage() {
 
           {/* Combined Simple List */}
           <div className="max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
-            {filteredCategorizedExpenses.length === 0 && filteredUtilities.length === 0 ? (
+            {isExpensesLoading || isUtilitiesLoading ? (
+              <div className="flex flex-col items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400">
+                <Loader2 className="h-6 w-6 animate-spin text-primary-500 mb-2" />
+                <p className="text-xs">Loading breakdown...</p>
+              </div>
+            ) : filteredCategorizedExpenses.length === 0 && filteredUtilities.length === 0 ? (
               <div className="p-8 text-center text-slate-500 dark:text-slate-400">
                 <CreditCard className="mx-auto mb-2 h-8 w-8 text-slate-400 opacity-60 dark:text-slate-500" />
                 <p className="font-medium">No expenses or utilities found</p>
@@ -1066,24 +1101,34 @@ export function RevenueDashboardPage() {
                 ))}
 
                 {/* Recurring Utilities */}
-                {filteredUtilities.map((util) => (
-                  <div
-                    key={`util-${util.id}`}
-                    className="flex items-center justify-between py-2.5 px-3 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-700/40 text-sm"
-                  >
-                    <div className="flex items-center gap-1.5 min-w-0 pr-3 truncate">
-                      <span className="truncate font-medium text-slate-800 dark:text-slate-200">
-                        {util.name}
-                      </span>
-                      <span className="shrink-0 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                        (U)
+                {filteredUtilities.map((util) => {
+                  const hasPeriod = Boolean(util.effectiveFrom || util.effectiveTo);
+                  return (
+                    <div
+                      key={`util-${util.id}`}
+                      className="flex items-center justify-between py-2.5 px-3 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-700/40 text-sm"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0 pr-3 truncate">
+                        <span className="truncate font-medium text-slate-800 dark:text-slate-200">
+                          {util.name}
+                        </span>
+                        <span className="shrink-0 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                          (U)
+                        </span>
+                        {hasPeriod && (
+                          <span className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500">
+                            {util.effectiveTo
+                              ? `(${formatMonthYear(util.effectiveFrom)} – ${formatMonthYear(util.effectiveTo)})`
+                              : `(From ${formatMonthYear(util.effectiveFrom)})`}
+                          </span>
+                        )}
+                      </div>
+                      <span className="shrink-0 font-bold tabular-nums text-slate-900 dark:text-white">
+                        {formatCurrency(util.amount)}(M)
                       </span>
                     </div>
-                    <span className="shrink-0 font-bold tabular-nums text-slate-900 dark:text-white">
-                      {formatCurrency(util.amount)}(M)
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </>
             )}
           </div>
