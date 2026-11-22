@@ -42,7 +42,7 @@ describe("LoginPage", () => {
   it("renders username, password inputs and an active, enabled Sign in button", () => {
     wrap(<LoginPage />);
 
-    expect(screen.getByRole("heading", { name: /sign in/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /sign in/i })).not.toBeInTheDocument();
     expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
 

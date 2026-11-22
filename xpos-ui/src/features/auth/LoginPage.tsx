@@ -137,7 +137,7 @@ export function LoginPage() {
       </button>
 
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-lg dark:border-slate-700 dark:bg-slate-800">
-        <div className="mb-8 flex justify-center">
+        <div className="mb-6 flex justify-center">
           <div className="flex items-center gap-2 text-primary-700 dark:text-primary-400">
             {logoUrl ? (
               <img
@@ -152,17 +152,11 @@ export function LoginPage() {
             <span className="text-xl font-bold">{appName}</span>
           </div>
         </div>
-        <h1 className="mb-2 text-center text-lg font-semibold text-slate-800 dark:text-white">
-          Sign in
-        </h1>
         {fromIdle && (
           <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
             You were logged out due to inactivity.
           </p>
         )}
-        <p className="mb-6 text-center text-sm text-slate-500 dark:text-slate-400">
-          Use your credentials to access the backend.
-        </p>
         <form
           onSubmit={handleSubmit}
           onAnimationStart={syncAutofill}

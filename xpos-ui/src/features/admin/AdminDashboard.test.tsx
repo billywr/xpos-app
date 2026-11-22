@@ -13,6 +13,8 @@ import * as revenueApi from "@/api/revenueDashboard";
 import * as inventoryReportApi from "@/api/inventoryReport";
 import * as itemsApi from "@/api/items";
 import * as operatorAnalyticsApi from "@/api/operatorAnalytics";
+import * as miscExpensesApi from "@/api/miscExpenses";
+import * as recurringUtilitiesApi from "@/api/recurringUtilities";
 import * as orgsApi from "@/api/orgs";
 import * as branchesApi from "@/api/branches";
 
@@ -20,6 +22,8 @@ vi.mock("@/api/revenueDashboard");
 vi.mock("@/api/inventoryReport");
 vi.mock("@/api/items");
 vi.mock("@/api/operatorAnalytics");
+vi.mock("@/api/miscExpenses");
+vi.mock("@/api/recurringUtilities");
 vi.mock("@/api/orgs");
 vi.mock("@/api/branches");
 
@@ -279,6 +283,89 @@ describe("AdminDashboard", () => {
       expenseIntelligence: { todayTotal: 0, byCategory: [] },
       fetchedAt: "2026-11-22T12:00:00Z",
     });
+
+    vi.mocked(miscExpensesApi.fetchMiscExpenses).mockResolvedValue({
+      content: [
+        {
+          id: "exp-1",
+          amount: 5000,
+          category: "Police",
+          description: "Night security liaison",
+          incurredBy: "Officer Kiprono",
+          receiptRef: "POL-001",
+          terminalId: "term-1",
+          shiftId: "shift-1",
+          createdByStaffUserId: "user-1",
+          createdAt: "2026-11-20T10:00:00Z",
+        },
+        {
+          id: "exp-2",
+          amount: 15000,
+          category: "Daily bills",
+          description: "Generator fuel and oil",
+          incurredBy: "Manager Jane",
+          receiptRef: "GEN-883",
+          terminalId: "term-1",
+          shiftId: "shift-1",
+          createdByStaffUserId: "user-1",
+          createdAt: "2026-11-21T14:30:00Z",
+        },
+      ],
+      totalElements: 2,
+      totalPages: 1,
+      number: 0,
+      size: 500,
+      totalAmount: 20000,
+    });
+
+    vi.mocked(recurringUtilitiesApi.fetchRecurringUtilities).mockResolvedValue({
+      items: [
+        {
+          id: "util-1",
+          orgId: "org-1",
+          branchId: "branch-1",
+          name: "KPLC Electricity",
+          amount: 8000,
+          effectiveFrom: "2026-01-01",
+          effectiveTo: null,
+          applyTiming: "END_OF_MONTH",
+          dueDayOfMonth: 5,
+          payee: "Kenya Power",
+          accountNumber: "48291039",
+          incurredBy: "Operations",
+          notes: "Main branch token meter",
+          active: true,
+          createdByStaffUserId: "user-1",
+          createdByStaffUserName: "Admin",
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+        {
+          id: "util-2",
+          orgId: "org-1",
+          branchId: "branch-1",
+          name: "Safaricom Fibre",
+          amount: 2000,
+          effectiveFrom: "2026-01-01",
+          effectiveTo: null,
+          applyTiming: "BEGINNING_OF_MONTH",
+          dueDayOfMonth: 1,
+          payee: "Safaricom",
+          accountNumber: "0722000000",
+          incurredBy: "IT Lead",
+          notes: "Backup POS connection",
+          active: true,
+          createdByStaffUserId: "user-1",
+          createdByStaffUserName: "Admin",
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        },
+      ],
+      totalElements: 2,
+      totalPages: 1,
+      page: 0,
+      size: 200,
+    });
   });
 
   it("renders executive dashboard title and 4 KPI cards with accurate metrics", async () => {
@@ -393,6 +480,111 @@ describe("AdminDashboard", () => {
         screen.getByText(/Failed to load some dashboard metrics/i)
       ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    });
+  });
+
+  it("navigates previous years using < and returns forward using >", async () => {
+    renderWithProviders(<AdminDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("This year")).toBeInTheDocument();
+    });
+
+    const prevYearBtn = screen.getByRole("button", { name: "Previous year" });
+    const nextYearBtn = screen.getByRole("button", { name: "Next year" });
+
+    // Next year should initially be disabled on current year
+    expect(nextYearBtn).toBeDisabled();
+
+    // Click < to go to previous year
+    fireEvent.click(prevYearBtn);
+
+    const prevYear = new Date().getFullYear() - 1;
+    await waitFor(() => {
+      expect(screen.getByText(String(prevYear))).toBeInTheDocument();
+      expect(revenueApi.fetchRevenueDashboard).toHaveBeenCalledWith(
+        "test-token",
+        "org-1",
+        "branch-1",
+        `${prevYear}-01-01`,
+        `${prevYear}-12-31`
+      );
+    });
+
+    // Next year should now be enabled
+    expect(nextYearBtn).not.toBeDisabled();
+
+    // Click > to return to current year
+    fireEvent.click(nextYearBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText("This year")).toBeInTheDocument();
+      expect(nextYearBtn).toBeDisabled();
+    });
+  });
+
+  it("opens cost & expense breakdown slide-over sheet when total cost card is clicked", async () => {
+    renderWithProviders(<AdminDashboard />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByLabelText("Total costs & opex. Click to view breakdown.")
+      ).toBeInTheDocument();
+    });
+
+    const totalCostCard = screen.getByLabelText(
+      "Total costs & opex. Click to view breakdown."
+    );
+    expect(totalCostCard).toBeInTheDocument();
+
+    // Hovering over the card does NOT open the slide-over sheet
+    fireEvent.mouseEnter(totalCostCard);
+    expect(screen.queryByText("Cost & expense breakdown")).not.toBeInTheDocument();
+
+    // Click the card to open slide-over sheet
+    fireEvent.click(totalCostCard);
+
+    // Verify slide-over sheet is displayed with standard title and notice
+    await waitFor(() => {
+      expect(screen.getByText("Cost & expense breakdown")).toBeInTheDocument();
+      expect(screen.getByText("Excluding cost of goods purchased")).toBeInTheDocument();
+    });
+
+    // Verify fine-grained operating expenses are rendered
+    expect(screen.getByText("Night security liaison")).toBeInTheDocument();
+    expect(screen.getByText("Generator fuel and oil")).toBeInTheDocument();
+    expect(screen.getByText("Officer Kiprono")).toBeInTheDocument();
+    expect(screen.getByText("Manager Jane")).toBeInTheDocument();
+
+    // Verify recurring utilities are rendered
+    expect(screen.getByText("KPLC Electricity")).toBeInTheDocument();
+    expect(screen.getByText("Safaricom Fibre")).toBeInTheDocument();
+    expect(screen.getByText(/48291039/)).toBeInTheDocument();
+
+    // Verify search filter within the sheet
+    const searchInput = screen.getByPlaceholderText("Search descriptions, payees...");
+    fireEvent.change(searchInput, { target: { value: "Generator" } });
+
+    expect(screen.getByText("Generator fuel and oil")).toBeInTheDocument();
+    expect(screen.queryByText("Night security liaison")).not.toBeInTheDocument();
+
+    // Clear search
+    fireEvent.click(screen.getByLabelText("Clear search"));
+    expect(screen.getByText("Night security liaison")).toBeInTheDocument();
+
+    // Test filter tabs
+    const utilitiesTab = screen.getByRole("button", { name: /Recurring utilities/i });
+    fireEvent.click(utilitiesTab);
+
+    expect(screen.getByText("KPLC Electricity")).toBeInTheDocument();
+    expect(screen.queryByText("Night security liaison")).not.toBeInTheDocument();
+
+    // Close the sheet
+    const closeBtn = screen.getByLabelText("Close");
+    fireEvent.click(closeBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Cost & expense breakdown")).not.toBeInTheDocument();
     });
   });
 });

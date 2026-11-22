@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { RotateCw, Calendar, AlertCircle } from "lucide-react";
+import { RotateCw, Calendar, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import { selectOrgId, selectBranchId } from "@/store/selectors/orgContextSelectors";
@@ -8,15 +8,19 @@ import { fetchRevenueDashboard } from "@/api/revenueDashboard";
 import { fetchInventoryReport } from "@/api/inventoryReport";
 import { fetchItems } from "@/api/items";
 import { fetchOperatorAnalyticsSnapshot } from "@/api/operatorAnalytics";
+import { fetchMiscExpenses } from "@/api/miscExpenses";
+import { fetchRecurringUtilities } from "@/api/recurringUtilities";
 import { AnalyticsOrgBranchFilter } from "@/components/AnalyticsOrgBranchFilter";
 import { DateInput } from "@/components/ui/DateInput";
 import { getApiErrorMessage } from "@/utils/apiError";
+import { cn } from "@/utils/cn";
 import { useToast } from "@/contexts/ToastContext";
 import { DashboardKpiCards } from "./dashboard/DashboardKpiCards";
 import { FinancialTrendChart } from "./dashboard/FinancialTrendChart";
 import { CostStructureChart } from "./dashboard/CostStructureChart";
 import { StockHealthSection } from "./dashboard/StockHealthSection";
 import { TopProductsList } from "./dashboard/TopProductsList";
+import { CostBreakdownSlideOver } from "./dashboard/CostBreakdownSlideOver";
 
 type PresetRange =
   | "today"
@@ -26,6 +30,7 @@ type PresetRange =
   | "thisMonth"
   | "lastMonth"
   | "30days"
+  | "year"
   | "all"
   | "custom";
 
@@ -77,6 +82,10 @@ function getRangeDates(preset: PresetRange): { start: string; end: string } {
     s.setDate(s.getDate() - 29);
     return { start: formatLocalDate(s), end: today };
   }
+  if (preset === "year") {
+    const curYear = now.getFullYear();
+    return { start: `${curYear}-01-01`, end: today };
+  }
   if (preset === "all") {
     return { start: "2020-01-01", end: today };
   }
@@ -87,6 +96,10 @@ export function AdminDashboard() {
   const token = useAppSelector(selectToken);
   const orgId = useAppSelector(selectOrgId);
   const branchId = useAppSelector(selectBranchId);
+
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [isCostBreakdownOpen, setIsCostBreakdownOpen] = useState(false);
 
   const [activePreset, setActivePreset] = useState<PresetRange>("30days");
   const initialDates = useMemo(() => getRangeDates("30days"), []);
@@ -100,6 +113,31 @@ export function AdminDashboard() {
       setStartDate(start);
       setEndDate(end);
     }
+  };
+
+  const handlePrevYear = () => {
+    const targetYear = (activePreset === "year" ? selectedYear : currentYear) - 1;
+    setSelectedYear(targetYear);
+    setActivePreset("year");
+    setStartDate(`${targetYear}-01-01`);
+    setEndDate(`${targetYear}-12-31`);
+  };
+
+  const handleNextYear = () => {
+    if (selectedYear >= currentYear) return;
+    const targetYear = selectedYear + 1;
+    setSelectedYear(targetYear);
+    setActivePreset("year");
+    setStartDate(`${targetYear}-01-01`);
+    const today = formatLocalDate(new Date());
+    setEndDate(targetYear === currentYear ? today : `${targetYear}-12-31`);
+  };
+
+  const handleSelectYearPreset = () => {
+    setActivePreset("year");
+    setStartDate(`${selectedYear}-01-01`);
+    const today = formatLocalDate(new Date());
+    setEndDate(selectedYear === currentYear ? today : `${selectedYear}-12-31`);
   };
 
   const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,11 +213,52 @@ export function AdminDashboard() {
     staleTime: 60 * 1000,
   });
 
+  // 5. Operating Expenses
+  const {
+    data: expensesData,
+    isLoading: isExpensesLoading,
+    isFetching: isExpensesFetching,
+    refetch: refetchExpenses,
+  } = useQuery({
+    queryKey: ["admin-dashboard-expenses", orgId, branchId, startDate, endDate],
+    queryFn: () =>
+      fetchMiscExpenses(token, orgId!, branchId!, {
+        fromDate: startDate,
+        toDate: endDate,
+        size: 500,
+      }),
+    enabled: isEnabled,
+    staleTime: 60 * 1000,
+  });
+
+  // 6. Recurring Utilities
+  const {
+    data: utilitiesData,
+    isLoading: isUtilitiesLoading,
+    isFetching: isUtilitiesFetching,
+    refetch: refetchUtilities,
+  } = useQuery({
+    queryKey: ["admin-dashboard-utilities", orgId, branchId, startDate, endDate],
+    queryFn: () =>
+      fetchRecurringUtilities(token, orgId!, branchId!, {
+        startDate,
+        endDate,
+        size: 200,
+      }),
+    enabled: isEnabled,
+    staleTime: 60 * 1000,
+  });
+
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const toast = useToast();
 
   const isRefreshing =
-    isManualRefreshing || isRevenueFetching || isInventoryFetching || isSnapshotFetching;
+    isManualRefreshing ||
+    isRevenueFetching ||
+    isInventoryFetching ||
+    isSnapshotFetching ||
+    isExpensesFetching ||
+    isUtilitiesFetching;
   const isLoading = isRevenueLoading || isInventoryLoading || isItemsLoading;
 
   const handleRefreshAll = useCallback(async () => {
@@ -190,6 +269,8 @@ export function AdminDashboard() {
         refetchInventory(),
         refetchItems(),
         refetchSnapshot(),
+        refetchExpenses(),
+        refetchUtilities(),
       ]);
       toast.success("Dashboard refreshed");
     } catch {
@@ -197,7 +278,7 @@ export function AdminDashboard() {
     } finally {
       setIsManualRefreshing(false);
     }
-  }, [refetchRevenue, refetchInventory, refetchItems, refetchSnapshot, toast]);
+  }, [refetchRevenue, refetchInventory, refetchItems, refetchSnapshot, refetchExpenses, refetchUtilities, toast]);
 
   // Inventory valuation & health calculation
   const {
@@ -321,6 +402,59 @@ export function AdminDashboard() {
               </button>
             );
           })}
+
+          {/* Year navigator stepper (< This year >) */}
+          <div
+            className={cn(
+              "inline-flex h-7 w-[132px] shrink-0 items-center justify-between rounded-lg border overflow-hidden transition-colors",
+              activePreset === "year"
+                ? "border-primary-600 bg-primary-600 text-white shadow-sm dark:border-primary-500 dark:bg-primary-500"
+                : "border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+            )}
+          >
+            <button
+              type="button"
+              onClick={handlePrevYear}
+              title="Previous year"
+              aria-label="Previous year"
+              className={cn(
+                "flex h-7 w-6 shrink-0 items-center justify-center transition-colors",
+                activePreset === "year"
+                  ? "bg-black/25 text-white hover:bg-black/40 active:bg-black/50 border-r border-black/15 dark:bg-black/35 dark:hover:bg-black/50 dark:border-white/20"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 border-r border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-white dark:border-slate-600"
+              )}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleSelectYearPreset}
+              className={cn(
+                "flex-1 h-7 min-w-0 px-1 text-center text-xs font-semibold whitespace-nowrap transition-colors flex items-center justify-center",
+                activePreset === "year"
+                  ? "hover:bg-black/10 dark:hover:bg-white/10"
+                  : "hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-700/50 dark:hover:text-white"
+              )}
+            >
+              {selectedYear === currentYear ? "This year" : selectedYear}
+            </button>
+            <button
+              type="button"
+              onClick={handleNextYear}
+              disabled={selectedYear >= currentYear}
+              title={selectedYear < currentYear ? "Next year" : undefined}
+              aria-label="Next year"
+              className={cn(
+                "flex h-7 w-6 shrink-0 items-center justify-center transition-colors",
+                activePreset === "year"
+                  ? "bg-black/25 text-white hover:bg-black/40 active:bg-black/50 border-l border-black/15 dark:bg-black/35 dark:hover:bg-black/50 dark:border-white/20"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 border-l border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-white dark:border-slate-600",
+                selectedYear >= currentYear && "opacity-25 pointer-events-none"
+              )}
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* Date Inputs */}
@@ -374,6 +508,7 @@ export function AdminDashboard() {
         totalTrackedItems={totalTrackedItems}
         lowStockCount={lowStockCount}
         outOfStockCount={outOfStockCount}
+        onOpenCostBreakdown={() => setIsCostBreakdownOpen(true)}
       />
 
       {/* 2. Visual Charts Row: Financial Trend (2 cols) + Cost Structure (1 col) */}
@@ -409,6 +544,19 @@ export function AdminDashboard() {
           />
         </div>
       </div>
+
+      {/* 4. Cost & Expense Breakdown Slide-Over Sheet */}
+      <CostBreakdownSlideOver
+        open={isCostBreakdownOpen}
+        onClose={() => setIsCostBreakdownOpen(false)}
+        startDate={startDate}
+        endDate={endDate}
+        expenseTotal={expenseTotal}
+        utilitiesTotal={utilitiesTotal}
+        expenses={expensesData?.content ?? []}
+        utilities={utilitiesData?.items ?? []}
+        isLoading={isExpensesLoading || isUtilitiesLoading}
+      />
     </div>
   );
 }

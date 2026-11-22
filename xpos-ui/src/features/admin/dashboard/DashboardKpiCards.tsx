@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Receipt, PieChart as PieChartIcon, Boxes } from "lucide-react";
+import { TrendingUp, TrendingDown, Receipt, PieChart as PieChartIcon, Boxes, PanelRight } from "lucide-react";
 import { formatAmount, formatPercent } from "@/utils/formatCurrency";
 import { DASHBOARD_CARD_3D } from "./dashboardStyles";
 
@@ -14,6 +14,7 @@ interface DashboardKpiCardsProps {
   totalTrackedItems: number;
   lowStockCount: number;
   outOfStockCount: number;
+  onOpenCostBreakdown?: () => void;
 }
 
 export function DashboardKpiCards({
@@ -28,6 +29,7 @@ export function DashboardKpiCards({
   totalTrackedItems,
   lowStockCount,
   outOfStockCount,
+  onOpenCostBreakdown,
 }: DashboardKpiCardsProps) {
   if (isLoading) {
     return (
@@ -47,6 +49,17 @@ export function DashboardKpiCards({
   const grossProfit = revenueTotal - cogsTotal;
   const grossMargin = revenueTotal > 0 ? (grossProfit / revenueTotal) * 100 : 0;
   const criticalStockCount = lowStockCount + outOfStockCount;
+
+  const handleCostCardClick = () => {
+    onOpenCostBreakdown?.();
+  };
+
+  const handleCostCardKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onOpenCostBreakdown?.();
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -123,24 +136,39 @@ export function DashboardKpiCards({
       </div>
 
       {/* 3. Costs & overhead */}
-      <div className={DASHBOARD_CARD_3D}>
+      <div
+        className={`${DASHBOARD_CARD_3D} group cursor-pointer transition-all hover:border-amber-400/70 hover:shadow-lg dark:hover:border-amber-500/60`}
+        onClick={handleCostCardClick}
+        onKeyDown={handleCostCardKeyDown}
+        role="button"
+        tabIndex={0}
+        aria-label="Total costs & opex. Click to view breakdown."
+      >
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
             Total costs & opex
           </span>
-          <div className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+          <div className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 transition-colors group-hover:bg-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:group-hover:bg-amber-900/60">
             <PieChartIcon className="h-3 w-3" />
             <span>Gross margin: {formatPercent(grossMargin)}</span>
           </div>
         </div>
 
         <div className="mt-3">
-          <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            KSh {formatAmount(totalCost)}
+          <div className="flex items-center justify-between">
+            <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              KSh {formatAmount(totalCost)}
+            </div>
+            <PanelRight className="h-4 w-4 text-slate-400 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:text-amber-500 group-hover:opacity-100 dark:text-slate-500" />
           </div>
           <div className="mt-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>COGS: KSh {formatAmount(cogsTotal)}</span>
-            <span>Opex: KSh {formatAmount(expenseTotal + utilitiesTotal)}</span>
+            <span className="flex items-center gap-1">
+              <span>Opex: KSh {formatAmount(expenseTotal + utilitiesTotal)}</span>
+              <span className="hidden font-semibold text-amber-600 transition-all group-hover:inline dark:text-amber-400">
+                · Breakdown →
+              </span>
+            </span>
           </div>
         </div>
       </div>
