@@ -47,6 +47,7 @@ import {
   isApiFetchError,
 } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import { useTableCustomization } from "@/contexts/TableCustomizationContext";
 import { Plus, Pencil, Power, PowerOff, Trash2, Loader2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -66,9 +67,16 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
   const token = useAppSelector(selectToken);
   const queryClient = useQueryClient();
   const toast = useToast();
+  const tableCustom = useTableCustomization("staff");
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
+
+  useEffect(() => {
+    if (tableCustom.pageSize) {
+      setSize(tableCustom.pageSize);
+    }
+  }, [tableCustom.pageSize]);
   const [registerSlideOpen, setRegisterSlideOpen] = useState(false);
   const [profileSlideOpen, setProfileSlideOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffUser | null>(null);
@@ -526,98 +534,136 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
               <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <TableRowNumberHead />
-                    <SortableTableHead
-                      columnKey="username"
-                      label="Username"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
-                    <SortableTableHead
-                      columnKey="status"
-                      label="Status"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
-                    <SortableTableHead
-                      columnKey="actions"
-                      label="Actions"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      sortable={false}
-                      className={tableHeadCell}
-                    />
+                    {tableCustom.showRowNumbers && (
+                      <TableRowNumberHead className={tableCustom.densityStyles.th} />
+                    )}
+                    {tableCustom.visibleColumns.map((col) => {
+                      return (
+                        <SortableTableHead
+                          key={col.key}
+                          columnKey={col.key}
+                          label={col.label}
+                          align={col.align}
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={toggleSort}
+                          sortable={col.sortable}
+                          className={`${tableHeadCell} ${tableCustom.densityStyles.th}`}
+                        />
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {isInitialLoad ? (
-                    <TableSkeleton columns={6} />
+                    <TableSkeleton
+                      columns={
+                        (tableCustom.showRowNumbers ? 1 : 0) +
+                        tableCustom.visibleColumns.length
+                      }
+                    />
                   ) : filteredStaff.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={
+                          (tableCustom.showRowNumbers ? 1 : 0) +
+                          tableCustom.visibleColumns.length
+                        }
                         className={tableEmptyCell}
                       >
                         {staffUsers.length === 0 ? "No staff users yet. Add a staff user to get started." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    filteredStaff.map((s: StaffUser, index) => (
-                      <tr
-                        key={s.id}
-                        className={tableBodyRow}
-                      >
-                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
-                        <td className={tableStickyFirstBody}>
-                          {s.username}
-                        </td>
-                        <td className={tableBodyCell}>
-                          <Badge status={s.status}>{s.status}</Badge>
-                        </td>
-                        <td className={tableBodyCell}>
-                          <div className="flex justify-start gap-2">
-                            <IconButton
-                              onClick={() => openProfile(s)}
-                              title={`Edit profile ${s.username}`}
-                              aria-label={`Edit profile ${s.username}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </IconButton>
-                            {s.status !== "ACTIVE" && (
-                              <IconButton
-                                onClick={() => setConfirmActivate(s)}
-                                title={`Activate ${s.username}`}
-                                aria-label={`Activate ${s.username}`}
-                              >
-                                <Power className="h-4 w-4" />
-                              </IconButton>
-                            )}
-                            {s.status === "ACTIVE" && (
-                              <IconButton
-                                onClick={() => setConfirmDeactivate(s)}
-                                title={`Deactivate ${s.username}`}
-                                aria-label={`Deactivate ${s.username}`}
-                              >
-                                <PowerOff className="h-4 w-4" />
-                              </IconButton>
-                            )}
-                            <IconButton
-                              variant="danger"
-                              onClick={() => setConfirmDelete(s)}
-                              title={`Delete ${s.username}`}
-                              aria-label={`Delete ${s.username}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </IconButton>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    filteredStaff.map((s: StaffUser, index) => {
+                      const isEven = index % 2 === 1;
+                      const zebraClass =
+                        tableCustom.zebraStriping && isEven
+                          ? "bg-slate-50/60 dark:bg-slate-700/20"
+                          : "";
+                      return (
+                        <tr
+                          key={s.id}
+                          className={`${tableBodyRow} ${zebraClass}`}
+                        >
+                          {tableCustom.showRowNumbers && (
+                            <TableRowNumberCell
+                              page={page}
+                              pageSize={size}
+                              indexInPage={index}
+                              className={tableCustom.densityStyles.td}
+                            />
+                          )}
+                          {tableCustom.visibleColumns.map((col) => {
+                            switch (col.key) {
+                              case "username":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableStickyFirstBody} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    {s.username}
+                                  </td>
+                                );
+                              case "status":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableBodyCell} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    <Badge status={s.status}>{s.status}</Badge>
+                                  </td>
+                                );
+                              case "actions":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableBodyCell} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    <div className="flex justify-start gap-2">
+                                      <IconButton
+                                        onClick={() => openProfile(s)}
+                                        title={`Edit profile ${s.username}`}
+                                        aria-label={`Edit profile ${s.username}`}
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </IconButton>
+                                      {s.status !== "ACTIVE" && (
+                                        <IconButton
+                                          onClick={() => setConfirmActivate(s)}
+                                          title={`Activate ${s.username}`}
+                                          aria-label={`Activate ${s.username}`}
+                                        >
+                                          <Power className="h-4 w-4" />
+                                        </IconButton>
+                                      )}
+                                      {s.status === "ACTIVE" && (
+                                        <IconButton
+                                          onClick={() => setConfirmDeactivate(s)}
+                                          title={`Deactivate ${s.username}`}
+                                          aria-label={`Deactivate ${s.username}`}
+                                        >
+                                          <PowerOff className="h-4 w-4" />
+                                        </IconButton>
+                                      )}
+                                      <IconButton
+                                        variant="danger"
+                                        onClick={() => setConfirmDelete(s)}
+                                        title={`Delete ${s.username}`}
+                                        aria-label={`Delete ${s.username}`}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </IconButton>
+                                    </div>
+                                  </td>
+                                );
+                              default:
+                                return null;
+                            }
+                          })}
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

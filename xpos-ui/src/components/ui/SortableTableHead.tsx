@@ -9,8 +9,8 @@ export interface SortableTableHeadProps {
   sortDirection: SortDirection;
   onSort: (columnKey: string) => void;
   sortable?: boolean;
-  /** Right: icon sits left of label so data can align with the label's trailing edge. */
-  align?: "left" | "right";
+  /** Right: icon sits left of label. Center: center aligned. Left: left aligned. */
+  align?: "left" | "center" | "right";
   className?: string;
   title?: string;
 }
@@ -56,6 +56,8 @@ export function SortableTableHead({
   const buttonAlign =
     align === "right"
       ? "justify-end text-right"
+      : align === "center"
+      ? "justify-center text-center"
       : "justify-start text-left";
 
   const iconClass = `h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4 ${

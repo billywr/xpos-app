@@ -67,6 +67,9 @@ cd xpos-ui && npm run dev    # port 5173
    - Frontend displays backend `message` and includes `requestId` in error views/toasts.
 5. **Frontend → Backend Connectivity**:
    - Configured via `VITE_API_BASE_URL` (default: `http://localhost:9003`).
+6. **UI Naming Conventions (Sentence case)**:
+   - All UI text, page titles, section headers, card titles, button labels, badge pills, and table headers across UI frontends MUST use sentence case: only the first letter of the first word is uppercase (e.g. "Net profit / loss", "Gross revenue", "Manage inventory").
+   - Do NOT use Title Case or all-caps `uppercase` CSS classes, except for standard acronyms/proper nouns (e.g. "COGS", "KSH", "M-Pesa", "SKU", "POS").
 
 ---
 

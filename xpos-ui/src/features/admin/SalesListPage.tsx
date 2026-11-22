@@ -1,8 +1,9 @@
-import { Fragment, useState, useMemo } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { selectToken } from "@/store/selectors/authSelectors";
 import { useAdminContextSelection } from "@/hooks/useAdminContextSelection";
+import { useTableCustomization } from "@/contexts/TableCustomizationContext";
 import {
   fetchAdminSales,
   type SaleSummary,
@@ -49,7 +50,12 @@ function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function SalesListPage() {
+export interface SalesListPageProps {
+  initialOrgId?: string;
+  initialBranchId?: string;
+}
+
+export function SalesListPage({ initialOrgId, initialBranchId }: SalesListPageProps = {}) {
   const token = useAppSelector(selectToken);
   const {
     selectedOrgId,
@@ -60,9 +66,17 @@ export function SalesListPage() {
     branches,
     orgSelectOptions,
     branchSelectOptions,
-  } = useAdminContextSelection();
+  } = useAdminContextSelection({ initialOrgId, initialBranchId });
+  const tableCustom = useTableCustomization("sales");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
+
+  useEffect(() => {
+    if (tableCustom.pageSize) {
+      setSize(tableCustom.pageSize);
+    }
+  }, [tableCustom.pageSize]);
+
   const today = new Date();
   const defaultFrom = new Date(today);
   defaultFrom.setDate(defaultFrom.getDate() - 30);
@@ -123,30 +137,8 @@ export function SalesListPage() {
     sortAccessors: SALES_SORT,
   });
 
-  const showReceiptCol = useMemo(
-    () =>
-      filteredSales.some((s: SaleSummary) => s.receiptNumber != null),
-    [filteredSales]
-  );
-  const showCompletedCol = useMemo(
-    () => filteredSales.some((s: SaleSummary) => !!s.completedAt),
-    [filteredSales]
-  );
-  const showCashierCol = useMemo(
-    () =>
-      filteredSales.some(
-        (s: SaleSummary) =>
-          !!s.createdByUsername &&
-          s.createdByUsername.trim() !== "" &&
-          s.createdByUsername !== "—"
-      ),
-    [filteredSales]
-  );
   const visibleSalesColCount =
-    3 +
-    (showReceiptCol ? 1 : 0) +
-    (showCompletedCol ? 1 : 0) +
-    (showCashierCol ? 1 : 0);
+    (tableCustom.showRowNumbers ? 1 : 0) + tableCustom.visibleColumns.length;
 
   const { data: totalSalesSum = 0 } = useQuery({
     queryKey: [
@@ -342,55 +334,25 @@ export function SalesListPage() {
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "600px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <TableRowNumberHead />
-                    <SortableTableHead
-                      columnKey="expand"
-                      label=""
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      sortable={false}
-                      className="sticky left-0 z-20 w-10 bg-slate-50 px-4 py-3 sm:py-3 dark:bg-slate-700"
-                    />
-                    {showReceiptCol && (
-                      <SortableTableHead
-                        columnKey="receiptNumber"
-                        label="Receipt #"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={toggleSort}
-                        className={tableHeadCell}
-                      />
+                    {tableCustom.showRowNumbers && (
+                      <TableRowNumberHead className={tableCustom.densityStyles.th} />
                     )}
-                    {showCompletedCol && (
-                      <SortableTableHead
-                        columnKey="completedAt"
-                        label="Completed"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={toggleSort}
-                        className={tableHeadCell}
-                      />
-                    )}
-                    {showCashierCol && (
-                      <SortableTableHead
-                        columnKey="cashier"
-                        label="Cashier"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={toggleSort}
-                        className={tableHeadCell}
-                      />
-                    )}
-                    <SortableTableHead
-                      align="right"
-                      columnKey="total"
-                      label="Total"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
+                    {tableCustom.visibleColumns.map((col) => {
+                      const isActions = col.key === "actions";
+                      return (
+                        <SortableTableHead
+                          key={col.key}
+                          columnKey={col.key}
+                          label={isActions ? "" : col.label}
+                          align={col.align}
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={toggleSort}
+                          sortable={col.sortable}
+                          className={`${isActions ? "sticky left-0 z-20 w-10 bg-slate-50 px-4 py-3 sm:py-3 dark:bg-slate-700" : tableHeadCell} ${tableCustom.densityStyles.th}`}
+                        />
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -406,55 +368,98 @@ export function SalesListPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredSales.map((sale: SaleSummary, index) => (
-                      <Fragment key={sale.id}>
-                        <tr
-                          key={sale.id}
-                          className={tableBodyRow}
-                        >
-                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
-                          <td className={`${tableStickyFirstCell} w-10 px-4 py-2 sm:py-2.5`}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setExpandedSaleId(
-                                  expandedSaleId === sale.id ? null : sale.id
-                                )
+                    filteredSales.map((sale: SaleSummary, index) => {
+                      const isEven = index % 2 === 1;
+                      const zebraClass =
+                        tableCustom.zebraStriping && isEven
+                          ? "bg-slate-50/60 dark:bg-slate-700/20"
+                          : "";
+                      return (
+                        <Fragment key={sale.id}>
+                          <tr
+                            key={sale.id}
+                            className={`${tableBodyRow} ${zebraClass}`}
+                          >
+                            {tableCustom.showRowNumbers && (
+                              <TableRowNumberCell
+                                page={page}
+                                pageSize={size}
+                                indexInPage={index}
+                                className={tableCustom.densityStyles.td}
+                              />
+                            )}
+                            {tableCustom.visibleColumns.map((col) => {
+                              switch (col.key) {
+                                case "actions":
+                                  return (
+                                    <td
+                                      key={col.key}
+                                      className={`${tableStickyFirstCell} w-10 px-4 py-2 sm:py-2.5 ${tableCustom.densityStyles.td}`}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setExpandedSaleId(
+                                            expandedSaleId === sale.id ? null : sale.id
+                                          )
+                                        }
+                                        className="rounded p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200"
+                                        aria-label={
+                                          expandedSaleId === sale.id
+                                            ? "Collapse items"
+                                            : "Expand items"
+                                        }
+                                      >
+                                        {expandedSaleId === sale.id ? (
+                                          <ChevronDown className="h-4 w-4" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4" />
+                                        )}
+                                      </button>
+                                    </td>
+                                  );
+                                case "receiptNumber":
+                                  return (
+                                    <td
+                                      key={col.key}
+                                      className={`${tableBodyCell} font-mono font-semibold text-slate-700 dark:text-slate-300 ${tableCustom.densityStyles.td}`}
+                                    >
+                                      {sale.receiptNumber ?? "—"}
+                                    </td>
+                                  );
+                                case "completedAt":
+                                  return (
+                                    <td
+                                      key={col.key}
+                                      className={`${tableBodyCell} ${tableCustom.densityStyles.td}`}
+                                    >
+                                      {formatDateTime(sale.completedAt)}
+                                    </td>
+                                  );
+                                case "cashier":
+                                  return (
+                                    <td
+                                      key={col.key}
+                                      className={`${tableBodyCell} ${tableCustom.densityStyles.td}`}
+                                    >
+                                      {sale.createdByUsername ?? "—"}
+                                    </td>
+                                  );
+                                case "total":
+                                  return (
+                                    <td
+                                      key={col.key}
+                                      className={`${tableBodyCellNum} ${tableCustom.densityStyles.td}`}
+                                    >
+                                      {formatAmount(sale.total)}
+                                    </td>
+                                  );
+                                default:
+                                  return null;
                               }
-                              className="rounded p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-200"
-                              aria-label={
-                                expandedSaleId === sale.id
-                                  ? "Collapse items"
-                                  : "Expand items"
-                              }
-                            >
-                              {expandedSaleId === sale.id ? (
-                                <ChevronDown className="h-4 w-4" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4" />
-                              )}
-                            </button>
-                          </td>
-                          {showReceiptCol && (
-                            <td className={`${tableBodyCell} font-mono font-semibold text-slate-700 dark:text-slate-300`}>
-                              {sale.receiptNumber ?? "—"}
-                            </td>
-                          )}
-                          {showCompletedCol && (
-                            <td className={tableBodyCell}>
-                              {formatDateTime(sale.completedAt)}
-                            </td>
-                          )}
-                          {showCashierCol && (
-                            <td className={tableBodyCell}>
-                              {sale.createdByUsername ?? "—"}
-                            </td>
-                          )}
-                          <td className={tableBodyCellNum}>
-                            {formatAmount(sale.total)}
-                          </td>
-                        </tr>
-                        {expandedSaleId === sale.id && (
+                            })}
+                          </tr>
+                          {expandedSaleId === sale.id && (
                           <tr key={`${sale.id}-expanded`}>
                             <td
                               colSpan={visibleSalesColCount}
@@ -504,8 +509,9 @@ export function SalesListPage() {
                           </tr>
                         )}
                       </Fragment>
-                    ))
-                  )}
+                    );
+                  })
+                )}
                 </tbody>
               </table>
             </div>

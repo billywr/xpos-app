@@ -1380,7 +1380,7 @@ export function StandardStockCountSheetPage({
       },
       { searchQuery: searchQuery.trim() || undefined }
     );
-    toast.success("PDF downloaded.", { title: "Stock taking sheet" });
+    toast.success("PDF downloaded.", { title: "Stock taking" });
   }
 
   function changeDate(newDate: string) {
@@ -1508,7 +1508,7 @@ export function StandardStockCountSheetPage({
       {!tableExpanded && (
         <div className="hidden xl:block">
           <PageHeader
-            title="Stock taking sheet"
+            title="Stock taking"
             subtitle={`Bar-style sheet at ${branchName ?? "this branch"}. Opening = latest saved Closing before this date (0 if never saved). Added = GRN receipts on this date. Total Stock = Opening + Added + Added today. Closing = physical count (defaults to Total Stock for unsaved rows so Units Sold starts at 0; editable); Units Sold = Total Stock − Closing.`}
             subtitleRevealOnTitleHover
             icon={FileSpreadsheet}
@@ -2282,26 +2282,17 @@ export function StandardStockCountSheetPage({
       >
         {recordPreview && (
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Reconciles all{" "}
-              <span className="font-semibold text-slate-900 dark:text-white">
-                {recordPreview.lines.length} products
-              </span>{" "}
-              for {dateStr}.
-            </p>
-            {searchQuery.trim().length > 0 && (
-              <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-200">
-                Table filter is active — Record sales still uses the full sheet.
-              </p>
-            )}
             {recordPreview.totalQtyToRecord <= 0 ? (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-                No new quantities to record. Implied sold already matches completed sales for
-                this date, or closings are not saved yet.
+                All {recordPreview.lines.length} products up to date for {dateStr}. No new sales to record.
               </p>
             ) : (
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                Quantities below will post as cash sales and deduct inventory.
+                Record{" "}
+                <span className="font-semibold text-slate-900 dark:text-white">
+                  {recordPreviewLinesWithQty} of {recordPreview.lines.length} products
+                </span>{" "}
+                for {dateStr}. Post sales &amp; deduct inventory.
               </p>
             )}
             {recordablePreviewLines.length > 0 && (
@@ -2356,16 +2347,12 @@ export function StandardStockCountSheetPage({
               </div>
             )}
             <div className="border-t border-slate-200 pt-4 dark:border-slate-600">
-              <div className="mb-3 text-sm text-slate-600 dark:text-slate-300">
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  {recordPreviewLinesWithQty} product(s) to record
-                </span>
-                {" · "}
-                <span className="font-semibold text-slate-900 dark:text-white">
+              <div className="mb-3 flex items-baseline gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <span className="font-medium text-slate-700 dark:text-slate-300">
                   {formatQty(recordPreview.totalQtyToRecord)} units
                 </span>
-                {" · "}
-                <span className="font-semibold text-slate-900 dark:text-white">
+                <span>·</span>
+                <span className="text-base font-bold text-slate-900 dark:text-white">
                   {formatCurrency(recordPreview.totalValueToRecord)}
                 </span>
               </div>

@@ -423,7 +423,7 @@ describe("StandardStockCountSheetPage filter", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /record sales from stock count/i })).toBeInTheDocument();
     });
-    expect(screen.getByText(/1 product\(s\) to record/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 of \d+ products/i)).toBeInTheDocument();
     expect(screen.getByText(/2 units/i)).toBeInTheDocument();
     expect(stdApi.fetchStdStockCountSalesPreview).toHaveBeenCalledWith(
       "t",
@@ -517,7 +517,7 @@ describe("StandardStockCountSheetPage filter", () => {
     );
   });
 
-  it("shows filter banner in preview when table search is active", async () => {
+  it("does not show filter banner in preview when table search is active", async () => {
     const store = configureStore({
       reducer: {
         auth: authReducer,
@@ -594,8 +594,8 @@ describe("StandardStockCountSheetPage filter", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/table filter is active — record sales still uses the full sheet/i)
-      ).toBeInTheDocument();
+        screen.queryByText(/table filter is active — record sales still uses the full sheet/i)
+      ).not.toBeInTheDocument();
     });
   });
 });

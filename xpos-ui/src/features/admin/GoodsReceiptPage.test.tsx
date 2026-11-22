@@ -374,8 +374,26 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
           createdAt: "2024-01-01T00:00:00Z",
           updatedAt: "2024-01-01T00:00:00Z",
         },
+        {
+          id: "item-keg",
+          orgId: "org-1",
+          sku: "KEG-01",
+          name: "KEG",
+          itemType: "STOCK",
+          categoryId: null,
+          taxProfileId: null,
+          trackInventory: true,
+          active: true,
+          buyingPrice: 108,
+          defaultSellingPrice: 150,
+          baseUomId: null,
+          visibleInPos: true,
+          primaryImageUrl: null,
+          createdAt: "2024-01-01T00:00:00Z",
+          updatedAt: "2024-01-01T00:00:00Z",
+        },
       ],
-      totalElements: 2,
+      totalElements: 3,
       totalPages: 1,
       size: 500,
       number: 0,
@@ -396,6 +414,24 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
         active: true,
         buyingPrice: 200,
         defaultSellingPrice: 280,
+        baseUomId: null,
+        visibleInPos: true,
+        primaryImageUrl: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+      },
+      {
+        id: "item-keg",
+        orgId: "org-1",
+        sku: "KEG-01",
+        name: "KEG",
+        itemType: "STOCK",
+        categoryId: null,
+        taxProfileId: null,
+        trackInventory: true,
+        active: true,
+        buyingPrice: 108,
+        defaultSellingPrice: 150,
         baseUomId: null,
         visibleInPos: true,
         primaryImageUrl: null,
@@ -1550,7 +1586,89 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     expect(screen.queryByRole("button", { name: /set to today/i })).not.toBeInTheDocument();
     expect(dateInput).toHaveValue(formatDateInput(new Date()));
   });
+
+  it("defaults quantity to 50 when selecting a KEG item and allows editing", async () => {
+    wrap(<GoodsReceiptPage initialOrgId="org-1" initialBranchId="branch-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
+    });
+
+    // Open Add Stock slide-over
+    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Add stock" })).toBeInTheDocument();
+    });
+
+    // Select KEG from combobox
+    const itemCombobox = screen.getByPlaceholderText("Search item name, SKU, barcode…");
+    fireEvent.focus(itemCombobox);
+    fireEvent.click(itemCombobox);
+
+    await waitFor(() => {
+      const listbox = screen.getByRole("listbox");
+      fireEvent.click(within(listbox).getByText("KEG"));
+    });
+
+    // Quantity should automatically default to 50
+    const qtyInput = screen.getByDisplayValue("50") as HTMLInputElement;
+    expect(qtyInput).toBeInTheDocument();
+
+    // Total should be 50 * 108 = 5,400
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Total: KSh\s*5,400/i)).toBeInTheDocument();
+    });
+
+    // Verify user can edit the value from 50 to 75 (within default maxQty 99)
+    fireEvent.change(qtyInput, { target: { value: "75" } });
+    expect(qtyInput.value).toBe("75");
+
+    // Total should now be 75 * 108 = 8,100
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Total: KSh\s*8,100/i)).toBeInTheDocument();
+    });
+  });
+
+  it("clears default 50 quantity when switching from KEG to a non-keg item", async () => {
+    wrap(<GoodsReceiptPage initialOrgId="org-1" initialBranchId="branch-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Guinness bottle")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Add stock" })).toBeInTheDocument();
+    });
+
+    // Select KEG
+    const itemCombobox = screen.getByPlaceholderText("Search item name, SKU, barcode…");
+    fireEvent.focus(itemCombobox);
+    fireEvent.click(itemCombobox);
+
+    await waitFor(() => {
+      const listbox = screen.getByRole("listbox");
+      fireEvent.click(within(listbox).getByText("KEG"));
+    });
+
+    expect(screen.getByDisplayValue("50")).toBeInTheDocument();
+
+    // Switch to Tusker Lager
+    fireEvent.focus(itemCombobox);
+    fireEvent.click(itemCombobox);
+
+    await waitFor(() => {
+      const listbox = screen.getByRole("listbox");
+      fireEvent.click(within(listbox).getByText("Tusker Lager"));
+    });
+
+    // Qty should be reset to empty / placeholder 0
+    expect(screen.queryByDisplayValue("50")).not.toBeInTheDocument();
+  });
 });
+
 
 
 

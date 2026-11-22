@@ -58,7 +58,9 @@ import {
   isBarcodeVisible,
 } from "@/config/barcodeVisibility";
 import {
+  DEFAULT_KEG_RECEIPT_QTY,
   getStockReceiptMaxQty,
+  isKegItem,
   isStockReceiptDigitsOnly,
   isStockReceiptShowLimit,
   sanitizeStockReceiptQty,
@@ -1040,6 +1042,15 @@ export function GoodsReceiptPage({
         next[idx].itemName = item?.name ?? "";
         next[idx].receivedUnitCost =
           item?.buyingPrice != null ? String(item.buyingPrice) : "";
+        if (isKegItem(item)) {
+          next[idx].qty = sanitizeStockReceiptQty(
+            DEFAULT_KEG_RECEIPT_QTY,
+            maxQty,
+            digitsOnly
+          );
+        } else if (next[idx].qty === DEFAULT_KEG_RECEIPT_QTY) {
+          next[idx].qty = "";
+        }
       }
       return next;
     });
@@ -1076,11 +1087,16 @@ export function GoodsReceiptPage({
           }
           const emptyIdx = prev.findIndex((l) => !l.itemId);
           const idx = emptyIdx >= 0 ? emptyIdx : prev.length;
+          const defaultQty = isKegItem(item)
+            ? sanitizeStockReceiptQty(DEFAULT_KEG_RECEIPT_QTY, maxQty, digitsOnly)
+            : idx < prev.length && prev[idx].qty
+              ? prev[idx].qty
+              : "1";
           const newLine = {
             itemId: item.id,
             itemName: item.name,
-            qty: idx < prev.length ? prev[idx].qty : "1",
-                       receivedUnitCost:
+            qty: defaultQty,
+            receivedUnitCost:
               item.buyingPrice != null ? String(item.buyingPrice) : "",
           };
           if (idx < prev.length) {
@@ -2326,6 +2342,7 @@ export function GoodsReceiptPage({
                                 e.preventDefault();
                               }
                             }}
+                            onFocus={(e) => e.target.select()}
                             onChange={(e) =>
                               handleUpdateLine(idx, "qty", e.target.value)
                             }

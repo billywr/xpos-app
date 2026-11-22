@@ -189,11 +189,21 @@ export const ReceivingScreen: React.FC = () => {
     setCreateModalOpen(true);
   };
 
+  const isKegItem = (item?: { name?: string | null; sku?: string | null } | null): boolean => {
+    if (!item) return false;
+    const nameMatch = item.name ? /\bkeg\b/i.test(item.name) : false;
+    const skuMatch = item.sku ? /\bkeg\b/i.test(item.sku) : false;
+    return nameMatch || skuMatch;
+  };
+
   // Select Item for Create
   const handleSelectItem = (item: Item) => {
     haptics.selection();
     setSelectedItem(item);
     setItemSearchQuery("");
+    if (isKegItem(item)) {
+      setQty("50");
+    }
     if (item.buyingPrice != null) {
       setUnitCost(String(item.buyingPrice));
     } else {

@@ -124,7 +124,7 @@ export function StandardStockCountAdminPage() {
       <div className="min-h-0 flex-1 overflow-auto">
         <PageHeader
           title="Stock taking (admin)"
-          subtitle="View the stock taking sheet for any branch. Select organization and branch."
+          subtitle="View stock taking for any branch. Select organization and branch."
           icon={FileSpreadsheet}
           fallbackTo="/admin"
         />
@@ -178,7 +178,7 @@ export function StandardStockCountAdminPage() {
           </div>
         )}
         <div className="rounded-xl border border-sky-200/70 bg-white/90 p-8 text-center text-slate-500 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400">
-          Select organization and branch to view the stock taking sheet.
+          Select organization and branch to view stock taking.
         </div>
       </div>
     );

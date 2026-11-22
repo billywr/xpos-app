@@ -21,6 +21,15 @@ vi.mock("@/features/admin/MpesaSettingsSection", () => ({
   ),
 }));
 
+vi.mock("@/features/admin/TableCustomizationSettingsSection", () => ({
+  TableCustomizationSettingsSection: () => (
+    <section>
+      <h2>Datatable customization</h2>
+      <p>Configure datatables across the system</p>
+    </section>
+  ),
+}));
+
 // Mock assistant API
 vi.mock("@/api/assistant", () => ({
   fetchAssistantSettings: vi.fn().mockResolvedValue({
@@ -133,6 +142,7 @@ describe("AdminSettingsPage", () => {
     expect(screen.getByRole("tab", { name: /m-pesa/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /ai assistant/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /forms & sheets/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /tables & lists/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /appearance/i })).toBeInTheDocument();
 
     // Default tab is Top Bar
@@ -158,6 +168,10 @@ describe("AdminSettingsPage", () => {
     fireEvent.click(screen.getByRole("tab", { name: /forms & sheets/i }));
     expect(screen.getByText("Form & sheet customization")).toBeInTheDocument();
 
+    // Switch to Tables & Lists tab
+    fireEvent.click(screen.getByRole("tab", { name: /tables & lists/i }));
+    expect(screen.getByText("Datatable customization")).toBeInTheDocument();
+
     // Switch to Appearance tab
     fireEvent.click(screen.getByRole("tab", { name: /appearance/i }));
     expect(screen.getByText("Dark mode theme")).toBeInTheDocument();
@@ -174,6 +188,13 @@ describe("AdminSettingsPage", () => {
     renderSettingsPage(["/admin/settings?tab=forms"]);
 
     expect(screen.getByText("Form & sheet customization")).toBeInTheDocument();
+    expect(screen.queryByText("Top navigation bar")).not.toBeInTheDocument();
+  });
+
+  it("reads tables tab from URL query param", () => {
+    renderSettingsPage(["/admin/settings?tab=tables"]);
+
+    expect(screen.getByText("Datatable customization")).toBeInTheDocument();
     expect(screen.queryByText("Top navigation bar")).not.toBeInTheDocument();
   });
 

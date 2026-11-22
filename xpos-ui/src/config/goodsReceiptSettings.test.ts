@@ -9,6 +9,8 @@ import {
   STOCK_RECEIPT_DIGITS_ONLY_KEY,
   STOCK_RECEIPT_SHOW_LIMIT_KEY,
   STOCK_RECEIPT_QTY_PRESETS,
+  DEFAULT_KEG_RECEIPT_QTY,
+  isKegItem,
 } from "./goodsReceiptSettings";
 
 describe("goodsReceiptSettings", () => {
@@ -131,4 +133,35 @@ describe("goodsReceiptSettings", () => {
       expect(values).toContain(1000);
     });
   });
+
+  describe("isKegItem", () => {
+    it("identifies keg items by exact or partial name case-insensitively", () => {
+      expect(isKegItem({ name: "KEG" })).toBe(true);
+      expect(isKegItem({ name: "keg" })).toBe(true);
+      expect(isKegItem({ name: "Senator Keg" })).toBe(true);
+      expect(isKegItem({ name: "Tusker Keg" })).toBe(true);
+      expect(isKegItem({ name: "Balozi Keg" })).toBe(true);
+      expect(isKegItem({ name: "Keg 50L" })).toBe(true);
+      expect(isKegItem({ name: "Keg - 50L" })).toBe(true);
+    });
+
+    it("identifies keg items by SKU", () => {
+      expect(isKegItem({ name: "Generic Beer", sku: "KEG-01" })).toBe(true);
+      expect(isKegItem({ name: "Draft", sku: "SENATOR-KEG" })).toBe(true);
+    });
+
+    it("returns false for non-keg items and empty inputs", () => {
+      expect(isKegItem({ name: "Tusker Lager" })).toBe(false);
+      expect(isKegItem({ name: "Guinness bottle" })).toBe(false);
+      expect(isKegItem({ name: "Soda" })).toBe(false);
+      expect(isKegItem(null)).toBe(false);
+      expect(isKegItem(undefined)).toBe(false);
+      expect(isKegItem({ name: "" })).toBe(false);
+    });
+
+    it("has DEFAULT_KEG_RECEIPT_QTY set to 50", () => {
+      expect(DEFAULT_KEG_RECEIPT_QTY).toBe("50");
+    });
+  });
 });
+

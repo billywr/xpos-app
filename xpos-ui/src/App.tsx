@@ -13,6 +13,7 @@ import { Layout } from "@/components/Layout";
 import { AdminLayout } from "@/components/AdminLayout";
 import { NavVisibilityProvider } from "@/components/NavVisibilityProvider";
 import { FormCustomizationProvider } from "@/components/FormCustomizationProvider";
+import { TableCustomizationProvider } from "@/components/TableCustomizationProvider";
 
 import { OperatorLayout } from "@/components/OperatorLayout";
 import { OperatorContextGuard } from "@/components/OperatorContextGuard";
@@ -92,7 +93,9 @@ function App() {
             <RestoreContext />
             <NavVisibilityProvider>
               <FormCustomizationProvider>
-                <Layout />
+                <TableCustomizationProvider>
+                  <Layout />
+                </TableCustomizationProvider>
               </FormCustomizationProvider>
             </NavVisibilityProvider>
           </ProtectedRoute>

@@ -8,6 +8,11 @@ import authReducer from "@/store/slices/authSlice";
 import orgContextReducer from "@/store/slices/orgContextSlice";
 import cartReducer from "@/store/slices/cartSlice";
 import { ToastProvider } from "@/contexts/ToastContext";
+import {
+  TableCustomizationContext,
+  type TableCustomizationContextValue,
+  type TableDensity,
+} from "@/contexts/TableCustomizationContext";
 import { ItemsListPage } from "./ItemsListPage";
 import * as orgsApi from "@/api/orgs";
 import * as itemsApi from "@/api/items";
@@ -189,6 +194,162 @@ describe("ItemsListPage Download PDF", () => {
     fireEvent.change(within(dialog).getByLabelText(/Selling price/i), { target: { value: "150" } });
 
     expect(saveBtn).not.toBeDisabled();
+  });
+
+  it("renders table with customized column labels, order, and hidden columns", async () => {
+    vi.mocked(orgsApi.fetchOrgs).mockResolvedValue({ content: [{ id: "org-1", name: "Org 1" }], totalPages: 1, totalElements: 1 } as any);
+    vi.mocked(itemsApi.fetchItems).mockResolvedValue({ content: mockItems, totalPages: 1 } as any);
+    vi.mocked(categoriesApi.fetchCategories).mockResolvedValue({ content: [] } as any);
+
+    const mockTableCtx: TableCustomizationContextValue = {
+      getTableConfig: vi.fn(() => [
+        {
+          key: "name",
+          label: "Custom Item Name",
+          defaultLabel: "Name",
+          visible: true,
+          defaultVisible: true,
+          canHide: false,
+          order: 1,
+          defaultOrder: 1,
+          align: "left" as const,
+          sortable: true,
+        },
+        {
+          key: "sku",
+          label: "Inventory SKU Code",
+          defaultLabel: "SKU",
+          visible: true,
+          defaultVisible: true,
+          canHide: true,
+          order: 2,
+          defaultOrder: 2,
+          align: "left" as const,
+          sortable: true,
+        },
+        {
+          key: "actions",
+          label: "Item Actions",
+          defaultLabel: "Actions",
+          visible: true,
+          defaultVisible: true,
+          canHide: false,
+          order: 3,
+          defaultOrder: 3,
+          align: "left" as const,
+          sortable: false,
+        },
+      ]),
+      getVisibleColumns: vi.fn(() => [
+        {
+          key: "name",
+          label: "Custom Item Name",
+          defaultLabel: "Name",
+          visible: true,
+          defaultVisible: true,
+          canHide: false,
+          order: 1,
+          defaultOrder: 1,
+          align: "left" as const,
+          sortable: true,
+        },
+        {
+          key: "sku",
+          label: "Inventory SKU Code",
+          defaultLabel: "SKU",
+          visible: true,
+          defaultVisible: true,
+          canHide: true,
+          order: 2,
+          defaultOrder: 2,
+          align: "left" as const,
+          sortable: true,
+        },
+        {
+          key: "actions",
+          label: "Item Actions",
+          defaultLabel: "Actions",
+          visible: true,
+          defaultVisible: true,
+          canHide: false,
+          order: 3,
+          defaultOrder: 3,
+          align: "left" as const,
+          sortable: false,
+        },
+      ]),
+      isColumnVisible: vi.fn((_t, col) => col === "name" || col === "sku" || col === "actions"),
+      getColumnLabel: vi.fn((_t, col) => (col === "name" ? "Custom Item Name" : col === "sku" ? "Inventory SKU Code" : col)),
+      getColumnAlign: vi.fn(() => "left" as const),
+      getTableDensity: vi.fn(() => "compact" as TableDensity),
+      getTablePageSize: vi.fn(() => 20),
+      getShowRowNumbers: vi.fn(() => true),
+      getZebraStriping: vi.fn(() => true),
+      setColumnVisibility: vi.fn(),
+      setColumnLabel: vi.fn(),
+      setColumnAlign: vi.fn(),
+      moveColumnOrder: vi.fn(),
+      setColumnOrder: vi.fn(),
+      setTableDensity: vi.fn(),
+      setTablePageSize: vi.fn(),
+      setShowRowNumbers: vi.fn(),
+      setZebraStriping: vi.fn(),
+      resetTableToDefaults: vi.fn(),
+      resetAllTablesToDefaults: vi.fn(),
+      isSaving: false,
+    };
+
+    const store = configureStore({
+      reducer: {
+        auth: authReducer,
+        orgContext: orgContextReducer,
+        cart: cartReducer,
+      },
+      preloadedState: {
+        auth: {
+          token: "test-token",
+          iamUserId: "user-1",
+          username: null,
+          expiresAt: null,
+          refreshToken: null,
+          roles: [],
+        },
+        orgContext: {
+          orgId: "org-1",
+          branchId: "branch-1",
+          terminalId: "term-1",
+          orgName: "Org 1",
+          branchName: "Branch 1",
+          terminalName: "Term 1",
+        },
+      },
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <ToastProvider>
+            <TableCustomizationContext.Provider value={mockTableCtx}>
+              <MemoryRouter>
+                <ItemsListPage initialOrgId="org-1" />
+              </MemoryRouter>
+            </TableCustomizationContext.Provider>
+          </ToastProvider>
+        </QueryClientProvider>
+      </Provider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Custom item name")).toBeInTheDocument();
+      expect(screen.getByText("Inventory SKU code")).toBeInTheDocument();
+      expect(screen.getByText("Item actions")).toBeInTheDocument();
+      // Barcode was omitted from visibleColumns, verify it is not in the table headers
+      expect(screen.queryByRole("columnheader", { name: /^barcode$/i })).not.toBeInTheDocument();
+    });
   });
 });
 

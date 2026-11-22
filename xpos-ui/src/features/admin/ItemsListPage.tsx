@@ -41,9 +41,6 @@ import {
   FormLabel,
   tableBodyRow,
   tableStickyHeadCell,
-  tableHeadCell,
-  tableBodyCell,
-  tableBodyCellNum,
   tableStickyFirstBody,
   tableEmptyCell,
 } from "@/components/ui";
@@ -61,6 +58,7 @@ import { Plus, Pencil, Trash2, Upload, ChevronDown, Download, Loader2, Info } fr
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { useFormCustomization } from "@/contexts/FormCustomizationContext";
+import { useTableCustomization } from "@/contexts/TableCustomizationContext";
 import { BARCODE_ITEMS, isBarcodeVisible } from "@/config/barcodeVisibility";
 
 const DEFAULT_PAGE_SIZE = 15;
@@ -124,7 +122,14 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [categoryFilterOpen]);
-  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const tableCustom = useTableCustomization("items");
+  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
+
+  useEffect(() => {
+    if (tableCustom.pageSize && tableCustom.pageSize > 0) {
+      setSize(tableCustom.pageSize);
+    }
+  }, [tableCustom.pageSize]);
   const [slideOpen, setSlideOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [formSku, setFormSku] = useState("");
@@ -484,17 +489,6 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     setPage(0);
   }, [searchQuery, selectedCategoryId, selectedOrgId, size]);
 
-  const showSkuCol = useMemo(
-    () =>
-      pagedItems.some(
-        (i: Item) => !!i.sku && i.sku.trim() !== "" && i.sku !== "—"
-      ),
-    [pagedItems]
-  );
-  const showBuyingCol = useMemo(
-    () => pagedItems.some((i: Item) => i.buyingPrice != null),
-    [pagedItems]
-  );
   const categories = categoriesData?.content ?? [];
   const modifierGroups = modifierGroupsData?.content ?? [];
   const barcodes = barcodesData ?? [];
@@ -1027,222 +1021,220 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "1000px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <TableRowNumberHead />
-                    <SortableTableHead
-                      columnKey="name"
-                      label="Name"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={`${tableStickyHeadCell} ${tableHeadCell}`}
-                    />
-                    {showSkuCol && (
-                      <SortableTableHead
-                        columnKey="sku"
-                        label="SKU"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={toggleSort}
-                        className={tableHeadCell}
-                      />
+                    {tableCustom.showRowNumbers && (
+                      <TableRowNumberHead className={tableCustom.densityStyles.th} />
                     )}
-                    {showBarcode && (
-                      <SortableTableHead
-                        columnKey="barcode"
-                        label="Barcode"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={toggleSort}
-                        className={tableHeadCell}
-                      />
-                    )}
-                    <SortableTableHead
-                      columnKey="itemType"
-                      label="Type"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
-                    <SortableTableHead
-                      columnKey="active"
-                      label="Active"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
-                    {showBuyingCol && (
-                      <SortableTableHead
-                      align="right"
-                        columnKey="buyingPrice"
-                        label="Buying"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={toggleSort}
-                        className={tableHeadCell}
-                      />
-                    )}
-                    <SortableTableHead
-                      align="right"
-                      columnKey="defaultSellingPrice"
-                      label="Selling"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
-                    <SortableTableHead
-                      columnKey="image"
-                      label="Image"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      sortable={false}
-                      className={tableHeadCell}
-                    />
-                    <SortableTableHead
-                      columnKey="actions"
-                      label="Actions"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      sortable={false}
-                      className={tableHeadCell}
-                    />
+                    {tableCustom.visibleColumns.map((col) => {
+                      const isSticky = col.key === "name";
+                      return (
+                        <SortableTableHead
+                          key={col.key}
+                          columnKey={col.key}
+                          label={col.label}
+                          align={col.align}
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={toggleSort}
+                          sortable={col.sortable}
+                          className={`${isSticky ? tableStickyHeadCell : ""} ${tableCustom.densityStyles.th}`}
+                        />
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {isInitialLoad ? (
                     <TableSkeleton
                       rows={size}
-                      columns={7 + (showSkuCol ? 1 : 0) + (showBarcode ? 1 : 0) + (showBuyingCol ? 1 : 0)}
+                      columns={(tableCustom.showRowNumbers ? 1 : 0) + tableCustom.visibleColumns.length}
                     />
                   ) : pagedItems.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={7 + (showSkuCol ? 1 : 0) + (showBarcode ? 1 : 0) + (showBuyingCol ? 1 : 0)}
+                        colSpan={(tableCustom.showRowNumbers ? 1 : 0) + tableCustom.visibleColumns.length}
                         className={tableEmptyCell}
                       >
                         {items.length === 0 ? "No items yet. Add one to build your catalog." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    pagedItems.map((item: Item, index) => (
+                    pagedItems.map((item: Item, index) => {
+                      const isEven = index % 2 === 1;
+                      const zebraClass =
+                        tableCustom.zebraStriping && isEven
+                          ? "bg-slate-50/60 dark:bg-slate-700/20"
+                          : "";
+                      return (
                         <tr
                           key={item.id}
-                          className={tableBodyRow}
+                          className={`${tableBodyRow} ${zebraClass}`}
                         >
-                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
-                          <td className={tableStickyFirstBody}>
-                            {item.name}
-                          </td>
-                          {showSkuCol && (
-                            <td className={tableBodyCell}>
-                              {item.sku ?? "—"}
-                            </td>
-                          )}
-                          {showBarcode && (
-                            <td className={`${tableBodyCell} font-mono`}>
-                              {item.barcode ?? "—"}
-                            </td>
-                          )}
-                          <td className={tableBodyCell}>
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                              {item.itemType}
-                            </span>
-                          </td>
-                          <td className={tableBodyCell}>
-                            <Badge variant={item.active ? "success" : "neutral"}>
-                              {item.active ? "Yes" : "No"}
-                            </Badge>
-                          </td>
-                          {showBuyingCol && (
-                            <td className={tableBodyCellNum}>
-                              <PriceCell
-                                item={item}
-                                field="buyingPrice"
-                                editing={editingPriceCell}
-                                saving={savingPriceItemId === item.id}
-                                onStartEdit={(value) =>
-                                  setEditingPriceCell({
-                                    itemId: item.id,
-                                    field: "buyingPrice",
-                                    value,
-                                  })
-                                }
-                                onChange={(value) =>
-                                  setEditingPriceCell((prev) =>
-                                    prev ? { ...prev, value } : prev
-                                  )
-                                }
-                                onCommit={() => handleSavePriceCell(item)}
-                                onCancel={() => setEditingPriceCell(null)}
-                              />
-                            </td>
-                          )}
-                          <td className={tableBodyCellNum}>
-                            <PriceCell
-                              item={item}
-                              field="defaultSellingPrice"
-                              editing={editingPriceCell}
-                              saving={savingPriceItemId === item.id}
-                              onStartEdit={(value) =>
-                                setEditingPriceCell({
-                                  itemId: item.id,
-                                  field: "defaultSellingPrice",
-                                  value,
-                                })
-                              }
-                              onChange={(value) =>
-                                setEditingPriceCell((prev) =>
-                                  prev ? { ...prev, value } : prev
-                                )
-                              }
-                              onCommit={() => handleSavePriceCell(item)}
-                              onCancel={() => setEditingPriceCell(null)}
+                          {tableCustom.showRowNumbers && (
+                            <TableRowNumberCell
+                              page={page}
+                              pageSize={size}
+                              indexInPage={index}
+                              className={tableCustom.densityStyles.td}
                             />
-                          </td>
-                          <td className={tableBodyCell}>
-                            <button
-                              type="button"
-                              disabled={inlineUploadingItemId === item.id}
-                              onClick={() => {
-                                inlineUploadItemRef.current = item;
-                                inlineFileInputRef.current?.click();
-                              }}
-                              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/30"
-                              title={item.primaryImageUrl ? `Image: ${item.primaryImageUrl}` : "Upload image"}
-                            >
-                              {inlineUploadingItemId === item.id ? (
-                                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-300 border-t-primary-600" />
-                              ) : (
-                                <Upload className="h-3.5 w-3.5" />
-                              )}
-                              {item.primaryImageUrl ? getItemImageName(item.primaryImageUrl) : "Upload"}
-                            </button>
-                          </td>
-                          <td className={tableBodyCell}>
-                            <div className="flex justify-start gap-2">
-                              <IconButton
-                                onClick={() => openEdit(item)}
-                                title={`Edit ${item.name}`}
-                                aria-label={`Edit ${item.name}`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </IconButton>
-                              <IconButton
-                                variant="danger"
-                                onClick={() => setConfirmDelete(item)}
-                                title={`Delete ${item.name}`}
-                                aria-label={`Delete ${item.name}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </IconButton>
-                            </div>
-                          </td>
+                          )}
+                          {tableCustom.visibleColumns.map((col) => {
+                            switch (col.key) {
+                              case "name":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableStickyFirstBody} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    {item.name}
+                                  </td>
+                                );
+                              case "sku":
+                                return (
+                                  <td key={col.key} className={tableCustom.densityStyles.td}>
+                                    {item.sku ?? "—"}
+                                  </td>
+                                );
+                              case "barcode":
+                                return (
+                                  <td key={col.key} className={`${tableCustom.densityStyles.td} font-mono`}>
+                                    {item.barcode ?? "—"}
+                                  </td>
+                                );
+                              case "itemType":
+                                return (
+                                  <td key={col.key} className={tableCustom.densityStyles.td}>
+                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                      {item.itemType}
+                                    </span>
+                                  </td>
+                                );
+                              case "active":
+                                return (
+                                  <td key={col.key} className={tableCustom.densityStyles.td}>
+                                    <Badge variant={item.active ? "success" : "neutral"}>
+                                      {item.active ? "Yes" : "No"}
+                                    </Badge>
+                                  </td>
+                                );
+                              case "buyingPrice":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={
+                                      col.align === "right"
+                                        ? tableCustom.densityStyles.tdNum
+                                        : tableCustom.densityStyles.td
+                                    }
+                                  >
+                                    <PriceCell
+                                      item={item}
+                                      field="buyingPrice"
+                                      editing={editingPriceCell}
+                                      saving={savingPriceItemId === item.id}
+                                      onStartEdit={(value) =>
+                                        setEditingPriceCell({
+                                          itemId: item.id,
+                                          field: "buyingPrice",
+                                          value,
+                                        })
+                                      }
+                                      onChange={(value) =>
+                                        setEditingPriceCell((prev) =>
+                                          prev ? { ...prev, value } : prev
+                                        )
+                                      }
+                                      onCommit={() => handleSavePriceCell(item)}
+                                      onCancel={() => setEditingPriceCell(null)}
+                                    />
+                                  </td>
+                                );
+                              case "sellingPrice":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={
+                                      col.align === "right"
+                                        ? tableCustom.densityStyles.tdNum
+                                        : tableCustom.densityStyles.td
+                                    }
+                                  >
+                                    <PriceCell
+                                      item={item}
+                                      field="defaultSellingPrice"
+                                      editing={editingPriceCell}
+                                      saving={savingPriceItemId === item.id}
+                                      onStartEdit={(value) =>
+                                        setEditingPriceCell({
+                                          itemId: item.id,
+                                          field: "defaultSellingPrice",
+                                          value,
+                                        })
+                                      }
+                                      onChange={(value) =>
+                                        setEditingPriceCell((prev) =>
+                                          prev ? { ...prev, value } : prev
+                                        )
+                                      }
+                                      onCommit={() => handleSavePriceCell(item)}
+                                      onCancel={() => setEditingPriceCell(null)}
+                                    />
+                                  </td>
+                                );
+                              case "image":
+                                return (
+                                  <td key={col.key} className={tableCustom.densityStyles.td}>
+                                    <button
+                                      type="button"
+                                      disabled={inlineUploadingItemId === item.id}
+                                      onClick={() => {
+                                        inlineUploadItemRef.current = item;
+                                        inlineFileInputRef.current?.click();
+                                      }}
+                                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/30"
+                                      title={item.primaryImageUrl ? `Image: ${item.primaryImageUrl}` : "Upload image"}
+                                    >
+                                      {inlineUploadingItemId === item.id ? (
+                                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-300 border-t-primary-600" />
+                                      ) : (
+                                        <Upload className="h-3.5 w-3.5" />
+                                      )}
+                                      {item.primaryImageUrl ? getItemImageName(item.primaryImageUrl) : "Upload"}
+                                    </button>
+                                  </td>
+                                );
+                              case "actions":
+                                return (
+                                  <td key={col.key} className={tableCustom.densityStyles.td}>
+                                    <div className="flex justify-start gap-2">
+                                      <IconButton
+                                        onClick={() => openEdit(item)}
+                                        title={`Edit ${item.name}`}
+                                        aria-label={`Edit ${item.name}`}
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </IconButton>
+                                      <IconButton
+                                        variant="danger"
+                                        onClick={() => setConfirmDelete(item)}
+                                        title={`Delete ${item.name}`}
+                                        aria-label={`Delete ${item.name}`}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </IconButton>
+                                    </div>
+                                  </td>
+                                );
+                              default:
+                                return (
+                                  <td key={col.key} className={tableCustom.densityStyles.td}>
+                                    —
+                                  </td>
+                                );
+                            }
+                          })}
                         </tr>
-                      ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>

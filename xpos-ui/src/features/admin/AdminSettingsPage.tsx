@@ -63,11 +63,13 @@ import {
   Search,
   X,
   FileText,
+  Table2,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { AdminTabList, type AdminTabItem } from "@/components/ui/AdminTabs";
 import { MpesaSettingsSection } from "@/features/admin/MpesaSettingsSection";
 import { FormCustomizationSettingsSection } from "@/features/admin/FormCustomizationSettingsSection";
+import { TableCustomizationSettingsSection } from "@/features/admin/TableCustomizationSettingsSection";
 import { resizeImageForLogo } from "@/utils/logoResize";
 
 export type SettingsTabId =
@@ -76,6 +78,7 @@ export type SettingsTabId =
   | "operator-sidebar"
   | "pos"
   | "forms"
+  | "tables"
   | "mpesa"
   | "assistant"
   | "appearance";
@@ -86,6 +89,7 @@ export const SETTINGS_TABS: AdminTabItem[] = [
   { id: "operator-sidebar", label: "Operator sidebar", icon: Store, enabled: true },
   { id: "pos", label: "POS & features", icon: ShoppingBag, enabled: true },
   { id: "forms", label: "Forms & sheets", icon: FileText, enabled: true },
+  { id: "tables", label: "Tables & lists", icon: Table2, enabled: true },
   { id: "mpesa", label: "M-Pesa", icon: Smartphone, enabled: true },
   { id: "assistant", label: "AI assistant", icon: Sparkles, enabled: true },
   { id: "appearance", label: "Appearance", icon: Palette, enabled: true },
@@ -951,6 +955,8 @@ export function AdminSettingsPage() {
 
   const renderForms = () => <FormCustomizationSettingsSection />;
 
+  const renderTables = () => <TableCustomizationSettingsSection />;
+
   const renderMpesa = () => <MpesaSettingsSection />;
 
   const renderAssistant = () => (
@@ -1240,6 +1246,44 @@ export function AdminSettingsPage() {
           "utility",
         ],
         render: renderForms,
+      },
+      {
+        id: "table-customization",
+        tabId: "tables",
+        tabLabel: "Tables & lists",
+        title: "Tables & lists",
+        description:
+          "Customize datatable column names, display positions, visibility, density, row numbers, and zebra striping across all system lists and reports.",
+        keywords: [
+          "table",
+          "tables",
+          "datatable",
+          "datatables",
+          "column",
+          "columns",
+          "rename",
+          "reorder",
+          "position",
+          "density",
+          "compact",
+          "comfortable",
+          "spacious",
+          "zebra",
+          "striping",
+          "row numbers",
+          "items",
+          "sales",
+          "receipts",
+          "shifts",
+          "z-reports",
+          "inventory",
+          "grn",
+          "stock",
+          "debts",
+          "expenses",
+          "staff",
+        ],
+        render: renderTables,
       },
       {
         id: "mpesa",

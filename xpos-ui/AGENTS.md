@@ -80,6 +80,7 @@ Environment variables (`.env.example`):
 - **Forms**: Use `react-hook-form` + `zod`. Forms slide in from right (`SlideOver`). Confirm dialogs before deletes or destructive actions.
 - **CRUD Expectation**: For every screen that has an "Add" button, provide edit and soft-delete capabilities.
 - **Responsiveness**: Always use Tailwind breakpoints (`sm:`, `md:`, `lg:`, `xl:`). Never use fixed pixel widths that break mobile.
+- **Sentence Case Naming Convention**: All UI text, page titles, section headers, card titles, button labels, badge pills, and table headers MUST use sentence case: only the first letter of the first word is uppercase (e.g. "Net profit / loss", "Gross revenue", "Stock asset valuation", "This week", "Last month", "Manage inventory"). Do NOT use Title Case or all-caps `uppercase` CSS classes, except for standard acronyms/proper nouns (e.g. "COGS", "KSH", "M-Pesa", "SKU", "POS").
 
 ---
 

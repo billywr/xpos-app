@@ -111,3 +111,19 @@ export function sanitizeStockReceiptQty(
   return formattedInt;
 }
 
+/** Default receipt quantity for keg items (standard 50L barrel in Kenya bar operations). */
+export const DEFAULT_KEG_RECEIPT_QTY = "50";
+
+/**
+ * Checks whether an item represents a Keg (e.g. "KEG", "Senator Keg", "Tusker Keg", "Balozi Keg").
+ * In Kenya bar operations, keg beer is delivered and counted in standard 50-litre barrels.
+ */
+export function isKegItem(
+  item?: { name?: string | null; sku?: string | null } | null
+): boolean {
+  if (!item) return false;
+  const nameMatch = item.name ? /\bkeg\b/i.test(item.name) : false;
+  const skuMatch = item.sku ? /\bkeg\b/i.test(item.sku) : false;
+  return nameMatch || skuMatch;
+}
+

@@ -27,8 +27,6 @@ import {
   FormLabel,
   tableBodyRow,
   tableStickyHeadCell,
-  tableHeadCell,
-  tableBodyCell,
   tableStickyFirstBody,
   tableEmptyCell,
 } from "@/components/ui";
@@ -37,6 +35,7 @@ import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSe
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { useFormCustomization } from "@/contexts/FormCustomizationContext";
+import { useTableCustomization } from "@/contexts/TableCustomizationContext";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -60,9 +59,16 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
   const queryClient = useQueryClient();
   const toast = useToast();
   const categoryCustom = useFormCustomization("category");
+  const tableCustom = useTableCustomization("categories");
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
+
+  useEffect(() => {
+    if (tableCustom.pageSize && tableCustom.pageSize > 0) {
+      setSize(tableCustom.pageSize);
+    }
+  }, [tableCustom.pageSize]);
   const [slideOpen, setSlideOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formParentId, setFormParentId] = useState<string>("");
@@ -206,10 +212,6 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
   });
   const allCategories = allCategoriesData?.content ?? [];
 
-  const showParentCol = useMemo(
-    () => filteredCategories.some((c: Category) => !!c.parentId),
-    [filteredCategories]
-  );
   const parentOptions = allCategories.filter(
     (c: Category) => !editingCategory || c.id !== editingCategory.id
   );
@@ -389,97 +391,137 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
               <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "480px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <TableRowNumberHead />
-                    <SortableTableHead
-                      columnKey="name"
-                      label="Name"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={`${tableStickyHeadCell} ${tableHeadCell}`}
-                    />
-                    {showParentCol && (
-                      <SortableTableHead
-                        columnKey="parent"
-                        label="Parent"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={toggleSort}
-                        className={tableHeadCell}
-                      />
+                    {tableCustom.showRowNumbers && (
+                      <TableRowNumberHead className={tableCustom.densityStyles.th} />
                     )}
-                    <SortableTableHead
-                      columnKey="type"
-                      label="Type"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
-                    <SortableTableHead
-                      columnKey="actions"
-                      label="Actions"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      sortable={false}
-                      className={tableHeadCell}
-                    />
+                    {tableCustom.visibleColumns.map((col) => {
+                      const isSticky = col.key === "name";
+                      return (
+                        <SortableTableHead
+                          key={col.key}
+                          columnKey={col.key}
+                          label={col.label}
+                          align={col.align}
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={toggleSort}
+                          sortable={col.sortable}
+                          className={`${isSticky ? tableStickyHeadCell : ""} ${tableCustom.densityStyles.th}`}
+                        />
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {isInitialLoad ? (
-                    <TableSkeleton columns={5} />
+                    <TableSkeleton
+                      columns={
+                        (tableCustom.showRowNumbers ? 1 : 0) +
+                        tableCustom.visibleColumns.length
+                      }
+                    />
                   ) : filteredCategories.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={4+ (showParentCol ? 1 : 0)}
+                        colSpan={
+                          (tableCustom.showRowNumbers ? 1 : 0) +
+                          tableCustom.visibleColumns.length
+                        }
                         className={tableEmptyCell}
                       >
                         {categories.length === 0 ? "No categories yet. Add one to organize your catalog." : "No results match your search."}
                       </td>
                     </tr>
                   ) : (
-                    filteredCategories.map((cat: Category, index) => (
-                      <tr
-                        key={cat.id}
-                        className={tableBodyRow}
-                      >
-                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
-                        <td className={tableStickyFirstBody}>
-                          {cat.name}
-                        </td>
-                        {showParentCol && (
-                          <td className={tableBodyCell}>
-                            {parentName(cat)}
-                          </td>
-                        )}
-                        <td className={tableBodyCell}>
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                            {cat.type}
-                          </span>
-                        </td>
-                        <td className={tableBodyCell}>
-                          <div className="flex justify-start gap-2">
-                            <IconButton
-                              onClick={() => openEdit(cat)}
-                              title={`Edit ${cat.name}`}
-                              aria-label={`Edit ${cat.name}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </IconButton>
-                            <IconButton
-                              variant="danger"
-                              onClick={() => setConfirmDelete(cat)}
-                              title={`Delete ${cat.name}`}
-                              aria-label={`Delete ${cat.name}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </IconButton>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    filteredCategories.map((cat: Category, index) => {
+                      const isEven = index % 2 === 1;
+                      const zebraClass =
+                        tableCustom.zebraStriping && isEven
+                          ? "bg-slate-50/60 dark:bg-slate-700/20"
+                          : "";
+                      return (
+                        <tr
+                          key={cat.id}
+                          className={`${tableBodyRow} ${zebraClass}`}
+                        >
+                          {tableCustom.showRowNumbers && (
+                            <TableRowNumberCell
+                              page={page}
+                              pageSize={size}
+                              indexInPage={index}
+                              className={tableCustom.densityStyles.td}
+                            />
+                          )}
+                          {tableCustom.visibleColumns.map((col) => {
+                            switch (col.key) {
+                              case "name":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableStickyFirstBody} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    {cat.name}
+                                  </td>
+                                );
+                              case "parent":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={tableCustom.densityStyles.td}
+                                  >
+                                    {parentName(cat)}
+                                  </td>
+                                );
+                              case "type":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={tableCustom.densityStyles.td}
+                                  >
+                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                      {cat.type}
+                                    </span>
+                                  </td>
+                                );
+                              case "actions":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={tableCustom.densityStyles.td}
+                                  >
+                                    <div className="flex justify-start gap-2">
+                                      <IconButton
+                                        onClick={() => openEdit(cat)}
+                                        title={`Edit ${cat.name}`}
+                                        aria-label={`Edit ${cat.name}`}
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </IconButton>
+                                      <IconButton
+                                        variant="danger"
+                                        onClick={() => setConfirmDelete(cat)}
+                                        title={`Delete ${cat.name}`}
+                                        aria-label={`Delete ${cat.name}`}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </IconButton>
+                                    </div>
+                                  </td>
+                                );
+                              default:
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={tableCustom.densityStyles.td}
+                                  >
+                                    —
+                                  </td>
+                                );
+                            }
+                          })}
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
