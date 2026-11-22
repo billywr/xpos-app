@@ -28,6 +28,9 @@ public interface InventoryItemService {
   /** Returns on-hand qty for each item in the given set. Missing items return 0. */
   Map<UUID, BigDecimal> getOnHandQtysByItemIds(UUID orgId, UUID branchId, Set<UUID> itemIds);
 
+  /** Returns on-hand qty for all tracked items in the given branch. */
+  Map<UUID, BigDecimal> getAllOnHandQtysByBranch(UUID orgId, UUID branchId);
+
   /**
    * Applies stock take variance: adds delta to on-hand qty. Creates InventoryItem if needed. Delta
    * can be positive (overcount) or negative (undercount).

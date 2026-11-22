@@ -37,6 +37,7 @@ import { formatAmount } from "@/utils/formatCurrency";
 import { formatDateTime } from "@/utils/formatDate";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import { invalidateInventoryQueries } from "@/utils/invalidateInventoryQueries";
 import { Receipt, Printer } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 
@@ -122,6 +123,7 @@ export function ReceiptsPage() {
       queryClient.invalidateQueries({
         queryKey: ["operator-receipts", token, orgId, branchId],
       });
+      void invalidateInventoryQueries(queryClient);
       setReceiptDetails(null);
       setReprintingSaleId(null);
       toast.success("Sale refunded. Items returned to stock.", {

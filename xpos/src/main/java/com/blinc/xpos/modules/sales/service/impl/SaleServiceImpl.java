@@ -17,6 +17,7 @@ import com.blinc.xpos.modules.catalog.service.ModifierOptionService;
 import com.blinc.xpos.modules.catalog.service.UomService;
 import com.blinc.xpos.modules.debt.service.CustomerDebtService;
 import com.blinc.xpos.modules.inventory.domain.StockMovement;
+import com.blinc.xpos.modules.inventory.repository.StdStockCountSnapshotRepository;
 import com.blinc.xpos.modules.inventory.repository.StockMovementRepository;
 import com.blinc.xpos.modules.inventory.service.InventoryItemService;
 import com.blinc.xpos.modules.ledger.service.LedgerPostingService;
@@ -41,6 +42,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,9 +79,11 @@ public class SaleServiceImpl implements SaleService {
   private final LedgerPostingService ledgerPostingService;
   private final InventoryItemService inventoryItemService;
   private final StockMovementRepository stockMovementRepository;
+  private final StdStockCountSnapshotRepository stdStockCountSnapshotRepository;
   private final CustomerDebtService customerDebtService;
   private final Clock clock;
 
+  @SuppressWarnings("checkstyle:ParameterNumber")
   public SaleServiceImpl(
       SaleRepository saleRepository,
       SaleLineRepository saleLineRepository,
@@ -97,6 +102,7 @@ public class SaleServiceImpl implements SaleService {
       LedgerPostingService ledgerPostingService,
       InventoryItemService inventoryItemService,
       StockMovementRepository stockMovementRepository,
+      StdStockCountSnapshotRepository stdStockCountSnapshotRepository,
       @Lazy CustomerDebtService customerDebtService,
       Clock clock) {
     this.saleRepository = Objects.requireNonNull(saleRepository, "saleRepository");
@@ -121,6 +127,8 @@ public class SaleServiceImpl implements SaleService {
         Objects.requireNonNull(inventoryItemService, "inventoryItemService");
     this.stockMovementRepository =
         Objects.requireNonNull(stockMovementRepository, "stockMovementRepository");
+    this.stdStockCountSnapshotRepository =
+        Objects.requireNonNull(stdStockCountSnapshotRepository, "stdStockCountSnapshotRepository");
     this.customerDebtService = Objects.requireNonNull(customerDebtService, "customerDebtService");
     this.clock = Objects.requireNonNull(clock, "clock");
   }
@@ -161,6 +169,7 @@ public class SaleServiceImpl implements SaleService {
     sale.setCreatedByStaffUser(staffUser);
     Instant now = Instant.now(clock);
     sale.setCreatedAt(now);
+    sale.setBusinessDate(resolveBusinessDate(branch, now));
     Sale saved = saleRepository.save(sale);
     return loadSaleWithAssociations(orgId, saved.getId());
   }
@@ -311,6 +320,11 @@ public class SaleServiceImpl implements SaleService {
       }
     }
     Instant now = Instant.now(clock);
+    LocalDate businessDate =
+        sale.getBusinessDate() != null
+            ? sale.getBusinessDate()
+            : resolveBusinessDate(sale.getBranch(), now);
+    sale.setBusinessDate(businessDate);
     for (SaleLine line : lines) {
       if (Boolean.TRUE.equals(line.getItem().getTrackInventory())) {
         BigDecimal unitCost = BigDecimal.ZERO;
@@ -319,6 +333,8 @@ public class SaleServiceImpl implements SaleService {
                 orgId, sale.getBranch().getId(), line.getItem().getId(), PageRequest.of(0, 1));
         if (!latestIn.isEmpty() && latestIn.getContent().get(0).getUnitCost() != null) {
           unitCost = latestIn.getContent().get(0).getUnitCost();
+        } else if (line.getItem().getBuyingPrice() != null) {
+          unitCost = line.getItem().getBuyingPrice();
         }
         StockMovement mov = new StockMovement();
         mov.setOrg(sale.getOrg());
@@ -335,6 +351,17 @@ public class SaleServiceImpl implements SaleService {
         stockMovementRepository.save(mov);
         inventoryItemService.decrementOnHand(
             orgId, sale.getBranch().getId(), line.getItem().getId(), line.getQty());
+        stdStockCountSnapshotRepository
+            .findByBranchIdAndItemIdAndBusinessDate(
+                sale.getBranch().getId(), line.getItem().getId(), businessDate)
+            .ifPresent(
+                snap -> {
+                  BigDecimal newClosing =
+                      snap.getClosingQty().subtract(line.getQty()).max(BigDecimal.ZERO);
+                  snap.setClosingQty(newClosing.setScale(SCALE, RoundingMode.HALF_UP));
+                  snap.setLastSavedAt(now);
+                  stdStockCountSnapshotRepository.save(snap);
+                });
       }
     }
 
@@ -392,6 +419,8 @@ public class SaleServiceImpl implements SaleService {
                 orgId, sale.getBranch().getId(), line.getItem().getId(), PageRequest.of(0, 1));
         if (!latestIn.isEmpty() && latestIn.getContent().get(0).getUnitCost() != null) {
           unitCost = latestIn.getContent().get(0).getUnitCost();
+        } else if (line.getItem().getBuyingPrice() != null) {
+          unitCost = line.getItem().getBuyingPrice();
         }
         StockMovement mov = new StockMovement();
         mov.setOrg(sale.getOrg());
@@ -408,6 +437,20 @@ public class SaleServiceImpl implements SaleService {
         stockMovementRepository.save(mov);
         inventoryItemService.incrementOnHand(
             orgId, sale.getBranch().getId(), line.getItem().getId(), line.getQty());
+        LocalDate refundBusinessDate =
+            sale.getBusinessDate() != null
+                ? sale.getBusinessDate()
+                : resolveBusinessDate(sale.getBranch(), now);
+        stdStockCountSnapshotRepository
+            .findByBranchIdAndItemIdAndBusinessDate(
+                sale.getBranch().getId(), line.getItem().getId(), refundBusinessDate)
+            .ifPresent(
+                snap -> {
+                  BigDecimal newClosing = snap.getClosingQty().add(line.getQty());
+                  snap.setClosingQty(newClosing.setScale(SCALE, RoundingMode.HALF_UP));
+                  snap.setLastSavedAt(now);
+                  stdStockCountSnapshotRepository.save(snap);
+                });
       }
     }
 
@@ -501,5 +544,17 @@ public class SaleServiceImpl implements SaleService {
     return tenderService.listBySale(orgId, saleId).stream()
         .map(t -> t.getAmount())
         .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  private LocalDate resolveBusinessDate(Branch branch, Instant instant) {
+    ZoneId zone = ZoneId.of("Africa/Nairobi");
+    if (branch != null && branch.getTimezone() != null && !branch.getTimezone().isBlank()) {
+      try {
+        zone = ZoneId.of(branch.getTimezone().trim());
+      } catch (Exception ignored) {
+        // Fallback to Africa/Nairobi
+      }
+    }
+    return instant.atZone(zone).toLocalDate();
   }
 }

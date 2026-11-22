@@ -48,6 +48,7 @@ import {
 import { fetchTenderTypes } from "@/api/tenderTypes";
 import { getCurrentShift } from "@/api/shifts";
 import { fetchStockLevels } from "@/api/stockLevels";
+import { invalidateInventoryQueries } from "@/utils/invalidateInventoryQueries";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
 import {
   getLastMpesaStkPhone,
@@ -356,8 +357,9 @@ export function MenuOrderPage() {
     onSuccess: () => {
       dispatch(clearCart());
       setSaleForPayment(null);
+      void invalidateInventoryQueries(queryClient);
+      void queryClient.refetchQueries({ queryKey: ["stockLevels"] });
       queryClient.invalidateQueries({ queryKey: ["openOrHeldSales"] });
-      queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
       queryClient.invalidateQueries({ queryKey: ["operator-debts"] });
       queryClient.invalidateQueries({ queryKey: ["operator-debts-pending-total"] });
     },
@@ -384,8 +386,9 @@ export function MenuOrderPage() {
     onSuccess: () => {
       dispatch(clearCart());
       setSaleForPayment(null);
+      void invalidateInventoryQueries(queryClient);
+      void queryClient.refetchQueries({ queryKey: ["stockLevels"] });
       queryClient.invalidateQueries({ queryKey: ["openOrHeldSales"] });
-      queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
       queryClient.invalidateQueries({ queryKey: ["operator-debts"] });
       queryClient.invalidateQueries({ queryKey: ["operator-debts-pending-total"] });
     },
@@ -406,8 +409,9 @@ export function MenuOrderPage() {
       dispatch(clearCart());
       setSaleForPayment(null);
       setReceiptDetails(details);
+      void invalidateInventoryQueries(queryClient);
+      void queryClient.refetchQueries({ queryKey: ["stockLevels"] });
       queryClient.invalidateQueries({ queryKey: ["openOrHeldSales"] });
-      queryClient.invalidateQueries({ queryKey: ["stockLevels"] });
       queryClient.invalidateQueries({ queryKey: ["operator-debts"] });
       queryClient.invalidateQueries({ queryKey: ["operator-debts-pending-total"] });
     } catch {

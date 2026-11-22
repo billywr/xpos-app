@@ -37,12 +37,17 @@ public class StockLevelsOperatorController {
   public ResponseEntity<List<StockLevelResponse>> getStockLevels(
       @PathVariable UUID orgId,
       @PathVariable UUID branchId,
-      @RequestParam(name = "itemIds") List<UUID> itemIds) {
+      @RequestParam(name = "itemIds", required = false) List<UUID> itemIds) {
     staffAuthorizationService.requireStaffUser(orgId, principalResolver.require().iamUserId());
-    Set<UUID> ids = itemIds == null ? Set.of() : Set.copyOf(itemIds);
-    if (ids.isEmpty()) {
-      return ResponseEntity.ok(List.of());
+    if (itemIds == null || itemIds.isEmpty()) {
+      var allLevels = inventoryItemService.getAllOnHandQtysByBranch(orgId, branchId);
+      List<StockLevelResponse> result =
+          allLevels.entrySet().stream()
+              .map(e -> new StockLevelResponse(e.getKey(), e.getValue()))
+              .toList();
+      return ResponseEntity.ok(result);
     }
+    Set<UUID> ids = Set.copyOf(itemIds);
     var levels = inventoryItemService.getOnHandQtysByItemIds(orgId, branchId, ids);
     List<StockLevelResponse> result =
         ids.stream()

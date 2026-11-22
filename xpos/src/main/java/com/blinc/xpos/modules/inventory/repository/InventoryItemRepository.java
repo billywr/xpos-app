@@ -1,6 +1,7 @@
 package com.blinc.xpos.modules.inventory.repository;
 
 import com.blinc.xpos.modules.inventory.domain.InventoryItem;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,6 +20,26 @@ public interface InventoryItemRepository extends JpaRepository<InventoryItem, UU
       """)
   Optional<InventoryItem> findByOrgIdAndBranchIdAndItemId(
       @Param("orgId") UUID orgId, @Param("branchId") UUID branchId, @Param("itemId") UUID itemId);
+
+  @Query(
+      """
+      select i from InventoryItem i
+      join fetch i.item
+      where i.org.id = :orgId and i.branch.id = :branchId and i.item.id in :itemIds
+      """)
+  List<InventoryItem> findAllByOrgIdAndBranchIdAndItemIdIn(
+      @Param("orgId") UUID orgId,
+      @Param("branchId") UUID branchId,
+      @Param("itemIds") Collection<UUID> itemIds);
+
+  @Query(
+      """
+      select i from InventoryItem i
+      join fetch i.item
+      where i.org.id = :orgId and i.branch.id = :branchId
+      """)
+  List<InventoryItem> findAllByOrgIdAndBranchIdWithItem(
+      @Param("orgId") UUID orgId, @Param("branchId") UUID branchId);
 
   @Query(
       """

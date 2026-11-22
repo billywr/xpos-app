@@ -13,6 +13,7 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -139,9 +140,29 @@ public class InventoryItemServiceImpl implements InventoryItemService {
   @Transactional(readOnly = true)
   public Map<UUID, BigDecimal> getOnHandQtysByItemIds(
       UUID orgId, UUID branchId, Set<UUID> itemIds) {
+    if (itemIds == null || itemIds.isEmpty()) {
+      return Map.of();
+    }
+    List<InventoryItem> items =
+        inventoryItemRepository.findAllByOrgIdAndBranchIdAndItemIdIn(orgId, branchId, itemIds);
     Map<UUID, BigDecimal> result = new HashMap<>();
-    for (UUID itemId : itemIds) {
-      result.put(itemId, getOnHandQty(orgId, branchId, itemId));
+    for (InventoryItem inv : items) {
+      result.put(inv.getItem().getId(), inv.getOnHandQty());
+    }
+    for (UUID id : itemIds) {
+      result.putIfAbsent(id, BigDecimal.ZERO);
+    }
+    return result;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Map<UUID, BigDecimal> getAllOnHandQtysByBranch(UUID orgId, UUID branchId) {
+    List<InventoryItem> items =
+        inventoryItemRepository.findAllByOrgIdAndBranchIdWithItem(orgId, branchId);
+    Map<UUID, BigDecimal> result = new HashMap<>();
+    for (InventoryItem inv : items) {
+      result.put(inv.getItem().getId(), inv.getOnHandQty());
     }
     return result;
   }
