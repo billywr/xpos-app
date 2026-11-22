@@ -10,6 +10,10 @@ import cartReducer from "@/store/slices/cartSlice";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { NavVisibilityContext } from "@/contexts/NavVisibilityContext";
 import {
+  TableCustomizationContext,
+  type TableCustomizationContextValue,
+} from "@/contexts/TableCustomizationContext";
+import {
   GoodsReceiptPage,
   isReceiptInDateRange,
   getDayOffsetLabel,
@@ -1666,6 +1670,129 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
 
     // Qty should be reset to empty / placeholder 0
     expect(screen.queryByDisplayValue("50")).not.toBeInTheDocument();
+  });
+
+  it("respects TableCustomizationContext custom labels and column visibility", async () => {
+    const mockTableContext: TableCustomizationContextValue = {
+      getTableConfig: vi.fn(() => [
+        {
+          key: "received",
+          label: "Arrival date",
+          defaultLabel: "Received",
+          customLabel: "Arrival date",
+          visible: true,
+          defaultVisible: true,
+          canHide: false,
+          order: 1,
+          defaultOrder: 1,
+          align: "left" as const,
+          sortable: true,
+        },
+        {
+          key: "name",
+          label: "Item description",
+          defaultLabel: "Name",
+          customLabel: "Item description",
+          visible: true,
+          defaultVisible: true,
+          canHide: false,
+          order: 2,
+          defaultOrder: 2,
+          align: "left" as const,
+          sortable: true,
+        },
+        {
+          key: "qty",
+          label: "Stock qty",
+          defaultLabel: "Qty",
+          customLabel: "Stock qty",
+          visible: true,
+          defaultVisible: true,
+          canHide: true,
+          order: 3,
+          defaultOrder: 3,
+          align: "right" as const,
+          sortable: true,
+        },
+        {
+          key: "buyPrice",
+          label: "Cost price",
+          defaultLabel: "Buy price",
+          customLabel: "Cost price",
+          visible: false,
+          defaultVisible: true,
+          canHide: true,
+          order: 4,
+          defaultOrder: 4,
+          align: "right" as const,
+          sortable: true,
+        },
+        {
+          key: "total",
+          label: "Extended total",
+          defaultLabel: "Total",
+          customLabel: "Extended total",
+          visible: true,
+          defaultVisible: true,
+          canHide: true,
+          order: 5,
+          defaultOrder: 5,
+          align: "right" as const,
+          sortable: true,
+        },
+        {
+          key: "actions",
+          label: "Manage",
+          defaultLabel: "Actions",
+          customLabel: "Manage",
+          visible: true,
+          defaultVisible: true,
+          canHide: false,
+          order: 6,
+          defaultOrder: 6,
+          align: "left" as const,
+          sortable: false,
+        },
+      ]),
+      getVisibleColumns: vi.fn(() => []),
+      isColumnVisible: vi.fn(() => true),
+      getColumnLabel: vi.fn((_t, col) => col),
+      getColumnAlign: vi.fn(() => "left" as const),
+      getTableDensity: vi.fn(() => "compact" as const),
+      getTablePageSize: vi.fn(() => 20),
+      getShowRowNumbers: vi.fn(() => false),
+      getZebraStriping: vi.fn(() => true),
+      setColumnVisibility: vi.fn(),
+      setColumnLabel: vi.fn(),
+      setColumnAlign: vi.fn(),
+      moveColumnOrder: vi.fn(),
+      setColumnOrder: vi.fn(),
+      setTableDensity: vi.fn(),
+      setTablePageSize: vi.fn(),
+      setShowRowNumbers: vi.fn(),
+      setZebraStriping: vi.fn(),
+      resetTableToDefaults: vi.fn(),
+      resetAllTablesToDefaults: vi.fn(),
+      isSaving: false,
+    };
+
+    wrap(
+      <TableCustomizationContext.Provider value={mockTableContext}>
+        <GoodsReceiptPage initialOrgId="org-1" initialBranchId="branch-1" />
+      </TableCustomizationContext.Provider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Arrival date")).toBeInTheDocument();
+      expect(screen.getByText("Item description")).toBeInTheDocument();
+      expect(screen.getByText("Stock qty")).toBeInTheDocument();
+      expect(screen.getByText("Extended total")).toBeInTheDocument();
+      expect(screen.getByText("Manage")).toBeInTheDocument();
+    });
+
+    // Buy price column was set to visible: false, so neither "Buy price" nor "Cost price" should be rendered
+    expect(screen.queryByText("Cost price")).not.toBeInTheDocument();
+    expect(screen.queryByText("Buy price")).not.toBeInTheDocument();
   });
 });
 

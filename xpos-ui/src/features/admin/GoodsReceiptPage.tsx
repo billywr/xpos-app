@@ -33,11 +33,8 @@ import {
   TableSkeleton,
   tableBodyRow,
   tableStickyHeadCell,
-  tableHeadCell,
-  tableBodyCell,
   tableStickyFirstBody,
   tableEmptyCell,
-  tableBodyCellNumDebts,
   tableCard,
   DateInput,
 } from "@/components/ui";
@@ -53,6 +50,7 @@ import { Link } from "react-router-dom";
 import { Plus, PackagePlus, Trash2, Pencil, RotateCcw, Download, Loader2, ChevronLeft, ChevronRight, X, Coins, Package } from "lucide-react";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { useFormCustomization } from "@/contexts/FormCustomizationContext";
+import { useTableCustomization } from "@/contexts/TableCustomizationContext";
 import {
   BARCODE_GOODS_RECEIPT,
   isBarcodeVisible,
@@ -331,6 +329,7 @@ export function GoodsReceiptPage({
   const queryClient = useQueryClient();
   const toast = useToast();
   const formCustom = useFormCustomization("stock-receipt");
+  const tableCustom = useTableCustomization("stock-receipt");
   const navContext = useNavVisibilityContextOrNull();
   const showBarcode = isBarcodeVisible(
     navContext?.adminVisibility ?? {},
@@ -367,7 +366,13 @@ export function GoodsReceiptPage({
 
   const [filterSupplierId, setFilterSupplierId] = useState<string>("");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
+
+  useEffect(() => {
+    if (tableCustom.pageSize && tableCustom.pageSize > 0) {
+      setSize(tableCustom.pageSize);
+    }
+  }, [tableCustom.pageSize]);
   const [slideOpen, setSlideOpen] = useState(false);
   const [editingGrn, setEditingGrn] = useState<GoodsReceiptNoteResponse | null>(null);
   /** When set, slide-over edits only this line; save merges with other lines on the receipt. */
@@ -909,16 +914,15 @@ export function GoodsReceiptPage({
     }
   };
 
-  /** Hide columns whose every row on this page has no meaningful value. */
-  const showBarcodeCol = useMemo(
-    () => pagedRows.some((r) => !!r.line?.barcode?.trim()),
-    [pagedRows]
-  );
-  const showBuyPriceCol = useMemo(
-    () => pagedRows.some((r) => r.line?.receivedUnitCost != null),
-    [pagedRows]
-  );
-  const visibleColCount = 8 + (showBarcodeCol ? 1 : 0) + (showBuyPriceCol ? 1 : 0);
+  /** Filter out barcode column if globally disabled in settings. */
+  const effectiveVisibleColumns = useMemo(() => {
+    return tableCustom.visibleColumns.filter((col) => {
+      if (col.key === "barcode" && !showBarcode) return false;
+      return true;
+    });
+  }, [tableCustom.visibleColumns, showBarcode]);
+
+  const visibleColCount = 1 + (tableCustom.showRowNumbers ? 1 : 0) + effectiveVisibleColumns.length;
 
   const totalFilteredAmount = useMemo(() => {
     return allFilteredRows.reduce((sum, r) => {
@@ -1847,68 +1851,25 @@ export function GoodsReceiptPage({
                         className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:checked:bg-primary-500 cursor-pointer"
                       />
                     </th>
-                    <TableRowNumberHead />
-                    <SortableTableHead
-                      columnKey="received"
-                      label="Received"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={`${tableStickyHeadCell} ${tableHeadCell}`}
-                    />
-                    <SortableTableHead
-                      columnKey="name"
-                      label="Name"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
-                    {showBarcodeCol && (
-                      <SortableTableHead
-                        columnKey="barcode"
-                        label="Barcode"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={toggleSort}
-                        className={tableHeadCell}
-                      />
+                    {tableCustom.showRowNumbers && (
+                      <TableRowNumberHead className={tableCustom.densityStyles.th} />
                     )}
-                    <SortableTableHead
-                      columnKey="qty"
-                      label="Qty"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
-                    {showBuyPriceCol && (
-                      <SortableTableHead
-                        columnKey="buyPrice"
-                        label="Buy price"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={toggleSort}
-                        className={tableHeadCell}
-                      />
-                    )}
-                    <SortableTableHead
-                      columnKey="total"
-                      label="Total"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
-                    <SortableTableHead
-                      columnKey="actions"
-                      label="Actions"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      sortable={false}
-                      className={tableHeadCell}
-                    />
+                    {effectiveVisibleColumns.map((col) => {
+                      const isSticky = col.key === "received";
+                      return (
+                        <SortableTableHead
+                          key={col.key}
+                          columnKey={col.key}
+                          label={col.label}
+                          align={col.align}
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={toggleSort}
+                          sortable={col.sortable}
+                          className={cn(isSticky && tableStickyHeadCell, tableCustom.densityStyles.th)}
+                        />
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -1934,10 +1895,21 @@ export function GoodsReceiptPage({
                       const lineTotal = line.qty * (line.receivedUnitCost ?? 0);
                       const rowKey = `${grn.id}::${line.id}`;
                       const isSelected = selectedRowKeys.has(rowKey);
+                      const isEven = index % 2 === 1;
+                      const zebraClass =
+                        tableCustom.zebraStriping && isEven
+                          ? "bg-slate-50/60 dark:bg-slate-700/20"
+                          : "";
+
                       return (
                         <tr
                           key={`${grn.id}-${line.id}`}
-                          className={cn(tableBodyRow, isSelected && "bg-primary-50/40 dark:bg-primary-950/20")}
+                          className={cn(
+                            tableBodyRow,
+                            isSelected
+                              ? "bg-primary-50/40 dark:bg-primary-950/20"
+                              : zebraClass
+                          )}
                         >
                           <td className="w-10 px-3 py-2 text-center align-middle">
                             <input
@@ -1948,55 +1920,146 @@ export function GoodsReceiptPage({
                               className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:checked:bg-primary-500 cursor-pointer"
                             />
                           </td>
-                          <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
-                          <td className={tableStickyFirstBody}>
-                            {formatDate(grn.receivedAt)}
-                          </td>
-                          <td className={tableBodyCell}>
-                            {line.itemName}
-                          </td>
-                          {showBarcodeCol && (
-                            <td className={`${tableBodyCell} font-mono`}>
-                              {line.barcode?.trim()
-                                ? line.barcode
-                                : "—"}
-                            </td>
+                          {tableCustom.showRowNumbers && (
+                            <TableRowNumberCell
+                              page={page}
+                              pageSize={size}
+                              indexInPage={index}
+                              className={tableCustom.densityStyles.td}
+                            />
                           )}
-                          <td className={tableBodyCellNumDebts}>
-                            {formatQty(line.qty)}
-                          </td>
-                          {showBuyPriceCol && (
-                            <td className={tableBodyCellNumDebts}>
-                              {line.receivedUnitCost != null
-                                ? formatAmount(line.receivedUnitCost)
-                                : "—"}
-                            </td>
-                          )}
-                          <td className={`${tableBodyCellNumDebts} font-bold text-slate-700 dark:text-slate-300`}>
-                            {formatAmount(lineTotal)}
-                          </td>
-                          <td className={`${tableBodyCell} whitespace-nowrap align-middle`}>
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => handleEditLine(grn, line)}
-                                className="rounded p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-200"
-                                title="Edit this line"
-                                aria-label={`Edit line ${line.itemName}`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setConfirmDeleteLine({ grn, line })}
-                                className="rounded p-2 text-slate-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-slate-600 dark:hover:text-red-300"
-                                title="Remove this line from receipt"
-                                aria-label={`Remove line ${line.itemName}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
+                          {effectiveVisibleColumns.map((col) => {
+                            const alignClass =
+                              col.align === "right"
+                                ? "text-right"
+                                : col.align === "center"
+                                ? "text-center"
+                                : "text-left";
+
+                            switch (col.key) {
+                              case "received":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={cn(
+                                      tableStickyFirstBody,
+                                      tableCustom.densityStyles.td,
+                                      alignClass
+                                    )}
+                                  >
+                                    {formatDate(grn.receivedAt)}
+                                  </td>
+                                );
+                              case "name":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={cn(
+                                      tableCustom.densityStyles.td,
+                                      alignClass
+                                    )}
+                                  >
+                                    {line.itemName}
+                                  </td>
+                                );
+                              case "barcode":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={cn(
+                                      tableCustom.densityStyles.td,
+                                      "font-mono",
+                                      alignClass
+                                    )}
+                                  >
+                                    {line.barcode?.trim()
+                                      ? line.barcode
+                                      : "—"}
+                                  </td>
+                                );
+                              case "qty":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={cn(
+                                      tableCustom.densityStyles.tdNum,
+                                      alignClass
+                                    )}
+                                  >
+                                    {formatQty(line.qty)}
+                                  </td>
+                                );
+                              case "buyPrice":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={cn(
+                                      tableCustom.densityStyles.tdNum,
+                                      alignClass
+                                    )}
+                                  >
+                                    {line.receivedUnitCost != null
+                                      ? formatAmount(line.receivedUnitCost)
+                                      : "—"}
+                                  </td>
+                                );
+                              case "total":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={cn(
+                                      tableCustom.densityStyles.tdNum,
+                                      "font-bold text-slate-700 dark:text-slate-300",
+                                      alignClass
+                                    )}
+                                  >
+                                    {formatAmount(lineTotal)}
+                                  </td>
+                                );
+                              case "actions":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={cn(
+                                      tableCustom.densityStyles.td,
+                                      "whitespace-nowrap align-middle",
+                                      alignClass
+                                    )}
+                                  >
+                                    <div
+                                      className={cn(
+                                        "flex items-center gap-1",
+                                        col.align === "right" && "justify-end",
+                                        col.align === "center" && "justify-center"
+                                      )}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => handleEditLine(grn, line)}
+                                        className="rounded p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-200"
+                                        title="Edit this line"
+                                        aria-label={`Edit line ${line.itemName}`}
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setConfirmDeleteLine({ grn, line })
+                                        }
+                                        className="rounded p-2 text-slate-500 hover:bg-red-100 hover:text-red-700 dark:hover:bg-slate-600 dark:hover:text-red-300"
+                                        title="Remove this line from receipt"
+                                        aria-label={`Remove line ${line.itemName}`}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                );
+                              default:
+                                return null;
+                            }
+                          })}
                         </tr>
                       );
                     })

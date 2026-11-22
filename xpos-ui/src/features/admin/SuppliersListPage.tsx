@@ -32,13 +32,13 @@ import {
   tableStickyFirstBody,
   tableEmptyCell,
   tableCard,
-  tableRowNoCol,
 } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { useFormCustomization } from "@/contexts/FormCustomizationContext";
+import { useTableCustomization } from "@/contexts/TableCustomizationContext";
 import { Plus, Truck, Pencil, Trash2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -65,9 +65,16 @@ export function SuppliersListPage({
   const queryClient = useQueryClient();
   const toast = useToast();
   const supplierCustom = useFormCustomization("supplier");
+  const tableCustom = useTableCustomization("suppliers");
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
+
+  useEffect(() => {
+    if (tableCustom.pageSize && tableCustom.pageSize > 0) {
+      setSize(tableCustom.pageSize);
+    }
+  }, [tableCustom.pageSize]);
   const [slideOpen, setSlideOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [includeInactive, setIncludeInactive] = useState(false);
@@ -202,23 +209,6 @@ export function SuppliersListPage({
     searchAllEnabled: Boolean(token) && Boolean(selectedOrgId),
     sortAccessors: SUPPLIER_SORT,
   });
-
-  const showPhoneCol = useMemo(
-    () =>
-      filteredSuppliers.some(
-        (s: Supplier) => !!s.phone && s.phone.trim() !== "" && s.phone !== "—"
-      ),
-    [filteredSuppliers]
-  );
-  const showEmailCol = useMemo(
-    () =>
-      filteredSuppliers.some(
-        (s: Supplier) => !!s.email && s.email.trim() !== "" && s.email !== "—"
-      ),
-    [filteredSuppliers]
-  );
-  const visibleSuppliersColCount =
-    4 + (showPhoneCol ? 1 : 0) + (showEmailCol ? 1 : 0);
 
   useEffect(() => {
     if (initialOrgId) {
@@ -395,72 +385,45 @@ export function SuppliersListPage({
           <div className={tableCard}>
             <div className="relative min-h-0 flex-1 overflow-auto">
               <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-              <table className="w-full table-fixed divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "720px" }}>
-                <colgroup>
-                  <col className={tableRowNoCol} />
-                  <col className="w-[26%]" />
-                  {showPhoneCol && <col className="w-[15%]" />}
-                  {showEmailCol && <col className="w-[22%]" />}
-                  <col className="w-[13%]" />
-                  <col className="w-[16%]" />
-                </colgroup>
+              <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "720px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <TableRowNumberHead />
-                    <SortableTableHead
-                      columnKey="name"
-                      label="Name"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={`${tableStickyHeadCell} ${tableHeadCell}`}
-                    />
-                    {showPhoneCol && (
-                      <SortableTableHead
-                        columnKey="phone"
-                        label="Phone"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={toggleSort}
-                        className={tableHeadCell}
-                      />
+                    {tableCustom.showRowNumbers && (
+                      <TableRowNumberHead className={tableCustom.densityStyles.th} />
                     )}
-                    {showEmailCol && (
-                      <SortableTableHead
-                        columnKey="email"
-                        label="Email"
-                        sortColumn={sortColumn}
-                        sortDirection={sortDirection}
-                        onSort={toggleSort}
-                        className={tableHeadCell}
-                      />
-                    )}
-                    <SortableTableHead
-                      columnKey="status"
-                      label="Status"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
-                    <SortableTableHead
-                      columnKey="actions"
-                      label="Actions"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      sortable={false}
-                      className={tableHeadCell}
-                    />
+                    {tableCustom.visibleColumns.map((col) => {
+                      const isSticky = col.key === "name";
+                      return (
+                        <SortableTableHead
+                          key={col.key}
+                          columnKey={col.key}
+                          label={col.label}
+                          align={col.align}
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={toggleSort}
+                          sortable={col.sortable}
+                          className={`${isSticky ? tableStickyHeadCell : ""} ${tableHeadCell} ${tableCustom.densityStyles.th}`}
+                        />
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {isInitialLoad ? (
-                    <TableSkeleton columns={5} />
+                    <TableSkeleton
+                      columns={
+                        (tableCustom.showRowNumbers ? 1 : 0) +
+                        tableCustom.visibleColumns.length
+                      }
+                    />
                   ) : filteredSuppliers.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={visibleSuppliersColCount}
+                        colSpan={
+                          (tableCustom.showRowNumbers ? 1 : 0) +
+                          tableCustom.visibleColumns.length
+                        }
                         className={tableEmptyCell}
                       >
                         {suppliers.length === 0
@@ -471,65 +434,111 @@ export function SuppliersListPage({
                       </td>
                     </tr>
                   ) : (
-                    filteredSuppliers.map((s: Supplier, index) => (
-                      <tr
-                        key={s.id}
-                        className={`${tableBodyRow} ${
-                          !s.active ? "opacity-60" : ""
-                        }`}
-                      >
-                        <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
-                        <td className={tableStickyFirstBody}>
-                          {s.name}
-                        </td>
-                        {showPhoneCol && (
-                          <td className={tableBodyCell}>
-                            {s.phone ?? "—"}
-                          </td>
-                        )}
-                        {showEmailCol && (
-                          <td className={tableBodyCell}>
-                            {s.email ?? "—"}
-                          </td>
-                        )}
-                        <td className={tableBodyCell}>
-                          <Badge status={s.active ? "ACTIVE" : "INACTIVE"}>
-                            {s.active ? "Active" : "Inactive"}
-                          </Badge>
-                        </td>
-                        <td className={tableBodyCell}>
-                          <div className="flex justify-start gap-1">
-                            {s.active ? (
-                              <>
-                                <IconButton
-                                  onClick={() => handleEdit(s)}
-                                  title={`Edit ${s.name}`}
-                                  aria-label={`Edit ${s.name}`}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </IconButton>
-                                <IconButton
-                                  variant="danger"
-                                  onClick={() => setConfirmDeactivate(s)}
-                                  title={`Deactivate ${s.name}`}
-                                  aria-label={`Deactivate ${s.name}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </IconButton>
-                              </>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleReactivate(s)}
-                                className="rounded px-2 py-1 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/30"
-                              >
-                                Reactivate
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    filteredSuppliers.map((s: Supplier, index) => {
+                      const isEven = index % 2 === 1;
+                      const zebraClass =
+                        tableCustom.zebraStriping && isEven
+                          ? "bg-slate-50/60 dark:bg-slate-700/20"
+                          : "";
+                      return (
+                        <tr
+                          key={s.id}
+                          className={`${tableBodyRow} ${zebraClass} ${
+                            !s.active ? "opacity-60" : ""
+                          }`}
+                        >
+                          {tableCustom.showRowNumbers && (
+                            <TableRowNumberCell
+                              page={page}
+                              pageSize={size}
+                              indexInPage={index}
+                              className={tableCustom.densityStyles.td}
+                            />
+                          )}
+                          {tableCustom.visibleColumns.map((col) => {
+                            switch (col.key) {
+                              case "name":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableStickyFirstBody} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    {s.name}
+                                  </td>
+                                );
+                              case "phone":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableBodyCell} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    {s.phone ?? "—"}
+                                  </td>
+                                );
+                              case "email":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableBodyCell} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    {s.email ?? "—"}
+                                  </td>
+                                );
+                              case "status":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableBodyCell} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    <Badge status={s.active ? "ACTIVE" : "INACTIVE"}>
+                                      {s.active ? "Active" : "Inactive"}
+                                    </Badge>
+                                  </td>
+                                );
+                              case "actions":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableBodyCell} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    <div className="flex justify-start gap-1">
+                                      {s.active ? (
+                                        <>
+                                          <IconButton
+                                            onClick={() => handleEdit(s)}
+                                            title={`Edit ${s.name}`}
+                                            aria-label={`Edit ${s.name}`}
+                                          >
+                                            <Pencil className="h-4 w-4" />
+                                          </IconButton>
+                                          <IconButton
+                                            variant="danger"
+                                            onClick={() => setConfirmDeactivate(s)}
+                                            title={`Deactivate ${s.name}`}
+                                            aria-label={`Deactivate ${s.name}`}
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </IconButton>
+                                        </>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleReactivate(s)}
+                                          className="rounded px-2 py-1 text-sm font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/30"
+                                        >
+                                          Reactivate
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                );
+                              default:
+                                return null;
+                            }
+                          })}
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

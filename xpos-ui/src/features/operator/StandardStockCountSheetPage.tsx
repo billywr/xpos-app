@@ -90,6 +90,7 @@ import { SlideOver } from "@/components/ui/SlideOver";
 import { useDataTable } from "@/hooks/useDataTable";
 import { usePersistedSearch } from "@/hooks/usePersistedSearch";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
+import { useTableCustomization } from "@/contexts/TableCustomizationContext";
 
 /** YYYY-MM-DD in the browser's local calendar (not UTC). toISOString().slice(0,10) is wrong for TZ ahead of UTC. */
 function toDateStr(d: Date): string {
@@ -417,8 +418,15 @@ export function StandardStockCountSheetPage({
   const [localComments, setLocalComments] = useState<Record<string, string>>({});
   const [savingItemIds, setSavingItemIds] = useState<Set<string>>(new Set());
   const lastKeystrokeAtRef = useRef<number>(0);
+  const tableCustom = useTableCustomization("std-stock-count");
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(15);
+  const [pageSize, setPageSize] = useState(tableCustom.pageSize || 15);
+
+  useEffect(() => {
+    if (tableCustom.pageSize && tableCustom.pageSize > 0) {
+      setPageSize(tableCustom.pageSize);
+    }
+  }, [tableCustom.pageSize]);
   const [debtModal, setDebtModal] = useState<"day" | "all" | null>(null);
   const [tableExpanded, setTableExpanded] = useState(false);
   const [recordPreview, setRecordPreview] = useState<StdStockCountSalesPreviewResponse | null>(
@@ -1775,229 +1783,285 @@ export function StandardStockCountSheetPage({
                   <table className="w-full min-w-full divide-y divide-slate-200 xl:min-w-[850px] dark:divide-slate-600">
               <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-700">
                 <tr>
-                  <TableRowNumberHead className="w-[2rem] min-w-[2rem] px-0.5 py-1.5 text-center text-xs font-semibold text-slate-700 sm:py-3 sm:text-base dark:text-slate-300" />
-                  <SortableTableHead
-                    columnKey="item"
-                    label="Item"
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
-                    onSort={toggleSort}
-                    className={`${tableStickyHeadCell} ${tableHeadCell} max-w-[110px] px-2 py-1.5 text-xs sm:max-w-none sm:px-4 sm:py-3 sm:text-lg`}
-                    title="Product name"
-                  />
-                  <SortableTableHead
-                    columnKey="open"
-                    label="Open"
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
-                    onSort={toggleSort}
-                    className={`${tableHeadCell} hidden xl:table-cell`}
-                    title="Latest saved closing before this date (from your last stock count save)"
-                  />
-                  <SortableTableHead
-                    columnKey="added"
-                    label="Added"
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
-                    onSort={toggleSort}
-                    className={`${tableHeadCell} hidden xl:table-cell`}
-                    title="GRN receipts since your last saved count through this date"
-                  />
-                  <SortableTableHead
-                    columnKey="total"
-                    label="Total"
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
-                    onSort={toggleSort}
-                    className={`${tableHeadCell} px-1.5 py-1.5 text-xs sm:px-4 sm:py-3 sm:text-lg`}
-                    title="Opening + Added + stock-take adds; equals System when counts align with the ledger"
-                  />
-                  <SortableTableHead
-                    columnKey="close"
-                    label="Close"
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
-                    onSort={toggleSort}
-                    className={`${tableHeadCell} px-1.5 py-1.5 text-xs sm:px-4 sm:py-3 sm:text-lg`}
-                    title="Physical count at end of day"
-                  />
-                  <SortableTableHead
-                    columnKey="sold"
-                    label="Sold"
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
-                    onSort={toggleSort}
-                    className={`${tableHeadCell} px-1.5 py-1.5 text-xs sm:px-4 sm:py-3 sm:text-lg`}
-                    title="Total Stock − Closing (units sold)"
-                  />
-                  <SortableTableHead
-                    columnKey="price"
-                    label="Price"
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
-                    onSort={toggleSort}
-                    className={`${tableHeadCell} hidden xl:table-cell`}
-                    title="Selling price per unit from price list"
-                  />
-                  <SortableTableHead
-                    columnKey="amount"
-                    label="Amt"
-                    sortColumn={sortColumn}
-                    sortDirection={sortDirection}
-                    onSort={toggleSort}
-                    className={`${tableHeadCell} px-1.5 py-1.5 text-xs sm:px-4 sm:py-3 sm:text-lg`}
-                    title="Units Sold × Selling Price (revenue value)"
-                  />
+                  {tableCustom.showRowNumbers && (
+                    <TableRowNumberHead className={`w-[2rem] min-w-[2rem] px-0.5 py-1.5 text-center text-xs font-semibold text-slate-700 sm:py-3 sm:text-base dark:text-slate-300 ${tableCustom.densityStyles.th}`} />
+                  )}
+                  {tableCustom.visibleColumns.map((col) => {
+                    let colClass = `${tableHeadCell} ${tableCustom.densityStyles.th}`;
+                    let colTitle = "";
+                    switch (col.key) {
+                      case "item":
+                        colClass = `${tableStickyHeadCell} ${tableHeadCell} max-w-[110px] px-2 py-1.5 text-xs sm:max-w-none sm:px-4 sm:py-3 sm:text-lg ${tableCustom.densityStyles.th}`;
+                        colTitle = "Product name";
+                        break;
+                      case "open":
+                        colClass = `${tableHeadCell} hidden xl:table-cell ${tableCustom.densityStyles.th}`;
+                        colTitle = "Latest saved closing before this date (from your last stock count save)";
+                        break;
+                      case "added":
+                        colClass = `${tableHeadCell} hidden xl:table-cell ${tableCustom.densityStyles.th}`;
+                        colTitle = "GRN receipts since your last saved count through this date";
+                        break;
+                      case "total":
+                        colClass = `${tableHeadCell} px-1.5 py-1.5 text-xs sm:px-4 sm:py-3 sm:text-lg ${tableCustom.densityStyles.th}`;
+                        colTitle = "Opening + Added + stock-take adds; equals System when counts align with the ledger";
+                        break;
+                      case "close":
+                        colClass = `${tableHeadCell} px-1.5 py-1.5 text-xs sm:px-4 sm:py-3 sm:text-lg ${tableCustom.densityStyles.th}`;
+                        colTitle = "Physical count at end of day";
+                        break;
+                      case "sold":
+                        colClass = `${tableHeadCell} px-1.5 py-1.5 text-xs sm:px-4 sm:py-3 sm:text-lg ${tableCustom.densityStyles.th}`;
+                        colTitle = "Total Stock − Closing (units sold)";
+                        break;
+                      case "price":
+                        colClass = `${tableHeadCell} hidden xl:table-cell ${tableCustom.densityStyles.th}`;
+                        colTitle = "Selling price per unit from price list";
+                        break;
+                      case "amount":
+                        colClass = `${tableHeadCell} px-1.5 py-1.5 text-xs sm:px-4 sm:py-3 sm:text-lg ${tableCustom.densityStyles.th}`;
+                        colTitle = "Units Sold × Selling Price (revenue value)";
+                        break;
+                    }
+                    return (
+                      <SortableTableHead
+                        key={col.key}
+                        columnKey={col.key}
+                        label={col.label}
+                        align={col.align}
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        sortable={col.sortable}
+                        className={colClass}
+                        title={colTitle}
+                      />
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                 {isInitialLoad ? (
                   <TableSkeleton
-                    columns={9}
+                    columns={
+                      (tableCustom.showRowNumbers ? 1 : 0) +
+                      tableCustom.visibleColumns.length
+                    }
                     rows={12}
                     columnClassName={(col) => {
                       if (col === 2 || col === 3 || col === 7) return "hidden xl:table-cell";
                       return "";
                     }}
                   />
-                ) : paginatedRows.map((r, index) => (
+                ) : paginatedRows.map((r, index) => {
+                  const isEven = index % 2 === 1;
+                  const zebraClass =
+                    tableCustom.zebraStriping && isEven
+                      ? "bg-slate-50/60 dark:bg-slate-700/20"
+                      : "";
+                  return (
                   <tr
                     key={r.itemId}
-                    className={tableBodyRow}
+                    className={`${tableBodyRow} ${zebraClass}`}
                   >
-                    <TableRowNumberCell
-                      page={page}
-                      pageSize={pageSize}
-                      indexInPage={index}
-                      className="w-[2rem] min-w-[2rem] px-0.5 py-1.5 text-center text-xs tabular-nums text-slate-600 sm:py-2.5 sm:text-base dark:text-slate-400"
-                    />
-                    <td className={`${tableStickyFirstBody} max-w-[110px] truncate px-2 py-1.5 text-xs sm:max-w-none sm:px-4 sm:py-2.5 sm:text-lg`}>
-                      {r.name || "—"}
-                    </td>
-                    <td className={`${tableBodyCellNumDebts} hidden xl:table-cell`}>{formatQty(r.openingStock)}</td>
-                    <td className={`${tableBodyCellNumDebts} hidden xl:table-cell`}>{formatQty(r.addedStock)}</td>
-                    <td className="px-1.5 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400">{formatQty(r.totalStock)}</td>
-                    <td className={canEdit ? "px-1.5 py-1.5 text-left text-xs sm:px-4 sm:py-2.5 sm:text-lg" : tableBodyCellNumDebts}>
-                      {canEdit ? (
-                        <div className="flex flex-col">
-                          <input
-                            ref={(el) => {
-                              inputRefs.current[index] = el;
-                            }}
-                            type="text"
-                            inputMode="decimal"
-                            pattern="[0-9]*\.?[0-9]{0,2}"
-                            value={
-                              r.itemId in localClosings
-                                ? localClosings[r.itemId]
-                                : formatQtyInput(r.closingStock)
-                            }
-                            onChange={(e) =>
-                              handleClosingChange(r.itemId, e.target.value)
-                            }
-                            onBlur={handleClosingBlur}
-                            onClick={(e) => {
-                              const el = e.currentTarget;
-                              const len = el.value.length;
-                              el.setSelectionRange(len, len);
-                            }}
-                            onFocus={(e) => {
-                              const el = e.currentTarget;
-                              const len = el.value.length;
-                              el.setSelectionRange(len, len);
-                            }}
-                            onKeyDown={(e) => {
-                              const maxPage = Math.max(
-                                0,
-                                Math.ceil(computedRows.length / pageSize) - 1
-                              );
-                              if (e.key === "Enter" || e.key === "ArrowDown") {
-                                e.preventDefault();
-                                if (index + 1 < paginatedRows.length) {
-                                  inputRefs.current[index + 1]?.focus();
-                                } else if (page < maxPage) {
-                                  setPage((p) => p + 1);
-                                  pendingFocusIndexRef.current = 0;
-                                }
-                              } else if (e.key === "ArrowUp") {
-                                e.preventDefault();
-                                if (index - 1 >= 0) {
-                                  inputRefs.current[index - 1]?.focus();
-                                } else if (page > 0) {
-                                  setPage((p) => p - 1);
-                                  pendingFocusIndexRef.current = pageSize - 1;
-                                }
-                              }
-                            }}
-                            className={`w-14 rounded border px-1 py-0.5 text-left text-xs font-semibold tabular-nums focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:w-24 sm:px-2 sm:py-1 sm:text-xl ${
-                              r.closingError
-                                ? "border-red-500 bg-red-50 dark:border-red-600 dark:bg-red-950/20"
-                                : r.closingStale
-                                  ? "border-amber-400 bg-amber-50 dark:border-amber-500 dark:bg-amber-950/20"
-                                  : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800"
-                            } text-slate-900 dark:text-white`}
-                          />
-                          {r.closingError && (
-                            <span className="mt-0.5 text-xs text-red-600 dark:text-red-400">
-                              {r.closingError}
-                            </span>
-                          )}
-                          {!r.closingError && r.closingStale && (
-                            <span className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
-                              Stock added — save to update
-                            </span>
-                          )}
-                          {!r.closingError && !r.closingStale && r.closingUnsaved && (
-                            <span className="mt-0.5 flex items-center gap-0.5 text-[10px] font-medium sm:text-xs">
-                              {savingItemIds.has(r.itemId) ? (
-                                <span className="flex items-center gap-1 text-sky-600 dark:text-sky-400">
-                                  <Loader2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 animate-spin shrink-0" />
-                                  Saving…
-                                </span>
-                              ) : (
-                                <span className="text-amber-600 dark:text-amber-400">Not saved</span>
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        formatQty(r.closingStock)
-                      )}
-                    </td>
-                    <td className="px-1.5 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400">
-                      <div className="flex items-center gap-1 sm:gap-1.5">
-                        <span>{formatQty(r.unitsSold)}</span>
-                        {(() => {
-                          const already = alreadyRecordedByItem[r.itemId] ?? 0;
-                          if (already <= 0) return null;
-                          const toRecord = Math.max(0, roundQty((r.unitsSold ?? 0) - already));
-                          const isFullyRecorded = toRecord <= 0;
+                    {tableCustom.showRowNumbers && (
+                      <TableRowNumberCell
+                        page={page}
+                        pageSize={pageSize}
+                        indexInPage={index}
+                        className={`w-[2rem] min-w-[2rem] px-0.5 py-1.5 text-center text-xs tabular-nums text-slate-600 sm:py-2.5 sm:text-base dark:text-slate-400 ${tableCustom.densityStyles.td}`}
+                      />
+                    )}
+                    {tableCustom.visibleColumns.map((col) => {
+                      switch (col.key) {
+                        case "item":
                           return (
-                            <span
-                              className={cn(
-                                "inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-xs sm:text-sm font-bold leading-none shrink-0",
-                                isFullyRecorded
-                                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300"
-                                  : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
-                              )}
-                              title={
-                                isFullyRecorded
-                                  ? `Recorded: ${formatQty(already)}`
-                                  : `${formatQty(already)} recorded · ${formatQty(toRecord)} new`
-                              }
+                            <td
+                              key={col.key}
+                              className={`${tableStickyFirstBody} max-w-[110px] truncate px-2 py-1.5 text-xs sm:max-w-none sm:px-4 sm:py-2.5 sm:text-lg ${tableCustom.densityStyles.td}`}
                             >
-                              S
-                            </span>
+                              {r.name || "—"}
+                            </td>
                           );
-                        })()}
-                      </div>
-                    </td>
-                    <td className={`${tableBodyCellNumDebts} hidden xl:table-cell`}>{formatAmount(r.sellingPrice)}</td>
-                    <td className="px-1.5 py-1.5 text-left text-xs tabular-nums font-bold text-slate-700 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-300">
-                      {formatAmount(r.amount)}
-                    </td>
+                        case "open":
+                          return (
+                            <td
+                              key={col.key}
+                              className={`${tableBodyCellNumDebts} hidden xl:table-cell ${tableCustom.densityStyles.td}`}
+                            >
+                              {formatQty(r.openingStock)}
+                            </td>
+                          );
+                        case "added":
+                          return (
+                            <td
+                              key={col.key}
+                              className={`${tableBodyCellNumDebts} hidden xl:table-cell ${tableCustom.densityStyles.td}`}
+                            >
+                              {formatQty(r.addedStock)}
+                            </td>
+                          );
+                        case "total":
+                          return (
+                            <td
+                              key={col.key}
+                              className={`px-1.5 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400 ${tableCustom.densityStyles.td}`}
+                            >
+                              {formatQty(r.totalStock)}
+                            </td>
+                          );
+                        case "close":
+                          return (
+                            <td
+                              key={col.key}
+                              className={`${canEdit ? "px-1.5 py-1.5 text-left text-xs sm:px-4 sm:py-2.5 sm:text-lg" : tableBodyCellNumDebts} ${tableCustom.densityStyles.td}`}
+                            >
+                              {canEdit ? (
+                                <div className="flex flex-col">
+                                  <input
+                                    ref={(el) => {
+                                      inputRefs.current[index] = el;
+                                    }}
+                                    type="text"
+                                    inputMode="decimal"
+                                    pattern="[0-9]*\.?[0-9]{0,2}"
+                                    value={
+                                      r.itemId in localClosings
+                                        ? localClosings[r.itemId]
+                                        : formatQtyInput(r.closingStock)
+                                    }
+                                    onChange={(e) =>
+                                      handleClosingChange(r.itemId, e.target.value)
+                                    }
+                                    onBlur={handleClosingBlur}
+                                    onClick={(e) => {
+                                      const el = e.currentTarget;
+                                      const len = el.value.length;
+                                      el.setSelectionRange(len, len);
+                                    }}
+                                    onFocus={(e) => {
+                                      const el = e.currentTarget;
+                                      const len = el.value.length;
+                                      el.setSelectionRange(len, len);
+                                    }}
+                                    onKeyDown={(e) => {
+                                      const maxPage = Math.max(
+                                        0,
+                                        Math.ceil(computedRows.length / pageSize) - 1
+                                      );
+                                      if (e.key === "Enter" || e.key === "ArrowDown") {
+                                        e.preventDefault();
+                                        if (index + 1 < paginatedRows.length) {
+                                          inputRefs.current[index + 1]?.focus();
+                                        } else if (page < maxPage) {
+                                          setPage((p) => p + 1);
+                                          pendingFocusIndexRef.current = 0;
+                                        }
+                                      } else if (e.key === "ArrowUp") {
+                                        e.preventDefault();
+                                        if (index - 1 >= 0) {
+                                          inputRefs.current[index - 1]?.focus();
+                                        } else if (page > 0) {
+                                          setPage((p) => p - 1);
+                                          pendingFocusIndexRef.current = pageSize - 1;
+                                        }
+                                      }
+                                    }}
+                                    className={`w-14 rounded border px-1 py-0.5 text-left text-xs font-semibold tabular-nums focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:w-24 sm:px-2 sm:py-1 sm:text-xl ${
+                                      r.closingError
+                                        ? "border-red-500 bg-red-50 dark:border-red-600 dark:bg-red-950/20"
+                                        : r.closingStale
+                                          ? "border-amber-400 bg-amber-50 dark:border-amber-500 dark:bg-amber-950/20"
+                                          : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800"
+                                    } text-slate-900 dark:text-white`}
+                                  />
+                                  {r.closingError && (
+                                    <span className="mt-0.5 text-xs text-red-600 dark:text-red-400">
+                                      {r.closingError}
+                                    </span>
+                                  )}
+                                  {!r.closingError && r.closingStale && (
+                                    <span className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
+                                      Stock added — save to update
+                                    </span>
+                                  )}
+                                  {!r.closingError && !r.closingStale && r.closingUnsaved && (
+                                    <span className="mt-0.5 flex items-center gap-0.5 text-[10px] font-medium sm:text-xs">
+                                      {savingItemIds.has(r.itemId) ? (
+                                        <span className="flex items-center gap-1 text-sky-600 dark:text-sky-400">
+                                          <Loader2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 animate-spin shrink-0" />
+                                          Saving…
+                                        </span>
+                                      ) : (
+                                        <span className="text-amber-600 dark:text-amber-400">Not saved</span>
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                formatQty(r.closingStock)
+                              )}
+                            </td>
+                          );
+                        case "sold":
+                          return (
+                            <td
+                              key={col.key}
+                              className={`px-1.5 py-1.5 text-left text-xs tabular-nums text-slate-600 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-400 ${tableCustom.densityStyles.td}`}
+                            >
+                              <div className="flex items-center gap-1 sm:gap-1.5">
+                                <span>{formatQty(r.unitsSold)}</span>
+                                {(() => {
+                                  const already = alreadyRecordedByItem[r.itemId] ?? 0;
+                                  if (already <= 0) return null;
+                                  const toRecord = Math.max(0, roundQty((r.unitsSold ?? 0) - already));
+                                  const isFullyRecorded = toRecord <= 0;
+                                  return (
+                                    <span
+                                      className={cn(
+                                        "inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-xs sm:text-sm font-bold leading-none shrink-0",
+                                        isFullyRecorded
+                                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300"
+                                          : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
+                                      )}
+                                      title={
+                                        isFullyRecorded
+                                          ? `Recorded: ${formatQty(already)}`
+                                          : `${formatQty(already)} recorded · ${formatQty(toRecord)} new`
+                                      }
+                                    >
+                                      S
+                                    </span>
+                                  );
+                                })()}
+                              </div>
+                            </td>
+                          );
+                        case "price":
+                          return (
+                            <td
+                              key={col.key}
+                              className={`${tableBodyCellNumDebts} hidden xl:table-cell ${tableCustom.densityStyles.td}`}
+                            >
+                              {formatAmount(r.sellingPrice)}
+                            </td>
+                          );
+                        case "amount":
+                          return (
+                            <td
+                              key={col.key}
+                              className={`px-1.5 py-1.5 text-left text-xs tabular-nums font-bold text-slate-700 sm:px-4 sm:py-2.5 sm:text-lg dark:text-slate-300 ${tableCustom.densityStyles.td}`}
+                            >
+                              {formatAmount(r.amount)}
+                            </td>
+                          );
+                        default:
+                          return null;
+                      }
+                    })}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
             </div>

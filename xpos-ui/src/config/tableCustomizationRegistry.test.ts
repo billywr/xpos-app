@@ -54,6 +54,8 @@ describe("tableCustomizationRegistry", () => {
     expect(tableIds).toContain("z-reports");
     expect(tableIds).toContain("inventory");
     expect(tableIds).toContain("stock-receipt");
+    expect(tableIds).toContain("std-stock-count");
+    expect(tableIds).toContain("suppliers");
     expect(tableIds).toContain("customer-debts");
     expect(tableIds).toContain("misc-expenses");
     expect(tableIds).toContain("staff");

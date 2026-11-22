@@ -24,7 +24,6 @@ import {
   tableStickyFirstBody,
   tableEmptyCell,
   tableCard,
-  tableRowNoCol,
 } from "@/components/ui";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useDataTable } from "@/hooks/useDataTable";
@@ -53,6 +52,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useTableCustomization } from "@/contexts/TableCustomizationContext";
 
 const DEFAULT_PAGE_SIZE = 20;
 const LOW_STOCK_THRESHOLD = 5;
@@ -74,11 +74,18 @@ export function InventoryPage({
   initialBranchId,
 }: InventoryPageProps = {}) {
   const token = useAppSelector(selectToken);
+  const tableCustom = useTableCustomization("inventory");
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [selectedBranchId, setSelectedBranchId] = useState<string>(initialBranchId ?? "");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (tableCustom.pageSize && tableCustom.pageSize > 0) {
+      setSize(tableCustom.pageSize);
+    }
+  }, [tableCustom.pageSize]);
 
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
@@ -365,58 +372,46 @@ export function InventoryPage({
           <div className={tableCard}>
             <div className="relative min-h-0 flex-1 overflow-auto">
               <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-6 bg-gradient-to-l from-white/80 to-transparent sm:hidden dark:from-slate-800/80" />
-              <table className="w-full table-fixed divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "720px" }}>
-                <colgroup>
-                  <col className={tableRowNoCol} />
-                  <col className="w-[38%]" />
-                  <col className="w-[18%]" />
-                  <col className="w-[18%]" />
-                  <col className="w-[18%]" />
-                </colgroup>
+              <table className="w-full divide-y divide-slate-200 dark:divide-slate-700" style={{ minWidth: "720px" }}>
                 <thead className="bg-slate-50 dark:bg-slate-700">
                   <tr>
-                    <TableRowNumberHead />
-                    <SortableTableHead
-                      columnKey="itemName"
-                      label="Item"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={`${tableStickyHeadCell} ${tableHeadCell}`}
-                    />
-                    <SortableTableHead
-                      columnKey="receivedQty"
-                      label="Received"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
-                    <SortableTableHead
-                      columnKey="onHandQty"
-                      label="On hand"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
-                    <SortableTableHead
-                      columnKey="soldQty"
-                      label="Sold"
-                      sortColumn={sortColumn}
-                      sortDirection={sortDirection}
-                      onSort={toggleSort}
-                      className={tableHeadCell}
-                    />
+                    {tableCustom.showRowNumbers && (
+                      <TableRowNumberHead className={tableCustom.densityStyles.th} />
+                    )}
+                    {tableCustom.visibleColumns.map((col) => {
+                      const isSticky = col.key === "itemName";
+                      return (
+                        <SortableTableHead
+                          key={col.key}
+                          columnKey={col.key}
+                          label={col.label}
+                          align={col.align}
+                          sortColumn={sortColumn}
+                          sortDirection={sortDirection}
+                          onSort={toggleSort}
+                          sortable={col.sortable}
+                          className={`${isSticky ? tableStickyHeadCell : ""} ${tableHeadCell} ${tableCustom.densityStyles.th}`}
+                        />
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {isInitialLoad ? (
-                    <TableSkeleton rows={10} columns={5} />
+                    <TableSkeleton
+                      rows={10}
+                      columns={
+                        (tableCustom.showRowNumbers ? 1 : 0) +
+                        tableCustom.visibleColumns.length
+                      }
+                    />
                   ) : filteredLines.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={
+                          (tableCustom.showRowNumbers ? 1 : 0) +
+                          tableCustom.visibleColumns.length
+                        }
                         className={tableEmptyCell}
                       >
                         {lines.length === 0 ? (
@@ -434,39 +429,81 @@ export function InventoryPage({
                       </td>
                     </tr>
                   ) : (
-                    filteredLines.map((line: InventoryReportLineResponse, index) => (
-                      <tr
-                        key={line.itemId}
-                        className={tableBodyRow}
-                      >
-                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
-                        <td className={tableStickyFirstBody}>
-                          <span>
-                            {line.itemName}
-                          </span>
-                          {!line.trackInventory && (
-                            <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
-                              (not tracked)
-                            </span>
+                    filteredLines.map((line: InventoryReportLineResponse, index) => {
+                      const isEven = index % 2 === 1;
+                      const zebraClass =
+                        tableCustom.zebraStriping && isEven
+                          ? "bg-slate-50/60 dark:bg-slate-700/20"
+                          : "";
+                      return (
+                        <tr
+                          key={line.itemId}
+                          className={`${tableBodyRow} ${zebraClass}`}
+                        >
+                          {tableCustom.showRowNumbers && (
+                            <TableRowNumberCell
+                              page={page}
+                              pageSize={size}
+                              indexInPage={index}
+                              className={tableCustom.densityStyles.td}
+                            />
                           )}
-                        </td>
-                        <td className={tableBodyCellNumDebts}>
-                          {formatQty(line.receivedQty)}
-                        </td>
-                        <td className={tableBodyCellNumDebts}>
-                          <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
-                            <TrendingUp className="h-4 w-4" />
-                            {formatQty(line.onHandQty)}
-                          </span>
-                        </td>
-                        <td className={tableBodyCellNumDebts}>
-                          <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400">
-                            <TrendingDown className="h-4 w-4" />
-                            {formatQty(line.soldQty)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
+                          {tableCustom.visibleColumns.map((col) => {
+                            switch (col.key) {
+                              case "itemName":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableStickyFirstBody} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    <span>{line.itemName}</span>
+                                    {!line.trackInventory && (
+                                      <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
+                                        (not tracked)
+                                      </span>
+                                    )}
+                                  </td>
+                                );
+                              case "receivedQty":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableBodyCellNumDebts} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    {formatQty(line.receivedQty)}
+                                  </td>
+                                );
+                              case "onHandQty":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableBodyCellNumDebts} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+                                      <TrendingUp className="h-4 w-4" />
+                                      {formatQty(line.onHandQty)}
+                                    </span>
+                                  </td>
+                                );
+                              case "soldQty":
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`${tableBodyCellNumDebts} ${tableCustom.densityStyles.td}`}
+                                  >
+                                    <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400">
+                                      <TrendingDown className="h-4 w-4" />
+                                      {formatQty(line.soldQty)}
+                                    </span>
+                                  </td>
+                                );
+                              default:
+                                return null;
+                            }
+                          })}
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
