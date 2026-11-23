@@ -2425,7 +2425,7 @@ export function GoodsReceiptPage({
                         </div>
                         <div className="w-full sm:w-24">
                           <label className="mb-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                            Units
+                            Price
                           </label>
                           <input
                             type="text"

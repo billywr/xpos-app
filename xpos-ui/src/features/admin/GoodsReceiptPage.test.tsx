@@ -710,7 +710,7 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
       expect(screen.getByText("Receive")).toBeInTheDocument();
       expect(screen.getByText(/Total:/i)).toBeInTheDocument();
       expect(screen.getByText("Qty*")).toBeInTheDocument();
-      expect(screen.getAllByText("Units").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Price").length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText("Total").length).toBeGreaterThanOrEqual(1);
       expect(screen.queryByText(/Items already on another receipt/i)).not.toBeInTheDocument();
     });
