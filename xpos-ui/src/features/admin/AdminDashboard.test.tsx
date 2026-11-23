@@ -547,37 +547,39 @@ describe("AdminDashboard", () => {
     // Verify slide-over sheet is displayed with standard title and notice
     await waitFor(() => {
       expect(screen.getByText("Cost & expense breakdown")).toBeInTheDocument();
-      expect(screen.getByText("Excluding cost of goods purchased")).toBeInTheDocument();
+      expect(screen.getByText("Excluding cost of goods")).toBeInTheDocument();
     });
 
     // Verify fine-grained operating expenses are rendered
-    expect(screen.getByText("Night security liaison")).toBeInTheDocument();
-    expect(screen.getByText("Generator fuel and oil")).toBeInTheDocument();
+    expect(screen.getAllByText("Police").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Daily bills").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Officer Kiprono")).toBeInTheDocument();
     expect(screen.getByText("Manager Jane")).toBeInTheDocument();
+    expect(screen.getAllByText("No.").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("Description")).not.toBeInTheDocument();
 
     // Verify recurring utilities are rendered
     expect(screen.getByText("KPLC Electricity")).toBeInTheDocument();
     expect(screen.getByText("Safaricom Fibre")).toBeInTheDocument();
-    expect(screen.getByText(/48291039/)).toBeInTheDocument();
+    expect(screen.queryByText("Payee / A/C")).not.toBeInTheDocument();
 
-    // Verify search filter within the sheet
+    // Verify search filter within the sheet (searching description matches exp-2)
     const searchInput = screen.getByPlaceholderText("Search descriptions, payees...");
     fireEvent.change(searchInput, { target: { value: "Generator" } });
 
-    expect(screen.getByText("Generator fuel and oil")).toBeInTheDocument();
-    expect(screen.queryByText("Night security liaison")).not.toBeInTheDocument();
+    expect(screen.getByText("Manager Jane")).toBeInTheDocument();
+    expect(screen.queryByText("Officer Kiprono")).not.toBeInTheDocument();
 
     // Clear search
     fireEvent.click(screen.getByLabelText("Clear search"));
-    expect(screen.getByText("Night security liaison")).toBeInTheDocument();
+    expect(screen.getByText("Officer Kiprono")).toBeInTheDocument();
 
     // Test filter tabs
     const utilitiesTab = screen.getByRole("button", { name: /Recurring utilities/i });
     fireEvent.click(utilitiesTab);
 
     expect(screen.getByText("KPLC Electricity")).toBeInTheDocument();
-    expect(screen.queryByText("Night security liaison")).not.toBeInTheDocument();
+    expect(screen.queryByText("Officer Kiprono")).not.toBeInTheDocument();
 
     // Close the sheet
     const closeBtn = screen.getByLabelText("Close");

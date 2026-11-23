@@ -81,6 +81,7 @@ Environment variables (`.env.example`):
 - **CRUD Expectation**: For every screen that has an "Add" button, provide edit and soft-delete capabilities.
 - **Responsiveness**: Always use Tailwind breakpoints (`sm:`, `md:`, `lg:`, `xl:`). Never use fixed pixel widths that break mobile.
 - **Sentence Case Naming Convention**: All UI text, page titles, section headers, card titles, button labels, badge pills, and table headers MUST use sentence case: only the first letter of the first word is uppercase (e.g. "Net profit / loss", "Gross revenue", "Stock asset valuation", "This week", "Last month", "Manage inventory"). Do NOT use Title Case or all-caps `uppercase` CSS classes, except for standard acronyms/proper nouns (e.g. "COGS", "KSH", "M-Pesa", "SKU", "POS").
+- **Circular Count Badges (No Counts in Brackets)**: NEVER put counts inside parentheses/brackets (e.g. do NOT use `All (6)`, `Expenses (12)`, or `(5)`). Every time counts are displayed across the system (tabs, buttons, category pills, section headers), ALWAYS use a dedicated circular/pill count badge with its own distinct background color via the standard `<CountBadge count={n} variant="..." active={...} />` component (or `rounded-full` badge with dedicated background and text colors).
 
 ---
 

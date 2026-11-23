@@ -108,17 +108,22 @@ describe("CostBreakdownSlideOver", () => {
     );
 
     expect(screen.getByText("Cost & expense breakdown")).toBeInTheDocument();
-    expect(screen.getByText("Excluding cost of goods purchased")).toBeInTheDocument();
-    expect(screen.getByText("Evening patrol fee")).toBeInTheDocument();
-    expect(screen.getByText("Replaced freezer gasket")).toBeInTheDocument();
-    expect(screen.getByText("Nairobi Water")).toBeInTheDocument();
-    expect(screen.getByText(/WATER-0012/)).toBeInTheDocument();
+    expect(screen.getByText("Total expenses")).toBeInTheDocument();
+    expect(screen.getByText("Excluding cost of goods")).toBeInTheDocument();
+    expect(screen.getAllByText("Police").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Maintenance").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Sgt. Mwangi")).toBeInTheDocument();
+    expect(screen.getByText("Cooltech Services")).toBeInTheDocument();
+    expect(screen.getAllByText("No.").length).toBe(2);
+    expect(screen.queryByText("Description")).not.toBeInTheDocument();
+    expect(screen.queryByText("Payee / A/C")).not.toBeInTheDocument();
+    expect(screen.queryByText("Receipt ref")).not.toBeInTheDocument();
+    expect(screen.queryByText("Due")).not.toBeInTheDocument();
 
-    // Verify effective from/to dates show when they apply
+    // Verify effective from/to dates show when they apply in table
     expect(screen.getByText("From Jan 2026")).toBeInTheDocument();
-    expect(screen.getByText(/Effective from 01\/01\/2026 \(Ongoing\)/)).toBeInTheDocument();
     expect(screen.getByText("Jan 2026 – Jun 2026")).toBeInTheDocument();
-    expect(screen.getByText(/01\/01\/2026 to 30\/06\/2026/)).toBeInTheDocument();
+    expect(screen.getByText("Applies day 1 or last day of every month")).toBeInTheDocument();
   });
 
   it("filters by category pill", () => {
@@ -140,15 +145,15 @@ describe("CostBreakdownSlideOver", () => {
     const policeCategoryBtn = screen.getByRole("button", { name: /Police/i });
     fireEvent.click(policeCategoryBtn);
 
-    expect(screen.getByText("Evening patrol fee")).toBeInTheDocument();
-    expect(screen.queryByText("Replaced freezer gasket")).not.toBeInTheDocument();
+    expect(screen.getByText("Sgt. Mwangi")).toBeInTheDocument();
+    expect(screen.queryByText("Cooltech Services")).not.toBeInTheDocument();
 
     // Clicking All categories resets
     const allCategoriesBtn = screen.getByRole("button", { name: "All categories" });
     fireEvent.click(allCategoriesBtn);
 
-    expect(screen.getByText("Evening patrol fee")).toBeInTheDocument();
-    expect(screen.getByText("Replaced freezer gasket")).toBeInTheDocument();
+    expect(screen.getByText("Sgt. Mwangi")).toBeInTheDocument();
+    expect(screen.getByText("Cooltech Services")).toBeInTheDocument();
   });
 
   it("renders empty state when no costs match", () => {
@@ -175,7 +180,7 @@ describe("CostBreakdownSlideOver", () => {
       amount: 100 * (i + 1),
       category: i % 2 === 0 ? "Maintenance" : "Supplies",
       description: `Expense item #${i + 1}`,
-      incurredBy: "Staff Member",
+      incurredBy: `Staff Member #${i + 1}`,
       receiptRef: `REF-${i + 1}`,
       terminalId: "term-1",
       shiftId: "shift-1",
@@ -198,9 +203,9 @@ describe("CostBreakdownSlideOver", () => {
     );
 
     // Page 1: only first 20 expenses should be visible
-    expect(screen.getByText("Expense item #1")).toBeInTheDocument();
-    expect(screen.getByText("Expense item #20")).toBeInTheDocument();
-    expect(screen.queryByText("Expense item #21")).not.toBeInTheDocument();
+    expect(screen.getByText("Staff Member #1")).toBeInTheDocument();
+    expect(screen.getByText("Staff Member #20")).toBeInTheDocument();
+    expect(screen.queryByText("Staff Member #21")).not.toBeInTheDocument();
 
     // Verify pagination indicator (1–20 of 25)
     expect(
@@ -214,14 +219,73 @@ describe("CostBreakdownSlideOver", () => {
     fireEvent.click(nextBtn);
 
     // Page 2: remaining 5 expenses should be visible
-    expect(screen.queryByText("Expense item #1")).not.toBeInTheDocument();
-    expect(screen.queryByText("Expense item #20")).not.toBeInTheDocument();
-    expect(screen.getByText("Expense item #21")).toBeInTheDocument();
-    expect(screen.getByText("Expense item #25")).toBeInTheDocument();
+    expect(screen.queryByText("Staff Member #1")).not.toBeInTheDocument();
+    expect(screen.queryByText("Staff Member #20")).not.toBeInTheDocument();
+    expect(screen.getByText("Staff Member #21")).toBeInTheDocument();
+    expect(screen.getByText("Staff Member #25")).toBeInTheDocument();
     expect(
       screen.getByText(
         (_, el) => el?.tagName === "P" && (el?.textContent?.replace(/\s+/g, " ").includes("21–25 of 25") ?? false)
       )
     ).toBeInTheDocument();
+  });
+
+  it("renders accurate timing tag after count badge based on utility applyTiming", () => {
+    // 1. Utilities set to BEGINNING_OF_MONTH
+    const beginningUtilities: RecurringUtility[] = [
+      {
+        ...mockUtilities[1],
+        id: "util-b1",
+        applyTiming: "BEGINNING_OF_MONTH",
+        dueDayOfMonth: 1,
+      },
+      {
+        ...mockUtilities[1],
+        id: "util-b2",
+        applyTiming: "BEGINNING_OF_MONTH",
+        dueDayOfMonth: 1,
+      },
+    ];
+
+    const { rerender } = render(
+      <CostBreakdownSlideOver
+        open={true}
+        onClose={vi.fn()}
+        startDate="2026-11-01"
+        endDate="2026-11-22"
+        expenseTotal={0}
+        utilitiesTotal={24000}
+        expenses={[]}
+        utilities={beginningUtilities}
+        isLoading={false}
+      />
+    );
+
+    expect(screen.getByText("Applies day 1 of every month")).toBeInTheDocument();
+
+    // 2. Utilities set to END_OF_MONTH
+    const endUtilities: RecurringUtility[] = [
+      {
+        ...mockUtilities[0],
+        id: "util-e1",
+        applyTiming: "END_OF_MONTH",
+      },
+    ];
+
+    rerender(
+      <CostBreakdownSlideOver
+        open={true}
+        onClose={vi.fn()}
+        startDate="2026-11-01"
+        endDate="2026-11-22"
+        expenseTotal={0}
+        utilitiesTotal={4500}
+        expenses={[]}
+        utilities={endUtilities}
+        isLoading={false}
+      />
+    );
+
+    expect(screen.getByText("Applies last day of every month")).toBeInTheDocument();
   });
 });

@@ -70,6 +70,9 @@ cd xpos-ui && npm run dev    # port 5173
 6. **UI Naming Conventions (Sentence case)**:
    - All UI text, page titles, section headers, card titles, button labels, badge pills, and table headers across UI frontends MUST use sentence case: only the first letter of the first word is uppercase (e.g. "Net profit / loss", "Gross revenue", "Manage inventory").
    - Do NOT use Title Case or all-caps `uppercase` CSS classes, except for standard acronyms/proper nouns (e.g. "COGS", "KSH", "M-Pesa", "SKU", "POS").
+7. **Circular Count Badges (No Counts in Brackets)**:
+   - NEVER put counts inside parentheses/brackets (e.g. do NOT use `(5)`, `All (6)`, `Expenses (12)`).
+   - Every time counts are displayed across the system (tabs, buttons, category pills, section headers), ALWAYS use a dedicated circular/pill count badge with its own distinct background color via the standard `<CountBadge count={n} variant="..." active={...} />` component (or `rounded-full` badge with dedicated background and text colors).
 
 ---
 

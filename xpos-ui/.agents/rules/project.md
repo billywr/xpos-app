@@ -86,6 +86,7 @@ Maintain strong types for:
 - Taxes: show inclusive/exclusive breakdown clearly (Kenya VAT scenarios like 16%).
 - Always show branch + terminal + user identity in header once selected (accountability).
 - Use consistent empty/loading/error states.
+- **Circular count badges (No counts in brackets):** NEVER put counts inside parentheses/brackets like `(5)` or `Tabs (12)`. Always use `<CountBadge>` (or a `rounded-full` badge with a dedicated background color) for all numeric counts across tabs, buttons, section headers, and category pills.
 
 ## Development Workflow
 - New UI work must include:
