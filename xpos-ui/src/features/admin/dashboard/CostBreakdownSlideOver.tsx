@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Search,
   X,
@@ -11,6 +11,7 @@ import {
   Clock,
 } from "lucide-react";
 import { SlideOver } from "@/components/ui/SlideOver";
+import { Pagination } from "@/components/ui/Pagination";
 import type { MiscExpenseResponse } from "@/api/miscExpenses";
 import type { RecurringUtility } from "@/api/recurringUtilities";
 import { formatAmount } from "@/utils/formatCurrency";
@@ -46,6 +47,8 @@ export function CostBreakdownSlideOver({
   const [activeTab, setActiveTab] = useState<TabType>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [expensePage, setExpensePage] = useState(0);
+  const [expensePageSize, setExpensePageSize] = useState(2);
 
   const totalOpexAndUtilities = expenseTotal + utilitiesTotal;
 
@@ -94,6 +97,24 @@ export function CostBreakdownSlideOver({
 
     return list;
   }, [expenses, activeTab, selectedCategory, searchQuery]);
+
+  useEffect(() => {
+    setExpensePage(0);
+  }, [searchQuery, selectedCategory, activeTab]);
+
+  useEffect(() => {
+    if (!open) {
+      setExpensePage(0);
+    }
+  }, [open]);
+
+  const totalExpensePages = Math.max(1, Math.ceil(filteredExpenses.length / expensePageSize));
+  const safeExpensePage = Math.min(expensePage, totalExpensePages - 1);
+
+  const paginatedExpenses = useMemo(() => {
+    const start = safeExpensePage * expensePageSize;
+    return filteredExpenses.slice(start, start + expensePageSize);
+  }, [filteredExpenses, safeExpensePage, expensePageSize]);
 
   // Filter utilities by search query
   const filteredUtilities = useMemo(() => {
@@ -460,7 +481,7 @@ export function CostBreakdownSlideOver({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
-                        {filteredExpenses.map((exp) => (
+                        {paginatedExpenses.map((exp) => (
                           <tr
                             key={exp.id}
                             className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-700/40"
@@ -504,6 +525,17 @@ export function CostBreakdownSlideOver({
                       </tbody>
                     </table>
                   </div>
+                  <Pagination
+                    page={safeExpensePage}
+                    size={expensePageSize}
+                    totalElements={filteredExpenses.length}
+                    onPageChange={setExpensePage}
+                    onSizeChange={(newSize) => {
+                      setExpensePageSize(newSize);
+                      setExpensePage(0);
+                    }}
+                    sizeOptions={[2, 5, 10, 25, 50]}
+                  />
                 </div>
               </div>
             )}
