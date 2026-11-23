@@ -2297,13 +2297,13 @@ export function GoodsReceiptPage({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                      {editingGrn
-                        ? editingSingleLineId
+                    {editingGrn && (
+                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        {editingSingleLineId
                           ? "Line on receipt"
-                          : "Receipt lines"
-                        : formCustom.getFieldLabel("lines", "Receive")}
-                    </label>
+                          : formCustom.getFieldLabel("lines", "Receipt lines")}
+                      </label>
+                    )}
                     <span
                       className="inline-flex items-center gap-1.5 text-[13px] text-slate-600 dark:text-slate-300"
                       aria-label={`Total: ${formatCurrency(linesTotalCost)}`}

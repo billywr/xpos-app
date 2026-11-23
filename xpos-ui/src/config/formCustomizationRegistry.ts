@@ -174,7 +174,7 @@ export const FORM_REGISTRY: Record<string, FormDefinition> = {
       },
       {
         key: "lines",
-        defaultLabel: "Receive",
+        defaultLabel: "Receipt lines",
         defaultPlaceholder: "Search item name, SKU, barcode…",
         required: true,
         canHide: false,

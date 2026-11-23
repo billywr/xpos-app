@@ -640,7 +640,6 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     // Slide-over opens
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Add stock" })).toBeInTheDocument();
-      expect(screen.getByText("Receive")).toBeInTheDocument();
       expect(screen.getByText(/Total:/i)).toBeInTheDocument();
       expect(screen.queryByText(/Items already on another receipt/i)).not.toBeInTheDocument();
     });
@@ -695,7 +694,7 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     });
   });
 
-  it("displays Receive title and calculates dynamic total at top of lines", async () => {
+  it("calculates dynamic total at top of lines", async () => {
     wrap(<GoodsReceiptPage initialOrgId="org-1" initialBranchId="branch-1" />);
 
     await waitFor(() => {
@@ -707,7 +706,6 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Add stock" })).toBeInTheDocument();
-      expect(screen.getByText("Receive")).toBeInTheDocument();
       expect(screen.getByText(/Total:/i)).toBeInTheDocument();
       expect(screen.getByText("Qty*")).toBeInTheDocument();
       expect(screen.getAllByText("Price").length).toBeGreaterThanOrEqual(1);
