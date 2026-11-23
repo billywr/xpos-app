@@ -48,7 +48,7 @@ export function CostBreakdownSlideOver({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [expensePage, setExpensePage] = useState(0);
-  const [expensePageSize, setExpensePageSize] = useState(2);
+  const [expensePageSize, setExpensePageSize] = useState(20);
 
   const totalOpexAndUtilities = expenseTotal + utilitiesTotal;
 
@@ -534,7 +534,7 @@ export function CostBreakdownSlideOver({
                       setExpensePageSize(newSize);
                       setExpensePage(0);
                     }}
-                    sizeOptions={[2, 5, 10, 25, 50]}
+                    sizeOptions={[10, 20, 50, 100]}
                   />
                 </div>
               </div>

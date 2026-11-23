@@ -169,34 +169,19 @@ describe("CostBreakdownSlideOver", () => {
     expect(screen.getByText("No matching costs or expenses")).toBeInTheDocument();
   });
 
-  it("paginates operating expenses with default page size of 2", () => {
-    const manyExpenses: MiscExpenseResponse[] = [
-      ...mockExpenses,
-      {
-        id: "exp-3",
-        amount: 1500,
-        category: "Cleaning",
-        description: "Mop and bucket purchase",
-        incurredBy: "Faith",
-        receiptRef: "CL-01",
-        terminalId: "term-1",
-        shiftId: "shift-1",
-        createdByStaffUserId: "user-1",
-        createdAt: "2026-11-19T10:00:00Z",
-      },
-      {
-        id: "exp-4",
-        amount: 800,
-        category: "Office",
-        description: "Receipt printer rolls",
-        incurredBy: "BRAYO",
-        receiptRef: "ST-02",
-        terminalId: "term-1",
-        shiftId: "shift-1",
-        createdByStaffUserId: "user-1",
-        createdAt: "2026-11-20T14:00:00Z",
-      },
-    ];
+  it("paginates operating expenses with default page size of 20", () => {
+    const manyExpenses: MiscExpenseResponse[] = Array.from({ length: 25 }, (_, i) => ({
+      id: `exp-${i + 1}`,
+      amount: 100 * (i + 1),
+      category: i % 2 === 0 ? "Maintenance" : "Supplies",
+      description: `Expense item #${i + 1}`,
+      incurredBy: "Staff Member",
+      receiptRef: `REF-${i + 1}`,
+      terminalId: "term-1",
+      shiftId: "shift-1",
+      createdByStaffUserId: "user-1",
+      createdAt: `2026-11-${String((i % 20) + 1).padStart(2, "0")}T10:00:00Z`,
+    }));
 
     render(
       <CostBreakdownSlideOver
@@ -204,7 +189,7 @@ describe("CostBreakdownSlideOver", () => {
         onClose={vi.fn()}
         startDate="2026-11-01"
         endDate="2026-11-22"
-        expenseTotal={13000}
+        expenseTotal={32500}
         utilitiesTotal={16500}
         expenses={manyExpenses}
         utilities={mockUtilities}
@@ -212,16 +197,15 @@ describe("CostBreakdownSlideOver", () => {
       />
     );
 
-    // Page 1: only first 2 expenses should be visible
-    expect(screen.getByText("Evening patrol fee")).toBeInTheDocument();
-    expect(screen.getByText("Replaced freezer gasket")).toBeInTheDocument();
-    expect(screen.queryByText("Mop and bucket purchase")).not.toBeInTheDocument();
-    expect(screen.queryByText("Receipt printer rolls")).not.toBeInTheDocument();
+    // Page 1: only first 20 expenses should be visible
+    expect(screen.getByText("Expense item #1")).toBeInTheDocument();
+    expect(screen.getByText("Expense item #20")).toBeInTheDocument();
+    expect(screen.queryByText("Expense item #21")).not.toBeInTheDocument();
 
-    // Verify pagination indicator (1–2 of 4)
+    // Verify pagination indicator (1–20 of 25)
     expect(
       screen.getByText(
-        (_, el) => el?.tagName === "P" && (el?.textContent?.replace(/\s+/g, " ").includes("1–2 of 4") ?? false)
+        (_, el) => el?.tagName === "P" && (el?.textContent?.replace(/\s+/g, " ").includes("1–20 of 25") ?? false)
       )
     ).toBeInTheDocument();
 
@@ -229,14 +213,14 @@ describe("CostBreakdownSlideOver", () => {
     const nextBtn = screen.getByRole("button", { name: "Next page" });
     fireEvent.click(nextBtn);
 
-    // Page 2: next 2 expenses should be visible
-    expect(screen.queryByText("Evening patrol fee")).not.toBeInTheDocument();
-    expect(screen.queryByText("Replaced freezer gasket")).not.toBeInTheDocument();
-    expect(screen.getByText("Mop and bucket purchase")).toBeInTheDocument();
-    expect(screen.getByText("Receipt printer rolls")).toBeInTheDocument();
+    // Page 2: remaining 5 expenses should be visible
+    expect(screen.queryByText("Expense item #1")).not.toBeInTheDocument();
+    expect(screen.queryByText("Expense item #20")).not.toBeInTheDocument();
+    expect(screen.getByText("Expense item #21")).toBeInTheDocument();
+    expect(screen.getByText("Expense item #25")).toBeInTheDocument();
     expect(
       screen.getByText(
-        (_, el) => el?.tagName === "P" && (el?.textContent?.replace(/\s+/g, " ").includes("3–4 of 4") ?? false)
+        (_, el) => el?.tagName === "P" && (el?.textContent?.replace(/\s+/g, " ").includes("21–25 of 25") ?? false)
       )
     ).toBeInTheDocument();
   });
