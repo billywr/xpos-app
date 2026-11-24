@@ -218,7 +218,7 @@ export function ManualStockCountSheetPage() {
   const [hydratedForDate, setHydratedForDate] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(() =>
-    getStoredTablePageSize("manual-stock-count", 25, [10, 25, 50, 100])
+    getStoredTablePageSize("manual-stock-count", 15, [10, 15, 25, 50, 100])
   );
   const [addModal, setAddModal] = useState<"catalog" | "custom" | null>(null);
   const [catalogItemId, setCatalogItemId] = useState("");
@@ -815,7 +815,7 @@ export function ManualStockCountSheetPage() {
                     setPage(0);
                   }}
                   storageKey="manual-stock-count"
-                  sizeOptions={[10, 25, 50, 100]}
+                  sizeOptions={[10, 15, 25, 50, 100]}
                   onRefresh={() => void refetch()}
                   isRefreshing={isFetching}
                 />

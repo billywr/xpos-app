@@ -175,6 +175,105 @@ public class SaleServiceImpl implements SaleService {
   }
 
   @Override
+  @Transactional
+  public Sale createWithLines(
+      UUID orgId,
+      UUID branchId,
+      UUID terminalId,
+      UUID staffUserId,
+      UUID customerId,
+      List<LineInput> lines) {
+    Branch branch = branchService.require(orgId, branchId);
+    Terminal terminal = terminalService.require(orgId, terminalId);
+    if (!terminal.getBranch().getId().equals(branchId)) {
+      throw new NotFoundException("TERMINAL_NOT_FOUND", "Terminal not found in this branch");
+    }
+    Shift shift =
+        shiftService
+            .getCurrentOpenShift(orgId, branchId, terminalId)
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "No open shift for this terminal. Open a shift first."));
+    StaffUser staffUser = staffUserService.require(orgId, staffUserId);
+    Customer customer = null;
+    if (customerId != null) {
+      customer = customerService.require(orgId, customerId);
+    }
+    Sale sale = new Sale();
+    sale.setOrg(branch.getOrg());
+    sale.setBranch(branch);
+    sale.setTerminal(terminal);
+    sale.setShift(shift);
+    sale.setStatus(SaleStatus.OPEN);
+    sale.setCustomer(customer);
+    sale.setSubtotal(BigDecimal.ZERO);
+    sale.setTaxTotal(BigDecimal.ZERO);
+    sale.setDiscountTotal(BigDecimal.ZERO);
+    sale.setServiceChargeTotal(BigDecimal.ZERO);
+    sale.setTotal(BigDecimal.ZERO);
+    sale.setCreatedByStaffUser(staffUser);
+    Instant now = Instant.now(clock);
+    sale.setCreatedAt(now);
+    sale.setBusinessDate(resolveBusinessDate(branch, now));
+    Sale saved = saleRepository.save(sale);
+
+    if (lines != null && !lines.isEmpty()) {
+      for (LineInput req : lines) {
+        if (req.qty() == null || req.qty().compareTo(BigDecimal.ZERO) <= 0) {
+          throw new IllegalArgumentException("Quantity must be positive");
+        }
+        Item item = itemService.requireActive(orgId, req.itemId());
+        BigDecimal unitPrice =
+            resolveUnitPrice(saved, orgId, req.itemId(), req.unitPriceOverride());
+        Uom uom = (req.uomId() != null) ? uomService.require(orgId, req.uomId()) : null;
+
+        SaleLine line = new SaleLine();
+        line.setOrg(saved.getOrg());
+        line.setSale(saved);
+        line.setItem(item);
+        line.setQty(req.qty());
+        line.setUom(uom);
+        line.setUnitPrice(unitPrice);
+        BigDecimal lineSubtotal =
+            unitPrice.multiply(req.qty()).setScale(SCALE, RoundingMode.HALF_UP);
+        BigDecimal modifierTotal = BigDecimal.ZERO;
+        if (req.modifiers() != null && !req.modifiers().isEmpty()) {
+          for (ModifierQuantity mq : req.modifiers()) {
+            ModifierOption opt = modifierOptionService.require(orgId, mq.modifierOptionId());
+            BigDecimal delta =
+                opt.getPriceDelta().multiply(mq.qty()).setScale(SCALE, RoundingMode.HALF_UP);
+            modifierTotal = modifierTotal.add(delta);
+          }
+        }
+        line.setLineSubtotal(lineSubtotal);
+        line.setLineTotal(lineSubtotal.add(modifierTotal).setScale(SCALE, RoundingMode.HALF_UP));
+        line.setCreatedAt(now);
+        saleLineRepository.save(line);
+
+        if (req.modifiers() != null && !req.modifiers().isEmpty()) {
+          for (ModifierQuantity mq : req.modifiers()) {
+            ModifierOption opt = modifierOptionService.require(orgId, mq.modifierOptionId());
+            SaleLineModifier slm = new SaleLineModifier();
+            slm.setOrg(saved.getOrg());
+            slm.setSaleLine(line);
+            slm.setModifierOption(opt);
+            slm.setQty(mq.qty());
+            slm.setPriceDelta(opt.getPriceDelta());
+            slm.setCreatedAt(now);
+            saleLineModifierRepository.save(slm);
+          }
+        }
+      }
+
+      recalcSaleTotals(saved);
+      saved = saleRepository.save(saved);
+    }
+
+    return loadSaleWithAssociations(orgId, saved.getId());
+  }
+
+  @Override
   @Transactional(readOnly = true)
   public Optional<Sale> getByIdAndOrg(UUID orgId, UUID saleId) {
     return saleRepository.findByIdAndOrgIdWithAssociations(saleId, orgId);

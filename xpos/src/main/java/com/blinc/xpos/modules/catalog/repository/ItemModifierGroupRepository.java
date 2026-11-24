@@ -25,4 +25,12 @@ public interface ItemModifierGroupRepository extends JpaRepository<ItemModifierG
       """)
   List<ItemModifierGroup> findAllByItemIdAndOrgId(
       @Param("itemId") UUID itemId, @Param("orgId") UUID orgId);
+
+  @Query(
+      """
+      select m from ItemModifierGroup m
+      where m.org.id = :orgId
+      order by m.createdAt
+      """)
+  List<ItemModifierGroup> findAllByOrgId(@Param("orgId") UUID orgId);
 }

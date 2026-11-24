@@ -222,7 +222,7 @@ export const TABLE_REGISTRY: Record<string, TableDefinition> = {
     category: "Operations & Stock",
     description: "Daily stock count sheet with opening balances, added receipts, physical closing, and variance revenue.",
     defaultDensity: "comfortable",
-    defaultPageSize: 25,
+    defaultPageSize: 15,
     supportsRowNumbers: true,
     supportsZebra: true,
     columns: [

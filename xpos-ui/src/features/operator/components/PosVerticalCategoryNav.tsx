@@ -136,7 +136,7 @@ export const PosVerticalCategoryNav: React.FC<PosVerticalCategoryNavProps> = ({
           className={`flex min-h-[48px] sm:min-h-[52px] w-full touch-manipulation items-center justify-between gap-2 rounded-xl border px-2 sm:px-2.5 py-1.5 sm:py-2 text-left transition select-none ${
             isAllSelected
               ? "border-amber-400 bg-amber-500 text-slate-950 font-black shadow-xs ring-1 ring-amber-400/50"
-              : "border-slate-200 bg-slate-50/50 text-slate-800 hover:border-slate-300 hover:bg-slate-100 active:scale-[0.98] dark:border-slate-700/70 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700/60"
+              : "border-slate-200 bg-slate-100 text-slate-800 shadow-2xs hover:border-slate-300 hover:bg-slate-200 active:scale-[0.98] dark:border-slate-700/70 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700/60"
           }`}
         >
           <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
@@ -181,7 +181,7 @@ export const PosVerticalCategoryNav: React.FC<PosVerticalCategoryNavProps> = ({
                   className={`flex min-h-[48px] sm:min-h-[52px] w-full touch-manipulation items-center justify-between gap-2 rounded-xl border px-2 sm:px-2.5 py-1.5 sm:py-2 text-left transition select-none ${
                     isSelected
                       ? "border-amber-400 bg-amber-500 text-slate-950 font-black shadow-xs ring-1 ring-amber-400/50"
-                      : "border-slate-200 bg-slate-50/50 text-slate-800 hover:border-slate-300 hover:bg-slate-100 active:scale-[0.98] dark:border-slate-700/70 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700/60"
+                      : "border-slate-200 bg-slate-100 text-slate-800 shadow-2xs hover:border-slate-300 hover:bg-slate-200 active:scale-[0.98] dark:border-slate-700/70 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700/60"
                   }`}
                 >
                   <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">

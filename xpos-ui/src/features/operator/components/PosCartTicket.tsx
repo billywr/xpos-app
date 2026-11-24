@@ -75,7 +75,7 @@ export function PosCartTicket({
     hasInsufficientStock;
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white dark:bg-slate-800">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-slate-100 dark:bg-slate-800">
       {/* Ticket Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
         <div className="flex items-center gap-2">
@@ -197,7 +197,7 @@ export function PosCartTicket({
       <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-slate-100 p-3 dark:divide-slate-700">
         {cartLines.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-400">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-200 text-slate-400 dark:bg-slate-700 dark:text-slate-400">
               <ShoppingCart className="h-6 w-6" />
             </div>
             <h3 className="mt-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
@@ -316,7 +316,7 @@ export function PosCartTicket({
       </div>
 
       {/* Ticket Footer: Warnings & Proceed Button */}
-      <div className="shrink-0 border-t border-slate-200 p-4 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/60">
+      <div className="shrink-0 border-t border-slate-200 p-4 bg-slate-100 dark:border-slate-700 dark:bg-slate-900/60">
         {/* Warnings */}
         {!currentShift && (
           <div className="mb-2.5 flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">

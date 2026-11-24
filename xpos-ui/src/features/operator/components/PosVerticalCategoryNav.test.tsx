@@ -58,9 +58,10 @@ describe("PosVerticalCategoryNav Component", () => {
     expect(spiritsBtn).toHaveClass("bg-amber-500");
     expect(screen.getByText("36")).toBeInTheDocument();
 
-    // Beer inactive
+    // Beer inactive (has bg-slate-100 in light theme)
     const beerBtn = screen.getByRole("button", { name: /beer/i });
     expect(beerBtn).not.toHaveClass("bg-amber-500");
+    expect(beerBtn).toHaveClass("bg-slate-100");
     expect(screen.getByText("11")).toBeInTheDocument();
 
     // Click Beer

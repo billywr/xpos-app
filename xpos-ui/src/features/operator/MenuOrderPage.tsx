@@ -23,7 +23,13 @@ import {
   selectTerminalId,
 } from "@/store/selectors/orgContextSelectors";
 import { fetchCategories } from "@/api/categories";
-import { fetchItems, fetchItemByBarcode, fetchItemModifierGroups } from "@/api/items";
+import {
+  fetchItems,
+  fetchItemByBarcode,
+  fetchItemModifierGroups,
+  fetchOrgItemModifierGroups,
+} from "@/api/items";
+import type { ItemModifierGroupLink } from "@/types/catalog";
 import { fetchOperatorTables } from "@/api/tables";
 import {
   fetchMpesaOperatorSettings,
@@ -37,6 +43,7 @@ import {
   completeSaleWithDebt,
   fetchReceiptDetails,
   fetchSale,
+  type CreateSaleLinePayload,
 } from "@/api/sales";
 import { fetchTenderTypes } from "@/api/tenderTypes";
 import { getCurrentShift } from "@/api/shifts";
@@ -327,21 +334,35 @@ export function MenuOrderPage() {
   const createSaleAndLinesMutation = useMutation({
     mutationFn: async () => {
       if (!token || !orgId || !branchId || !terminalId) throw new Error("Missing context");
+      const lines: CreateSaleLinePayload[] = cartLines.map((line) => ({
+        itemId: line.itemId,
+        qty: line.qty,
+        unitPriceOverride: line.unitPrice,
+        modifiers: line.modifiers.map((m) => ({
+          modifierOptionId: m.modifierOptionId,
+          qty: m.qty,
+        })),
+      }));
       const sale = await createSale(token, orgId, branchId, terminalId, {
         customerId: null,
+        lines,
       });
-      for (const line of cartLines) {
-        await addSaleLine(token, orgId, branchId, terminalId, sale.id, {
-          itemId: line.itemId,
-          qty: line.qty,
-          unitPriceOverride: line.unitPrice,
-          modifiers: line.modifiers.map((m) => ({
-            modifierOptionId: m.modifierOptionId,
-            qty: m.qty,
-          })),
-        });
+      // Fallback if older backend ignored lines array
+      if ((!sale.lines || sale.lines.length === 0) && cartLines.length > 0) {
+        for (const line of cartLines) {
+          await addSaleLine(token, orgId, branchId, terminalId, sale.id, {
+            itemId: line.itemId,
+            qty: line.qty,
+            unitPriceOverride: line.unitPrice,
+            modifiers: line.modifiers.map((m) => ({
+              modifierOptionId: m.modifierOptionId,
+              qty: m.qty,
+            })),
+          });
+        }
+        return fetchSale(token, orgId, branchId, terminalId, sale.id);
       }
-      return fetchSale(token, orgId, branchId, terminalId, sale.id);
+      return sale;
     },
     onSuccess: (sale) => {
       setSaleForPayment(sale);
@@ -535,6 +556,21 @@ export function MenuOrderPage() {
     queryFn: () => fetchItems(token, orgId!, { size: 200 }),
     enabled: Boolean(orgId && token),
   });
+
+  const { data: orgModifierLinks = [] } = useQuery({
+    queryKey: ["org-item-modifier-groups", orgId],
+    queryFn: async () => (await fetchOrgItemModifierGroups(token, orgId!)) ?? [],
+    enabled: Boolean(orgId && token),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const itemsWithModifiersSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of orgModifierLinks) {
+      set.add(l.itemId);
+    }
+    return set;
+  }, [orgModifierLinks]);
 
   const catalogItemsForPos = useMemo(() => {
     const raw = Array.isArray(itemsData)
@@ -742,10 +778,36 @@ export function MenuOrderPage() {
         return false;
       }
       const price = item.defaultSellingPrice ?? 0;
-      const links =
-        orgId && token
-          ? await fetchItemModifierGroups(token, orgId, item.id)
-          : [];
+
+      // 0ms Fast path: if item has no modifiers according to org-wide links set, dispatch immediately!
+      if (!itemsWithModifiersSet.has(item.id)) {
+        dispatch(
+          addLine({
+            itemId: item.id,
+            itemName: item.name,
+            primaryImageUrl: item.primaryImageUrl,
+            qty: 1,
+            unitPrice: price,
+          })
+        );
+        return false;
+      }
+
+      // If item is in modifiers set, verify/cache groups
+      let links: ItemModifierGroupLink[] = [];
+      try {
+        links =
+          orgId && token
+            ? await queryClient.fetchQuery({
+                queryKey: ["item-modifier-groups", orgId, item.id],
+                queryFn: () => fetchItemModifierGroups(token, orgId, item.id),
+                staleTime: 10 * 60 * 1000,
+              })
+            : [];
+      } catch {
+        links = [];
+      }
+
       if (links.length === 0) {
         dispatch(
           addLine({
@@ -761,7 +823,23 @@ export function MenuOrderPage() {
       setModifierModalItem({ item, price });
       return true;
     },
-    [canSellOnPos, orgId, token, dispatch]
+    [canSellOnPos, itemsWithModifiersSet, orgId, token, dispatch, queryClient]
+  );
+
+  const handleIncrementCart = useCallback(
+    (item: Item) => {
+      // 0ms Stepper Increment: If item already has a simple line in cart (no modifiers),
+      // increment directly without any modifier checks or network calls!
+      const existingLine = cartLines.find(
+        (l) => l.itemId === item.id && (l.modifiers?.length ?? 0) === 0
+      );
+      if (existingLine) {
+        dispatch(updateLineQty({ tempId: existingLine.tempId, qty: existingLine.qty + 1 }));
+        return;
+      }
+      void handleAddToCart(item);
+    },
+    [cartLines, handleAddToCart, dispatch]
   );
 
   const handleBarcodeScan = useCallback(
@@ -818,6 +896,28 @@ export function MenuOrderPage() {
     setModifierModalItem(null);
   };
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleSoftRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await Promise.allSettled([
+        queryClient.refetchQueries({ queryKey: ["items"] }),
+        queryClient.refetchQueries({ queryKey: ["categories"] }),
+        queryClient.refetchQueries({ queryKey: ["stockLevels"] }),
+        queryClient.refetchQueries({ queryKey: ["operatorTables"] }),
+        queryClient.refetchQueries({ queryKey: ["tenderTypes"] }),
+        queryClient.refetchQueries({ queryKey: ["operator-current-shift"] }),
+        queryClient.refetchQueries({ queryKey: ["mpesa-operator-settings"] }),
+        queryClient.refetchQueries({ queryKey: ["openOrHeldSales"] }),
+        queryClient.refetchQueries({ queryKey: ["org-item-modifier-groups"] }),
+      ]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [queryClient, isRefreshing]);
+
   const topBarContent = (
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-2">
@@ -859,12 +959,17 @@ export function MenuOrderPage() {
           </div>
           <button
             type="button"
-            onClick={() => window.location.reload()}
-            className="flex h-11 sm:h-11.5 w-11 sm:w-11.5 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shadow-2xs"
+            onClick={handleSoftRefresh}
+            disabled={isRefreshing}
+            className="flex h-11 sm:h-11.5 w-11 sm:w-11.5 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 active:scale-95 disabled:opacity-70 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shadow-2xs"
             title="Refresh page"
             aria-label="Refresh page"
           >
-            <RotateCw className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+            <RotateCw
+              className={`h-4.5 w-4.5 sm:h-5 sm:w-5 ${
+                isRefreshing ? "animate-spin text-primary-500" : ""
+              }`}
+            />
           </button>
         </div>
       </div>
@@ -891,8 +996,8 @@ export function MenuOrderPage() {
     <aside
       className={
         isVerticalLayout
-          ? "hidden min-h-0 max-h-full lg:w-[300px] xl:w-[340px] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white lg:flex dark:border-slate-700 dark:bg-slate-800 shadow-sm"
-          : "hidden min-h-0 max-h-full lg:w-[30%] xl:w-[30%] min-w-[340px] max-w-[460px] shrink-0 flex-col overflow-hidden border-l border-slate-200 bg-white lg:flex dark:border-slate-700 dark:bg-slate-800 shadow-sm"
+          ? "hidden min-h-0 max-h-full lg:w-[300px] xl:w-[340px] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 lg:flex dark:border-slate-700 dark:bg-slate-800 shadow-sm"
+          : "hidden min-h-0 max-h-full lg:w-[30%] xl:w-[30%] min-w-[340px] max-w-[460px] shrink-0 flex-col overflow-hidden border-l border-slate-200 bg-slate-100 lg:flex dark:border-slate-700 dark:bg-slate-800 shadow-sm"
       }
     >
       <PosCartTicket
@@ -1112,7 +1217,7 @@ export function MenuOrderPage() {
                                 price={price}
                                 quantityInCart={getQtyInCart(item.id)}
                                 onReduce={() => handleReduceFromCart(item.id)}
-                                onAdd={() => handleAddToCart(item)}
+                                onAdd={() => handleIncrementCart(item)}
                               />
                             );
                           })
@@ -1286,7 +1391,7 @@ export function MenuOrderPage() {
                               price={price}
                               quantityInCart={getQtyInCart(item.id)}
                               onReduce={() => handleReduceFromCart(item.id)}
-                              onAdd={() => handleAddToCart(item)}
+                              onAdd={() => handleIncrementCart(item)}
                             />
                           );
                         })
@@ -1332,7 +1437,7 @@ export function MenuOrderPage() {
 
         {/* Mobile Full-Screen Cart Overlay */}
         {mobileCartOpen && (
-          <div className="fixed inset-0 z-50 flex flex-col bg-white lg:hidden dark:bg-slate-800">
+          <div className="fixed inset-0 z-50 flex flex-col bg-slate-100 lg:hidden dark:bg-slate-800">
             <PosCartTicket
               showBarcode={showBarcode}
               handleBarcodeScan={handleBarcodeScan}

@@ -12,5 +12,7 @@ public interface ItemModifierGroupLinkService {
 
   List<ItemModifierGroup> listByItem(UUID orgId, UUID itemId);
 
+  List<ItemModifierGroup> listByOrg(UUID orgId);
+
   void remove(UUID orgId, UUID itemId, UUID itemModifierGroupId);
 }

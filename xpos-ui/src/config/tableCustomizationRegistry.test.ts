@@ -60,4 +60,8 @@ describe("tableCustomizationRegistry", () => {
     expect(tableIds).toContain("misc-expenses");
     expect(tableIds).toContain("staff");
   });
+
+  it("sets standard stock taking default page size to 15", () => {
+    expect(TABLE_REGISTRY["std-stock-count"]?.defaultPageSize).toBe(15);
+  });
 });

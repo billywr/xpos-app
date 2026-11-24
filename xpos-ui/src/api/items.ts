@@ -232,6 +232,16 @@ export async function fetchItemModifierGroups(
   );
 }
 
+export async function fetchOrgItemModifierGroups(
+  token: string | null,
+  orgId: string
+): Promise<ItemModifierGroupLink[]> {
+  return apiFetch<ItemModifierGroupLink[]>(
+    `/api/v1/admin/orgs/${orgId}/item-modifier-groups`,
+    { token }
+  );
+}
+
 export async function addItemModifierGroup(
   token: string | null,
   orgId: string,

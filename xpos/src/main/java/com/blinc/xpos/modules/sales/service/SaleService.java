@@ -19,6 +19,15 @@ public interface SaleService {
    */
   Sale create(UUID orgId, UUID branchId, UUID terminalId, UUID staffUserId, UUID customerId);
 
+  /** Creates a new open sale with lines atomically in a single transaction. */
+  Sale createWithLines(
+      UUID orgId,
+      UUID branchId,
+      UUID terminalId,
+      UUID staffUserId,
+      UUID customerId,
+      List<LineInput> lines);
+
   Optional<Sale> getByIdAndOrg(UUID orgId, UUID saleId);
 
   List<Sale> listOpenOrHeld(UUID orgId, UUID branchId, UUID terminalId);
@@ -73,4 +82,12 @@ public interface SaleService {
 
   /** Quantity for a modifier option when adding a line. */
   record ModifierQuantity(UUID modifierOptionId, BigDecimal qty) {}
+
+  /** Input for a sale line when creating a sale with lines. */
+  record LineInput(
+      UUID itemId,
+      BigDecimal qty,
+      UUID uomId,
+      BigDecimal unitPriceOverride,
+      List<ModifierQuantity> modifiers) {}
 }

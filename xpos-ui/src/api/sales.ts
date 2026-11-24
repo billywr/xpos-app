@@ -7,12 +7,20 @@ const salesPath = (
   terminalId: string
 ) => `/api/v1/operator/orgs/${orgId}/branches/${branchId}/terminals/${terminalId}/sales`;
 
+export interface CreateSaleLinePayload {
+  itemId: string;
+  qty: number;
+  uomId?: string | null;
+  unitPriceOverride?: number | null;
+  modifiers?: { modifierOptionId: string; qty: number }[];
+}
+
 export async function createSale(
   token: string | null,
   orgId: string,
   branchId: string,
   terminalId: string,
-  body: { customerId?: string | null }
+  body: { customerId?: string | null; lines?: CreateSaleLinePayload[] }
 ): Promise<Sale> {
   return apiFetch<Sale>(salesPath(orgId, branchId, terminalId), {
     token,

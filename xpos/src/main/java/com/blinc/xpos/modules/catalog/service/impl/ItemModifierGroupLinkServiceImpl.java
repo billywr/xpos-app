@@ -75,6 +75,12 @@ public class ItemModifierGroupLinkServiceImpl implements ItemModifierGroupLinkSe
   }
 
   @Override
+  @Transactional(readOnly = true)
+  public List<ItemModifierGroup> listByOrg(UUID orgId) {
+    return itemModifierGroupRepository.findAllByOrgId(orgId);
+  }
+
+  @Override
   @Transactional
   public void remove(UUID orgId, UUID itemId, UUID itemModifierGroupId) {
     ItemModifierGroup link = requireInItem(orgId, itemId, itemModifierGroupId);

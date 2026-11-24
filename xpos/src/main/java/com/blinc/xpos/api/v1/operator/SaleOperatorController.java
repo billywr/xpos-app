@@ -79,7 +79,31 @@ public class SaleOperatorController {
       @Valid @RequestBody(required = false) SaleCreateRequest request) {
     StaffUser staffUser = requireCurrentStaffUser(orgId);
     UUID customerId = request != null ? request.customerId() : null;
-    Sale sale = saleService.create(orgId, branchId, terminalId, staffUser.getId(), customerId);
+    Sale sale;
+    if (request != null && request.lines() != null && !request.lines().isEmpty()) {
+      List<SaleService.LineInput> lineInputs =
+          request.lines().stream()
+              .map(
+                  l -> {
+                    List<SaleService.ModifierQuantity> mods =
+                        l.modifiers() != null
+                            ? l.modifiers().stream()
+                                .map(
+                                    m ->
+                                        new SaleService.ModifierQuantity(
+                                            m.modifierOptionId(), m.qty()))
+                                .toList()
+                            : List.of();
+                    return new SaleService.LineInput(
+                        l.itemId(), l.qty(), l.uomId(), l.unitPriceOverride(), mods);
+                  })
+              .toList();
+      sale =
+          saleService.createWithLines(
+              orgId, branchId, terminalId, staffUser.getId(), customerId, lineInputs);
+    } else {
+      sale = saleService.create(orgId, branchId, terminalId, staffUser.getId(), customerId);
+    }
     return toSaleResponse(sale);
   }
 

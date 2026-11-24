@@ -152,6 +152,7 @@ describe("MenuOrderPage category menu ordering and default selection", () => {
     } as any);
 
     vi.mocked(itemsApi.fetchItemModifierGroups).mockResolvedValue([]);
+    vi.mocked(itemsApi.fetchOrgItemModifierGroups).mockResolvedValue([]);
     vi.mocked(stockLevelsApi.fetchStockLevels).mockResolvedValue([]);
     vi.mocked(tablesApi.fetchOperatorTables).mockResolvedValue([]);
     vi.mocked(mpesaApi.fetchMpesaOperatorSettings).mockResolvedValue({ enabled: false } as any);
@@ -452,6 +453,72 @@ describe("MenuOrderPage category menu ordering and default selection", () => {
       expect(screen.getByText("Whiskey")).toBeInTheDocument();
       expect(screen.getByText("Lager")).toBeInTheDocument();
     });
+  });
+
+  it("adds modifier-free item to cart instantly without calling fetchItemModifierGroups", async () => {
+    renderMenuOrderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Whiskey")).toBeInTheDocument();
+    });
+
+    const itemCard = document.getElementById("pos-item-item-1");
+    expect(itemCard).toBeInTheDocument();
+    fireEvent.click(itemCard!);
+
+    // Verify item is added to cart
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /whiskey.*1 in order/i })).toBeInTheDocument();
+    });
+
+    // fetchItemModifierGroups must NOT be called for modifier-free items
+    expect(itemsApi.fetchItemModifierGroups).not.toHaveBeenCalled();
+  });
+
+  it("stepper '+' increments cart quantity instantly without calling fetchItemModifierGroups", async () => {
+    renderMenuOrderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Whiskey")).toBeInTheDocument();
+    });
+
+    const itemCard = document.getElementById("pos-item-item-1");
+    expect(itemCard).toBeInTheDocument();
+    fireEvent.click(itemCard!);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /whiskey.*1 in order/i })).toBeInTheDocument();
+    });
+
+    const plusButton = screen.getByRole("button", { name: /add more whiskey/i });
+    fireEvent.click(plusButton);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /whiskey.*2 in order/i })).toBeInTheDocument();
+    });
+
+    expect(itemsApi.fetchItemModifierGroups).not.toHaveBeenCalled();
+  });
+
+  it("soft refresh button refetches data without calling window.location.reload", async () => {
+    const reloadSpy = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, reload: reloadSpy },
+    });
+
+    renderMenuOrderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Whiskey")).toBeInTheDocument();
+    });
+
+    const refreshButton = screen.getByRole("button", { name: "Refresh page" });
+    fireEvent.click(refreshButton);
+
+    expect(reloadSpy).not.toHaveBeenCalled();
+    // Verify refetch was initiated
+    expect(itemsApi.fetchItems).toHaveBeenCalled();
   });
 });
 
