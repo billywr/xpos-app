@@ -8,6 +8,7 @@ import authReducer from "@/store/slices/authSlice";
 import orgContextReducer from "@/store/slices/orgContextSlice";
 import cartReducer from "@/store/slices/cartSlice";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { clearStoredMenuOrderCategory } from "@/utils/menuOrderCategoryStorage";
 import { MenuOrderPage } from "./MenuOrderPage";
 import * as categoriesApi from "@/api/categories";
 import * as itemsApi from "@/api/items";
@@ -130,6 +131,9 @@ function renderMenuOrderPage() {
 describe("MenuOrderPage category menu ordering and default selection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearStoredMenuOrderCategory();
+    localStorage.clear();
+    sessionStorage.clear();
 
     vi.mocked(categoriesApi.fetchCategories).mockResolvedValue({
       content: mockCategories,
@@ -366,4 +370,88 @@ describe("MenuOrderPage category menu ordering and default selection", () => {
     // The heading for selected category should not be present in Zone 2
     expect(screen.queryByRole("heading", { name: "Spirits" })).not.toBeInTheDocument();
   });
+
+  it("renders a page refresh button next to the search bar at the same level", async () => {
+    renderMenuOrderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Spirits")).toBeInTheDocument();
+    });
+
+    const refreshButton = screen.getByRole("button", { name: "Refresh page" });
+    expect(refreshButton).toBeInTheDocument();
+    expect(refreshButton).toHaveAttribute("title", "Refresh page");
+    expect(refreshButton).toHaveClass("h-11", "w-11");
+  });
+
+  it("persists user selected category across page refreshes / re-mounts until logout", async () => {
+    const { unmount } = renderMenuOrderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Spirits")).toBeInTheDocument();
+    });
+
+    // Default was Spirits. Click "Beer"
+    const beerButton = screen.getByRole("button", { name: /beer/i });
+    fireEvent.click(beerButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Lager")).toBeInTheDocument();
+    });
+    expect(beerButton).toHaveClass("bg-primary-600");
+
+    // Unmount (simulating user navigating away or browser reload)
+    unmount();
+
+    // Re-mount / reload page
+    const r2 = renderMenuOrderPage();
+
+    // Beer should be immediately restored without defaulting back to Spirits!
+    await waitFor(() => {
+      expect(screen.getByText("Lager")).toBeInTheDocument();
+      expect(screen.queryByText("Whiskey")).not.toBeInTheDocument();
+    });
+
+    r2.unmount();
+
+    // Now simulate logout clearing storage
+    clearStoredMenuOrderCategory();
+
+    // Re-mount again after logout
+    renderMenuOrderPage();
+
+    // After logout, it should default back to Spirits (top category by item count)
+    await waitFor(() => {
+      expect(screen.getByText("Whiskey")).toBeInTheDocument();
+      expect(screen.queryByText("Lager")).not.toBeInTheDocument();
+    });
+  });
+
+  it("persists 'All' category selection across re-mounts", async () => {
+    const { unmount } = renderMenuOrderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Spirits")).toBeInTheDocument();
+    });
+
+    // Click "All" tab
+    const allButton = screen.getByRole("button", { name: /all/i });
+    fireEvent.click(allButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Whiskey")).toBeInTheDocument();
+      expect(screen.getByText("Lager")).toBeInTheDocument();
+    });
+
+    // Unmount and re-mount (page reload)
+    unmount();
+    renderMenuOrderPage();
+
+    // Both Whiskey (Spirits) and Lager (Beer) should be visible because 'All' persisted!
+    await waitFor(() => {
+      expect(screen.getByText("Whiskey")).toBeInTheDocument();
+      expect(screen.getByText("Lager")).toBeInTheDocument();
+    });
+  });
 });
+

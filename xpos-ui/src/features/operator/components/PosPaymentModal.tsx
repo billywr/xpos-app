@@ -15,7 +15,7 @@ import {
   ChevronDown,
   UserCheck,
 } from "lucide-react";
-import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import { formatCurrency, formatAmount, formatAmountWithCommas } from "@/utils/formatCurrency";
 import {
   fetchMpesaStkStatus,
   initiateMpesaStk,
@@ -247,30 +247,36 @@ export function PosPaymentModal({
 
   // Numpad handler
   const handleNumpadDigit = (digit: string) => {
+    const raw = addTenderAmount.replace(/,/g, "");
     if (digit === ".") {
-      if (addTenderAmount.includes(".")) return;
-      setAddTenderAmount(addTenderAmount ? `${addTenderAmount}.` : "0.");
+      if (raw.includes(".")) return;
+      const next = raw ? `${raw}.` : "0.";
+      setAddTenderAmount(formatAmountWithCommas(next));
       return;
     }
     if (digit === "00") {
-      if (!addTenderAmount || addTenderAmount === "0") return;
-      setAddTenderAmount(`${addTenderAmount}00`);
+      if (!raw || raw === "0") return;
+      const next = `${raw}00`;
+      setAddTenderAmount(formatAmountWithCommas(next));
       return;
     }
-    if (addTenderAmount === "0") {
+    if (raw === "0") {
       setAddTenderAmount(digit);
       return;
     }
     // Limit decimal places to 2
-    if (addTenderAmount.includes(".")) {
-      const [, dec] = addTenderAmount.split(".");
+    if (raw.includes(".")) {
+      const [, dec] = raw.split(".");
       if (dec && dec.length >= 2) return;
     }
-    setAddTenderAmount(`${addTenderAmount}${digit}`);
+    const next = `${raw}${digit}`;
+    setAddTenderAmount(formatAmountWithCommas(next));
   };
 
   const handleNumpadBackspace = () => {
-    setAddTenderAmount(addTenderAmount.slice(0, -1));
+    const raw = addTenderAmount.replace(/,/g, "");
+    const next = raw.slice(0, -1);
+    setAddTenderAmount(formatAmountWithCommas(next));
   };
 
   const handleNumpadClear = () => {
@@ -536,11 +542,10 @@ export function PosPaymentModal({
                         KSH
                       </span>
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         value={addTenderAmount}
-                        onChange={(e) => setAddTenderAmount(e.target.value)}
+                        onChange={(e) => setAddTenderAmount(formatAmountWithCommas(e.target.value))}
                         placeholder="0.00"
                         className="h-full w-full rounded-xl border border-slate-300 bg-white pl-16 pr-4 text-right text-2xl sm:text-3xl font-black tabular-nums text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                         aria-label="Tender amount"
@@ -552,7 +557,7 @@ export function PosPaymentModal({
                         isAddingTender ||
                         !addTenderTypeId ||
                         !addTenderAmount ||
-                        parseFloat(addTenderAmount) <= 0
+                        parseFloat(addTenderAmount.replace(/,/g, "")) <= 0
                       }
                       onClick={onAddTender}
                       className="flex h-full min-w-[130px] touch-manipulation items-center justify-center rounded-xl bg-primary-600 px-6 text-base sm:text-lg font-black text-white shadow-xs transition hover:bg-primary-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-primary-600 dark:hover:bg-primary-500"
@@ -578,7 +583,7 @@ export function PosPaymentModal({
                           <button
                             key={preset.label}
                             type="button"
-                            onClick={() => setAddTenderAmount(String(preset.amount))}
+                            onClick={() => setAddTenderAmount(formatAmountWithCommas(String(preset.amount)))}
                             className="min-h-[48px] sm:min-h-[52px] touch-manipulation rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm sm:text-base font-bold text-slate-800 shadow-2xs transition hover:border-primary-500 hover:bg-primary-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:hover:border-primary-500"
                           >
                             {preset.label === "Exact" ? "Exact (" : "KSH "}
@@ -764,12 +769,11 @@ export function PosPaymentModal({
                         KSH
                       </span>
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         value={addTenderAmount}
-                        onChange={(e) => setAddTenderAmount(e.target.value)}
-                        placeholder={remainder > 0 ? String(remainder) : "0.00"}
+                        onChange={(e) => setAddTenderAmount(formatAmountWithCommas(e.target.value))}
+                        placeholder={remainder > 0 ? formatAmountWithCommas(String(remainder)) : "0.00"}
                         className="h-full w-full rounded-xl border border-slate-300 bg-white pl-16 pr-4 text-right text-2xl sm:text-3xl font-black tabular-nums text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
                         aria-label="Tender amount"
                       />
@@ -780,7 +784,7 @@ export function PosPaymentModal({
                         isAddingTender ||
                         !addTenderTypeId ||
                         !addTenderAmount ||
-                        parseFloat(addTenderAmount) <= 0
+                        parseFloat(addTenderAmount.replace(/,/g, "")) <= 0
                       }
                       onClick={onAddTender}
                       className="flex h-full min-w-[130px] touch-manipulation items-center justify-center rounded-xl bg-primary-600 px-6 text-base sm:text-lg font-black text-white shadow-xs transition hover:bg-primary-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-primary-600 dark:hover:bg-primary-500"

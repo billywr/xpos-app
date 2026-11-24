@@ -198,4 +198,87 @@ describe("PosPaymentModal Component", () => {
     expect(tabsContainer).toHaveClass("grid-cols-2");
     expect(tabsContainer).not.toHaveClass("sm:grid-cols-3");
   });
+
+  it("formats entered cash amount with comma thousands separators", () => {
+    const setAddTenderAmount = vi.fn();
+
+    render(
+      <PosPaymentModal
+        sale={mockSale}
+        token="test-token"
+        orgId="org-1"
+        branchId="branch-1"
+        terminalId="term-1"
+        tenderTypes={mockTenderTypes}
+        mpesaStkEnabled={false}
+        totalTendered={0}
+        canComplete={false}
+        addTenderAmount=""
+        setAddTenderAmount={setAddTenderAmount}
+        addTenderTypeId="tender-cash"
+        setAddTenderTypeId={vi.fn()}
+        onAddTender={vi.fn()}
+        onRemoveTender={vi.fn()}
+        onComplete={vi.fn()}
+        onSaleUpdated={vi.fn()}
+        onStkAutoCompleted={vi.fn()}
+        onClose={vi.fn()}
+        isAddingTender={false}
+        isRemovingTender={false}
+        isCompleting={false}
+        addTenderError={null}
+        removeTenderError={null}
+        completeError={null}
+      />
+    );
+
+    const amountInput = screen.getByLabelText("Tender amount");
+    expect(amountInput).toHaveAttribute("type", "text");
+    expect(amountInput).toHaveAttribute("inputmode", "decimal");
+
+    // Type 395078854
+    fireEvent.change(amountInput, { target: { value: "395078854" } });
+    expect(setAddTenderAmount).toHaveBeenCalledWith("395,078,854");
+  });
+
+  it("formats amount with comma separators when using touch numpad", () => {
+    const setAddTenderAmount = vi.fn();
+
+    render(
+      <PosPaymentModal
+        sale={mockSale}
+        token="test-token"
+        orgId="org-1"
+        branchId="branch-1"
+        terminalId="term-1"
+        tenderTypes={mockTenderTypes}
+        mpesaStkEnabled={false}
+        totalTendered={0}
+        canComplete={false}
+        addTenderAmount="1000"
+        setAddTenderAmount={setAddTenderAmount}
+        addTenderTypeId="tender-cash"
+        setAddTenderTypeId={vi.fn()}
+        onAddTender={vi.fn()}
+        onRemoveTender={vi.fn()}
+        onComplete={vi.fn()}
+        onSaleUpdated={vi.fn()}
+        onStkAutoCompleted={vi.fn()}
+        onClose={vi.fn()}
+        isAddingTender={false}
+        isRemovingTender={false}
+        isCompleting={false}
+        addTenderError={null}
+        removeTenderError={null}
+        completeError={null}
+      />
+    );
+
+    // Tap "0" button on numpad: "1000" + "0" -> "10,000"
+    const zeroBtn = screen.getByRole("button", { name: "0" });
+    fireEvent.click(zeroBtn);
+
+    expect(setAddTenderAmount).toHaveBeenCalledWith("10,000");
+  });
 });
+

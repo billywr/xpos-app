@@ -42,8 +42,13 @@ import { fetchTenderTypes } from "@/api/tenderTypes";
 import { getCurrentShift } from "@/api/shifts";
 import { fetchStockLevels } from "@/api/stockLevels";
 import { invalidateInventoryQueries } from "@/utils/invalidateInventoryQueries";
-import { formatCurrency } from "@/utils/formatCurrency";
+import { formatCurrency, formatAmountWithCommas } from "@/utils/formatCurrency";
 import { formatQty } from "@/utils/formatQuantity";
+import { getStoredContext, getStoredAdminContext } from "@/utils/contextStorage";
+import {
+  getStoredMenuOrderCategory,
+  setStoredMenuOrderCategory,
+} from "@/utils/menuOrderCategoryStorage";
 import { MenuItemCard } from "@/components/MenuItemCard";
 import { CountBadge } from "@/components/ui";
 import { ModifierModal } from "@/components/ModifierModal";
@@ -82,6 +87,7 @@ import {
   Minimize2,
   ShoppingCart,
   ArrowLeft,
+  RotateCw,
 } from "lucide-react";
 
 const GRID_PAGE_SIZE = 24;
@@ -118,7 +124,12 @@ export function MenuOrderPage() {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
 
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const effectiveOrgId = orgId ?? getStoredContext()?.orgId ?? getStoredAdminContext()?.orgId;
+  const initialStoredCat = getStoredMenuOrderCategory(effectiveOrgId);
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(() => {
+    return initialStoredCat !== undefined ? initialStoredCat : null;
+  });
   const [hideOutOfStock, setHideOutOfStock] = useState(true);
   const [gridPage, setGridPage] = useState(0);
   const navContext = useNavVisibilityContextOrNull();
@@ -139,11 +150,16 @@ export function MenuOrderPage() {
     isPosSelectedCategoryLabelVisible(adminLabels)
   );
   const userHasToggledRef = useRef(false);
-  const userSelectedCategoryRef = useRef(false);
+  const userSelectedCategoryRef = useRef<boolean>(initialStoredCat !== undefined);
 
-  // Reset user manual category selection tracker when org or branch changes
+  // Sync category selection when org or branch changes
   useEffect(() => {
-    userSelectedCategoryRef.current = false;
+    const currentEffectiveId = orgId ?? getStoredContext()?.orgId ?? getStoredAdminContext()?.orgId;
+    const stored = getStoredMenuOrderCategory(currentEffectiveId);
+    if (stored !== undefined) {
+      userSelectedCategoryRef.current = true;
+      setSelectedCategoryId(stored);
+    }
   }, [orgId, branchId]);
 
   // Sync layout and vertical category card visibility with adminLabels when they change
@@ -291,7 +307,7 @@ export function MenuOrderPage() {
           0
         );
         const remainder = total - tendered;
-        setAddTenderAmount(remainder > 0 ? String(remainder) : "");
+        setAddTenderAmount(remainder > 0 ? formatAmountWithCommas(String(remainder)) : "");
         setAddTenderTypeId(cashTenderTypeId ?? tenderTypes[0]?.id ?? "");
       }
       setSearchParams((prev) => {
@@ -335,7 +351,7 @@ export function MenuOrderPage() {
         0
       );
       const remainder = total - tendered;
-      setAddTenderAmount(remainder > 0 ? String(remainder) : "");
+      setAddTenderAmount(remainder > 0 ? formatAmountWithCommas(String(remainder)) : "");
       setAddTenderTypeId(cashTenderTypeId ?? tenderTypes[0]?.id ?? "");
     },
   });
@@ -360,7 +376,7 @@ export function MenuOrderPage() {
       );
       const total = Number(sale.total) || 0;
       const remainder = total - tendered;
-      setAddTenderAmount(remainder > 0 ? String(remainder) : "");
+      setAddTenderAmount(remainder > 0 ? formatAmountWithCommas(String(remainder)) : "");
     },
   });
 
@@ -387,7 +403,7 @@ export function MenuOrderPage() {
       );
       const total = Number(sale.total) || 0;
       const remainder = total - tendered;
-      setAddTenderAmount(remainder > 0 ? String(remainder) : "");
+      setAddTenderAmount(remainder > 0 ? formatAmountWithCommas(String(remainder)) : "");
       setAddTenderTypeId(cashTenderTypeId ?? tenderTypes[0]?.id ?? "");
     },
   });
@@ -510,7 +526,7 @@ export function MenuOrderPage() {
 
   const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
     queryKey: ["categories", orgId],
-    queryFn: () => fetchCategories(token, orgId!),
+    queryFn: () => fetchCategories(token, orgId!, { size: 500 }),
     enabled: Boolean(orgId && token),
   });
 
@@ -521,12 +537,14 @@ export function MenuOrderPage() {
   });
 
   const catalogItemsForPos = useMemo(() => {
-    const raw = itemsData?.content ?? [];
+    const raw = Array.isArray(itemsData)
+      ? itemsData
+      : itemsData?.content ?? [];
     return raw.filter(
       (i) =>
         (i.defaultSellingPrice ?? 0) > 0 && i.visibleInPos !== false
     );
-  }, [itemsData?.content]);
+  }, [itemsData]);
 
   const trackedItemIds = useMemo(
     () =>
@@ -553,7 +571,12 @@ export function MenuOrderPage() {
     return map;
   }, [stockLevels]);
 
-  const categories = categoriesData?.content ?? [];
+  const categories = useMemo(() => {
+    if (!categoriesData) return [];
+    if (Array.isArray(categoriesData)) return categoriesData;
+    if (Array.isArray(categoriesData.content)) return categoriesData.content;
+    return [];
+  }, [categoriesData]);
 
   const visibleCatalogItems = useMemo(() => {
     return filterOutOfStockItems(catalogItemsForPos, stockMap, hideOutOfStock);
@@ -594,6 +617,12 @@ export function MenuOrderPage() {
 
   // Default to the category with the most counts (after All) if user hasn't explicitly selected one
   useEffect(() => {
+    const currentEffectiveOrgId = orgId ?? getStoredContext()?.orgId ?? getStoredAdminContext()?.orgId;
+    const stored = getStoredMenuOrderCategory(currentEffectiveOrgId);
+    if (stored !== undefined) {
+      // User has a persisted selection — do NOT overwrite with default!
+      return;
+    }
     if (!userSelectedCategoryRef.current && sortedCategories.length > 0) {
       const topCat = sortedCategories[0];
       const topCatCount = categoryCounts.get(topCat.id) ?? 0;
@@ -601,20 +630,26 @@ export function MenuOrderPage() {
         setSelectedCategoryId(topCat.id);
       }
     }
-  }, [sortedCategories, categoryCounts]);
+  }, [sortedCategories, categoryCounts, orgId]);
 
-  // Fallback if selected category is removed or has zero count
+  // Fallback ONLY if category data has loaded and the selected category was removed from the backend catalog
   useEffect(() => {
     if (
       selectedCategoryId !== null &&
       !categoriesLoading &&
-      !itemsLoading &&
-      !sortedCategories.some((c) => c.id === selectedCategoryId)
+      categoriesData != null &&
+      categories.length > 0 &&
+      !categories.some((c) => String(c.id).toLowerCase() === String(selectedCategoryId).toLowerCase())
     ) {
       userSelectedCategoryRef.current = false;
-      setSelectedCategoryId(sortedCategories[0]?.id ?? null);
+      const fallbackId = sortedCategories[0]?.id ?? null;
+      setSelectedCategoryId(fallbackId);
+      const currentEffectiveOrgId = orgId ?? getStoredContext()?.orgId ?? getStoredAdminContext()?.orgId;
+      if (fallbackId) {
+        setStoredMenuOrderCategory(fallbackId, currentEffectiveOrgId);
+      }
     }
-  }, [categoriesLoading, itemsLoading, selectedCategoryId, sortedCategories]);
+  }, [categoriesLoading, categoriesData, categories, selectedCategoryId, sortedCategories, orgId]);
 
   // Filter items by category, search query, and stock visibility
   const items = useMemo(() => {
@@ -798,28 +833,39 @@ export function MenuOrderPage() {
         </h1>
       </div>
 
-      {/* Middle: Persistent Prominent Search Bar */}
+      {/* Middle: Persistent Prominent Search Bar & Page Refresh Button */}
       <div className="flex flex-1 items-center justify-center min-w-0 px-2 sm:px-4">
-        <div className="relative w-full max-w-md sm:max-w-lg min-w-0">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search products by name or code..."
-            className="h-11 sm:h-11.5 w-full rounded-xl border border-slate-200 bg-white pl-11.5 sm:pl-12 pr-9 text-sm sm:text-base font-medium text-slate-900 placeholder:text-slate-400 shadow-2xs focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-400"
-            aria-label="Search products"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 active:scale-90 dark:hover:text-slate-200"
-              aria-label="Clear search"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+        <div className="flex w-full max-w-md sm:max-w-lg items-center gap-2 min-w-0">
+          <div className="relative flex-1 min-w-0">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search products by name or code..."
+              className="h-11 sm:h-11.5 w-full rounded-xl border border-slate-200 bg-white pl-11.5 sm:pl-12 pr-9 text-sm sm:text-base font-medium text-slate-900 placeholder:text-slate-400 shadow-2xs focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-400"
+              aria-label="Search products"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 active:scale-90 dark:hover:text-slate-200"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="flex h-11 sm:h-11.5 w-11 sm:w-11.5 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shadow-2xs"
+            title="Refresh page"
+            aria-label="Refresh page"
+          >
+            <RotateCw className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+          </button>
         </div>
       </div>
 
@@ -935,6 +981,9 @@ export function MenuOrderPage() {
                 onSelectCategory={(id) => {
                   userSelectedCategoryRef.current = true;
                   setSelectedCategoryId(id);
+                  const currentEffectiveOrgId =
+                    orgId ?? getStoredContext()?.orgId ?? getStoredAdminContext()?.orgId;
+                  setStoredMenuOrderCategory(id, currentEffectiveOrgId);
                 }}
                 getCategoryCount={(id) => visibleCountForCategory(id)}
                 totalVisibleCount={visibleCountForCategory(null)}
@@ -1105,6 +1154,9 @@ export function MenuOrderPage() {
                       onClick={() => {
                         userSelectedCategoryRef.current = true;
                         setSelectedCategoryId(null);
+                        const currentEffectiveOrgId =
+                          orgId ?? getStoredContext()?.orgId ?? getStoredAdminContext()?.orgId;
+                        setStoredMenuOrderCategory(null, currentEffectiveOrgId);
                       }}
                       className={`min-h-[28px] sm:min-h-[30px] shrink-0 touch-manipulation rounded-lg px-2 py-0.5 sm:px-2.5 sm:py-0.5 text-sm sm:text-base font-bold transition inline-flex items-center gap-1 sm:gap-1.5 ${
                         selectedCategoryId === null
@@ -1129,6 +1181,9 @@ export function MenuOrderPage() {
                             onClick={() => {
                               userSelectedCategoryRef.current = true;
                               setSelectedCategoryId(cat.id);
+                              const currentEffectiveOrgId =
+                                orgId ?? getStoredContext()?.orgId ?? getStoredAdminContext()?.orgId;
+                              setStoredMenuOrderCategory(cat.id, currentEffectiveOrgId);
                             }}
                             className={`min-h-[28px] sm:min-h-[30px] shrink-0 touch-manipulation rounded-lg px-2 py-0.5 sm:px-2.5 sm:py-0.5 text-sm sm:text-base font-bold transition inline-flex items-center gap-1 sm:gap-1.5 ${
                               selectedCategoryId === cat.id
@@ -1321,7 +1376,7 @@ export function MenuOrderPage() {
             addTenderTypeId={addTenderTypeId}
             setAddTenderTypeId={setAddTenderTypeId}
             onAddTender={() => {
-              const amt = parseFloat(addTenderAmount);
+              const amt = parseFloat(addTenderAmount.replace(/,/g, ""));
               if (!Number.isNaN(amt) && amt > 0 && addTenderTypeId) {
                 addTenderMutation.mutate({ tenderTypeId: addTenderTypeId, amount: amt });
               }

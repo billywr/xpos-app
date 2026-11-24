@@ -1,3 +1,5 @@
+import { clearStoredMenuOrderCategory } from "@/utils/menuOrderCategoryStorage";
+
 /**
  * Persist auth to sessionStorage so refresh keeps the user logged in (same tab).
  * Cleared on logout and when token is expired so we don't restore stale sessions.
@@ -42,4 +44,5 @@ export function setStoredAuth(auth: StoredAuth): void {
 
 export function clearStoredAuth(): void {
   sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  clearStoredMenuOrderCategory();
 }

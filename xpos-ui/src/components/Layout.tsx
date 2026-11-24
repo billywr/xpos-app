@@ -20,6 +20,7 @@ import { clearStoredAuth } from "@/utils/authStorage";
 import { clearStoredContext } from "@/utils/contextStorage";
 import { clearAllStoredTableSearch } from "@/utils/tableSearchStorage";
 import { clearAllStoredDatePersistence } from "@/utils/datePersistenceStorage";
+import { clearStoredMenuOrderCategory } from "@/utils/menuOrderCategoryStorage";
 import { clearPersistedQueryCache } from "@/sync/queryPersister";
 import { useActiveOrgs } from "@/hooks/useActiveOrgs";
 
@@ -60,6 +61,7 @@ export function Layout() {
       clearStoredContext();
       clearAllStoredTableSearch();
       clearAllStoredDatePersistence();
+      clearStoredMenuOrderCategory();
       void clearPersistedQueryCache();
       dispatch(clearCredentials());
       dispatch(clearContext());
@@ -75,6 +77,7 @@ export function Layout() {
     clearStoredContext();
     clearAllStoredTableSearch();
     clearAllStoredDatePersistence();
+    clearStoredMenuOrderCategory();
     void clearPersistedQueryCache();
     dispatch(clearCredentials());
     dispatch(clearContext());
@@ -91,6 +94,7 @@ export function Layout() {
     clearStoredContext();
     clearAllStoredTableSearch();
     clearAllStoredDatePersistence();
+    clearStoredMenuOrderCategory();
     void clearPersistedQueryCache();
     dispatch(clearCredentials());
     dispatch(clearContext());

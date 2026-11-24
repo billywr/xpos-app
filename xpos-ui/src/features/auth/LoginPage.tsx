@@ -5,6 +5,7 @@ import { setCredentials } from "@/store/slices/authSlice";
 import { loginWithPassword } from "@/api/auth";
 import { setStoredAuth } from "@/utils/authStorage";
 import { clearAllStoredDatePersistence } from "@/utils/datePersistenceStorage";
+import { clearStoredMenuOrderCategory } from "@/utils/menuOrderCategoryStorage";
 import { getStoredBranding } from "@/utils/brandingStorage";
 import { getEnv } from "@/utils/env";
 import { getRolesFromToken, getUsernameFromToken } from "@/utils/jwt";
@@ -115,6 +116,7 @@ export function LoginPage() {
         refreshToken,
         roles,
       });
+      clearStoredMenuOrderCategory();
       navigate(returnTo, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
