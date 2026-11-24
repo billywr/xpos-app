@@ -159,10 +159,21 @@ export function SearchableSelect({
       return;
     }
     const r = el.getBoundingClientRect();
+    const menuHeight = popupRef.current?.offsetHeight || 240;
+    const spaceBelow = window.innerHeight - r.bottom;
+    const spaceAbove = r.top;
+
+    const openUp = spaceBelow < menuHeight + 8 && spaceAbove > spaceBelow;
+    const top = openUp ? Math.max(8, r.top - menuHeight - 4) : r.bottom + 4;
+
+    const maxAvailableWidth = window.innerWidth - 16;
+    const width = Math.min(r.width, maxAvailableWidth);
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
+
     setMenuPosition({
-      top: r.bottom + 4,
-      left: r.left,
-      width: r.width,
+      top,
+      left,
+      width,
     });
   }, []);
 

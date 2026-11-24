@@ -585,10 +585,24 @@
   border-left-width: 4px !important;
 }
 
+html {
+  background-color: var(--app-bg-start, #f0f7fc);
+  color-scheme: light;
+}
+html.dark {
+  background-color: var(--app-bg-start, #0d2a4a);
+  color-scheme: dark;
+}
 body {
   margin: 0;
   min-height: 100vh;
+  background-color: var(--app-bg-start, #f0f7fc);
   background: linear-gradient(165deg, var(--app-bg-start) 0%, var(--app-bg-end) 50%, var(--app-bg-mid) 100%);
+  color-scheme: light;
+}
+.dark body {
+  background-color: var(--app-bg-start, #0d2a4a);
+  color-scheme: dark;
 }
 
 @layer utilities {
@@ -899,6 +913,15 @@ tr.bg-primary-50\/40 > .xpos-table-sticky-first {
   background-color: var(--surface-input) !important;
   color: #ffffff !important;
 }
+
+/* Native form controls inherit theme dark color-scheme */
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark textarea,
+[data-theme]:not([data-theme=""]).dark input:not([type="checkbox"]):not([type="radio"]),
+[data-theme]:not([data-theme=""]).dark textarea {
+  color-scheme: dark;
+}
+
 /* Cards with opacity modifiers */
 .dark .dark\:bg-slate-800\/95,
 [data-theme]:not([data-theme=""]).dark .dark\:bg-slate-800\/95 {
@@ -911,17 +934,22 @@ tr.bg-primary-50\/40 > .xpos-table-sticky-first {
   background-color: color-mix(in srgb, var(--table-bg) 90%, transparent) !important;
 }
 /* Operator layout: top nav, sidebar, main bg, search input */
+.dark .dark\:bg-darkNav,
 [data-theme]:not([data-theme=""]).dark .dark\:bg-darkNav,
+.dark .dark\:bg-darkNav\/95,
 [data-theme]:not([data-theme=""]).dark .dark\:bg-darkNav\/95 {
   background-color: var(--sidebar-start) !important;
 }
+.dark .dark\:bg-darkBg,
 [data-theme]:not([data-theme=""]).dark .dark\:bg-darkBg {
   background-color: var(--app-bg-start) !important;
 }
+.dark .dark\:bg-darkSurface,
 [data-theme]:not([data-theme=""]).dark .dark\:bg-darkSurface {
   background-color: var(--surface-input) !important;
 }
 /* Top header nav (Layout.tsx) */
+.dark .dark\:bg-darkNav\/95,
 [data-theme]:not([data-theme=""]).dark .dark\:bg-darkNav\/95 {
   background-color: color-mix(in srgb, var(--sidebar-start) 95%, transparent) !important;
 }

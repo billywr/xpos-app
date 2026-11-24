@@ -303,7 +303,7 @@ export function ReceiptModal({
         <div className="flex-1 overflow-y-auto p-4">
           <div
             ref={printRef}
-            className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-600"
+            className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-600 dark:bg-slate-800"
           >
             <ReceiptBody
               receipt={receipt}

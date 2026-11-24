@@ -326,7 +326,7 @@ export function PosPaymentModal({
     >
       <div className="flex h-[94vh] max-h-[96vh] w-[95vw] max-w-[1800px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
         {/* Modal Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 dark:border-slate-700">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-500/10 text-primary-600 dark:bg-primary-500/20 dark:text-primary-400">
               <CreditCard className="h-6 w-6" />
@@ -354,9 +354,9 @@ export function PosPaymentModal({
         </div>
 
         {/* Modal Body: 38-40% Left Order Summary / 60-62% Right Payment Workspace */}
-        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[38%_62%] xl:grid-cols-[40%_60%] lg:divide-x lg:divide-slate-200 dark:lg:divide-slate-700">
+        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:overflow-hidden lg:grid-cols-[38%_62%] xl:grid-cols-[40%_60%] lg:divide-x lg:divide-slate-200 dark:lg:divide-slate-700">
           {/* Left Column: Financial Balance, Tendered lines & Independently Scrollable Order Lines */}
-          <div className="flex flex-col min-h-0 p-5 sm:p-6 bg-slate-50/70 dark:bg-slate-900/60 overflow-hidden gap-4">
+          <div className="flex flex-col shrink-0 lg:shrink lg:min-h-0 p-4 sm:p-5 lg:p-6 bg-slate-50/70 dark:bg-slate-900/60 lg:overflow-hidden gap-3 sm:gap-4">
             {/* Stat Cards */}
             <div className="grid grid-cols-2 gap-3 shrink-0">
               <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-700 dark:bg-slate-800">
@@ -441,13 +441,13 @@ export function PosPaymentModal({
             )}
 
             {/* Order Lines Check (Independently Scrollable with Full Room for Product Names) */}
-            <div className="flex flex-col min-h-0 flex-1 pt-2 border-t border-slate-200 dark:border-slate-700">
+            <div className="flex flex-col min-h-0 lg:flex-1 pt-2 border-t border-slate-200 dark:border-slate-700">
               <div className="mb-2 flex items-center justify-between shrink-0">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400">
                   Order lines ({sale.lines?.length ?? 0})
                 </span>
               </div>
-              <div className="flex-1 min-h-[160px] overflow-y-auto pr-1 space-y-2">
+              <div className="max-h-44 lg:max-h-none lg:flex-1 overflow-y-auto pr-1 space-y-2">
                 {(sale.lines ?? []).map((line) => (
                   <div
                     key={line.id}
@@ -476,7 +476,7 @@ export function PosPaymentModal({
           </div>
 
           {/* Right Column: Payment Input & Tenders (60-62%) */}
-          <div className="flex flex-col min-h-0 p-5 sm:p-6 lg:p-7 space-y-6 overflow-y-auto bg-white dark:bg-slate-800">
+          <div className="flex flex-col shrink-0 lg:shrink lg:min-h-0 p-4 sm:p-5 lg:p-7 space-y-5 sm:space-y-6 lg:overflow-y-auto bg-white dark:bg-slate-800">
             {/* Payment Method Selector Tabs */}
             <div className={`grid ${tabsGridColsClass} gap-3 shrink-0`}>
               <button
@@ -532,9 +532,9 @@ export function PosPaymentModal({
 
             {/* Mode: Cash Payment (Intelligent Side-by-Side Flow on wide screens) */}
             {paymentMode === "cash" && (
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-                {/* Left Sub-Column: Amount Input + Quick Denominations + Debt (xl:col-span-6) */}
-                <div className="flex flex-col gap-5 xl:col-span-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-5 sm:gap-6 items-start">
+                {/* Left Sub-Column: Amount Input + Quick Denominations + Debt */}
+                <div className="flex flex-col gap-5 md:col-span-1 xl:col-span-6">
                   {/* Amount Input with Add Button */}
                   <div className="flex h-14 sm:h-16 items-stretch gap-2.5">
                     <div className="relative flex-1 h-full">
@@ -666,8 +666,8 @@ export function PosPaymentModal({
                   )}
                 </div>
 
-                {/* Right Sub-Column: Full-Size Touch Keypad (xl:col-span-6) */}
-                <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/60 xl:col-span-6">
+                {/* Right Sub-Column: Full-Size Touch Keypad */}
+                <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/60 md:col-span-1 xl:col-span-6">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400">
                     Touch numpad
                   </span>
@@ -761,8 +761,8 @@ export function PosPaymentModal({
 
             {/* Mode: Other Tender Type (Card, Bank, etc.) */}
             {paymentMode === "other" && (
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-                <div className="flex flex-col gap-5 xl:col-span-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-5 sm:gap-6 items-start">
+                <div className="flex flex-col gap-5 md:col-span-1 xl:col-span-6">
                   <div className="flex h-14 sm:h-16 items-stretch gap-2.5">
                     <div className="relative flex-1 h-full">
                       <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base font-extrabold text-slate-400">
@@ -800,7 +800,7 @@ export function PosPaymentModal({
                   )}
                 </div>
 
-                <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/60 xl:col-span-6">
+                <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/60 md:col-span-1 xl:col-span-6">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400">
                     Touch numpad
                   </span>
@@ -817,20 +817,20 @@ export function PosPaymentModal({
         </div>
 
         {/* Modal Footer: Complete Sale CTA */}
-        <div className="flex shrink-0 items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-700 dark:bg-slate-900/60">
-          <div className="flex items-center gap-3">
-            <span className="text-sm sm:text-base font-bold text-slate-600 dark:text-slate-300">
+        <div className="flex shrink-0 flex-wrap sm:flex-nowrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-4 sm:px-6 py-3.5 sm:py-4 dark:border-slate-700 dark:bg-slate-900/60">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xs sm:text-base font-bold text-slate-600 truncate dark:text-slate-300">
               {canComplete
                 ? "Payment complete. Ready to finalize."
                 : `Remaining balance: ${formatCurrency(Math.max(0, remainder))}`}
             </span>
           </div>
 
-          <div className="flex items-stretch gap-3">
+          <div className="flex items-stretch gap-2 sm:gap-3 w-full sm:w-auto">
             <button
               type="button"
               onClick={onClose}
-              className="flex min-h-[52px] sm:min-h-[56px] touch-manipulation items-center justify-center rounded-xl border border-slate-300 px-6 text-base sm:text-lg font-bold text-slate-700 transition hover:bg-slate-100 active:scale-95 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="flex-1 sm:flex-initial flex min-h-[52px] sm:min-h-[56px] touch-manipulation items-center justify-center rounded-xl border border-slate-300 px-4 sm:px-6 text-sm sm:text-lg font-bold text-slate-700 transition hover:bg-slate-100 active:scale-95 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -838,7 +838,7 @@ export function PosPaymentModal({
               type="button"
               disabled={!canComplete || isCompleting}
               onClick={onComplete}
-              className="flex min-h-[52px] sm:min-h-[56px] min-w-[180px] sm:min-w-[220px] touch-manipulation items-center justify-center gap-2.5 rounded-xl bg-emerald-700 px-6 text-base sm:text-lg font-extrabold text-white shadow-md transition hover:bg-emerald-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex-1 sm:flex-initial flex min-h-[52px] sm:min-h-[56px] min-w-0 sm:min-w-[200px] touch-manipulation items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 sm:px-6 text-sm sm:text-lg font-extrabold text-white shadow-md transition hover:bg-emerald-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isCompleting ? (
                 <>

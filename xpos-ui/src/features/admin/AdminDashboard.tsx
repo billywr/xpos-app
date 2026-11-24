@@ -370,8 +370,8 @@ export function AdminDashboard() {
 
       {/* Date Range & Period Selection Filter Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/90 bg-white p-3 shadow-sm dark:border-slate-700/80 dark:bg-slate-800">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <div className="flex flex-1 min-w-0 items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+          <span className="mr-1 shrink-0 text-xs font-medium text-slate-500 dark:text-slate-400">
             Period:
           </span>
           {(
@@ -392,7 +392,7 @@ export function AdminDashboard() {
                 key={key}
                 type="button"
                 onClick={() => handlePresetChange(key)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
                   isActive
                     ? "bg-primary-600 text-white shadow-sm dark:bg-primary-500"
                     : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/60"

@@ -10,11 +10,14 @@ import {
   PanelLeftOpen,
   ShoppingCart,
   Store,
+  Sun,
+  Moon,
   UtensilsCrossed,
   X,
 } from "lucide-react";
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
 import {
@@ -81,6 +84,7 @@ export function OperatorLayout() {
   const terminalName = useAppSelector(selectTerminalName);
   const navVisibility = useNavVisibilityContextOrNull();
   const queryClient = useQueryClient();
+  const { theme, toggleTheme } = useTheme();
 
   const { data: meData } = useQuery({
     queryKey: [ME_QUERY_KEY, token, orgId],
@@ -333,6 +337,14 @@ export function OperatorLayout() {
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
           <InsightAlertBell />
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
+            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
             <NavLink
               to="/operator/menu-order"

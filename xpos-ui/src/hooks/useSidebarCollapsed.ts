@@ -5,10 +5,14 @@ const STORAGE_KEY = "xpos_sidebar_collapsed";
 function readStored(): boolean {
   try {
     const s = localStorage.getItem(STORAGE_KEY);
-    return s === "true";
+    if (s === "true" || s === "false") return s === "true";
   } catch {
-    return false;
+    // ignore
   }
+  if (typeof window !== "undefined" && window.innerWidth < 1024) {
+    return true;
+  }
+  return false;
 }
 
 export function useSidebarCollapsed(): [boolean, () => void] {

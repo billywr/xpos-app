@@ -277,8 +277,8 @@ export function SalesListPage({ initialOrgId, initialBranchId }: SalesListPagePr
             />
           </div>
         )}
-        <label className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+        <label className="flex items-center gap-2 flex-1 sm:flex-initial min-w-0">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300 shrink-0">
             From
           </span>
           <DateInput
@@ -288,11 +288,11 @@ export function SalesListPage({ initialOrgId, initialBranchId }: SalesListPagePr
               setFromDate(e.target.value);
               setPage(0);
             }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+            className="w-full sm:w-auto rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
           />
         </label>
-        <label className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+        <label className="flex items-center gap-2 flex-1 sm:flex-initial min-w-0">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300 shrink-0">
             To
           </span>
           <DateInput
@@ -302,7 +302,7 @@ export function SalesListPage({ initialOrgId, initialBranchId }: SalesListPagePr
               setToDate(e.target.value);
               setPage(0);
             }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+            className="w-full sm:w-auto rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
           />
         </label>
         {selectedOrgId && selectedBranchId && (

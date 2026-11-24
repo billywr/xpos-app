@@ -42,7 +42,6 @@ export function MenuItemCard({
   stockOnHand,
   price,
   quantityInCart,
-  variant: _variant = "standard",
   onReduce,
   onAdd,
 }: MenuItemCardProps) {
@@ -160,7 +159,7 @@ export function MenuItemCard({
         </div>
 
         {/* Bottom: 44px+ Action Stepper / Add button */}
-        <div className="mt-1.5 sm:mt-2 -mx-0.5 sm:-mx-1 w-[calc(100%+0.25rem)] sm:w-[calc(100%+0.5rem)]">
+        <div className="mt-1.5 sm:mt-2 w-full">
           {available ? (
             inCart ? (
               <div

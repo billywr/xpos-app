@@ -44,7 +44,7 @@ export function ModalFooter({ children, className }: ModalFooterProps) {
   return (
     <div
       className={cn(
-        "mt-6 flex flex-row flex-nowrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700",
+        "mt-5 sm:mt-6 flex flex-row flex-wrap sm:flex-nowrap items-center justify-between gap-3 border-t border-slate-200 pt-3.5 sm:pt-4 dark:border-slate-700",
         className
       )}
     >
@@ -85,7 +85,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? "modal-title" : undefined}
@@ -94,13 +94,13 @@ export function Modal({
       <div
         className={cn(
           modalPanel,
-          "overflow-hidden",
+          "overflow-hidden max-h-[92vh] max-w-[95vw]",
           maxWidth,
           scrollable && cn("flex flex-col overflow-hidden", scrollMaxHeight),
           className
         )}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 sm:px-5 py-3 sm:py-4 dark:border-slate-700">
           {title ? (
             <h3
               id="modal-title"
@@ -123,10 +123,11 @@ export function Modal({
         )}
         <div
           className={cn(
-            "p-5",
-            scrollable && "flex min-h-0 flex-1 flex-col overflow-hidden"
+            "p-4 sm:p-5",
+            scrollable
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden"
+              : "overflow-y-auto max-h-[calc(92vh-5rem)]"
           )}
-
         >
           {children}
         </div>

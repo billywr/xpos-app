@@ -345,14 +345,21 @@ export function NavVisibilityProvider({ children }: { children: React.ReactNode 
   const darkTheme = headerLabels[THEME_KEY] || localStorage.getItem("xpos_dark_theme") || "ocean";
 
   useEffect(() => {
-    const t = darkTheme === "ocean" ? "" : darkTheme;
-    document.documentElement.dataset.theme = t;
+    if (document.documentElement.classList.contains("dark") && darkTheme && darkTheme !== "ocean") {
+      document.documentElement.dataset.theme = darkTheme;
+    } else {
+      delete document.documentElement.dataset.theme;
+    }
   }, [darkTheme]);
 
   const setDarkTheme = useCallback(
     (theme: string) => {
       localStorage.setItem("xpos_dark_theme", theme);
-      document.documentElement.dataset.theme = theme === "ocean" ? "" : theme;
+      if (document.documentElement.classList.contains("dark") && theme && theme !== "ocean") {
+        document.documentElement.dataset.theme = theme;
+      } else {
+        delete document.documentElement.dataset.theme;
+      }
       if (!orgId) return;
       const nextHeaderLabels = { ...headerLabels, [THEME_KEY]: theme };
       mutation.mutate({

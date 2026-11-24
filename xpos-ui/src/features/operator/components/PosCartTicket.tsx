@@ -1,4 +1,4 @@
-import { Trash2, ShoppingBag, Receipt, AlertCircle, Utensils, Bike, ShoppingCart, Plus, Minus, RotateCcw } from "lucide-react";
+import { Trash2, ShoppingBag, Receipt, AlertCircle, Utensils, Bike, ShoppingCart, Plus, Minus, RotateCcw, X } from "lucide-react";
 import { useAppDispatch } from "@/hooks/useAppDispatch";
 import {
   updateLineQty,
@@ -93,17 +93,30 @@ export function PosCartTicket({
             />
           )}
         </div>
-        {cartLines.length > 0 && (
-          <button
-            type="button"
-            onClick={() => dispatch(clearCart())}
-            className="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 active:scale-90 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-red-900/40 dark:hover:bg-red-950/40 dark:hover:text-red-400 shadow-2xs"
-            title="Reset order"
-            aria-label="Reset order"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-1.5">
+          {cartLines.length > 0 && (
+            <button
+              type="button"
+              onClick={() => dispatch(clearCart())}
+              className="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 active:scale-90 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-red-900/40 dark:hover:bg-red-950/40 dark:hover:text-red-400 shadow-2xs"
+              title="Reset order"
+              aria-label="Reset order"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </button>
+          )}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-700 active:scale-90 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-white shadow-2xs"
+              title="Close cart"
+              aria-label="Close cart"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Context Bar: Order Type Segmented Switcher & Table Select */}
@@ -260,7 +273,7 @@ export function PosCartTicket({
                             dispatch(updateLineQty({ tempId: line.tempId, qty: line.qty - 1 }));
                           }
                         }}
-                        className="flex h-9.5 w-9.5 sm:h-10 sm:w-10 touch-manipulation items-center justify-center rounded-lg bg-red-600 text-white shadow-2xs transition hover:bg-red-700 active:scale-95 dark:bg-red-600 dark:hover:bg-red-500"
+                        className="flex h-10 w-10 sm:h-11 sm:w-11 touch-manipulation items-center justify-center rounded-lg bg-red-600 text-white shadow-2xs transition hover:bg-red-700 active:scale-95 dark:bg-red-600 dark:hover:bg-red-500"
                         aria-label={`Decrease quantity of ${line.itemName}`}
                       >
                         <Minus className="h-4.5 w-4.5 sm:h-5 sm:w-5 stroke-[2.5]" />
@@ -269,8 +282,8 @@ export function PosCartTicket({
                       <span
                         className={`inline-flex shrink-0 items-center justify-center rounded-full bg-amber-500 text-slate-950 font-black tabular-nums text-sm sm:text-base leading-none pt-[1px] shadow-xs ring-1 ring-amber-400/50 dark:bg-amber-400 dark:text-slate-950 dark:ring-amber-300/40 select-none ${
                           String(line.qty).length === 1
-                            ? "h-6.5 w-6.5 sm:h-7 sm:w-7 aspect-square px-0"
-                            : "h-6.5 sm:h-7 min-w-[1.625rem] sm:min-w-[1.75rem] px-1.5"
+                            ? "h-7 w-7 sm:h-8 sm:w-8 aspect-square px-0"
+                            : "h-7 sm:h-8 min-w-[1.75rem] sm:min-w-[2rem] px-1.5"
                         }`}
                         aria-label={`${line.qty} in order`}
                       >
@@ -284,7 +297,7 @@ export function PosCartTicket({
                           canAddMore &&
                           dispatch(updateLineQty({ tempId: line.tempId, qty: line.qty + 1 }))
                         }
-                        className="flex h-9.5 w-9.5 sm:h-10 sm:w-10 touch-manipulation items-center justify-center rounded-lg bg-emerald-700 font-bold text-white shadow-2xs transition hover:bg-emerald-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                        className="flex h-10 w-10 sm:h-11 sm:w-11 touch-manipulation items-center justify-center rounded-lg bg-emerald-700 font-bold text-white shadow-2xs transition hover:bg-emerald-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                         aria-label={`Increase quantity of ${line.itemName}`}
                       >
                         <Plus className="h-4.5 w-4.5 sm:h-5 sm:w-5 stroke-[2.5]" />

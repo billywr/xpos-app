@@ -111,7 +111,7 @@ export const PosVerticalCategoryNav: React.FC<PosVerticalCategoryNavProps> = ({
     <nav
       aria-label="Product categories"
       className={cn(
-        "flex h-fit max-h-[calc(100%-6.375rem)] sm:max-h-[calc(100%-6.75rem)] min-h-0 w-48 sm:w-52 lg:w-56 xl:w-60 shrink-0 self-start mt-[6.375rem] sm:mt-[6.75rem] flex-col transition-all duration-150",
+        "flex h-full max-h-[calc(100%-6.375rem)] sm:max-h-[calc(100%-6.75rem)] mt-[6.375rem] sm:mt-[6.75rem] min-h-0 w-44 sm:w-48 lg:w-52 xl:w-56 shrink-0 flex-col transition-all duration-150",
         showCardContainer
           ? "rounded-2xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-xs dark:border-slate-700/80 dark:bg-slate-800/90"
           : "border-transparent bg-transparent p-0 shadow-none",

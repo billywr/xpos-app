@@ -115,9 +115,15 @@ export function Layout() {
     return isHeaderNavItemVisible(item.to, true, headerVisibility);
   });
 
+  const isOperatorRoute = location.pathname.startsWith("/operator");
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-app">
-      <header className="sticky top-0 z-20 shrink-0 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-darkNav/95 hidden xl:block">
+      <header
+        className={`sticky top-0 z-30 shrink-0 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-darkNav/95 ${
+          isOperatorRoute ? "hidden xl:block" : "block"
+        }`}
+      >
         <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
           <div className="flex h-14 items-center justify-between">
             <div className="flex items-center gap-2">
@@ -140,7 +146,7 @@ export function Layout() {
             </div>
 
             {/* Desktop nav */}
-            <nav className="hidden items-center gap-3 sm:flex sm:gap-4">
+            <nav className="hidden items-center gap-3 xl:flex sm:gap-4">
               {filteredNavLinks.map((item) => (
                 <NavLink
                   key={item.to}
@@ -196,8 +202,8 @@ export function Layout() {
               )}
             </nav>
 
-            {/* Mobile controls */}
-            <div className="flex items-center gap-2 sm:hidden">
+            {/* Mobile / Tablet controls (< xl) */}
+            <div className="flex items-center gap-2 xl:hidden">
               <button
                 type="button"
                 onClick={toggleTheme}
@@ -205,6 +211,15 @@ export function Layout() {
                 aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
               >
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowServerModal(true)}
+                className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
+                aria-label="Server & IAM configuration"
+                title="Server & IAM configuration"
+              >
+                <Server className="h-4 w-4" />
               </button>
               <button
                 type="button"
@@ -218,9 +233,9 @@ export function Layout() {
           </div>
         </div>
 
-        {/* Mobile dropdown menu */}
+        {/* Mobile / Tablet dropdown menu */}
         {mobileMenuOpen && (
-          <div className="border-t border-slate-200 bg-white px-3 pb-3 pt-2 sm:hidden dark:border-white/10 dark:bg-darkNav">
+          <div className="border-t border-slate-200 bg-white px-3 pb-3 pt-2 xl:hidden dark:border-white/10 dark:bg-darkNav shadow-xl">
             <nav className="flex flex-col gap-1">
               {filteredNavLinks.map((item) => (
                 <NavLink

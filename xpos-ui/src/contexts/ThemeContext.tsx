@@ -38,20 +38,27 @@ function applyTheme(theme: Theme) {
   if (theme === "dark") {
     root.classList.add("dark");
     root.style.colorScheme = "dark";
+    if (typeof document !== "undefined" && document.body) {
+      document.body.style.colorScheme = "dark";
+    }
+    // Apply dark color theme from localStorage (before API loads)
+    try {
+      const dt = localStorage.getItem("xpos_dark_theme");
+      if (dt && dt !== "ocean") {
+        root.dataset.theme = dt;
+      } else {
+        delete root.dataset.theme;
+      }
+    } catch {
+      // ignore
+    }
   } else {
     root.classList.remove("dark");
     root.style.colorScheme = "light";
-  }
-  // Apply dark color theme from localStorage (before API loads)
-  try {
-    const dt = localStorage.getItem("xpos_dark_theme");
-    if (dt && dt !== "ocean") {
-      root.dataset.theme = dt;
-    } else {
-      root.dataset.theme = "";
+    if (typeof document !== "undefined" && document.body) {
+      document.body.style.colorScheme = "light";
     }
-  } catch {
-    // ignore
+    delete root.dataset.theme;
   }
 }
 
