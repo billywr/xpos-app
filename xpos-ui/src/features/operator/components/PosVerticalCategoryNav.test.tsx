@@ -130,4 +130,35 @@ describe("PosVerticalCategoryNav Component", () => {
     expect(nav).toHaveClass("mt-[6.375rem]");
     expect(nav).toHaveClass("sm:mt-[6.75rem]");
   });
+
+  it("does not render menus or categories whose count is zero", () => {
+    const countMap: Record<string, number> = {
+      "cat-1": 10,
+      "cat-2": 0, // Beer has 0
+      "cat-3": 5,
+      "cat-4": 0, // Wine has 0
+      "cat-5": 2,
+    };
+
+    render(
+      <PosVerticalCategoryNav
+        categories={mockCategories}
+        selectedCategoryId="cat-1"
+        onSelectCategory={vi.fn()}
+        getCategoryCount={(id) => (id ? countMap[id] ?? 0 : 17)}
+        totalVisibleCount={17}
+      />
+    );
+
+    // Categories with count > 0 should be rendered
+    expect(screen.getByRole("button", { name: /all/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /spirits/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /beverages/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /vodka/i })).toBeInTheDocument();
+
+    // Categories with count === 0 must NOT be rendered
+    expect(screen.queryByRole("button", { name: /beer/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /wine/i })).not.toBeInTheDocument();
+  });
 });
+

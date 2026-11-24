@@ -164,7 +164,7 @@ describe("MenuOrderPage category menu ordering and default selection", () => {
     });
 
     // Check tabs in the category strip
-    // All (5), Spirits (3), Beer (2), Wine (0)
+    // All (5), Spirits (3), Beer (2) - Wine (0) is hidden because its count is zero
     const categoryButtons = screen.getAllByRole("button").filter((btn) => {
       const text = btn.textContent || "";
       return (
@@ -176,7 +176,8 @@ describe("MenuOrderPage category menu ordering and default selection", () => {
     });
 
     const categoryNames = categoryButtons.map((btn) => btn.querySelector("span")?.textContent);
-    expect(categoryNames).toEqual(["All", "Spirits", "Beer", "Wine"]);
+    expect(categoryNames).toEqual(["All", "Spirits", "Beer"]);
+    expect(screen.queryByText("Wine")).not.toBeInTheDocument();
 
     // Default selected should be Spirits (most counts: 3)
     const spiritsButton = categoryButtons.find((btn) =>

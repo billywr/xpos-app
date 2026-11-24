@@ -166,7 +166,9 @@ export const PosVerticalCategoryNav: React.FC<PosVerticalCategoryNavProps> = ({
                 className="h-[48px] sm:h-[52px] w-full animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700/60 dark:bg-slate-700/40"
               />
             ))
-          : categories.map((cat) => {
+          : categories
+              .filter((cat) => getCategoryCount(cat.id) > 0)
+              .map((cat) => {
               const isSelected = selectedCategoryId === cat.id;
               const IconComponent = getCategoryIconComponent(cat.name);
               const count = getCategoryCount(cat.id);

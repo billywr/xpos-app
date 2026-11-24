@@ -570,14 +570,16 @@ export function MenuOrderPage() {
   }, [visibleCatalogItems]);
 
   const sortedCategories = useMemo(() => {
-    return [...categories].sort((a, b) => {
-      const countA = categoryCounts.get(a.id) ?? 0;
-      const countB = categoryCounts.get(b.id) ?? 0;
-      if (countB !== countA) {
-        return countB - countA;
-      }
-      return a.name.localeCompare(b.name);
-    });
+    return categories
+      .filter((cat) => (categoryCounts.get(cat.id) ?? 0) > 0)
+      .sort((a, b) => {
+        const countA = categoryCounts.get(a.id) ?? 0;
+        const countB = categoryCounts.get(b.id) ?? 0;
+        if (countB !== countA) {
+          return countB - countA;
+        }
+        return a.name.localeCompare(b.name);
+      });
   }, [categories, categoryCounts]);
 
   const visibleCountForCategory = useCallback(
@@ -601,16 +603,18 @@ export function MenuOrderPage() {
     }
   }, [sortedCategories, categoryCounts]);
 
-  // Fallback if selected category is removed
+  // Fallback if selected category is removed or has zero count
   useEffect(() => {
     if (
       selectedCategoryId !== null &&
-      categories.length > 0 &&
-      !categories.some((c) => c.id === selectedCategoryId)
+      !categoriesLoading &&
+      !itemsLoading &&
+      !sortedCategories.some((c) => c.id === selectedCategoryId)
     ) {
+      userSelectedCategoryRef.current = false;
       setSelectedCategoryId(sortedCategories[0]?.id ?? null);
     }
-  }, [categories, selectedCategoryId, sortedCategories]);
+  }, [categoriesLoading, itemsLoading, selectedCategoryId, sortedCategories]);
 
   // Filter items by category, search query, and stock visibility
   const items = useMemo(() => {
@@ -934,7 +938,7 @@ export function MenuOrderPage() {
                 }}
                 getCategoryCount={(id) => visibleCountForCategory(id)}
                 totalVisibleCount={visibleCountForCategory(null)}
-                isLoading={categoriesLoading}
+                isLoading={categoriesLoading || itemsLoading}
                 showCardContainer={posVerticalCategoryCard}
               />
             )}
@@ -1116,7 +1120,7 @@ export function MenuOrderPage() {
                         className={selectedCategoryId === null ? "bg-white/20 text-white" : ""}
                       />
                     </button>
-                    {categoriesLoading
+                    {categoriesLoading || itemsLoading
                       ? null
                       : sortedCategories.map((cat) => (
                           <button
