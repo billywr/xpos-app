@@ -60,6 +60,11 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { useFormCustomization } from "@/contexts/FormCustomizationContext";
 import { useTableCustomization } from "@/contexts/TableCustomizationContext";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+  hasStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 import { BARCODE_ITEMS, isBarcodeVisible } from "@/config/barcodeVisibility";
 
 const DEFAULT_PAGE_SIZE = 15;
@@ -124,10 +129,12 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [categoryFilterOpen]);
   const tableCustom = useTableCustomization("items");
-  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("items", tableCustom.pageSize || DEFAULT_PAGE_SIZE, [10, 15, 25, 50, 100])
+  );
 
   useEffect(() => {
-    if (tableCustom.pageSize && tableCustom.pageSize > 0) {
+    if (!hasStoredTablePageSize("items") && tableCustom.pageSize && tableCustom.pageSize > 0) {
       setSize(tableCustom.pageSize);
     }
   }, [tableCustom.pageSize]);
@@ -760,7 +767,9 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
   };
 
   const handleSizeChange = (newSize: number) => {
-    setSize(Math.min(newSize, MAX_PAGE_SIZE));
+    const clamped = Math.min(newSize, MAX_PAGE_SIZE);
+    setSize(clamped);
+    setStoredTablePageSize(clamped, "items");
     setPage(0);
   };
 
@@ -1247,6 +1256,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                 totalElements={totalElements}
                 onPageChange={setPage}
                 onSizeChange={handleSizeChange}
+                storageKey="items"
                 sizeOptions={[10, 15, 25, 50, 100]}
                 onRefresh={() => void refetch()}
                 isRefreshing={isRefreshing}

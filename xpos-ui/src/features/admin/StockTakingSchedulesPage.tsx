@@ -48,8 +48,12 @@ import {
   Loader2,
 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 const STOCK_SCHEDULE_SORT = {
   branch: (row: StockTakingScheduleResponse) => row.branchId,
   schedule: (row: StockTakingScheduleResponse) =>
@@ -85,6 +89,9 @@ export function StockTakingSchedulesPage() {
   const toast = useToast();
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [page, setPage] = useState(0);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("stock-taking-schedules", DEFAULT_PAGE_SIZE, [10, 20, 50, 100])
+  );
   const [slideOpen, setSlideOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] =
     useState<StockTakingScheduleResponse | null>(null);
@@ -119,11 +126,11 @@ export function StockTakingSchedulesPage() {
   });
 
   const { data: schedulesData, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ["admin-stock-taking-schedules", token, selectedOrgId, page],
+    queryKey: ["admin-stock-taking-schedules", token, selectedOrgId, page, size],
     queryFn: () =>
       fetchStockTakingSchedules(token, selectedOrgId, {
         page,
-        size: PAGE_SIZE,
+        size,
       }),
     enabled: Boolean(token) && Boolean(selectedOrgId),
   });
@@ -476,7 +483,7 @@ export function StockTakingSchedulesPage() {
                         key={s.id}
                         className={tableBodyRow}
                       >
-                    <TableRowNumberCell page={page} pageSize={PAGE_SIZE} indexInPage={index} />
+                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
                         <td className={tableStickyFirstBody}>
                           {branchMap.get(s.branchId) ?? s.branchId}
                         </td>
@@ -537,9 +544,16 @@ export function StockTakingSchedulesPage() {
               {totalElements > 0 && (
                 <Pagination
                   page={page}
-                  size={PAGE_SIZE}
+                  size={size}
                   totalElements={totalElements}
                   onPageChange={setPage}
+                  onSizeChange={(s) => {
+                    setSize(s);
+                    setStoredTablePageSize(s, "stock-taking-schedules");
+                    setPage(0);
+                  }}
+                  storageKey="stock-taking-schedules"
+                  sizeOptions={[10, 20, 50, 100]}
                   onRefresh={() => void refetch()}
                   isRefreshing={isFetching}
                 />

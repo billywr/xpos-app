@@ -53,6 +53,11 @@ import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
 import { useFormCustomization } from "@/contexts/FormCustomizationContext";
 import { useTableCustomization } from "@/contexts/TableCustomizationContext";
 import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+  hasStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
+import {
   BARCODE_GOODS_RECEIPT,
   isBarcodeVisible,
 } from "@/config/barcodeVisibility";
@@ -367,10 +372,12 @@ export function GoodsReceiptPage({
 
   const [filterSupplierId, setFilterSupplierId] = useState<string>("");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("stock-receipt", tableCustom.pageSize || DEFAULT_PAGE_SIZE, [10, 15, 25, 50, 100])
+  );
 
   useEffect(() => {
-    if (tableCustom.pageSize && tableCustom.pageSize > 0) {
+    if (!hasStoredTablePageSize("stock-receipt") && tableCustom.pageSize && tableCustom.pageSize > 0) {
       setSize(tableCustom.pageSize);
     }
   }, [tableCustom.pageSize]);
@@ -2079,8 +2086,10 @@ export function GoodsReceiptPage({
                   onPageChange={setPage}
                   onSizeChange={(s) => {
                     setSize(s);
+                    setStoredTablePageSize(s, "stock-receipt");
                     setPage(0);
                   }}
+                  storageKey="stock-receipt"
                   sizeOptions={[10, 15, 25, 50, 100]}
                   onRefresh={() => void refetch()}
                   isRefreshing={isFetching}

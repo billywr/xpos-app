@@ -39,8 +39,12 @@ import { downloadStockCountPdf } from "@/utils/stockCountPdf";
 import { ClipboardList, Plus, Loader2, Trash2, Download } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 const STOCK_COUNT_SESSION_SORT = {
   startedAt: (row: StockCountSessionResponse) => row.startedAt,
   sourceType: (row: StockCountSessionResponse) => row.sourceType,
@@ -60,6 +64,9 @@ export function StockCountSessionsPage() {
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
   const [page, setPage] = useState(0);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("stock-count-sessions", DEFAULT_PAGE_SIZE, [10, 25, 50, 100])
+  );
   const [sessionToDelete, setSessionToDelete] =
     useState<StockCountSessionResponse | null>(null);
   const [pdfLoadingSessionId, setPdfLoadingSessionId] = useState<string | null>(
@@ -85,13 +92,14 @@ export function StockCountSessionsPage() {
       selectedOrgId,
       selectedBranchId,
       page,
+      size,
     ],
     queryFn: () =>
       fetchAdminStockCountSessions(
         token,
         selectedOrgId,
         selectedBranchId,
-        { page, size: PAGE_SIZE }
+        { page, size }
       ),
     enabled:
       Boolean(token) && Boolean(selectedOrgId) && Boolean(selectedBranchId),
@@ -382,7 +390,7 @@ export function StockCountSessionsPage() {
                         key={s.id}
                         className={tableBodyRow}
                       >
-                    <TableRowNumberCell page={page} pageSize={PAGE_SIZE} indexInPage={index} />
+                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
                         <td className={tableStickyFirstBody}>
                           {formatDateTime(s.startedAt)}
                         </td>
@@ -438,9 +446,16 @@ export function StockCountSessionsPage() {
               {totalElements > 0 && (
                 <Pagination
                   page={page}
-                  size={PAGE_SIZE}
+                  size={size}
                   totalElements={totalElements}
                   onPageChange={setPage}
+                  onSizeChange={(s) => {
+                    setSize(s);
+                    setStoredTablePageSize(s, "stock-count-sessions");
+                    setPage(0);
+                  }}
+                  storageKey="stock-count-sessions"
+                  sizeOptions={[10, 25, 50, 100]}
                   onRefresh={() => void refetch()}
                   isRefreshing={isFetching}
                 />

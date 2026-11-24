@@ -56,7 +56,12 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchableSelect } from "@/components/SearchableSelect";
-const PAGE_SIZE = 20;
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
+
+const DEFAULT_PAGE_SIZE = 20;
 
 interface BorrowedLineDraft {
   itemId: string;
@@ -135,6 +140,9 @@ export function DebtsPage() {
   const toast = useToast();
   const formCustom = useFormCustomization("customer-debt");
   const [page, setPage] = useState(0);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("debts", DEFAULT_PAGE_SIZE, [10, 20, 50, 100])
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [formCustomerName, setFormCustomerName] = useState("");
   const [formCustomerPhone, setFormCustomerPhone] = useState("");
@@ -171,11 +179,11 @@ export function DebtsPage() {
   );
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ["operator-debts", token, orgId, branchId, page, statusFilter],
+    queryKey: ["operator-debts", token, orgId, branchId, page, size, statusFilter],
     queryFn: () =>
       fetchDebts(token, orgId!, branchId!, {
         page,
-        size: PAGE_SIZE,
+        size,
         status: statusQueryForFilter(statusFilter),
       }),
     enabled: Boolean(token && orgId && branchId),
@@ -785,7 +793,7 @@ export function DebtsPage() {
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
                     {filteredDebts.map((d: CustomerDebtResponse, index) => (
                       <tr key={d.id} className={tableBodyRow}>
-                    <TableRowNumberCell page={data?.number ?? page} pageSize={PAGE_SIZE} indexInPage={index} />
+                    <TableRowNumberCell page={data?.number ?? page} pageSize={size} indexInPage={index} />
                         <td className={`${tableStickyFirstCell} px-4 py-2 text-base font-semibold text-slate-700 sm:px-6 sm:py-2.5 sm:text-2xl dark:text-slate-300`}>
                           {d.customerName}
                         </td>
@@ -879,9 +887,16 @@ export function DebtsPage() {
               {totalElements > 0 && (
                 <Pagination
                   page={data?.number ?? 0}
-                  size={PAGE_SIZE}
+                  size={size}
                   totalElements={totalElements}
                   onPageChange={setPage}
+                  onSizeChange={(s) => {
+                    setSize(s);
+                    setStoredTablePageSize(s, "debts");
+                    setPage(0);
+                  }}
+                  storageKey="debts"
+                  sizeOptions={[10, 20, 50, 100]}
                   onRefresh={() => void refetch()}
                   isRefreshing={isFetching}
                 />

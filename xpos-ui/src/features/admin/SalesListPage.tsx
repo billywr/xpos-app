@@ -5,6 +5,11 @@ import { selectToken } from "@/store/selectors/authSelectors";
 import { useAdminContextSelection } from "@/hooks/useAdminContextSelection";
 import { useTableCustomization } from "@/contexts/TableCustomizationContext";
 import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+  hasStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
+import {
   fetchAdminSales,
   type SaleSummary,
   type FetchAdminSalesParams,
@@ -70,10 +75,12 @@ export function SalesListPage({ initialOrgId, initialBranchId }: SalesListPagePr
   } = useAdminContextSelection({ initialOrgId, initialBranchId });
   const tableCustom = useTableCustomization("sales");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("sales", tableCustom.pageSize || DEFAULT_PAGE_SIZE, [10, 25, 50, 100])
+  );
 
   useEffect(() => {
-    if (tableCustom.pageSize) {
+    if (!hasStoredTablePageSize("sales") && tableCustom.pageSize && tableCustom.pageSize > 0) {
       setSize(tableCustom.pageSize);
     }
   }, [tableCustom.pageSize]);
@@ -205,7 +212,9 @@ export function SalesListPage({ initialOrgId, initialBranchId }: SalesListPagePr
   });
 
   const handleSizeChange = (newSize: number) => {
-    setSize(Math.min(newSize, MAX_PAGE_SIZE));
+    const clamped = Math.min(newSize, MAX_PAGE_SIZE);
+    setSize(clamped);
+    setStoredTablePageSize(clamped, "sales");
     setPage(0);
   };
 
@@ -523,6 +532,7 @@ export function SalesListPage({ initialOrgId, initialBranchId }: SalesListPagePr
                 totalElements={totalElements}
                 onPageChange={setPage}
                 onSizeChange={handleSizeChange}
+                storageKey="sales"
                 sizeOptions={[10, 25, 50, 100]}
                 onRefresh={() => void refetch()}
                 isRefreshing={isRefreshing}

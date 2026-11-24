@@ -8,6 +8,7 @@ import { clearStoredAuth } from "@/utils/authStorage";
 import { clearStoredContext } from "@/utils/contextStorage";
 import { clearAllStoredTableSearch } from "@/utils/tableSearchStorage";
 import { clearAllStoredDatePersistence } from "@/utils/datePersistenceStorage";
+import { clearAllStoredTablePageSize } from "@/utils/tablePaginationStorage";
 import { clearPersistedQueryCache } from "@/sync/queryPersister";
 import { Layout } from "@/components/Layout";
 import { AdminLayout } from "@/components/AdminLayout";
@@ -74,6 +75,7 @@ function App() {
       clearStoredContext();
       clearAllStoredTableSearch();
       clearAllStoredDatePersistence();
+      clearAllStoredTablePageSize();
       void clearPersistedQueryCache();
       dispatch(clearCredentials());
       dispatch(clearContext());

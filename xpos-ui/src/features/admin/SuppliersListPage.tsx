@@ -40,6 +40,11 @@ import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { useFormCustomization } from "@/contexts/FormCustomizationContext";
 import { useTableCustomization } from "@/contexts/TableCustomizationContext";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+  hasStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 import { Plus, Truck, Pencil, Trash2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -69,10 +74,12 @@ export function SuppliersListPage({
   const tableCustom = useTableCustomization("suppliers");
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("suppliers", tableCustom.pageSize || DEFAULT_PAGE_SIZE, [10, 25, 50, 100])
+  );
 
   useEffect(() => {
-    if (tableCustom.pageSize && tableCustom.pageSize > 0) {
+    if (!hasStoredTablePageSize("suppliers") && tableCustom.pageSize && tableCustom.pageSize > 0) {
       setSize(tableCustom.pageSize);
     }
   }, [tableCustom.pageSize]);
@@ -284,7 +291,9 @@ export function SuppliersListPage({
   };
 
   const handleSizeChange = (newSize: number) => {
-    setSize(Math.min(newSize, MAX_PAGE_SIZE));
+    const clamped = Math.min(newSize, MAX_PAGE_SIZE);
+    setSize(clamped);
+    setStoredTablePageSize(clamped, "suppliers");
     setPage(0);
   };
 
@@ -551,6 +560,7 @@ export function SuppliersListPage({
                 totalElements={totalElements}
                 onPageChange={setPage}
                 onSizeChange={handleSizeChange}
+                storageKey="suppliers"
                 sizeOptions={[10, 25, 50, 100]}
                 onRefresh={() => void refetch()}
                 isRefreshing={isRefreshing}

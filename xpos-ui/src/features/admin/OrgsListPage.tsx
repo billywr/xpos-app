@@ -27,6 +27,10 @@ import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 import { Plus, Pencil, Ban, Trash2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -48,7 +52,9 @@ export function OrgsListPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("orgs", DEFAULT_PAGE_SIZE, [10, 25, 50, 100])
+  );
   const [slideOpen, setSlideOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Org | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<Org | null>(null);
@@ -225,7 +231,9 @@ export function OrgsListPage() {
   };
 
   const handleSizeChange = (newSize: number) => {
-    setSize(Math.min(newSize, MAX_PAGE_SIZE));
+    const clamped = Math.min(newSize, MAX_PAGE_SIZE);
+    setSize(clamped);
+    setStoredTablePageSize(clamped, "orgs");
     setPage(0);
   };
 
@@ -361,6 +369,7 @@ export function OrgsListPage() {
             totalElements={totalElements}
             onPageChange={setPage}
             onSizeChange={handleSizeChange}
+            storageKey="orgs"
             sizeOptions={[10, 25, 50, 100]}
             onRefresh={() => void refetch()}
             isRefreshing={isRefreshing}

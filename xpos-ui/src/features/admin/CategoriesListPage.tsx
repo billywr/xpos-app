@@ -37,6 +37,11 @@ import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { useFormCustomization } from "@/contexts/FormCustomizationContext";
 import { useTableCustomization } from "@/contexts/TableCustomizationContext";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+  hasStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -63,10 +68,12 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
   const tableCustom = useTableCustomization("categories");
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("categories", tableCustom.pageSize || DEFAULT_PAGE_SIZE, [10, 25, 50, 100])
+  );
 
   useEffect(() => {
-    if (tableCustom.pageSize && tableCustom.pageSize > 0) {
+    if (!hasStoredTablePageSize("categories") && tableCustom.pageSize && tableCustom.pageSize > 0) {
       setSize(tableCustom.pageSize);
     }
   }, [tableCustom.pageSize]);
@@ -297,7 +304,9 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
   };
 
   const handleSizeChange = (newSize: number) => {
-    setSize(Math.min(newSize, MAX_PAGE_SIZE));
+    const clamped = Math.min(newSize, MAX_PAGE_SIZE);
+    setSize(clamped);
+    setStoredTablePageSize(clamped, "categories");
     setPage(0);
   };
 
@@ -534,6 +543,7 @@ export function CategoriesListPage({ initialOrgId, onOrgChange }: CategoriesList
                 totalElements={totalElements}
                 onPageChange={setPage}
                 onSizeChange={handleSizeChange}
+                storageKey="categories"
                 sizeOptions={[10, 25, 50, 100]}
                 onRefresh={() => void refetch()}
                 isRefreshing={isRefreshing}

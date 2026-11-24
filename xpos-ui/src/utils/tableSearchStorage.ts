@@ -1,4 +1,5 @@
 import { clearAllStoredTableSort } from "@/utils/tableSortStorage";
+import { clearAllStoredTablePageSize } from "@/utils/tablePaginationStorage";
 
 const STORAGE_PREFIX = "xpos-table-search:";
 
@@ -40,4 +41,5 @@ export function clearAllStoredTableSearch(): void {
     // sessionStorage unavailable
   }
   clearAllStoredTableSort();
+  clearAllStoredTablePageSize();
 }

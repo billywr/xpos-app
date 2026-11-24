@@ -38,6 +38,10 @@ import { formatDateTime } from "@/utils/formatDate";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { invalidateInventoryQueries } from "@/utils/invalidateInventoryQueries";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 import { Receipt, Printer } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 
@@ -69,7 +73,9 @@ export function ReceiptsPage() {
 
   const fallbackTo = location.pathname.startsWith("/admin") ? "/admin" : "/operator";
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("receipts", DEFAULT_PAGE_SIZE, [10, 20, 50])
+  );
   const [fromDate, setFromDate] = useState(() => getTodayLocal());
   const [toDate, setToDate] = useState(() => getTodayLocal());
   const [receiptDetails, setReceiptDetails] = useState<import("@/types/sales").ReceiptDetailResponse | null>(null);
@@ -386,8 +392,10 @@ export function ReceiptsPage() {
               onPageChange={setPage}
               onSizeChange={(s) => {
                 setSize(s);
+                setStoredTablePageSize(s, "receipts");
                 setPage(0);
               }}
+              storageKey="receipts"
               sizeOptions={[10, 20, 50]}
               onRefresh={() => void refetch()}
               isRefreshing={isFetching}

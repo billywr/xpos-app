@@ -31,6 +31,10 @@ import {
 } from "@/components/ui";
 import { formatDateTime } from "@/utils/formatDate";
 import { useDataTable } from "@/hooks/useDataTable";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
@@ -39,7 +43,8 @@ import { downloadStockCountPdf } from "@/utils/stockCountPdf";
 import { ClipboardList, Plus, Loader2, Trash2, Download } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const STOCK_COUNT_SORT = {
   startedAt: (row: StockCountSessionResponse) => row.startedAt,
   sourceType: (row: StockCountSessionResponse) => row.sourceType,
@@ -61,6 +66,9 @@ export function StockCountPage() {
     ? navVisibility.getHeaderLabel(APP_NAME_KEY, "XPOS")
     : "XPOS";
   const [page, setPage] = useState(0);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("stock-counts", DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS)
+  );
   const [sessionToDelete, setSessionToDelete] =
     useState<StockCountSessionResponse | null>(null);
   const [pdfLoadingSessionId, setPdfLoadingSessionId] = useState<string | null>(
@@ -74,11 +82,12 @@ export function StockCountPage() {
       orgId,
       branchId,
       page,
+      size,
     ],
     queryFn: () =>
       fetchOperatorStockCountSessions(token, orgId, branchId, {
         page,
-        size: PAGE_SIZE,
+        size,
       }),
     enabled: Boolean(token && orgId && branchId),
   });
@@ -285,7 +294,7 @@ export function StockCountPage() {
                         key={s.id}
                         className={tableBodyRow}
                       >
-                    <TableRowNumberCell page={page} pageSize={PAGE_SIZE} indexInPage={index} />
+                    <TableRowNumberCell page={page} pageSize={size} indexInPage={index} />
                         <td className={tableStickyFirstBody}>
                           {formatDateTime(s.startedAt)}
                         </td>
@@ -349,9 +358,16 @@ export function StockCountPage() {
               {totalElements > 0 && (
                 <Pagination
                   page={page}
-                  size={PAGE_SIZE}
+                  size={size}
                   totalElements={totalElements}
                   onPageChange={setPage}
+                  onSizeChange={(s) => {
+                    setSize(s);
+                    setStoredTablePageSize(s, "stock-counts");
+                    setPage(0);
+                  }}
+                  storageKey="stock-counts"
+                  sizeOptions={PAGE_SIZE_OPTIONS}
                   onRefresh={() => void refetch()}
                   isRefreshing={isFetching}
                 />

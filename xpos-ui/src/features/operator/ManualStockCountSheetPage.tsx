@@ -32,6 +32,10 @@ import {
   getSavedStockCountDate,
   saveStockCountDate,
 } from "@/utils/datePersistenceStorage";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 import { generateUuid } from "@/utils/uuid";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -213,7 +217,9 @@ export function ManualStockCountSheetPage() {
   const [localRows, setLocalRows] = useState<LocalRow[]>([]);
   const [hydratedForDate, setHydratedForDate] = useState<string | null>(null);
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(() =>
+    getStoredTablePageSize("manual-stock-count", 25, [10, 25, 50, 100])
+  );
   const [addModal, setAddModal] = useState<"catalog" | "custom" | null>(null);
   const [catalogItemId, setCatalogItemId] = useState("");
   const [customName, setCustomName] = useState("");
@@ -805,8 +811,10 @@ export function ManualStockCountSheetPage() {
                   onPageChange={setPage}
                   onSizeChange={(s) => {
                     setPageSize(s);
+                    setStoredTablePageSize(s, "manual-stock-count");
                     setPage(0);
                   }}
+                  storageKey="manual-stock-count"
                   sizeOptions={[10, 25, 50, 100]}
                   onRefresh={() => void refetch()}
                   isRefreshing={isFetching}

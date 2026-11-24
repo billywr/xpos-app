@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { setStoredTablePageSize } from "@/utils/tablePaginationStorage";
 import { IconButton } from "./IconButton";
 import { TableRefreshButton } from "./TableRefreshButton";
 
@@ -16,6 +17,8 @@ export interface PaginationProps {
   sizeOptions?: number[];
   /** Position hint — "top" uses border-bottom, "bottom" (default) uses border-top */
   position?: "top" | "bottom";
+  /** Storage key to persist selected page size for this table and globally */
+  storageKey?: string;
   /** Refetch table data from the server */
   onRefresh?: () => void;
   isRefreshing?: boolean;
@@ -32,6 +35,7 @@ export function Pagination({
   onSizeChange,
   sizeOptions = [10, 25, 50, 100],
   position = "bottom",
+  storageKey,
   onRefresh,
   isRefreshing = false,
 }: PaginationProps) {
@@ -60,7 +64,11 @@ export function Pagination({
               label: `${n} / pg`,
             }))}
             value={String(size)}
-            onChange={(v) => onSizeChange(Number(v))}
+            onChange={(v) => {
+              const newSize = Number(v);
+              setStoredTablePageSize(newSize, storageKey);
+              onSizeChange(newSize);
+            }}
             compact
             className="w-auto min-w-[5.5rem] text-sm font-semibold sm:min-w-[7rem] sm:text-base"
           />

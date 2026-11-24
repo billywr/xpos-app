@@ -21,6 +21,7 @@ import { clearStoredContext } from "@/utils/contextStorage";
 import { clearAllStoredTableSearch } from "@/utils/tableSearchStorage";
 import { clearAllStoredDatePersistence } from "@/utils/datePersistenceStorage";
 import { clearStoredMenuOrderCategory } from "@/utils/menuOrderCategoryStorage";
+import { clearAllStoredTablePageSize } from "@/utils/tablePaginationStorage";
 import { clearPersistedQueryCache } from "@/sync/queryPersister";
 import { useActiveOrgs } from "@/hooks/useActiveOrgs";
 
@@ -62,6 +63,7 @@ export function Layout() {
       clearAllStoredTableSearch();
       clearAllStoredDatePersistence();
       clearStoredMenuOrderCategory();
+      clearAllStoredTablePageSize();
       void clearPersistedQueryCache();
       dispatch(clearCredentials());
       dispatch(clearContext());
@@ -78,6 +80,7 @@ export function Layout() {
     clearAllStoredTableSearch();
     clearAllStoredDatePersistence();
     clearStoredMenuOrderCategory();
+    clearAllStoredTablePageSize();
     void clearPersistedQueryCache();
     dispatch(clearCredentials());
     dispatch(clearContext());
@@ -95,6 +98,7 @@ export function Layout() {
     clearAllStoredTableSearch();
     clearAllStoredDatePersistence();
     clearStoredMenuOrderCategory();
+    clearAllStoredTablePageSize();
     void clearPersistedQueryCache();
     dispatch(clearCredentials());
     dispatch(clearContext());

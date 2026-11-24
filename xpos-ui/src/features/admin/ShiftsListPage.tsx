@@ -32,6 +32,10 @@ import { formatAmount } from "@/utils/formatCurrency";
 import { formatDateTime } from "@/utils/formatDate";
 import { Wallet } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -50,7 +54,9 @@ export function ShiftsListPage() {
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("shifts", DEFAULT_PAGE_SIZE, [10, 25, 50, 100])
+  );
 
   const { data: orgsData } = useQuery({
     queryKey: ["admin-orgs", token],
@@ -117,7 +123,9 @@ export function ShiftsListPage() {
     (showVarianceCol ? 1 : 0);
 
   const handleSizeChange = (newSize: number) => {
-    setSize(Math.min(newSize, MAX_PAGE_SIZE));
+    const clamped = Math.min(newSize, MAX_PAGE_SIZE);
+    setSize(clamped);
+    setStoredTablePageSize(clamped, "shifts");
     setPage(0);
   };
 
@@ -365,6 +373,7 @@ export function ShiftsListPage() {
                 totalElements={totalElements}
                 onPageChange={setPage}
                 onSizeChange={handleSizeChange}
+                storageKey="shifts"
                 sizeOptions={[10, 25, 50, 100]}
                 onRefresh={() => void refetch()}
                 isRefreshing={isRefreshing}

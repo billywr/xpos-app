@@ -84,6 +84,10 @@ import {
 import { useToast } from "@/contexts/ToastContext";
 import { useFormCustomization } from "@/contexts/FormCustomizationContext";
 import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
+import {
   HandCoins,
   Plus,
   Minus,
@@ -142,7 +146,7 @@ function earliestDebtDateStr(debts: CustomerDebtResponse[]): string | null {
 // Debts helpers
 // ---------------------------------------------------------------------------
 
-const DEBTS_PAGE_SIZE = 20;
+const DEFAULT_DEBTS_PAGE_SIZE = 20;
 
 interface BorrowedLineDraft {
   itemId: string;
@@ -290,7 +294,7 @@ function DebtPendingTotalDisplay(props: {
 // Expenses helpers
 // ---------------------------------------------------------------------------
 
-const EXPENSES_PAGE_SIZE = 20;
+const DEFAULT_EXPENSES_PAGE_SIZE = 20;
 
 function MiscExpensesTotalBadge(props: {
   totalAmount: number;
@@ -471,6 +475,9 @@ export function DebtsAndExpensesPage({
   // Debts state
   // -----------------------------------------------------------------------
   const [debtsPage, setDebtsPage] = useState(0);
+  const [debtsPageSize, setDebtsPageSize] = useState(() =>
+    getStoredTablePageSize("debts-panel", DEFAULT_DEBTS_PAGE_SIZE, [10, 20, 50, 100])
+  );
   const [debtFormOpen, setDebtFormOpen] = useState(false);
   const [debtFormCustomerName, setDebtFormCustomerName] = useState("");
   const [debtFormCustomerPhone, setDebtFormCustomerPhone] = useState("");
@@ -524,6 +531,9 @@ export function DebtsAndExpensesPage({
   // Expenses state
   // -----------------------------------------------------------------------
   const [expensesPage, setExpensesPage] = useState(0);
+  const [expensesPageSize, setExpensesPageSize] = useState(() =>
+    getStoredTablePageSize("expenses-panel", DEFAULT_EXPENSES_PAGE_SIZE, [10, 20, 50, 100])
+  );
   const [expFormOpen, setExpFormOpen] = useState(false);
   const [expFormAmount, setExpFormAmount] = useState("");
   const [expFormCategory, setExpFormCategory] = useState("Bills");
@@ -576,11 +586,11 @@ export function DebtsAndExpensesPage({
   // Debts queries
   // -----------------------------------------------------------------------
   const { data: debtsData, isLoading: debtsLoading, isError: debtsIsError, error: debtsError, refetch: refetchDebts, isFetching: isDebtsFetching } = useQuery({
-    queryKey: ["operator-debts", token, orgId, branchId, debtsPage, statusFilter, fromDate, toDate, onRecordedDate],
+    queryKey: ["operator-debts", token, orgId, branchId, debtsPage, debtsPageSize, statusFilter, fromDate, toDate, onRecordedDate],
     queryFn: () =>
       fetchDebts(token, orgId!, branchId!, {
         page: debtsPage,
-        size: DEBTS_PAGE_SIZE,
+        size: debtsPageSize,
         status: statusQueryForFilter(statusFilter),
         fromDate: effectiveFromDate,
         toDate: effectiveToDate,
@@ -736,11 +746,11 @@ export function DebtsAndExpensesPage({
   // Expenses queries
   // -----------------------------------------------------------------------
   const { data: expensesData, isLoading: expensesLoading, isError: expensesIsError, error: expensesError, refetch: refetchExpenses, isFetching: isExpensesFetching } = useQuery({
-    queryKey: ["operator-misc-expenses", token, orgId, branchId, expensesPage, fromDate, toDate, onRecordedDate],
+    queryKey: ["operator-misc-expenses", token, orgId, branchId, expensesPage, expensesPageSize, fromDate, toDate, onRecordedDate],
     queryFn: () =>
       fetchMiscExpenses(token, orgId!, branchId!, {
         page: expensesPage,
-        size: EXPENSES_PAGE_SIZE,
+        size: expensesPageSize,
         fromDate: effectiveFromDate,
         toDate: effectiveToDate,
       }),
@@ -1123,9 +1133,9 @@ export function DebtsAndExpensesPage({
   );
   const visibleDebts = useMemo(() => {
     if (debtSearchActive) return sortedDebts;
-    const start = debtsPage * DEBTS_PAGE_SIZE;
-    return sortedDebts.slice(start, start + DEBTS_PAGE_SIZE);
-  }, [debtSearchActive, sortedDebts, debtsPage]);
+    const start = debtsPage * debtsPageSize;
+    return sortedDebts.slice(start, start + debtsPageSize);
+  }, [debtSearchActive, sortedDebts, debtsPage, debtsPageSize]);
 
   const showDebtPhoneCol = useMemo(
     () =>
@@ -1594,9 +1604,9 @@ export function DebtsAndExpensesPage({
   );
   const visibleExpenses = useMemo(() => {
     if (expSearchActive) return sortedExpenses;
-    const start = expensesPage * EXPENSES_PAGE_SIZE;
-    return sortedExpenses.slice(start, start + EXPENSES_PAGE_SIZE);
-  }, [expSearchActive, sortedExpenses, expensesPage]);
+    const start = expensesPage * expensesPageSize;
+    return sortedExpenses.slice(start, start + expensesPageSize);
+  }, [expSearchActive, sortedExpenses, expensesPage, expensesPageSize]);
 
   const showExpIncurredByCol = useMemo(
     () =>
@@ -2299,7 +2309,7 @@ export function DebtsAndExpensesPage({
                           ) : (
                             visibleDebts.map((d: CustomerDebtResponse, index) => (
                               <tr key={d.id} className={tableBodyRow}>
-                                <TableRowNumberCell className={`${tableRowNoCell} hidden xl:table-cell`} page={debtsPage} pageSize={DEBTS_PAGE_SIZE} indexInPage={index} />
+                                <TableRowNumberCell className={`${tableRowNoCell} hidden xl:table-cell`} page={debtsPage} pageSize={debtsPageSize} indexInPage={index} />
                                 <td
                                   className={`${tableStickyFirstCell} px-2 py-1.5 text-xs font-bold text-slate-900 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-white ${
                                     inlineNameDebtId !== d.id
@@ -2552,9 +2562,16 @@ export function DebtsAndExpensesPage({
                     {debtTotalElements > 0 && !debtSearchActive && debtGroupBy === "none" && (
                       <Pagination
                         page={debtsPage}
-                        size={DEBTS_PAGE_SIZE}
+                        size={debtsPageSize}
                         totalElements={debtTotalElements}
                         onPageChange={setDebtsPage}
+                        onSizeChange={(s) => {
+                          setDebtsPageSize(s);
+                          setStoredTablePageSize(s, "debts-panel");
+                          setDebtsPage(0);
+                        }}
+                        storageKey="debts-panel"
+                        sizeOptions={[10, 20, 50, 100]}
                         onRefresh={() => void refetchDebts()}
                         isRefreshing={isDebtsFetching}
                       />
@@ -2797,7 +2814,7 @@ export function DebtsAndExpensesPage({
                           ) : (
                             visibleExpenses.map((e: MiscExpenseResponse, index) => (
                               <tr key={e.id} className={tableBodyRow}>
-                                <TableRowNumberCell className={`${tableRowNoCell} hidden xl:table-cell`} page={expensesPage} pageSize={EXPENSES_PAGE_SIZE} indexInPage={index} />
+                                <TableRowNumberCell className={`${tableRowNoCell} hidden xl:table-cell`} page={expensesPage} pageSize={expensesPageSize} indexInPage={index} />
                                 {showExpIncurredByCol && (
                                   <td className={`${tableStickyFirstCell} px-2 py-1.5 text-xs font-semibold text-slate-700 sm:text-sm xl:px-6 xl:py-2.5 xl:text-xl dark:text-slate-300`}>{e.incurredBy ?? "—"}</td>
                                 )}
@@ -2829,9 +2846,16 @@ export function DebtsAndExpensesPage({
                     {expTotalElements > 0 && !expSearchActive && expGroupBy === "none" && (
                       <Pagination
                         page={expensesPage}
-                        size={EXPENSES_PAGE_SIZE}
+                        size={expensesPageSize}
                         totalElements={expTotalElements}
                         onPageChange={setExpensesPage}
+                        onSizeChange={(s) => {
+                          setExpensesPageSize(s);
+                          setStoredTablePageSize(s, "expenses-panel");
+                          setExpensesPage(0);
+                        }}
+                        storageKey="expenses-panel"
+                        sizeOptions={[10, 20, 50, 100]}
                         onRefresh={() => void refetchExpenses()}
                         isRefreshing={isExpensesFetching}
                       />

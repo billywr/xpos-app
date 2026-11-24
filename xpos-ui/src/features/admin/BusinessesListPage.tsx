@@ -36,6 +36,10 @@ import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -57,7 +61,9 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
   const toast = useToast();
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("businesses", DEFAULT_PAGE_SIZE, [10, 25, 50, 100])
+  );
   const [slideOpen, setSlideOpen] = useState(false);
   const [editingBusiness, setEditingBusiness] = useState<Business | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Business | null>(null);
@@ -268,7 +274,9 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
   };
 
   const handleSizeChange = (newSize: number) => {
-    setSize(Math.min(newSize, MAX_PAGE_SIZE));
+    const clamped = Math.min(newSize, MAX_PAGE_SIZE);
+    setSize(clamped);
+    setStoredTablePageSize(clamped, "businesses");
     setPage(0);
   };
 
@@ -439,6 +447,7 @@ export function BusinessesListPage({ initialOrgId }: BusinessesListPageProps = {
                 totalElements={totalElements}
                 onPageChange={setPage}
                 onSizeChange={handleSizeChange}
+                storageKey="businesses"
                 sizeOptions={[10, 25, 50, 100]}
                 onRefresh={() => void refetch()}
                 isRefreshing={isRefreshing}

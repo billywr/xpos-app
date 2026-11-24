@@ -49,6 +49,11 @@ import {
 } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { useTableCustomization } from "@/contexts/TableCustomizationContext";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+  hasStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 import { Plus, Pencil, Power, PowerOff, Trash2, Loader2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -71,10 +76,12 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
   const tableCustom = useTableCustomization("staff");
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("staff", tableCustom.pageSize || DEFAULT_PAGE_SIZE, [10, 25, 50, 100])
+  );
 
   useEffect(() => {
-    if (tableCustom.pageSize) {
+    if (!hasStoredTablePageSize("staff") && tableCustom.pageSize && tableCustom.pageSize > 0) {
       setSize(tableCustom.pageSize);
     }
   }, [tableCustom.pageSize]);
@@ -416,7 +423,9 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
   };
 
   const handleSizeChange = (newSize: number) => {
-    setSize(Math.min(newSize, MAX_PAGE_SIZE));
+    const clamped = Math.min(newSize, MAX_PAGE_SIZE);
+    setSize(clamped);
+    setStoredTablePageSize(clamped, "staff");
     setPage(0);
   };
 
@@ -676,6 +685,7 @@ export function StaffListPage({ initialOrgId }: StaffListPageProps = {}) {
                 totalElements={totalElements}
                 onPageChange={setPage}
                 onSizeChange={handleSizeChange}
+                storageKey="staff"
                 sizeOptions={[10, 25, 50, 100]}
                 onRefresh={() => void refetch()}
                 isRefreshing={isRefreshing}

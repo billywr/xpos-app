@@ -38,6 +38,10 @@ import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 import { Plus, Power, PowerOff, Trash2 } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 
@@ -59,7 +63,9 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
   const toast = useToast();
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("devices", DEFAULT_PAGE_SIZE, [10, 25, 50, 100])
+  );
   const [slideOpen, setSlideOpen] = useState(false);
   const [confirmActivate, setConfirmActivate] = useState<DeviceRegistration | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<DeviceRegistration | null>(null);
@@ -285,7 +291,9 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
   };
 
   const handleSizeChange = (newSize: number) => {
-    setSize(Math.min(newSize, MAX_PAGE_SIZE));
+    const clamped = Math.min(newSize, MAX_PAGE_SIZE);
+    setSize(clamped);
+    setStoredTablePageSize(clamped, "devices");
     setPage(0);
   };
 
@@ -461,6 +469,7 @@ export function DevicesListPage({ initialOrgId }: DevicesListPageProps = {}) {
                 totalElements={totalElements}
                 onPageChange={setPage}
                 onSizeChange={handleSizeChange}
+                storageKey="devices"
                 sizeOptions={[10, 25, 50, 100]}
                 onRefresh={() => void refetch()}
                 isRefreshing={isRefreshing}

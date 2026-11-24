@@ -59,6 +59,10 @@ import { rowMatchesSearch } from "@/utils/tableSearchMatch";
 import { sortTableRows } from "@/utils/tableSort";
 import { useToast } from "@/contexts/ToastContext";
 import { useTableSort } from "@/hooks/useTableSort";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 import { cn } from "@/utils/cn";
 import type { Item } from "@/types/catalog";
 
@@ -136,7 +140,9 @@ export function SalesRecordingPage() {
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
   const [page, setPage] = useState<number>(0);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<number>(() =>
+    getStoredTablePageSize("sales-recording", DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS)
+  );
   const { sortColumn, sortDirection, toggleSort } = useTableSort();
   const saveTimerRef = useRef<number | null>(null);
   const hydratedKeyRef = useRef<string | null>(null);
@@ -768,7 +774,12 @@ export function SalesRecordingPage() {
             size={pageSize}
             totalElements={sortedRows.length}
             onPageChange={setPage}
-            onSizeChange={setPageSize}
+            onSizeChange={(s) => {
+              setPageSize(s);
+              setStoredTablePageSize(s, "sales-recording");
+              setPage(0);
+            }}
+            storageKey="sales-recording"
             sizeOptions={PAGE_SIZE_OPTIONS}
             onRefresh={() => {
               void itemsQuery.refetch();

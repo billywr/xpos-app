@@ -53,6 +53,11 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTableCustomization } from "@/contexts/TableCustomizationContext";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+  hasStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 
 const DEFAULT_PAGE_SIZE = 20;
 const LOW_STOCK_THRESHOLD = 5;
@@ -78,11 +83,13 @@ export function InventoryPage({
   const [selectedOrgId, setSelectedOrgId] = useState<string>(initialOrgId ?? "");
   const [selectedBranchId, setSelectedBranchId] = useState<string>(initialBranchId ?? "");
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(tableCustom.pageSize || DEFAULT_PAGE_SIZE);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("inventory", tableCustom.pageSize || DEFAULT_PAGE_SIZE, [10, 20, 50])
+  );
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
 
   useEffect(() => {
-    if (tableCustom.pageSize && tableCustom.pageSize > 0) {
+    if (!hasStoredTablePageSize("inventory") && tableCustom.pageSize && tableCustom.pageSize > 0) {
       setSize(tableCustom.pageSize);
     }
   }, [tableCustom.pageSize]);
@@ -535,8 +542,10 @@ export function InventoryPage({
                   onPageChange={setPage}
                   onSizeChange={(s) => {
                     setSize(s);
+                    setStoredTablePageSize(s, "inventory");
                     setPage(0);
                   }}
+                  storageKey="inventory"
                   sizeOptions={[10, 20, 50]}
                   onRefresh={() => void refetch()}
                   isRefreshing={isRefreshing}

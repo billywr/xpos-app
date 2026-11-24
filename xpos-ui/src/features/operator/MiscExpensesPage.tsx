@@ -43,6 +43,10 @@ import {
 } from "@/components/ui";
 import { useServerPaginatedTableSearch } from "@/hooks/useServerPaginatedTableSearch";
 import { formatCurrency, formatAmount } from "@/utils/formatCurrency";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 import { formatDate } from "@/utils/formatDate";
 import { getApiErrorMessage, getApiErrorRequestId } from "@/utils/apiError";
 import { downloadExpensesPdf } from "@/utils/expensesPdf";
@@ -66,7 +70,8 @@ function MiscExpensesTotalBadge(props: { totalAmount: number }) {
   );
 }
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 const MISC_EXPENSE_SORT = {
   incurredBy: (row: MiscExpenseResponse) => row.incurredBy ?? "",
@@ -86,6 +91,9 @@ export function MiscExpensesPage() {
   const toast = useToast();
   const formCustom = useFormCustomization("expense");
   const [page, setPage] = useState(0);
+  const [size, setSize] = useState(() =>
+    getStoredTablePageSize("misc-expenses", DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS)
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [formAmount, setFormAmount] = useState("");
   const [formCategory, setFormCategory] = useState("Bills");
@@ -119,9 +127,9 @@ export function MiscExpensesPage() {
 
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ["operator-misc-expenses", token, orgId, branchId, page],
+    queryKey: ["operator-misc-expenses", token, orgId, branchId, page, size],
     queryFn: () =>
-      fetchMiscExpenses(token, orgId!, branchId!, { page, size: PAGE_SIZE }),
+      fetchMiscExpenses(token, orgId!, branchId!, { page, size }),
     enabled: Boolean(token && orgId && branchId),
   });
 
@@ -161,7 +169,7 @@ export function MiscExpensesPage() {
     pageRows: expenses,
     serverTotalElements: totalElements,
     page,
-    size: PAGE_SIZE,
+    size,
     setPage,
     searchAllQueryKey: ["operator-misc-expenses", token, orgId, branchId],
     searchAllQueryFn: (size) =>
@@ -659,7 +667,7 @@ export function MiscExpensesPage() {
                         key={e.id}
                         className={tableBodyRow}
                       >
-                    <TableRowNumberCell page={data?.number ?? page} pageSize={PAGE_SIZE} indexInPage={index} />
+                    <TableRowNumberCell page={data?.number ?? page} pageSize={size} indexInPage={index} />
                         {showIncurredByCol && (
                           <td className={tableStickyFirstBody}>
                             {e.incurredBy ?? "—"}
@@ -712,9 +720,16 @@ export function MiscExpensesPage() {
               {totalElements > 0 && (
                 <Pagination
                   page={data?.number ?? 0}
-                  size={PAGE_SIZE}
+                  size={size}
                   totalElements={totalElements}
                   onPageChange={setPage}
+                  onSizeChange={(s) => {
+                    setSize(s);
+                    setStoredTablePageSize(s, "misc-expenses");
+                    setPage(0);
+                  }}
+                  storageKey="misc-expenses"
+                  sizeOptions={PAGE_SIZE_OPTIONS}
                   onRefresh={() => void refetch()}
                   isRefreshing={isFetching}
                 />

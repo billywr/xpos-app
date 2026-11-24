@@ -36,6 +36,7 @@ import { clearStoredContext } from "@/utils/contextStorage";
 import { clearAllStoredTableSearch } from "@/utils/tableSearchStorage";
 import { clearAllStoredDatePersistence } from "@/utils/datePersistenceStorage";
 import { clearStoredMenuOrderCategory } from "@/utils/menuOrderCategoryStorage";
+import { clearAllStoredTablePageSize } from "@/utils/tablePaginationStorage";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { useSidebarCollapsed } from "@/hooks/useSidebarCollapsed";
 import { useCartPersistence } from "@/hooks/useCartPersistence";
@@ -160,6 +161,7 @@ export function OperatorLayout() {
     clearAllStoredTableSearch();
     clearAllStoredDatePersistence();
     clearStoredMenuOrderCategory();
+    clearAllStoredTablePageSize();
     dispatch(clearCredentials());
     dispatch(clearContext());
     navigate("/login", { replace: true });

@@ -18,6 +18,10 @@ import { formatAmount } from "@/utils/formatCurrency";
 import { formatDate } from "@/utils/formatDate";
 import { formatMonthYear, getUtilityStatus } from "@/features/operator/UtilitiesTabPanel";
 import { cn } from "@/utils/cn";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 
 export interface CostBreakdownSlideOverProps {
   open: boolean;
@@ -48,7 +52,9 @@ export function CostBreakdownSlideOver({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [expensePage, setExpensePage] = useState(0);
-  const [expensePageSize, setExpensePageSize] = useState(20);
+  const [expensePageSize, setExpensePageSize] = useState(() =>
+    getStoredTablePageSize("cost-breakdown", 20, [10, 20, 50, 100])
+  );
 
   const totalOpexAndUtilities = expenseTotal + utilitiesTotal;
 
@@ -551,8 +557,10 @@ export function CostBreakdownSlideOver({
                     onPageChange={setExpensePage}
                     onSizeChange={(newSize) => {
                       setExpensePageSize(newSize);
+                      setStoredTablePageSize(newSize, "cost-breakdown");
                       setExpensePage(0);
                     }}
+                    storageKey="cost-breakdown"
                     sizeOptions={[10, 20, 50, 100]}
                   />
                 </div>

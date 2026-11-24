@@ -92,6 +92,11 @@ import { useDataTable } from "@/hooks/useDataTable";
 import { usePersistedSearch } from "@/hooks/usePersistedSearch";
 import { useQueryDisplay } from "@/hooks/useQueryDisplay";
 import { useTableCustomization } from "@/contexts/TableCustomizationContext";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+  hasStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 
 /** YYYY-MM-DD in the browser's local calendar (not UTC). toISOString().slice(0,10) is wrong for TZ ahead of UTC. */
 function toDateStr(d: Date): string {
@@ -431,10 +436,12 @@ export function StandardStockCountSheetPage({
   const lastKeystrokeAtRef = useRef<number>(0);
   const tableCustom = useTableCustomization("std-stock-count");
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(tableCustom.pageSize || 15);
+  const [pageSize, setPageSize] = useState(() =>
+    getStoredTablePageSize("std-stock-count", tableCustom.pageSize || 15, [10, 15, 25, 50, 100, 200])
+  );
 
   useEffect(() => {
-    if (tableCustom.pageSize && tableCustom.pageSize > 0) {
+    if (!hasStoredTablePageSize("std-stock-count") && tableCustom.pageSize && tableCustom.pageSize > 0) {
       setPageSize(tableCustom.pageSize);
     }
   }, [tableCustom.pageSize]);
@@ -2108,8 +2115,10 @@ export function StandardStockCountSheetPage({
                   onPageChange={setPage}
                   onSizeChange={(s) => {
                     setPageSize(s);
+                    setStoredTablePageSize(s, "std-stock-count");
                     setPage(0);
                   }}
+                  storageKey="std-stock-count"
                   sizeOptions={[10, 15, 25, 50, 100, 200]}
                   onRefresh={() => void refetch()}
                   isRefreshing={isRefreshing}

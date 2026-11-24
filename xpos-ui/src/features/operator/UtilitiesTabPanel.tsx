@@ -29,6 +29,10 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { formatAmount, formatAmountWithCommas } from "@/utils/formatCurrency";
 import { formatDate } from "@/utils/formatDate";
 import { generateUtilitiesPdf } from "@/utils/utilitiesPdf";
+import {
+  getStoredTablePageSize,
+  setStoredTablePageSize,
+} from "@/utils/tablePaginationStorage";
 import { getApiErrorMessage } from "@/utils/apiError";
 import { useToast } from "@/contexts/ToastContext";
 import { cn } from "@/utils/cn";
@@ -118,7 +122,11 @@ export function UtilitiesTabPanel({
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
   const [page, setPage] = useState(0);
-  const pageSize = 50;
+  const DEFAULT_PAGE_SIZE = 50;
+  const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+  const [pageSize, setPageSize] = useState(() =>
+    getStoredTablePageSize("utilities", DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS)
+  );
 
   // Modals state
   const [editingUtility, setEditingUtility] = useState<RecurringUtility | null>(null);
@@ -169,7 +177,7 @@ export function UtilitiesTabPanel({
     isError,
     error,
   } = useQuery({
-    queryKey: ["recurring-utilities", orgId, branchId, activeParam, search, page],
+    queryKey: ["recurring-utilities", orgId, branchId, activeParam, search, page, pageSize],
     queryFn: () =>
       fetchRecurringUtilities(token, orgId, branchId, {
         active: activeParam,
@@ -640,12 +648,19 @@ export function UtilitiesTabPanel({
               />
             </div>
 
-            {utilitiesData && utilitiesData.totalPages > 1 && (
+            {utilitiesData && utilitiesData.totalElements > 0 && (
               <Pagination
                 page={page}
                 size={pageSize}
                 totalElements={utilitiesData.totalElements}
                 onPageChange={setPage}
+                onSizeChange={(s) => {
+                  setPageSize(s);
+                  setStoredTablePageSize(s, "utilities");
+                  setPage(0);
+                }}
+                storageKey="utilities"
+                sizeOptions={PAGE_SIZE_OPTIONS}
               />
             )}
           </div>
