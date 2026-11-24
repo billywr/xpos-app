@@ -1321,45 +1321,104 @@ button:not([class*="text-"]),
   container-type: inline-size;
 }
 
+/* Standard POS Product Grid */
 .pos-product-grid {
   display: grid;
-  gap: 1rem; /* 16px horizontal and vertical gaps */
+  gap: 0.75rem;
   grid-template-columns: repeat(2, minmax(0, 1fr)); /* Small screens: 2 columns */
 }
 
-@container (min-width: 540px) {
+@container (min-width: 580px) {
   .pos-product-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr)); /* Medium: 3 columns */
+    grid-template-columns: repeat(3, minmax(0, 1fr)); /* Medium screens: 3 columns */
+    gap: 0.875rem;
   }
 }
 
-@container (min-width: 880px) {
+@container (min-width: 900px) {
   .pos-product-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)); /* Standard desktop (~1680x720): 4 columns */
+    grid-template-columns: repeat(4, minmax(0, 1fr)); /* Desktop: 4 columns */
+    gap: 1rem;
   }
 }
 
 @container (min-width: 1360px) {
   .pos-product-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr)); /* Large desktop: 5 columns max */
+    gap: 1rem;
+  }
+}
+
+/* Vertical Category POS Product Grid */
+.pos-vertical-product-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* Small & medium-narrow screens: 2 columns */
+}
+
+@container (min-width: 580px) {
+  .pos-vertical-product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)); /* Medium screens: 3 columns */
+    gap: 0.875rem;
+  }
+}
+
+@container (min-width: 900px) {
+  .pos-vertical-product-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)); /* Wide screens: 4 columns */
+    gap: 1rem;
   }
 }
 
 @supports not (container-type: inline-size) {
   @media (min-width: 640px) {
     .pos-product-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .pos-vertical-product-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 768px) {
+    .pos-product-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .pos-vertical-product-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
   @media (min-width: 1024px) {
     .pos-product-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .pos-vertical-product-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 1240px) {
+    .pos-product-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .pos-vertical-product-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 1440px) {
+    .pos-product-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .pos-vertical-product-grid {
       grid-template-columns: repeat(4, minmax(0, 1fr));
     }
   }
-  @media (min-width: 1536px) {
+  @media (min-width: 1680px) {
     .pos-product-grid {
       grid-template-columns: repeat(5, minmax(0, 1fr));
     }
+    .pos-vertical-product-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
   }
 }
+
 

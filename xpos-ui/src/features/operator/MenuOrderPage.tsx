@@ -58,9 +58,16 @@ import {
   isMenuOrderOptionVisible,
 } from "@/config/menuOrderVisibility";
 import { BARCODE_MENU_ORDER, isBarcodeVisible } from "@/config/barcodeVisibility";
-import { isPosExpandedByDefault } from "@/config/posAppearanceSettings";
+import {
+  isPosExpandedByDefault,
+  getPosLayout,
+  isPosVerticalCategoryCardVisible,
+  isPosSelectedCategoryLabelVisible,
+  type PosLayoutOption,
+} from "@/config/posAppearanceSettings";
 import { PosCartTicket } from "./components/PosCartTicket";
 import { PosPaymentModal } from "./components/PosPaymentModal";
+import { PosVerticalCategoryNav } from "./components/PosVerticalCategoryNav";
 import type { Item } from "@/types/catalog";
 import type { CartModifier } from "@/store/slices/cartSlice";
 import type { ReceiptDetailResponse, Sale } from "@/types/sales";
@@ -122,7 +129,29 @@ export function MenuOrderPage() {
   const [posExpanded, setPosExpanded] = useState<boolean>(() =>
     isPosExpandedByDefault(adminLabels)
   );
+  const [posLayout, setPosLayoutState] = useState<PosLayoutOption>(() =>
+    getPosLayout(adminLabels)
+  );
+  const [posVerticalCategoryCard, setPosVerticalCategoryCard] = useState<boolean>(() =>
+    isPosVerticalCategoryCardVisible(adminLabels)
+  );
+  const [posSelectedCategoryLabel, setPosSelectedCategoryLabel] = useState<boolean>(() =>
+    isPosSelectedCategoryLabelVisible(adminLabels)
+  );
   const userHasToggledRef = useRef(false);
+  const userSelectedCategoryRef = useRef(false);
+
+  // Reset user manual category selection tracker when org or branch changes
+  useEffect(() => {
+    userSelectedCategoryRef.current = false;
+  }, [orgId, branchId]);
+
+  // Sync layout and vertical category card visibility with adminLabels when they change
+  useEffect(() => {
+    setPosLayoutState(getPosLayout(adminLabels));
+    setPosVerticalCategoryCard(isPosVerticalCategoryCardVisible(adminLabels));
+    setPosSelectedCategoryLabel(isPosSelectedCategoryLabelVisible(adminLabels));
+  }, [adminLabels]);
 
   // Clear legacy persisted key so it does not hijack the default behavior
   useEffect(() => {
@@ -149,9 +178,33 @@ export function MenuOrderPage() {
         setPosExpanded(customEvent.detail.expanded);
       }
     };
+    const handleLayoutChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ layout: PosLayoutOption }>;
+      if (customEvent.detail && customEvent.detail.layout) {
+        setPosLayoutState(customEvent.detail.layout);
+      }
+    };
+    const handleCategoryCardChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ visible: boolean }>;
+      if (customEvent.detail && typeof customEvent.detail.visible === "boolean") {
+        setPosVerticalCategoryCard(customEvent.detail.visible);
+      }
+    };
+    const handleCategoryLabelChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ visible: boolean }>;
+      if (customEvent.detail && typeof customEvent.detail.visible === "boolean") {
+        setPosSelectedCategoryLabel(customEvent.detail.visible);
+      }
+    };
     window.addEventListener("pos-expanded-default-changed", handleConfigChange);
+    window.addEventListener("pos-layout-changed", handleLayoutChange);
+    window.addEventListener("pos-vertical-category-card-changed", handleCategoryCardChange);
+    window.addEventListener("pos-selected-category-label-changed", handleCategoryLabelChange);
     return () => {
       window.removeEventListener("pos-expanded-default-changed", handleConfigChange);
+      window.removeEventListener("pos-layout-changed", handleLayoutChange);
+      window.removeEventListener("pos-vertical-category-card-changed", handleCategoryCardChange);
+      window.removeEventListener("pos-selected-category-label-changed", handleCategoryLabelChange);
     };
   }, []);
 
@@ -502,23 +555,81 @@ export function MenuOrderPage() {
 
   const categories = categoriesData?.content ?? [];
 
+  const visibleCatalogItems = useMemo(() => {
+    return filterOutOfStockItems(catalogItemsForPos, stockMap, hideOutOfStock);
+  }, [catalogItemsForPos, stockMap, hideOutOfStock]);
+
+  const categoryCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of visibleCatalogItems) {
+      if (item.categoryId) {
+        map.set(item.categoryId, (map.get(item.categoryId) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [visibleCatalogItems]);
+
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => {
+      const countA = categoryCounts.get(a.id) ?? 0;
+      const countB = categoryCounts.get(b.id) ?? 0;
+      if (countB !== countA) {
+        return countB - countA;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [categories, categoryCounts]);
+
+  const visibleCountForCategory = useCallback(
+    (categoryId: string | null) => {
+      if (categoryId === null) {
+        return visibleCatalogItems.length;
+      }
+      return categoryCounts.get(categoryId) ?? 0;
+    },
+    [visibleCatalogItems.length, categoryCounts]
+  );
+
+  // Default to the category with the most counts (after All) if user hasn't explicitly selected one
+  useEffect(() => {
+    if (!userSelectedCategoryRef.current && sortedCategories.length > 0) {
+      const topCat = sortedCategories[0];
+      const topCatCount = categoryCounts.get(topCat.id) ?? 0;
+      if (topCatCount > 0) {
+        setSelectedCategoryId(topCat.id);
+      }
+    }
+  }, [sortedCategories, categoryCounts]);
+
+  // Fallback if selected category is removed
+  useEffect(() => {
+    if (
+      selectedCategoryId !== null &&
+      categories.length > 0 &&
+      !categories.some((c) => c.id === selectedCategoryId)
+    ) {
+      setSelectedCategoryId(sortedCategories[0]?.id ?? null);
+    }
+  }, [categories, selectedCategoryId, sortedCategories]);
+
   // Filter items by category, search query, and stock visibility
   const items = useMemo(() => {
-    let list = catalogItemsForPos;
-    if (selectedCategoryId !== null) {
-      list = list.filter((i: Item) => i.categoryId === selectedCategoryId);
-    }
+    let list = visibleCatalogItems;
     const q = searchQuery.trim().toLowerCase();
     if (q) {
+      // Global search across all categories (everything under "All")
       list = list.filter(
         (i: Item) =>
           i.name.toLowerCase().includes(q) ||
           (i.sku && i.sku.toLowerCase().includes(q)) ||
           (i.barcode && i.barcode.toLowerCase().includes(q))
       );
+    } else if (selectedCategoryId !== null) {
+      // Category filter only applies when not searching
+      list = list.filter((i: Item) => i.categoryId === selectedCategoryId);
     }
-    return filterOutOfStockItems(list, stockMap, hideOutOfStock);
-  }, [catalogItemsForPos, selectedCategoryId, searchQuery, stockMap, hideOutOfStock]);
+    return list;
+  }, [visibleCatalogItems, selectedCategoryId, searchQuery]);
 
   // Reset grid page when filters change
   useEffect(() => {
@@ -529,17 +640,6 @@ export function MenuOrderPage() {
   const pagedItems = useMemo(
     () => items.slice(gridPage * GRID_PAGE_SIZE, (gridPage + 1) * GRID_PAGE_SIZE),
     [items, gridPage]
-  );
-
-  const visibleCountForCategory = useCallback(
-    (categoryId: string | null) => {
-      const base =
-        categoryId === null
-          ? catalogItemsForPos
-          : catalogItemsForPos.filter((i: Item) => i.categoryId === categoryId);
-      return filterOutOfStockItems(base, stockMap, hideOutOfStock).length;
-    },
-    [catalogItemsForPos, stockMap, hideOutOfStock]
   );
 
   const canSellOnPos = useCallback(
@@ -679,280 +779,476 @@ export function MenuOrderPage() {
     setModifierModalItem(null);
   };
 
+  const topBarContent = (
+    <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <Link
+          to={fallbackTo}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          aria-label="Back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <h1 className="text-xl font-black text-slate-900 leading-none dark:text-white">
+          POS
+        </h1>
+      </div>
+
+      {/* Middle: Persistent Prominent Search Bar */}
+      <div className="flex flex-1 items-center justify-center min-w-0 px-2 sm:px-4">
+        <div className="relative w-full max-w-md sm:max-w-lg min-w-0">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search products by name or code..."
+            className="h-11 sm:h-11.5 w-full rounded-xl border border-slate-200 bg-white pl-11.5 sm:pl-12 pr-9 text-sm sm:text-base font-medium text-slate-900 placeholder:text-slate-400 shadow-2xs focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-400"
+            aria-label="Search products"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 active:scale-90 dark:hover:text-slate-200"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Right: Fullscreen Expand Button */}
+      <div className="flex shrink-0 items-center justify-end">
+        <button
+          type="button"
+          onClick={() => {
+            userHasToggledRef.current = true;
+            setPosExpanded((v) => !v);
+          }}
+          className="flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shadow-2xs"
+          title={posExpanded ? "Exit full screen" : "Expand full screen"}
+          aria-label={posExpanded ? "Exit full screen" : "Expand full screen"}
+        >
+          {posExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderCartTicket = (isVerticalLayout: boolean) => (
+    <aside
+      className={
+        isVerticalLayout
+          ? "hidden min-h-0 max-h-full lg:w-[300px] xl:w-[340px] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white lg:flex dark:border-slate-700 dark:bg-slate-800 shadow-sm"
+          : "hidden min-h-0 max-h-full lg:w-[30%] xl:w-[30%] min-w-[340px] max-w-[460px] shrink-0 flex-col overflow-hidden border-l border-slate-200 bg-white lg:flex dark:border-slate-700 dark:bg-slate-800 shadow-sm"
+      }
+    >
+      <PosCartTicket
+        showBarcode={showBarcode}
+        handleBarcodeScan={handleBarcodeScan}
+        token={token}
+        orgId={orgId}
+        barcodeScanError={barcodeScanError}
+        cartLines={cartLines}
+        itemMap={itemMap}
+        stockMap={stockMap}
+        total={total}
+        showOrderType={showOrderType}
+        orderType={orderType}
+        showTableSelect={showTableSelect}
+        operatorTableSelectOptions={operatorTableSelectOptions}
+        tableId={tableId}
+        createSaleAndLinesMutation={createSaleAndLinesMutation}
+        currentShift={currentShift}
+        tenderTypes={tenderTypes}
+        hasInsufficientStock={hasInsufficientStock}
+        insufficientStockMessage={insufficientStockMessage}
+      />
+    </aside>
+  );
+
+  const renderPagination = () => {
+    if (itemsLoading || items.length <= GRID_PAGE_SIZE) return null;
+    return (
+      <div className="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <span>
+          {gridPage * GRID_PAGE_SIZE + 1}–
+          {Math.min((gridPage + 1) * GRID_PAGE_SIZE, items.length)} of {items.length} products
+        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            disabled={gridPage === 0}
+            onClick={() => setGridPage((p) => p - 1)}
+            className="flex h-8 touch-manipulation items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-30 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span>Prev</span>
+          </button>
+          <span className="min-w-[3rem] text-center font-bold">
+            {gridPage + 1} / {gridTotalPages}
+          </span>
+          <button
+            type="button"
+            disabled={gridPage >= gridTotalPages - 1}
+            onClick={() => setGridPage((p) => p + 1)}
+            className="flex h-8 touch-manipulation items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-30 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            <span>Next</span>
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <div
-        className={`flex touch-manipulation flex-col lg:flex-row ${
+        className={`touch-manipulation flex flex-col ${
           posExpanded
             ? "fixed inset-0 z-40 bg-slate-50 dark:bg-slate-900"
             : "h-full min-h-0 bg-slate-50 dark:bg-slate-900"
         }`}
       >
-        {/* CENTER WORKSPACE: Catalog, Search, Categories & Product Grid */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 pb-20 lg:pb-4">
-          {/* Top Bar: Navigation Header & Search Bar */}
-          <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Link
-                to={fallbackTo}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                aria-label="Back"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-              <div>
-                <h1 className="text-xl font-black text-slate-900 leading-tight dark:text-white">
-                  POS
-                </h1>
-                <p className="hidden sm:block text-xs text-slate-500 dark:text-slate-400">
-                  Select items and complete sale
-                </p>
-              </div>
+        {posLayout === "vertical-category" ? (
+          /* ALTERNATIVE 3-ZONE VERTICAL CATEGORY POS LAYOUT */
+          <>
+            {/* Top Bar across full width */}
+            <div className="shrink-0 px-3 py-2.5 sm:px-4 sm:py-2.5">
+              {topBarContent}
             </div>
 
-            {/* Persistent Prominent Search Bar */}
-            <div className="flex flex-1 items-center justify-end gap-2 min-w-[260px]">
-              <div className="relative flex-1 max-w-md">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search products by name or code..."
-                  className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-8 text-sm font-medium text-slate-900 placeholder:text-slate-400 shadow-2xs focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-400"
-                  aria-label="Search products"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 active:scale-90 dark:hover:text-slate-200"
-                    aria-label="Clear search"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Fullscreen Expand Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  userHasToggledRef.current = true;
-                  setPosExpanded((v) => !v);
+            {/* 3-ZONE MAIN CONTAINER */}
+            <div className="flex min-h-0 flex-1 gap-3 sm:gap-3.5 p-3 sm:px-4 sm:pt-1 pb-20 lg:pb-4 overflow-hidden">
+            {/* ZONE 1 (LEFT): Vertical Categories Panel */}
+            {showItemList && (
+              <PosVerticalCategoryNav
+                categories={sortedCategories}
+                selectedCategoryId={selectedCategoryId}
+                onSelectCategory={(id) => {
+                  userSelectedCategoryRef.current = true;
+                  setSelectedCategoryId(id);
                 }}
-                className="flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shadow-2xs"
-                title={posExpanded ? "Exit full screen" : "Expand full screen"}
-                aria-label={posExpanded ? "Exit full screen" : "Expand full screen"}
-              >
-                {posExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </button>
+                getCategoryCount={(id) => visibleCountForCategory(id)}
+                totalVisibleCount={visibleCountForCategory(null)}
+                isLoading={categoriesLoading}
+                showCardContainer={posVerticalCategoryCard}
+              />
+            )}
+
+            {/* ZONE 2 (CENTER): Product Discovery & Selection */}
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              {showItemList ? (
+                <>
+                  {/* Category Header Badge & Stock Toggle */}
+                  <div
+                    className={`mb-2.5 flex h-8 shrink-0 items-center gap-2 ${
+                      posSelectedCategoryLabel ? "justify-between" : "justify-end"
+                    }`}
+                  >
+                    {posSelectedCategoryLabel && (
+                      <div className="inline-flex h-8 w-64 sm:w-72 lg:w-80 shrink-0 items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-50/80 px-2.5 sm:px-3 shadow-2xs dark:border-amber-500/30 dark:bg-amber-950/40 select-none">
+                        <h2
+                          className="truncate min-w-0 text-sm sm:text-base font-black text-amber-950 dark:text-amber-200 leading-none"
+                          title={
+                            searchQuery.trim()
+                              ? "Search results"
+                              : selectedCategoryId === null
+                              ? "All"
+                              : categories.find((c) => c.id === selectedCategoryId)?.name ?? "Products"
+                          }
+                        >
+                          {searchQuery.trim()
+                            ? "Search results"
+                            : selectedCategoryId === null
+                            ? "All"
+                            : categories.find((c) => c.id === selectedCategoryId)?.name ?? "Products"}
+                        </h2>
+                        <CountBadge
+                          count={searchQuery.trim() ? items.length : visibleCountForCategory(selectedCategoryId)}
+                          variant="amber"
+                          size="sm"
+                          className="bg-amber-500 text-slate-950 font-black shrink-0"
+                        />
+                      </div>
+                    )}
+
+                    {showHideOosToggle && (
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={hideOutOfStock}
+                        onClick={() => setHideOutOfStock((v) => !v)}
+                        className={`flex min-h-[30px] shrink-0 touch-manipulation items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs sm:text-sm font-semibold transition active:scale-95 ${
+                          hideOutOfStock
+                            ? "border-primary-500 bg-primary-50 text-primary-800 dark:border-primary-500/50 dark:bg-primary-950/40 dark:text-primary-300"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                        }`}
+                        title={
+                          hideOutOfStock
+                            ? "Out-of-stock items are hidden. Click to show them."
+                            : "All items shown. Click to hide out-of-stock."
+                        }
+                      >
+                        {hideOutOfStock ? (
+                          <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        ) : (
+                          <EyeOff className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        )}
+                        <span className="hidden sm:inline">
+                          {hideOutOfStock ? "Show OOS" : "Hide OOS"}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Product Grid Container */}
+                  <div className="pos-grid-container min-h-0 flex-1 overflow-auto p-0.5 pr-1 sm:pr-2 pb-4 scrollbar-thin">
+                    <div className="pos-vertical-product-grid">
+                      {itemsLoading
+                        ? Array.from({ length: 12 }).map((_, i) => (
+                            <div
+                              key={i}
+                              className="flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 shadow-xs"
+                            >
+                              <div className="aspect-[16/9] w-full animate-pulse bg-slate-200 dark:bg-slate-700" />
+                              <div className="flex flex-1 flex-col justify-between px-2 pt-1.5 pb-2 sm:px-2.5 sm:pt-2 sm:pb-2 space-y-1.5 sm:space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="h-5 w-3/5 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+                                  <div className="h-5 w-1/4 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
+                                </div>
+                                <div className="h-11 w-full animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700/60" />
+                              </div>
+                            </div>
+                          ))
+                        : pagedItems.length === 0 ? (
+                          <div className="col-span-full py-16 text-center">
+                            <p className="text-base font-semibold text-slate-600 dark:text-slate-300">
+                              {searchQuery
+                                ? `No products found matching "${searchQuery}"`
+                                : "No items available in this category"}
+                            </p>
+                            {searchQuery && (
+                              <button
+                                type="button"
+                                onClick={() => setSearchQuery("")}
+                                className="mt-3 inline-flex items-center rounded-xl bg-primary-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-primary-500 dark:bg-primary-600 dark:hover:bg-primary-500"
+                              >
+                                Clear search filter
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          pagedItems.map((item: Item) => {
+                            const onHand = item.trackInventory
+                              ? (stockMap.get(item.id) ?? 0)
+                              : Infinity;
+                            const price = item.defaultSellingPrice ?? 0;
+                            return (
+                              <MenuItemCard
+                                key={item.id}
+                                name={item.name}
+                                itemId={item.id}
+                                primaryImageUrl={item.primaryImageUrl}
+                                trackInventory={item.trackInventory}
+                                active={item.active}
+                                stockOnHand={onHand}
+                                price={price}
+                                quantityInCart={getQtyInCart(item.id)}
+                                onReduce={() => handleReduceFromCart(item.id)}
+                                onAdd={() => handleAddToCart(item)}
+                              />
+                            );
+                          })
+                        )}
+                    </div>
+
+                    {/* Pagination Footer */}
+                    {renderPagination()}
+                  </div>
+                </>
+              ) : (
+                <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+                  Item list is hidden. Change in Admin → Settings → POS.
+                </p>
+              )}
             </div>
+
+            {/* ZONE 3 (RIGHT): Current Order Panel */}
+            {renderCartTicket(true)}
+          </div>
+        </>
+      ) : (
+        /* ORIGINAL STANDARD POS LAYOUT (Preserved Exactly) */
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row overflow-hidden">
+          {/* CENTER WORKSPACE: Catalog, Search, Categories & Product Grid */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 pb-20 lg:pb-4">
+            {/* Top Bar: Navigation Header & Search Bar */}
+            <div className="mb-3">
+              {topBarContent}
+            </div>
+
+            {showItemList ? (
+              <>
+                {/* Category Strip & Stock Toggle */}
+                <div className="mb-2 flex shrink-0 items-center justify-between gap-1.5 sm:gap-2">
+                  <div className="flex flex-1 items-center gap-1 sm:gap-1.5 overflow-x-auto scroll-smooth pb-0.5 scrollbar-none">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        userSelectedCategoryRef.current = true;
+                        setSelectedCategoryId(null);
+                      }}
+                      className={`min-h-[28px] sm:min-h-[30px] shrink-0 touch-manipulation rounded-lg px-2 py-0.5 sm:px-2.5 sm:py-0.5 text-sm sm:text-base font-bold transition inline-flex items-center gap-1 sm:gap-1.5 ${
+                        selectedCategoryId === null
+                          ? "bg-primary-600 text-white font-extrabold shadow-xs dark:bg-primary-500"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                      }`}
+                    >
+                      <span>All</span>
+                      <CountBadge
+                        count={visibleCountForCategory(null)}
+                        variant={selectedCategoryId === null ? "primary" : "neutral"}
+                        active={selectedCategoryId === null}
+                        className={selectedCategoryId === null ? "bg-white/20 text-white" : ""}
+                      />
+                    </button>
+                    {categoriesLoading
+                      ? null
+                      : sortedCategories.map((cat) => (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => {
+                              userSelectedCategoryRef.current = true;
+                              setSelectedCategoryId(cat.id);
+                            }}
+                            className={`min-h-[28px] sm:min-h-[30px] shrink-0 touch-manipulation rounded-lg px-2 py-0.5 sm:px-2.5 sm:py-0.5 text-sm sm:text-base font-bold transition inline-flex items-center gap-1 sm:gap-1.5 ${
+                              selectedCategoryId === cat.id
+                                ? "bg-primary-600 text-white font-extrabold shadow-xs dark:bg-primary-500"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                            }`}
+                          >
+                            <span>{cat.name}</span>
+                            <CountBadge
+                              count={visibleCountForCategory(cat.id)}
+                              variant={selectedCategoryId === cat.id ? "primary" : "neutral"}
+                              active={selectedCategoryId === cat.id}
+                              className={selectedCategoryId === cat.id ? "bg-white/20 text-white" : ""}
+                            />
+                          </button>
+                        ))}
+                  </div>
+
+                  {showHideOosToggle && (
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={hideOutOfStock}
+                      onClick={() => setHideOutOfStock((v) => !v)}
+                      className={`flex min-h-[28px] sm:min-h-[30px] shrink-0 touch-manipulation items-center gap-1 rounded-lg border px-2 py-0.5 sm:px-2.5 sm:py-0.5 text-xs sm:text-sm font-semibold transition active:scale-95 ${
+                        hideOutOfStock
+                          ? "border-primary-500 bg-primary-50 text-primary-800 dark:border-primary-500/50 dark:bg-primary-950/40 dark:text-primary-300"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                      }`}
+                      title={
+                        hideOutOfStock
+                          ? "Out-of-stock items are hidden. Click to show them."
+                          : "All items shown. Click to hide out-of-stock."
+                      }
+                    >
+                      {hideOutOfStock ? (
+                        <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      ) : (
+                        <EyeOff className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      )}
+                      <span className="hidden sm:inline">
+                        {hideOutOfStock ? "Show OOS" : "Hide OOS"}
+                      </span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Product Grid Container */}
+                <div className="pos-grid-container min-h-0 flex-1 overflow-auto p-1 sm:p-1.5 pr-1.5 sm:pr-2 pb-4">
+                  {/* Grid */}
+                  <div className="pos-product-grid">
+                    {itemsLoading
+                      ? Array.from({ length: 12 }).map((_, i) => (
+                            <div
+                              key={i}
+                              className="flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 shadow-xs"
+                            >
+                              <div className="aspect-[16/9] w-full animate-pulse bg-slate-200 dark:bg-slate-700" />
+                              <div className="flex flex-1 flex-col justify-between px-2 pt-1.5 pb-2 sm:px-2.5 sm:pt-2 sm:pb-2 space-y-1.5 sm:space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="h-5 w-3/5 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+                                  <div className="h-5 w-1/4 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+                                </div>
+                                <div className="h-11 -mx-0.5 sm:-mx-1 w-[calc(100%+0.25rem)] sm:w-[calc(100%+0.5rem)] animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700/60" />
+                              </div>
+                            </div>
+                        ))
+                      : pagedItems.length === 0 ? (
+                        <div className="col-span-full py-16 text-center">
+                          <p className="text-base font-semibold text-slate-600 dark:text-slate-300">
+                            {searchQuery
+                              ? `No products found matching "${searchQuery}"`
+                              : "No items available in this category"}
+                          </p>
+                          {searchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setSearchQuery("")}
+                              className="mt-3 inline-flex items-center rounded-xl bg-primary-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-primary-500 dark:bg-primary-600 dark:hover:bg-primary-500"
+                            >
+                              Clear search filter
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        pagedItems.map((item: Item) => {
+                          const onHand = item.trackInventory
+                              ? (stockMap.get(item.id) ?? 0)
+                            : Infinity;
+                          const price = item.defaultSellingPrice ?? 0;
+                          return (
+                            <MenuItemCard
+                              key={item.id}
+                              name={item.name}
+                              itemId={item.id}
+                              primaryImageUrl={item.primaryImageUrl}
+                              trackInventory={item.trackInventory}
+                              active={item.active}
+                              stockOnHand={onHand}
+                              price={price}
+                              quantityInCart={getQtyInCart(item.id)}
+                              onReduce={() => handleReduceFromCart(item.id)}
+                              onAdd={() => handleAddToCart(item)}
+                            />
+                          );
+                        })
+                      )}
+                  </div>
+
+                  {/* Pagination Footer */}
+                  {renderPagination()}
+                </div>
+              </>
+            ) : (
+              <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+                Item list is hidden. Change in Admin → Settings → POS.
+              </p>
+            )}
           </div>
 
-          {showItemList ? (
-            <>
-              {/* Category Strip & Stock Toggle */}
-              <div className="mb-2 flex shrink-0 items-center justify-between gap-1.5 sm:gap-2">
-                <div className="flex flex-1 items-center gap-1 sm:gap-1.5 overflow-x-auto scroll-smooth pb-0.5 scrollbar-none">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategoryId(null)}
-                    className={`min-h-[28px] sm:min-h-[30px] shrink-0 touch-manipulation rounded-lg px-2 py-0.5 sm:px-2.5 sm:py-0.5 text-sm sm:text-base font-bold transition inline-flex items-center gap-1 sm:gap-1.5 ${
-                      selectedCategoryId === null
-                        ? "bg-primary-600 text-white font-extrabold shadow-xs dark:bg-primary-500"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                    }`}
-                  >
-                    <span>All</span>
-                    <CountBadge
-                      count={visibleCountForCategory(null)}
-                      variant={selectedCategoryId === null ? "primary" : "neutral"}
-                      active={selectedCategoryId === null}
-                      className={selectedCategoryId === null ? "bg-white/20 text-white" : ""}
-                    />
-                  </button>
-                  {categoriesLoading
-                    ? null
-                    : categories.map((cat) => (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => setSelectedCategoryId(cat.id)}
-                          className={`min-h-[28px] sm:min-h-[30px] shrink-0 touch-manipulation rounded-lg px-2 py-0.5 sm:px-2.5 sm:py-0.5 text-sm sm:text-base font-bold transition inline-flex items-center gap-1 sm:gap-1.5 ${
-                            selectedCategoryId === cat.id
-                              ? "bg-primary-600 text-white font-extrabold shadow-xs dark:bg-primary-500"
-                              : "bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                          }`}
-                        >
-                          <span>{cat.name}</span>
-                          <CountBadge
-                            count={visibleCountForCategory(cat.id)}
-                            variant={selectedCategoryId === cat.id ? "primary" : "neutral"}
-                            active={selectedCategoryId === cat.id}
-                            className={selectedCategoryId === cat.id ? "bg-white/20 text-white" : ""}
-                          />
-                        </button>
-                      ))}
-                </div>
-
-                {showHideOosToggle && (
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={hideOutOfStock}
-                    onClick={() => setHideOutOfStock((v) => !v)}
-                    className={`flex min-h-[28px] sm:min-h-[30px] shrink-0 touch-manipulation items-center gap-1 rounded-lg border px-2 py-0.5 sm:px-2.5 sm:py-0.5 text-xs sm:text-sm font-semibold transition active:scale-95 ${
-                      hideOutOfStock
-                        ? "border-primary-500 bg-primary-50 text-primary-800 dark:border-primary-500/50 dark:bg-primary-950/40 dark:text-primary-300"
-                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                    }`}
-                    title={
-                      hideOutOfStock
-                        ? "Out-of-stock items are hidden. Click to show them."
-                        : "All items shown. Click to hide out-of-stock."
-                    }
-                  >
-                    {hideOutOfStock ? (
-                      <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    ) : (
-                      <EyeOff className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    )}
-                    <span className="hidden sm:inline">
-                      {hideOutOfStock ? "Show OOS" : "Hide OOS"}
-                    </span>
-                  </button>
-                )}
-              </div>
-
-              {/* Product Grid Container */}
-              <div className="pos-grid-container min-h-0 flex-1 overflow-auto p-1 sm:p-1.5 pr-1.5 sm:pr-2 pb-4">
-                {/* Grid */}
-                <div className="pos-product-grid">
-                  {itemsLoading
-                    ? Array.from({ length: 12 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 shadow-xs"
-                        >
-                          <div className="aspect-[16/10] w-full animate-pulse bg-slate-200 dark:bg-slate-700" />
-                          <div className="flex flex-1 flex-col justify-between p-3.5 sm:p-4 space-y-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="h-6 w-3/5 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-                              <div className="h-6 w-1/4 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-                            </div>
-                            <div className="h-11 sm:h-12 -mx-1 sm:-mx-1.5 w-[calc(100%+0.5rem)] sm:w-[calc(100%+0.75rem)] animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700/60" />
-                          </div>
-                        </div>
-                      ))
-                    : pagedItems.length === 0 ? (
-                      <div className="col-span-full py-16 text-center">
-                        <p className="text-base font-semibold text-slate-600 dark:text-slate-300">
-                          {searchQuery
-                            ? `No products found matching "${searchQuery}"`
-                            : "No items available in this category"}
-                        </p>
-                        {searchQuery && (
-                          <button
-                            type="button"
-                            onClick={() => setSearchQuery("")}
-                            className="mt-3 inline-flex items-center rounded-xl bg-primary-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-primary-500 dark:bg-primary-600 dark:hover:bg-primary-500"
-                          >
-                            Clear search filter
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      pagedItems.map((item: Item) => {
-                        const onHand = item.trackInventory
-                            ? (stockMap.get(item.id) ?? 0)
-                          : Infinity;
-                        const price = item.defaultSellingPrice ?? 0;
-                        return (
-                          <MenuItemCard
-                            key={item.id}
-                            name={item.name}
-                            itemId={item.id}
-                            primaryImageUrl={item.primaryImageUrl}
-                            trackInventory={item.trackInventory}
-                            active={item.active}
-                            stockOnHand={onHand}
-                            price={price}
-                            quantityInCart={getQtyInCart(item.id)}
-                            onReduce={() => handleReduceFromCart(item.id)}
-                            onAdd={() => handleAddToCart(item)}
-                          />
-                        );
-                      })
-                    )}
-                </div>
-
-                {/* Pagination Footer */}
-                {!itemsLoading && items.length > GRID_PAGE_SIZE && (
-                  <div className="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                    <span>
-                      {gridPage * GRID_PAGE_SIZE + 1}–
-                      {Math.min((gridPage + 1) * GRID_PAGE_SIZE, items.length)} of {items.length} products
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        disabled={gridPage === 0}
-                        onClick={() => setGridPage((p) => p - 1)}
-                        className="flex h-8 touch-manipulation items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-30 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                        <span>Prev</span>
-                      </button>
-                      <span className="min-w-[3rem] text-center font-bold">
-                        {gridPage + 1} / {gridTotalPages}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={gridPage >= gridTotalPages - 1}
-                        onClick={() => setGridPage((p) => p + 1)}
-                        className="flex h-8 touch-manipulation items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-30 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                      >
-                        <span>Next</span>
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <p className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
-              Item list is hidden. Change in Admin → Settings → POS.
-            </p>
-          )}
+          {/* RIGHT WORKSPACE: Persistent Dining Check / Order Ticket (Approx 30% width) */}
+          {renderCartTicket(false)}
         </div>
-
-        {/* RIGHT WORKSPACE: Persistent Dining Check / Order Ticket (Approx 30% width) */}
-        <aside className="hidden min-h-0 max-h-full lg:w-[30%] xl:w-[30%] min-w-[360px] max-w-[480px] shrink-0 flex-col overflow-hidden border-l border-slate-200 bg-white lg:flex dark:border-slate-700 dark:bg-slate-800 shadow-sm">
-          <PosCartTicket
-            showBarcode={showBarcode}
-            handleBarcodeScan={handleBarcodeScan}
-            token={token}
-            orgId={orgId}
-            barcodeScanError={barcodeScanError}
-            cartLines={cartLines}
-            itemMap={itemMap}
-            stockMap={stockMap}
-            total={total}
-            showOrderType={showOrderType}
-            orderType={orderType}
-            showTableSelect={showTableSelect}
-            operatorTableSelectOptions={operatorTableSelectOptions}
-            tableId={tableId}
-            createSaleAndLinesMutation={createSaleAndLinesMutation}
-            currentShift={currentShift}
-            tenderTypes={tenderTypes}
-            hasInsufficientStock={hasInsufficientStock}
-            insufficientStockMessage={insufficientStockMessage}
-          />
-        </aside>
-
+      )}
         {/* Mobile Floating Cart Action Bar */}
         {cartLines.length > 0 && !mobileCartOpen && (
           <button
@@ -963,9 +1259,11 @@ export function MenuOrderPage() {
             <span className="flex items-center gap-2 text-white">
               <ShoppingCart className="h-5 w-5" />
               <span className="text-sm font-bold">Current order</span>
-              <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-white text-primary-700 text-xs font-bold px-1.5 shadow-xs dark:bg-slate-900 dark:text-primary-300">
-                {cartLines.reduce((s, l) => s + l.qty, 0)}
-              </span>
+              <CountBadge
+                count={cartLines.reduce((s, l) => s + l.qty, 0)}
+                size="md"
+                className="bg-white text-primary-700 dark:bg-slate-900 dark:text-primary-300 font-bold"
+              />
             </span>
             <span className="text-base font-black text-white">
               {formatCurrency(total)}

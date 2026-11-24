@@ -52,6 +52,13 @@ import {
 import {
   isPosExpandedByDefault,
   setPosExpandedByDefault,
+  getPosLayout,
+  setPosLayout,
+  isPosVerticalCategoryCardVisible,
+  setPosVerticalCategoryCardVisible,
+  isPosSelectedCategoryLabelVisible,
+  setPosSelectedCategoryLabelVisible,
+  type PosLayoutOption,
 } from "@/config/posAppearanceSettings";
 import {
   Settings,
@@ -1063,15 +1070,110 @@ export function AdminSettingsPage() {
 
   const renderPosExpandedSettings = () => {
     const isExpandedDefault = isPosExpandedByDefault(adminLabels);
+    const activeLayout = getPosLayout(adminLabels);
+    const isVerticalCategoryCardVisible = isPosVerticalCategoryCardVisible(adminLabels);
+    const isSelectedCategoryLabelVisible = isPosSelectedCategoryLabelVisible(adminLabels);
+
+    const layoutOptions: {
+      id: PosLayoutOption;
+      title: string;
+      description: string;
+      badge: string;
+    }[] = [
+      {
+        id: "standard",
+        title: "Existing POS layout",
+        description:
+          "Horizontal category tabs along the top with an auto-responsive product grid and right-hand order panel.",
+        badge: "Classic",
+      },
+      {
+        id: "vertical-category",
+        title: "Vertical category POS layout",
+        description:
+          "Full-height outlined vertical category navigation on the left, locked four-column product grid in the center, and order panel.",
+        badge: "New 3-zone",
+      },
+    ];
+
     return (
       <section>
         <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
           POS layout
         </h2>
         <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-          Control default display mode when opening the POS ordering interface.
+          Choose your preferred POS terminal layout and default display mode.
         </p>
-        <div className="min-w-0 max-w-xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+
+        {/* Layout Options Cards */}
+        <div className="mb-6 grid max-w-2xl grid-cols-1 gap-3.5 sm:grid-cols-2">
+          {layoutOptions.map((opt) => {
+            const isSelected = activeLayout === opt.id;
+            return (
+              <div
+                key={opt.id}
+                role="button"
+                tabIndex={0}
+                onClick={() =>
+                  setPosLayout(opt.id, (k, v) => setAdminLabel(k, v))
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setPosLayout(opt.id, (k, v) => setAdminLabel(k, v));
+                  }
+                }}
+                className={`relative flex cursor-pointer flex-col justify-between rounded-xl border p-4 transition text-left select-none ${
+                  isSelected
+                    ? "border-primary-500 bg-primary-50/40 ring-2 ring-primary-500/20 dark:border-primary-400 dark:bg-primary-950/20 dark:ring-primary-400/20"
+                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                      {opt.title}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        isSelected
+                          ? "bg-primary-100 text-primary-800 dark:bg-primary-900/60 dark:text-primary-300"
+                          : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                      }`}
+                    >
+                      {opt.badge}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    {opt.description}
+                  </p>
+                </div>
+                <div className="mt-4 flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="pos-layout-option"
+                    id={`pos-layout-${opt.id}`}
+                    aria-label={opt.title}
+                    checked={isSelected}
+                    onChange={() =>
+                      setPosLayout(opt.id, (k, v) => setAdminLabel(k, v))
+                    }
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 cursor-pointer"
+                  />
+                  <label
+                    htmlFor={`pos-layout-${opt.id}`}
+                    className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
+                  >
+                    {isSelected ? "Active layout" : "Select layout"}
+                  </label>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Appearance Toggles */}
+        <div className="min-w-0 max-w-2xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div>
               <label
@@ -1090,6 +1192,58 @@ export function AdminSettingsPage() {
               checked={isExpandedDefault}
               onChange={(e) =>
                 setPosExpandedByDefault(e.target.checked, (k, v) => setAdminLabel(k, v))
+              }
+              className="h-5 w-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:checked:bg-primary-500 cursor-pointer"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4 pt-4 border-t border-slate-100 dark:border-slate-700/60">
+            <div>
+              <label
+                htmlFor="toggle-pos-vertical-category-card"
+                className="block text-sm font-medium text-slate-900 dark:text-white cursor-pointer"
+              >
+                Show container background and title for vertical categories
+              </label>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Encloses vertical categories in a card container with the &quot;Categories&quot; heading. Turn off to display menu buttons alone without outer background or title.
+              </p>
+            </div>
+            <input
+              id="toggle-pos-vertical-category-card"
+              type="checkbox"
+              checked={isVerticalCategoryCardVisible}
+              onChange={(e) =>
+                setPosVerticalCategoryCardVisible(
+                  e.target.checked,
+                  (k, v) => setAdminLabel(k, v)
+                )
+              }
+              className="h-5 w-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:checked:bg-primary-500 cursor-pointer"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4 pt-4 border-t border-slate-100 dark:border-slate-700/60">
+            <div>
+              <label
+                htmlFor="toggle-pos-selected-category-label"
+                className="block text-sm font-medium text-slate-900 dark:text-white cursor-pointer"
+              >
+                Show selected category label
+              </label>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Displays the active category indicator badge above the product grid. Turn off to hide the selected category label.
+              </p>
+            </div>
+            <input
+              id="toggle-pos-selected-category-label"
+              type="checkbox"
+              checked={isSelectedCategoryLabelVisible}
+              onChange={(e) =>
+                setPosSelectedCategoryLabelVisible(
+                  e.target.checked,
+                  (k, v) => setAdminLabel(k, v)
+                )
               }
               className="h-5 w-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:checked:bg-primary-500 cursor-pointer"
             />

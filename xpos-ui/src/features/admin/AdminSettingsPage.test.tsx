@@ -330,5 +330,52 @@ describe("AdminSettingsPage", () => {
       "false"
     );
   });
+
+  it("renders POS layout options under Appearance tab and switches layout", () => {
+    renderSettingsPage(["/admin/settings?tab=appearance"]);
+
+    expect(screen.getByRole("heading", { name: "POS layout" })).toBeInTheDocument();
+    expect(screen.getByText("Existing POS layout")).toBeInTheDocument();
+    expect(screen.getByText("Vertical category POS layout")).toBeInTheDocument();
+
+    const verticalRadio = screen.getByRole("radio", { name: /vertical category pos layout/i });
+    expect(verticalRadio).not.toBeChecked();
+
+    fireEvent.click(verticalRadio);
+    expect(mockContextValue.setAdminLabel).toHaveBeenCalledWith(
+      "ui.pos.layout",
+      "vertical-category"
+    );
+  });
+
+  it("renders vertical category card container toggle and toggles setting", () => {
+    renderSettingsPage(["/admin/settings?tab=appearance"]);
+
+    const toggle = screen.getByLabelText(
+      /Show container background and title for vertical categories/i
+    );
+    expect(toggle).toBeInTheDocument();
+    expect(toggle).toBeChecked();
+
+    fireEvent.click(toggle);
+    expect(mockContextValue.setAdminLabel).toHaveBeenCalledWith(
+      "ui.pos.vertical_category_card",
+      "false"
+    );
+  });
+
+  it("renders selected category label toggle and toggles setting", () => {
+    renderSettingsPage(["/admin/settings?tab=appearance"]);
+
+    const toggle = screen.getByLabelText(/Show selected category label/i);
+    expect(toggle).toBeInTheDocument();
+    expect(toggle).toBeChecked();
+
+    fireEvent.click(toggle);
+    expect(mockContextValue.setAdminLabel).toHaveBeenCalledWith(
+      "ui.pos.selected_category_label",
+      "false"
+    );
+  });
 });
 

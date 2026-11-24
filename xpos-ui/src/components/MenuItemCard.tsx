@@ -21,6 +21,8 @@ export interface MenuItemCardProps {
   price: number;
   /** Current quantity in cart */
   quantityInCart: number;
+  /** Card presentation variant: 'standard' (side-by-side) or 'compact-stacked' (stacked name & price for 4-col grid) */
+  variant?: "standard" | "compact-stacked";
   /** Called when user clicks reduce/minus */
   onReduce: () => void;
   /** Called when user clicks add/plus */
@@ -40,6 +42,7 @@ export function MenuItemCard({
   stockOnHand,
   price,
   quantityInCart,
+  variant: _variant = "standard",
   onReduce,
   onAdd,
 }: MenuItemCardProps) {
@@ -100,33 +103,34 @@ export function MenuItemCard({
       aria-label={`${name}, ${formatCurrency(price)}${inCart ? `, ${quantityInCart} in order` : ""}`}
       className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border text-left transition-all duration-150 select-none ${
         inCart
-          ? "border-amber-500 bg-amber-50/15 ring-[2.5px] ring-amber-400 shadow-md shadow-amber-500/15 dark:border-amber-400 dark:bg-amber-950/15 dark:ring-amber-400 dark:shadow-amber-950/30"
-          : "border-slate-200/90 bg-white shadow-xs hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600"
-      } ${
-        canTapToAdd
-          ? "cursor-pointer active:scale-[0.98]"
-          : "cursor-not-allowed opacity-60"
+          ? "border-amber-500 bg-amber-50/15 ring-[2.5px] ring-amber-400 shadow-md shadow-amber-500/15 dark:border-amber-400 dark:bg-amber-950/15 dark:ring-amber-400 dark:shadow-amber-950/30 cursor-default"
+          : canTapToAdd
+          ? "border-slate-200/90 bg-white shadow-xs hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600 cursor-pointer active:scale-[0.98]"
+          : "border-slate-200/90 bg-white shadow-xs dark:border-slate-700 dark:bg-slate-800 cursor-not-allowed opacity-60"
       }`}
     >
       {/* Top Header / Image Area */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100 dark:bg-slate-900">
+      <div
+        className={`relative aspect-[16/9] w-full overflow-hidden flex items-center justify-center ${
+          hasValidImage ? "bg-white dark:bg-white" : "bg-slate-100 dark:bg-slate-900"
+        }`}
+      >
         <img
           src={displayImageUrl}
           alt={name}
           loading="lazy"
           onError={() => setImgFailed(true)}
           draggable={false}
-          className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+          className={`h-full w-full transition-transform duration-200 group-hover:scale-105 ${
+            hasValidImage ? "object-contain p-1.5" : "object-cover"
+          }`}
         />
-
-        {/* Subtle Bottom Shadow on Image for text transition */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
 
         {/* Stock Badge on Top Left */}
         {trackInventory && (
-          <div className="absolute top-2.5 left-2.5">
+          <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 z-10">
             <span
-              className={`inline-flex items-center rounded-lg px-2 py-0.5 text-[11px] font-bold tracking-tight shadow-xs backdrop-blur-xs ${
+              className={`inline-flex items-center rounded-lg px-2 py-0.5 text-[10px] sm:text-[11px] font-bold tracking-tight shadow-xs backdrop-blur-xs ${
                 !available
                   ? "bg-rose-600 text-white"
                   : isLowStock
@@ -138,42 +142,46 @@ export function MenuItemCard({
             </span>
           </div>
         )}
-
       </div>
 
       {/* Middle: Item Details */}
-      <div className="flex flex-1 flex-col justify-between p-3.5 sm:p-4">
-        <div className="flex items-start justify-between gap-2 min-w-0">
+      <div className="flex flex-1 flex-col justify-between px-2 pt-1.5 pb-2 sm:px-2.5 sm:pt-2 sm:pb-2">
+        {/* Title on left, price badge on right on the same level */}
+        <div className="flex items-start justify-between gap-1.5 sm:gap-2 min-w-0">
           <h3
             title={name}
-            className="line-clamp-2 min-w-0 flex-1 text-base sm:text-lg font-bold text-slate-900 leading-snug group-hover:text-primary-600 dark:text-white dark:group-hover:text-primary-400"
+            className="line-clamp-2 min-w-0 flex-1 text-base sm:text-lg font-black text-slate-900 leading-tight group-hover:text-primary-600 dark:text-white dark:group-hover:text-primary-400"
           >
             {name}
           </h3>
-          <p className="shrink-0 text-right text-base sm:text-lg font-black tabular-nums tracking-tight text-emerald-700 dark:text-emerald-400 leading-snug whitespace-nowrap">
+          <span className="inline-flex shrink-0 items-center rounded-lg bg-emerald-50 px-2 py-0.5 text-xs sm:text-sm font-black tabular-nums tracking-tight text-emerald-700 border border-emerald-200/80 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 whitespace-nowrap shadow-2xs">
             {formatCurrency(price)}
-          </p>
+          </span>
         </div>
 
         {/* Bottom: 44px+ Action Stepper / Add button */}
-        <div className="mt-3.5 -mx-1 sm:-mx-1.5 w-[calc(100%+0.5rem)] sm:w-[calc(100%+0.75rem)]">
+        <div className="mt-1.5 sm:mt-2 -mx-0.5 sm:-mx-1 w-[calc(100%+0.25rem)] sm:w-[calc(100%+0.5rem)]">
           {available ? (
             inCart ? (
               <div
-                className="flex h-11 sm:h-12 min-h-[44px] items-center justify-between rounded-xl border border-amber-500/30 bg-amber-50/30 p-1 dark:border-amber-400/30 dark:bg-slate-900/90 shadow-2xs"
+                className="flex h-11 min-h-[44px] items-center justify-between gap-1.5 sm:gap-2"
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
                   type="button"
                   onClick={onReduce}
-                  className="flex h-9 sm:h-10 w-11 sm:w-12 shrink-0 touch-manipulation items-center justify-center rounded-lg bg-white text-slate-700 border border-slate-200 font-bold transition hover:bg-slate-100 hover:text-slate-900 active:scale-95 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700 shadow-2xs"
+                  className="flex h-9.5 sm:h-10 flex-1 max-w-[4.25rem] sm:max-w-[4.5rem] touch-manipulation items-center justify-center rounded-xl bg-rose-600 text-white shadow-2xs transition hover:bg-rose-700 active:scale-95 dark:bg-rose-600 dark:hover:bg-rose-500"
                   aria-label={`Reduce quantity of ${name}`}
                 >
-                  <Minus className="h-4 w-4 sm:h-5 sm:w-5 stroke-[2.5]" />
+                  <Minus className="h-5.5 w-5.5 sm:h-6 sm:w-6 stroke-[3.5]" />
                 </button>
-                <div className="flex flex-1 items-center justify-center">
+                <div className="flex shrink-0 items-center justify-center px-0.5">
                   <span
-                    className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-amber-500 text-slate-950 font-black tabular-nums text-sm sm:text-base shadow-xs ring-1 ring-amber-400/50 dark:bg-amber-400 dark:text-slate-950 dark:ring-amber-300/40"
+                    className={`inline-flex shrink-0 items-center justify-center rounded-full bg-amber-500 text-slate-950 font-black tabular-nums text-sm sm:text-base leading-none pt-[1px] shadow-xs ring-1 ring-amber-400/50 dark:bg-amber-400 dark:text-slate-950 dark:ring-amber-300/40 select-none ${
+                      String(quantityInCart).length === 1
+                        ? "h-6.5 w-6.5 sm:h-7 sm:w-7 aspect-square px-0"
+                        : "h-6.5 sm:h-7 min-w-[1.625rem] sm:min-w-[1.75rem] px-1.5"
+                    }`}
                     aria-label={`${quantityInCart} in order`}
                   >
                     {quantityInCart}
@@ -184,10 +192,10 @@ export function MenuItemCard({
                   onClick={onAdd}
                   disabled={addDisabled}
                   title={addTooltip}
-                  className="flex h-9 sm:h-10 w-11 sm:w-12 shrink-0 touch-manipulation items-center justify-center rounded-lg bg-emerald-700 font-bold text-white shadow-2xs transition hover:bg-emerald-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                  className="flex h-9.5 sm:h-10 flex-1 max-w-[4.25rem] sm:max-w-[4.5rem] touch-manipulation items-center justify-center rounded-xl bg-emerald-700 font-bold text-white shadow-2xs transition hover:bg-emerald-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                   aria-label={addTooltip ?? `Add more ${name}`}
                 >
-                  <Plus className="h-4 w-4 sm:h-5 sm:w-5 stroke-[2.5]" />
+                  <Plus className="h-5.5 w-5.5 sm:h-6 sm:w-6 stroke-[3.5]" />
                 </button>
               </div>
             ) : (

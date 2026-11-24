@@ -11,6 +11,7 @@ import {
 import { formatCurrency } from "@/utils/formatCurrency";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { BarcodeCaptureInput } from "@/components/BarcodeCaptureInput";
+import { CountBadge } from "@/components/ui/CountBadge";
 import type { Item } from "@/types/catalog";
 
 export interface PosCartTicketProps {
@@ -83,9 +84,13 @@ export function PosCartTicket({
             Current order
           </h2>
           {totalItemCount > 0 && (
-            <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary-600 px-1.5 text-xs font-extrabold text-white shadow-xs dark:bg-primary-500">
-              {totalItemCount}
-            </span>
+            <CountBadge
+              count={totalItemCount}
+              variant="primary"
+              active
+              size="md"
+              className="bg-primary-600 text-white dark:bg-primary-500 font-extrabold shadow-xs"
+            />
           )}
         </div>
         {cartLines.length > 0 && (
@@ -102,76 +107,78 @@ export function PosCartTicket({
       </div>
 
       {/* Context Bar: Order Type Segmented Switcher & Table Select */}
-      <div className="shrink-0 space-y-2.5 border-b border-slate-200 p-3.5 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-900/60">
-        {showOrderType && (
-          <div className="flex rounded-xl bg-slate-200/80 p-0.5 dark:bg-slate-800/80">
-            <button
-              type="button"
-              onClick={() => dispatch(setOrderType("DINE_IN"))}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs sm:text-sm font-bold transition ${
-                orderType === "DINE_IN"
-                  ? "bg-primary-600 text-white font-extrabold shadow-xs dark:bg-primary-500"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-              }`}
-            >
-              <Utensils className="h-3.5 w-3.5" />
-              <span>Dine in</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => dispatch(setOrderType("TAKEAWAY"))}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs sm:text-sm font-bold transition ${
-                orderType === "TAKEAWAY"
-                  ? "bg-primary-600 text-white font-extrabold shadow-xs dark:bg-primary-500"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-              }`}
-            >
-              <ShoppingBag className="h-3.5 w-3.5" />
-              <span>Takeaway</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => dispatch(setOrderType("DELIVERY"))}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs sm:text-sm font-bold transition ${
-                orderType === "DELIVERY"
-                  ? "bg-primary-600 text-white font-extrabold shadow-xs dark:bg-primary-500"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-              }`}
-            >
-              <Bike className="h-3.5 w-3.5" />
-              <span>Delivery</span>
-            </button>
-          </div>
-        )}
+      {(showOrderType || showTableSelect || showBarcode) && (
+        <div className="shrink-0 space-y-2.5 border-b border-slate-200 p-3.5 dark:border-slate-700">
+          {showOrderType && (
+            <div className="flex rounded-xl bg-slate-200/80 p-0.5 dark:bg-slate-800/80">
+              <button
+                type="button"
+                onClick={() => dispatch(setOrderType("DINE_IN"))}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs sm:text-sm font-bold transition ${
+                  orderType === "DINE_IN"
+                    ? "bg-primary-600 text-white font-extrabold shadow-xs dark:bg-primary-500"
+                    : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                }`}
+              >
+                <Utensils className="h-3.5 w-3.5" />
+                <span>Dine in</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch(setOrderType("TAKEAWAY"))}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs sm:text-sm font-bold transition ${
+                  orderType === "TAKEAWAY"
+                    ? "bg-primary-600 text-white font-extrabold shadow-xs dark:bg-primary-500"
+                    : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                }`}
+              >
+                <ShoppingBag className="h-3.5 w-3.5" />
+                <span>Takeaway</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => dispatch(setOrderType("DELIVERY"))}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs sm:text-sm font-bold transition ${
+                  orderType === "DELIVERY"
+                    ? "bg-primary-600 text-white font-extrabold shadow-xs dark:bg-primary-500"
+                    : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                }`}
+              >
+                <Bike className="h-3.5 w-3.5" />
+                <span>Delivery</span>
+              </button>
+            </div>
+          )}
 
-        {showTableSelect && (
-          <SearchableSelect
-            options={operatorTableSelectOptions}
-            value={tableId ?? ""}
-            onChange={(v: string) => dispatch(setTableId(v || null))}
-            placeholder="Select table..."
-            className="min-h-[38px] touch-manipulation"
-            controlClassName="min-h-[38px] rounded-lg border-slate-300 bg-white text-xs font-semibold focus-within:border-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-            aria-label="Select table"
-          />
-        )}
-
-        {showBarcode && (
-          <div>
-            <BarcodeCaptureInput
-              onScan={handleBarcodeScan}
-              placeholder="Scan barcode to add..."
-              compact
-              disabled={!token || !orgId}
+          {showTableSelect && (
+            <SearchableSelect
+              options={operatorTableSelectOptions}
+              value={tableId ?? ""}
+              onChange={(v: string) => dispatch(setTableId(v || null))}
+              placeholder="Select table..."
+              className="min-h-[38px] touch-manipulation"
+              controlClassName="min-h-[38px] rounded-lg border-slate-300 bg-white text-xs font-semibold focus-within:border-primary-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              aria-label="Select table"
             />
-            {barcodeScanError && (
-              <p className="mt-1 text-xs text-red-500" role="alert">
-                {barcodeScanError}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+
+          {showBarcode && (
+            <div>
+              <BarcodeCaptureInput
+                onScan={handleBarcodeScan}
+                placeholder="Scan barcode to add..."
+                compact
+                disabled={!token || !orgId}
+              />
+              {barcodeScanError && (
+                <p className="mt-1 text-xs text-red-500" role="alert">
+                  {barcodeScanError}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Ticket Line Items List */}
       <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-slate-100 p-3 dark:divide-slate-700">
@@ -198,34 +205,31 @@ export function PosCartTicket({
 
               const lineTotal =
                 line.unitPrice * line.qty +
-                line.modifiers.reduce((s, m) => s + m.unitPriceDelta * m.qty, 0);
+                (line.modifiers?.reduce((s, m) => s + m.unitPriceDelta * m.qty, 0) ?? 0);
 
               return (
                 <div
                   key={line.tempId}
-                  className="group flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800/90 dark:hover:border-slate-600"
+                  className="group flex flex-col gap-1 sm:gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 sm:px-3 py-1.5 sm:py-2 shadow-2xs transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800/90 dark:hover:border-slate-600"
                 >
-                  {/* Top: Item Title, Unit Price, Line Total, Trash Action */}
-                  <div className="flex items-start justify-between gap-2">
+                  {/* Top: Item Title, Line Total, Trash Action */}
+                  <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-base font-extrabold text-slate-900 leading-snug dark:text-white">
+                      <h4 className="text-base sm:text-lg font-extrabold text-slate-900 leading-snug dark:text-white">
                         {line.itemName}
                       </h4>
-                      <p className="mt-0.5 text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">
-                        {formatCurrency(line.unitPrice)} ea
-                      </p>
                     </div>
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-lg font-black tabular-nums text-slate-900 dark:text-white tracking-tight">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg sm:text-xl font-black tabular-nums text-emerald-600 dark:text-emerald-400 tracking-tight">
                         {formatCurrency(lineTotal)}
                       </span>
                       <button
                         type="button"
                         onClick={() => dispatch(removeLine(line.tempId))}
-                        className="flex h-8 w-8 touch-manipulation items-center justify-center rounded-lg text-red-500 bg-red-500/10 border border-red-500/20 transition hover:bg-red-500/20 hover:text-red-600 active:scale-95 dark:text-red-400 dark:bg-red-950/40 dark:border-red-900/40 dark:hover:bg-red-900/60 dark:hover:text-red-300"
+                        className="flex h-8.5 w-8.5 sm:h-9 sm:w-9 shrink-0 touch-manipulation items-center justify-center rounded-full bg-red-600/80 text-white shadow-2xs transition hover:bg-red-600 active:scale-95 dark:bg-red-600/80 dark:hover:bg-red-500"
                         aria-label={`Remove ${line.itemName}`}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 sm:h-4.5 sm:w-4.5 stroke-[2.2]" />
                       </button>
                     </div>
                   </div>
@@ -244,9 +248,9 @@ export function PosCartTicket({
                     </div>
                   )}
 
-                  {/* Bottom: Spacious Quantity Stepper with distinct background colors */}
-                  <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900/80">
+                  {/* Bottom: Stepper and Unit Breakdown */}
+                  <div className="flex items-end justify-between">
+                    <div className="flex items-center gap-2.5 sm:gap-3">
                       <button
                         type="button"
                         onClick={() => {
@@ -256,13 +260,20 @@ export function PosCartTicket({
                             dispatch(updateLineQty({ tempId: line.tempId, qty: line.qty - 1 }));
                           }
                         }}
-                        className="flex h-9 w-9 touch-manipulation items-center justify-center rounded-lg bg-primary-100 text-primary-900 border border-primary-200 font-bold shadow-2xs transition hover:bg-primary-200 active:scale-95 dark:bg-primary-900/40 dark:text-primary-300 dark:border dark:border-primary-500/40 dark:hover:bg-primary-900/60"
+                        className="flex h-9.5 w-9.5 sm:h-10 sm:w-10 touch-manipulation items-center justify-center rounded-lg bg-red-600 text-white shadow-2xs transition hover:bg-red-700 active:scale-95 dark:bg-red-600 dark:hover:bg-red-500"
                         aria-label={`Decrease quantity of ${line.itemName}`}
                       >
-                        <Minus className="h-4 w-4" />
+                        <Minus className="h-4.5 w-4.5 sm:h-5 sm:w-5 stroke-[2.5]" />
                       </button>
 
-                      <span className="min-w-[2.25rem] px-2 text-center text-base font-black tabular-nums text-slate-900 dark:text-white">
+                      <span
+                        className={`inline-flex shrink-0 items-center justify-center rounded-full bg-amber-500 text-slate-950 font-black tabular-nums text-sm sm:text-base leading-none pt-[1px] shadow-xs ring-1 ring-amber-400/50 dark:bg-amber-400 dark:text-slate-950 dark:ring-amber-300/40 select-none ${
+                          String(line.qty).length === 1
+                            ? "h-6.5 w-6.5 sm:h-7 sm:w-7 aspect-square px-0"
+                            : "h-6.5 sm:h-7 min-w-[1.625rem] sm:min-w-[1.75rem] px-1.5"
+                        }`}
+                        aria-label={`${line.qty} in order`}
+                      >
                         {line.qty}
                       </span>
 
@@ -273,14 +284,14 @@ export function PosCartTicket({
                           canAddMore &&
                           dispatch(updateLineQty({ tempId: line.tempId, qty: line.qty + 1 }))
                         }
-                        className="flex h-9 w-9 touch-manipulation items-center justify-center rounded-lg bg-emerald-700 font-bold text-white shadow-2xs transition hover:bg-emerald-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="flex h-9.5 w-9.5 sm:h-10 sm:w-10 touch-manipulation items-center justify-center rounded-lg bg-emerald-700 font-bold text-white shadow-2xs transition hover:bg-emerald-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                         aria-label={`Increase quantity of ${line.itemName}`}
                       >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-4.5 w-4.5 sm:h-5 sm:w-5 stroke-[2.5]" />
                       </button>
                     </div>
 
-                    <span className="text-sm font-bold tabular-nums text-slate-500 dark:text-slate-300">
+                    <span className="text-sm sm:text-base font-bold tabular-nums text-slate-500 dark:text-slate-300 pb-0.5 sm:pb-0.5">
                       {line.qty} × {formatCurrency(line.unitPrice)}
                     </span>
                   </div>
