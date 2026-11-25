@@ -184,5 +184,81 @@ describe("MenuItemCard Component", () => {
     const plusBtn = screen.getByRole("button", { name: /Add more Tusker Lager 500ml/i });
     expect(plusBtn).toBeDisabled();
   });
+
+  it("limits add to cart at whole number floor for fractional stock (e.g. 5 units for 5.25 in stock)", () => {
+    const onAdd = vi.fn();
+    const onReduce = vi.fn();
+
+    // 1. When cart has reached the whole number limit (5 units for 5.25 in stock)
+    const { rerender } = render(
+      <MenuItemCard
+        {...defaultProps}
+        name="Kibao 250ml"
+        stockOnHand={5.25}
+        quantityInCart={5}
+        onReduce={onReduce}
+        onAdd={onAdd}
+      />
+    );
+
+    expect(screen.getByText("5.25 in stock")).toBeInTheDocument();
+    const plusBtn = screen.getByRole("button", { name: /Add more Kibao 250ml/i });
+    expect(plusBtn).toBeDisabled();
+
+    // Clicking card should also not call onAdd when whole number limit is reached
+    const card = screen.getByText("Kibao 250ml").closest("div[id='pos-item-item-123']");
+    if (card) {
+      fireEvent.click(card);
+    }
+    expect(onAdd).not.toHaveBeenCalled();
+
+    // 2. When cart is below whole number limit (e.g. 4 units for 5.25 in stock)
+    rerender(
+      <MenuItemCard
+        {...defaultProps}
+        name="Kibao 250ml"
+        stockOnHand={5.25}
+        quantityInCart={4}
+        onReduce={onReduce}
+        onAdd={onAdd}
+      />
+    );
+
+    const activePlusBtn = screen.getByRole("button", { name: /Add more Kibao 250ml/i });
+    expect(activePlusBtn).toBeEnabled();
+    fireEvent.click(activePlusBtn);
+    expect(onAdd).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders dummy background with ambient glow and badge when useDummyImageBg is true", () => {
+    const { rerender } = render(
+      <MenuItemCard
+        {...defaultProps}
+        primaryImageUrl="https://example.com/tusker.jpg"
+        useDummyImageBg={true}
+        showBrandBadge={true}
+        brandName="Stone Pub"
+      />
+    );
+
+    // Image container should have dark base bg-[#0f172a]
+    const img = screen.getByRole("img", { hidden: true });
+    expect(img).toHaveAttribute("src", "https://example.com/tusker.jpg");
+    expect(img.parentElement?.className).toContain("bg-[#0f172a]");
+
+    // Brand badge text should be rendered inside background SVG
+    expect(screen.getByText("STONE PUB")).toBeInTheDocument();
+
+    // When useDummyImageBg is false, standard white background is used and no badge is rendered
+    rerender(
+      <MenuItemCard
+        {...defaultProps}
+        primaryImageUrl="https://example.com/tusker.jpg"
+        useDummyImageBg={false}
+      />
+    );
+    expect(img.parentElement?.className).toContain("bg-white");
+    expect(screen.queryByText("STONE PUB")).not.toBeInTheDocument();
+  });
 });
 

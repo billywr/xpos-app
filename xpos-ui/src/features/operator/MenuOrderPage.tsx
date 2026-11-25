@@ -18,6 +18,7 @@ import {
 import { selectToken } from "@/store/selectors/authSelectors";
 import {
   selectOrgId,
+  selectOrgName,
   selectBranchId,
   selectBranchName,
   selectTerminalId,
@@ -75,6 +76,8 @@ import {
   getPosLayout,
   isPosVerticalCategoryCardVisible,
   isPosSelectedCategoryLabelVisible,
+  isPosDummyImageBgForUploaded,
+  isPosDummyImageBgShowBadge,
   type PosLayoutOption,
 } from "@/config/posAppearanceSettings";
 import { PosCartTicket } from "./components/PosCartTicket";
@@ -125,6 +128,7 @@ export function MenuOrderPage() {
   const saleIdFromUrl = searchParams.get("saleId");
   const token = useAppSelector(selectToken);
   const orgId = useAppSelector(selectOrgId);
+  const orgName = useAppSelector(selectOrgName);
   const branchId = useAppSelector(selectBranchId);
   const branchName = useAppSelector(selectBranchName);
   const terminalId = useAppSelector(selectTerminalId);
@@ -156,6 +160,12 @@ export function MenuOrderPage() {
   const [posSelectedCategoryLabel, setPosSelectedCategoryLabel] = useState<boolean>(() =>
     isPosSelectedCategoryLabelVisible(adminLabels)
   );
+  const [posUseDummyImageBg, setPosUseDummyImageBg] = useState<boolean>(() =>
+    isPosDummyImageBgForUploaded(adminLabels)
+  );
+  const [posDummyImageBgShowBadge, setPosDummyImageBgShowBadge] = useState<boolean>(() =>
+    isPosDummyImageBgShowBadge(adminLabels)
+  );
   const userHasToggledRef = useRef(false);
   const userSelectedCategoryRef = useRef<boolean>(initialStoredCat !== undefined);
 
@@ -169,11 +179,13 @@ export function MenuOrderPage() {
     }
   }, [orgId, branchId]);
 
-  // Sync layout and vertical category card visibility with adminLabels when they change
+  // Sync layout, vertical category card visibility, and dummy image bg with adminLabels when they change
   useEffect(() => {
     setPosLayoutState(getPosLayout(adminLabels));
     setPosVerticalCategoryCard(isPosVerticalCategoryCardVisible(adminLabels));
     setPosSelectedCategoryLabel(isPosSelectedCategoryLabelVisible(adminLabels));
+    setPosUseDummyImageBg(isPosDummyImageBgForUploaded(adminLabels));
+    setPosDummyImageBgShowBadge(isPosDummyImageBgShowBadge(adminLabels));
   }, [adminLabels]);
 
   // Clear legacy persisted key so it does not hijack the default behavior
@@ -219,15 +231,31 @@ export function MenuOrderPage() {
         setPosSelectedCategoryLabel(customEvent.detail.visible);
       }
     };
+    const handleDummyImageBgChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ enabled: boolean }>;
+      if (customEvent.detail && typeof customEvent.detail.enabled === "boolean") {
+        setPosUseDummyImageBg(customEvent.detail.enabled);
+      }
+    };
+    const handleDummyImageBgBadgeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ show: boolean }>;
+      if (customEvent.detail && typeof customEvent.detail.show === "boolean") {
+        setPosDummyImageBgShowBadge(customEvent.detail.show);
+      }
+    };
     window.addEventListener("pos-expanded-default-changed", handleConfigChange);
     window.addEventListener("pos-layout-changed", handleLayoutChange);
     window.addEventListener("pos-vertical-category-card-changed", handleCategoryCardChange);
     window.addEventListener("pos-selected-category-label-changed", handleCategoryLabelChange);
+    window.addEventListener("pos-dummy-image-bg-changed", handleDummyImageBgChange);
+    window.addEventListener("pos-dummy-image-bg-show-badge-changed", handleDummyImageBgBadgeChange);
     return () => {
       window.removeEventListener("pos-expanded-default-changed", handleConfigChange);
       window.removeEventListener("pos-layout-changed", handleLayoutChange);
       window.removeEventListener("pos-vertical-category-card-changed", handleCategoryCardChange);
       window.removeEventListener("pos-selected-category-label-changed", handleCategoryLabelChange);
+      window.removeEventListener("pos-dummy-image-bg-changed", handleDummyImageBgChange);
+      window.removeEventListener("pos-dummy-image-bg-show-badge-changed", handleDummyImageBgBadgeChange);
     };
   }, []);
 
@@ -746,10 +774,11 @@ export function MenuOrderPage() {
       if (!item?.trackInventory) continue;
       seen.add(line.itemId);
       const onHand = stockMap.get(line.itemId) ?? 0;
+      const maxStock = Math.max(0, Math.floor(onHand));
       const qtyInCartForItem = cartLines
         .filter((l) => l.itemId === line.itemId)
         .reduce((s, l) => s + l.qty, 0);
-      if (onHand < qtyInCartForItem) {
+      if (qtyInCartForItem > maxStock) {
         msgs.push(
           `${item.name}: ${formatQty(onHand)} in stock, ${formatQty(qtyInCartForItem)} needed`
         );
@@ -776,6 +805,16 @@ export function MenuOrderPage() {
     async (item: Item): Promise<boolean> => {
       if (!canSellOnPos(item)) {
         return false;
+      }
+      if (item.trackInventory) {
+        const onHand = stockMap.get(item.id) ?? 0;
+        const maxStock = Math.max(0, Math.floor(onHand));
+        const currentQty = cartLines
+          .filter((l) => l.itemId === item.id)
+          .reduce((s, l) => s + l.qty, 0);
+        if (currentQty >= maxStock) {
+          return false;
+        }
       }
       const price = item.defaultSellingPrice ?? 0;
 
@@ -823,11 +862,21 @@ export function MenuOrderPage() {
       setModifierModalItem({ item, price });
       return true;
     },
-    [canSellOnPos, itemsWithModifiersSet, orgId, token, dispatch, queryClient]
+    [canSellOnPos, itemsWithModifiersSet, orgId, token, dispatch, queryClient, cartLines, stockMap]
   );
 
   const handleIncrementCart = useCallback(
     (item: Item) => {
+      if (item.trackInventory) {
+        const onHand = stockMap.get(item.id) ?? 0;
+        const maxStock = Math.max(0, Math.floor(onHand));
+        const currentQty = cartLines
+          .filter((l) => l.itemId === item.id)
+          .reduce((s, l) => s + l.qty, 0);
+        if (currentQty >= maxStock) {
+          return;
+        }
+      }
       // 0ms Stepper Increment: If item already has a simple line in cart (no modifiers),
       // increment directly without any modifier checks or network calls!
       const existingLine = cartLines.find(
@@ -839,7 +888,7 @@ export function MenuOrderPage() {
       }
       void handleAddToCart(item);
     },
-    [cartLines, handleAddToCart, dispatch]
+    [cartLines, handleAddToCart, dispatch, stockMap]
   );
 
   const handleBarcodeScan = useCallback(
@@ -883,6 +932,17 @@ export function MenuOrderPage() {
 
   const handleModifierConfirm = (modifiers: CartModifier[]) => {
     if (!modifierModalItem) return;
+    if (modifierModalItem.item.trackInventory) {
+      const onHand = stockMap.get(modifierModalItem.item.id) ?? 0;
+      const maxStock = Math.max(0, Math.floor(onHand));
+      const currentQty = cartLines
+        .filter((l) => l.itemId === modifierModalItem.item.id)
+        .reduce((s, l) => s + l.qty, 0);
+      if (currentQty >= maxStock) {
+        setModifierModalItem(null);
+        return;
+      }
+    }
     dispatch(
       addLine({
         itemId: modifierModalItem.item.id,
@@ -1216,6 +1276,9 @@ export function MenuOrderPage() {
                                 stockOnHand={onHand}
                                 price={price}
                                 quantityInCart={getQtyInCart(item.id)}
+                                useDummyImageBg={posUseDummyImageBg}
+                                showBrandBadge={posDummyImageBgShowBadge}
+                                brandName={orgName ?? undefined}
                                 onReduce={() => handleReduceFromCart(item.id)}
                                 onAdd={() => handleIncrementCart(item)}
                               />
@@ -1385,11 +1448,15 @@ export function MenuOrderPage() {
                               name={item.name}
                               itemId={item.id}
                               primaryImageUrl={item.primaryImageUrl}
+                              variant="compact-stacked"
                               trackInventory={item.trackInventory}
                               active={item.active}
                               stockOnHand={onHand}
                               price={price}
                               quantityInCart={getQtyInCart(item.id)}
+                              useDummyImageBg={posUseDummyImageBg}
+                              showBrandBadge={posDummyImageBgShowBadge}
+                              brandName={orgName ?? undefined}
                               onReduce={() => handleReduceFromCart(item.id)}
                               onAdd={() => handleIncrementCart(item)}
                             />

@@ -4,7 +4,7 @@ import { useNavVisibilityContext } from "@/contexts/NavVisibilityContext";
 import { useAppSelector } from "@/hooks/useAppSelector";
 import { usePersistedTab } from "@/hooks/usePersistedTab";
 import { selectToken } from "@/store/selectors/authSelectors";
-import { selectOrgId } from "@/store/selectors/orgContextSelectors";
+import { selectOrgId, selectOrgName } from "@/store/selectors/orgContextSelectors";
 import { fetchAssistantSettings, fetchAssistantUsage } from "@/api/assistant";
 import { isNavItemVisible } from "@/hooks/useAdminNavVisibility";
 import { isOperatorNavItemVisible } from "@/hooks/useOperatorNavVisibility";
@@ -58,8 +58,13 @@ import {
   setPosVerticalCategoryCardVisible,
   isPosSelectedCategoryLabelVisible,
   setPosSelectedCategoryLabelVisible,
+  isPosDummyImageBgForUploaded,
+  setPosDummyImageBgForUploaded,
+  isPosDummyImageBgShowBadge,
+  setPosDummyImageBgShowBadge,
   type PosLayoutOption,
 } from "@/config/posAppearanceSettings";
+import { ItemDummyBackground } from "@/components/ItemDummyBackground";
 import {
   Settings,
   Upload,
@@ -493,6 +498,7 @@ export function AdminSettingsPage() {
     defaultTab: "top-bar",
   });
   const [searchQuery, setSearchQuery] = useState("");
+  const orgName = useAppSelector(selectOrgName);
 
   const handleTabSelect = (tabId: SettingsTabId) => {
     setSearchQuery("");
@@ -735,6 +741,23 @@ export function AdminSettingsPage() {
             onToggle={(v) => opSetVisible(MENU_ORDER_SHOW_HIDE_OOS, v)}
           />
         </div>
+      </div>
+      <div className="mt-4 max-w-xl rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-700/60 dark:bg-slate-800/50 flex items-center justify-between gap-3">
+        <div>
+          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+            POS item image background & layout
+          </span>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            Configure POS fullscreen layout and dark glowing background for uploaded item images.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => handleTabSelect("appearance")}
+          className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        >
+          Appearance
+        </button>
       </div>
     </section>
   );
@@ -1253,6 +1276,151 @@ export function AdminSettingsPage() {
     );
   };
 
+  const renderPosItemImageBgSettings = () => {
+    const isDummyBgEnabled = isPosDummyImageBgForUploaded(adminLabels);
+    const isBadgeEnabled = isPosDummyImageBgShowBadge(adminLabels);
+    const activeBrand = (orgName || "Stone Pub").trim();
+
+    return (
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-slate-800 dark:text-white">
+          POS item image background
+        </h2>
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+          Choose whether uploaded product images on POS cards display with the dummy item dark glow background or standard clean white background.
+        </p>
+
+        <div className="grid max-w-4xl grid-cols-1 gap-6 lg:grid-cols-12">
+          {/* Controls */}
+          <div className="min-w-0 lg:col-span-7 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800 space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <label
+                  htmlFor="toggle-pos-dummy-image-bg"
+                  className="block text-sm font-medium text-slate-900 dark:text-white cursor-pointer"
+                >
+                  Use dummy item background for uploaded images
+                </label>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  Applies the dark gradient canvas with ambient amber spotlight (from the dummy POS product card) behind all uploaded item images instead of a plain white background.
+                </p>
+              </div>
+              <input
+                id="toggle-pos-dummy-image-bg"
+                type="checkbox"
+                checked={isDummyBgEnabled}
+                onChange={(e) =>
+                  setPosDummyImageBgForUploaded(
+                    e.target.checked,
+                    (k, v) => setAdminLabel(k, v)
+                  )
+                }
+                className="h-5 w-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:checked:bg-primary-500 cursor-pointer"
+              />
+            </div>
+
+            {isDummyBgEnabled && (
+              <div className="flex items-center justify-between gap-4 pt-4 border-t border-slate-100 dark:border-slate-700/60">
+                <div>
+                  <label
+                    htmlFor="toggle-pos-dummy-image-badge"
+                    className="block text-sm font-medium text-slate-900 dark:text-white cursor-pointer"
+                  >
+                    Show brand stamp badge on image background
+                  </label>
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                    Displays the brand stamp badge (&quot;• {activeBrand.toUpperCase()} •&quot;) at the bottom of the card image area, matching the dummy POS placeholder.
+                  </p>
+                </div>
+                <input
+                  id="toggle-pos-dummy-image-badge"
+                  type="checkbox"
+                  checked={isBadgeEnabled}
+                  onChange={(e) =>
+                    setPosDummyImageBgShowBadge(
+                      e.target.checked,
+                      (k, v) => setAdminLabel(k, v)
+                    )
+                  }
+                  className="h-5 w-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:checked:bg-primary-500 cursor-pointer"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Live Preview Card */}
+          <div className="lg:col-span-5 flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-4 dark:border-slate-700 dark:bg-slate-800/40">
+            <span className="mb-2 text-[11px] font-bold tracking-wide uppercase text-slate-400 dark:text-slate-500">
+              POS Card Live Preview
+            </span>
+            <div className="w-56 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-700 dark:bg-slate-800">
+              <div
+                className={`relative aspect-[16/9] w-full overflow-hidden flex items-center justify-center ${
+                  isDummyBgEnabled ? "bg-[#0f172a]" : "bg-white dark:bg-white"
+                }`}
+              >
+                {isDummyBgEnabled && (
+                  <ItemDummyBackground
+                    showBadge={isBadgeEnabled}
+                    brandName={activeBrand}
+                  />
+                )}
+                {/* Sample product illustration */}
+                <div className={`relative z-10 flex items-center justify-center h-full w-full ${isDummyBgEnabled ? "p-2" : "p-1.5"}`}>
+                  <svg
+                    viewBox="0 0 60 80"
+                    className="h-20 w-auto drop-shadow-md"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M22 6h16v10l6 8v50H16V24l6-8V6z"
+                      fill="#0ea5e9"
+                      fillOpacity="0.85"
+                      stroke="#0284c7"
+                      strokeWidth="2"
+                    />
+                    <rect x="20" y="38" width="20" height="22" rx="3" fill="#ffffff" fillOpacity="0.9" />
+                    <rect x="23" y="44" width="14" height="2.5" rx="1" fill="#0284c7" />
+                    <rect x="24" y="49" width="12" height="2" rx="1" fill="#64748b" />
+                    <rect x="25" y="2" width="10" height="5" rx="1.5" fill="#f59e0b" />
+                  </svg>
+                </div>
+                {/* Stock badge */}
+                <div className="absolute top-2 left-2 z-10">
+                  <span className="inline-flex items-center rounded-lg bg-emerald-600/95 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs border border-emerald-400/30">
+                    25 in stock
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col justify-between px-2.5 pt-2 pb-2.5">
+                <div className="flex items-start justify-between gap-1.5">
+                  <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">
+                    Sample product
+                  </h3>
+                  <span className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-900 dark:bg-slate-700 dark:text-white">
+                    Ksh 300
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400">SKU: PROD-01</span>
+                  <span className="inline-flex items-center rounded-lg bg-primary-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs">
+                    Add
+                  </span>
+                </div>
+              </div>
+            </div>
+            <span className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
+              {isDummyBgEnabled
+                ? "Uploaded images sit in the amber spotlight"
+                : "Standard clean white background"}
+            </span>
+          </div>
+        </div>
+      </section>
+    );
+  };
+
   const sections: SettingsSection[] = useMemo(
     () => [
       {
@@ -1617,6 +1785,33 @@ export function AdminSettingsPage() {
         ],
         render: renderToastSettings,
       },
+      {
+        id: "pos-item-image-bg",
+        tabId: "appearance",
+        tabLabel: "Appearance",
+        title: "POS item image background",
+        description:
+          "Use the dark ambient glow background (from the dummy POS product card) behind all uploaded item images on POS cards instead of plain white.",
+        keywords: [
+          "dummy",
+          "background",
+          "dummy background",
+          "dummy item background",
+          "dummy pos item image",
+          "pos item",
+          "pos item image",
+          "item image",
+          "uploaded images",
+          "stone pub",
+          "product image",
+          "card background",
+          "amber glow",
+          "placeholder",
+          "photo background",
+          "card appearance",
+        ],
+        render: renderPosItemImageBgSettings,
+      },
     ],
     [
       visibilityState,
@@ -1628,11 +1823,16 @@ export function AdminSettingsPage() {
       getHeaderLogo,
       isSaving,
       darkTheme,
+      orgName,
     ]
   );
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const isSearching = normalizedQuery.length > 0;
+  const queryWords = useMemo(
+    () => normalizedQuery.split(/\s+/).filter(Boolean),
+    [normalizedQuery]
+  );
 
   const matchingSections = useMemo(() => {
     if (!isSearching) return [];
@@ -1640,9 +1840,14 @@ export function AdminSettingsPage() {
       if (s.title.toLowerCase().includes(normalizedQuery)) return true;
       if (s.description.toLowerCase().includes(normalizedQuery)) return true;
       if (s.tabLabel.toLowerCase().includes(normalizedQuery)) return true;
-      return s.keywords.some((k) => k.toLowerCase().includes(normalizedQuery));
+      if (s.keywords.some((k) => k.toLowerCase().includes(normalizedQuery))) return true;
+      if (queryWords.length > 1) {
+        const searchable = `${s.title} ${s.description} ${s.tabLabel} ${s.keywords.join(" ")}`.toLowerCase();
+        return queryWords.every((word) => searchable.includes(word));
+      }
+      return false;
     });
-  }, [isSearching, normalizedQuery, sections]);
+  }, [isSearching, normalizedQuery, queryWords, sections]);
 
   const tabMatchCounts = useMemo(() => {
     if (!isSearching) return new Map<SettingsTabId, number>();

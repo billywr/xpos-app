@@ -4,6 +4,8 @@ import {
   POS_LAYOUT_KEY,
   POS_VERTICAL_CATEGORY_CARD_KEY,
   POS_SELECTED_CATEGORY_LABEL_KEY,
+  POS_DUMMY_IMAGE_BG_FOR_UPLOADED_KEY,
+  POS_DUMMY_IMAGE_BG_SHOW_BADGE_KEY,
   isPosExpandedByDefault,
   setPosExpandedByDefault,
   getPosLayout,
@@ -12,6 +14,10 @@ import {
   setPosVerticalCategoryCardVisible,
   isPosSelectedCategoryLabelVisible,
   setPosSelectedCategoryLabelVisible,
+  isPosDummyImageBgForUploaded,
+  setPosDummyImageBgForUploaded,
+  isPosDummyImageBgShowBadge,
+  setPosDummyImageBgShowBadge,
 } from "./posAppearanceSettings";
 
 describe("posAppearanceSettings", () => {
@@ -195,6 +201,96 @@ describe("posAppearanceSettings", () => {
 
       expect(listener).toHaveBeenCalled();
       window.removeEventListener("pos-selected-category-label-changed", listener);
+    });
+  });
+
+  describe("POS dummy image background for uploaded items", () => {
+    it("defaults to false when no label or localStorage is present", () => {
+      expect(isPosDummyImageBgForUploaded()).toBe(false);
+      expect(isPosDummyImageBgForUploaded({})).toBe(false);
+    });
+
+    it("respects org admin labels when provided", () => {
+      expect(
+        isPosDummyImageBgForUploaded({ [POS_DUMMY_IMAGE_BG_FOR_UPLOADED_KEY]: "true" })
+      ).toBe(true);
+      expect(
+        isPosDummyImageBgForUploaded({ [POS_DUMMY_IMAGE_BG_FOR_UPLOADED_KEY]: "false" })
+      ).toBe(false);
+    });
+
+    it("falls back to localStorage when label is not provided", () => {
+      localStorage.setItem(POS_DUMMY_IMAGE_BG_FOR_UPLOADED_KEY, "true");
+      expect(isPosDummyImageBgForUploaded()).toBe(true);
+
+      localStorage.setItem(POS_DUMMY_IMAGE_BG_FOR_UPLOADED_KEY, "false");
+      expect(isPosDummyImageBgForUploaded()).toBe(false);
+    });
+
+    it("sets preference in localStorage and invokes setAdminLabel", () => {
+      const mockSetAdminLabel = vi.fn();
+      setPosDummyImageBgForUploaded(true, mockSetAdminLabel);
+
+      expect(localStorage.getItem(POS_DUMMY_IMAGE_BG_FOR_UPLOADED_KEY)).toBe("true");
+      expect(mockSetAdminLabel).toHaveBeenCalledWith(
+        POS_DUMMY_IMAGE_BG_FOR_UPLOADED_KEY,
+        "true"
+      );
+    });
+
+    it("dispatches custom event on dummy image bg change", () => {
+      const listener = vi.fn();
+      window.addEventListener("pos-dummy-image-bg-changed", listener);
+
+      setPosDummyImageBgForUploaded(true);
+
+      expect(listener).toHaveBeenCalled();
+      window.removeEventListener("pos-dummy-image-bg-changed", listener);
+    });
+  });
+
+  describe("POS dummy image background brand badge", () => {
+    it("defaults to true when no label or localStorage is present", () => {
+      expect(isPosDummyImageBgShowBadge()).toBe(true);
+      expect(isPosDummyImageBgShowBadge({})).toBe(true);
+    });
+
+    it("respects org admin labels when provided", () => {
+      expect(
+        isPosDummyImageBgShowBadge({ [POS_DUMMY_IMAGE_BG_SHOW_BADGE_KEY]: "false" })
+      ).toBe(false);
+      expect(
+        isPosDummyImageBgShowBadge({ [POS_DUMMY_IMAGE_BG_SHOW_BADGE_KEY]: "true" })
+      ).toBe(true);
+    });
+
+    it("falls back to localStorage when label is not provided", () => {
+      localStorage.setItem(POS_DUMMY_IMAGE_BG_SHOW_BADGE_KEY, "false");
+      expect(isPosDummyImageBgShowBadge()).toBe(false);
+
+      localStorage.setItem(POS_DUMMY_IMAGE_BG_SHOW_BADGE_KEY, "true");
+      expect(isPosDummyImageBgShowBadge()).toBe(true);
+    });
+
+    it("sets preference in localStorage and invokes setAdminLabel", () => {
+      const mockSetAdminLabel = vi.fn();
+      setPosDummyImageBgShowBadge(false, mockSetAdminLabel);
+
+      expect(localStorage.getItem(POS_DUMMY_IMAGE_BG_SHOW_BADGE_KEY)).toBe("false");
+      expect(mockSetAdminLabel).toHaveBeenCalledWith(
+        POS_DUMMY_IMAGE_BG_SHOW_BADGE_KEY,
+        "false"
+      );
+    });
+
+    it("dispatches custom event on badge visibility change", () => {
+      const listener = vi.fn();
+      window.addEventListener("pos-dummy-image-bg-show-badge-changed", listener);
+
+      setPosDummyImageBgShowBadge(false);
+
+      expect(listener).toHaveBeenCalled();
+      window.removeEventListener("pos-dummy-image-bg-show-badge-changed", listener);
     });
   });
 });

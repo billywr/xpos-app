@@ -188,3 +188,95 @@ export function setPosSelectedCategoryLabelVisible(
   }
 }
 
+export const POS_DUMMY_IMAGE_BG_FOR_UPLOADED_KEY = "ui.pos.dummy_image_bg_for_uploaded";
+export const POS_DUMMY_IMAGE_BG_SHOW_BADGE_KEY = "ui.pos.dummy_image_bg_show_badge";
+
+/**
+ * Checks whether uploaded POS item images should use the dummy item background
+ * (dark slate gradient with ambient amber spotlight) instead of plain white.
+ * Defaults to false.
+ * First checks org admin labels, then falls back to localStorage.
+ */
+export function isPosDummyImageBgForUploaded(
+  labels?: Record<string, string> | null
+): boolean {
+  if (labels && labels[POS_DUMMY_IMAGE_BG_FOR_UPLOADED_KEY] !== undefined) {
+    return labels[POS_DUMMY_IMAGE_BG_FOR_UPLOADED_KEY] === "true";
+  }
+  try {
+    const stored = localStorage.getItem(POS_DUMMY_IMAGE_BG_FOR_UPLOADED_KEY);
+    if (stored !== null) {
+      return stored === "true";
+    }
+  } catch {
+    // Ignore storage errors in restricted contexts
+  }
+  return false;
+}
+
+/**
+ * Saves the dummy image background preference for uploaded items to localStorage and org admin labels (if provided),
+ * and dispatches a cross-component event so active listeners update immediately.
+ */
+export function setPosDummyImageBgForUploaded(
+  enabled: boolean,
+  setAdminLabel?: (key: string, value: string) => void
+): void {
+  try {
+    localStorage.setItem(POS_DUMMY_IMAGE_BG_FOR_UPLOADED_KEY, String(enabled));
+  } catch {
+    // Ignore storage errors in restricted contexts
+  }
+  window.dispatchEvent(
+    new CustomEvent("pos-dummy-image-bg-changed", { detail: { enabled } })
+  );
+  if (setAdminLabel) {
+    setAdminLabel(POS_DUMMY_IMAGE_BG_FOR_UPLOADED_KEY, String(enabled));
+  }
+}
+
+/**
+ * Checks whether the brand stamp badge (e.g. • STONE PUB •) should be shown
+ * at the bottom of the dummy image background.
+ * Defaults to true.
+ * First checks org admin labels, then falls back to localStorage.
+ */
+export function isPosDummyImageBgShowBadge(
+  labels?: Record<string, string> | null
+): boolean {
+  if (labels && labels[POS_DUMMY_IMAGE_BG_SHOW_BADGE_KEY] !== undefined) {
+    return labels[POS_DUMMY_IMAGE_BG_SHOW_BADGE_KEY] !== "false";
+  }
+  try {
+    const stored = localStorage.getItem(POS_DUMMY_IMAGE_BG_SHOW_BADGE_KEY);
+    if (stored !== null) {
+      return stored !== "false";
+    }
+  } catch {
+    // Ignore storage errors in restricted contexts
+  }
+  return true;
+}
+
+/**
+ * Saves the brand stamp badge visibility preference to localStorage and org admin labels (if provided),
+ * and dispatches a cross-component event so active listeners update immediately.
+ */
+export function setPosDummyImageBgShowBadge(
+  show: boolean,
+  setAdminLabel?: (key: string, value: string) => void
+): void {
+  try {
+    localStorage.setItem(POS_DUMMY_IMAGE_BG_SHOW_BADGE_KEY, String(show));
+  } catch {
+    // Ignore storage errors in restricted contexts
+  }
+  window.dispatchEvent(
+    new CustomEvent("pos-dummy-image-bg-show-badge-changed", { detail: { show } })
+  );
+  if (setAdminLabel) {
+    setAdminLabel(POS_DUMMY_IMAGE_BG_SHOW_BADGE_KEY, String(show));
+  }
+}
+
+

@@ -213,8 +213,14 @@ export function PosCartTicket({
               const item = itemMap.get(line.itemId);
               const trackInventory = item?.trackInventory ?? false;
               const stockOnHand = trackInventory ? (stockMap.get(line.itemId) ?? 0) : undefined;
-              const maxQty = trackInventory && typeof stockOnHand === "number" ? Math.max(0, stockOnHand) : undefined;
-              const canAddMore = maxQty === undefined || line.qty < maxQty;
+              const maxQty =
+                trackInventory && typeof stockOnHand === "number"
+                  ? Math.max(0, Math.floor(stockOnHand))
+                  : undefined;
+              const totalItemQtyInCart = cartLines
+                .filter((l) => l.itemId === line.itemId)
+                .reduce((sum, l) => sum + l.qty, 0);
+              const canAddMore = maxQty === undefined || totalItemQtyInCart < maxQty;
 
               const lineTotal =
                 line.unitPrice * line.qty +

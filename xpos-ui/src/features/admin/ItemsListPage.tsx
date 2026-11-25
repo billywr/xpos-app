@@ -55,6 +55,8 @@ import { filterRowsBySearch } from "@/utils/tableSearchMatch";
 import { sortTableRows } from "@/utils/tableSort";
 import { getItemImageUrl, getItemImageName } from "@/utils/itemImage";
 import { resizeImageTo400x400 } from "@/utils/imageResize";
+import { isPosDummyImageBgForUploaded } from "@/config/posAppearanceSettings";
+import { ItemDummyBackground } from "@/components/ItemDummyBackground";
 import { Plus, Pencil, Trash2, Upload, ChevronDown, Download, Loader2, Info } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useNavVisibilityContextOrNull } from "@/contexts/NavVisibilityContext";
@@ -95,6 +97,7 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
     navContext?.adminVisibility ?? {},
     BARCODE_ITEMS
   );
+  const useDummyImageBg = isPosDummyImageBgForUploaded(navContext?.adminLabels);
   const formCustom = useFormCustomization("item");
   const itemGridKeys = useMemo(
     () => [
@@ -1500,11 +1503,27 @@ export function ItemsListPage({ initialOrgId, onOrgChange }: ItemsListPageProps 
                     </label>
                     {formImageUrl && (
                       <div className="flex items-center gap-2">
-                        <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-600 dark:bg-slate-700">
+                        <div
+                          className={`relative h-12 w-12 overflow-hidden rounded-lg border border-slate-200 ${
+                            useDummyImageBg
+                              ? "bg-[#0f172a]"
+                              : "bg-slate-100 dark:border-slate-600 dark:bg-slate-700"
+                          }`}
+                        >
+                          {useDummyImageBg && (
+                            <ItemDummyBackground
+                              className="absolute inset-0 h-full w-full pointer-events-none"
+                              showBadge={false}
+                            />
+                          )}
                           <img
                             src={getItemImageUrl(formImageUrl) ?? formImageUrl}
                             alt="Item"
-                            className="h-full w-full object-cover"
+                            className={`h-full w-full ${
+                              useDummyImageBg
+                                ? "relative z-10 object-contain p-1"
+                                : "object-cover"
+                            }`}
                             onError={(e) => {
                               e.currentTarget.style.display = "none";
                             }}

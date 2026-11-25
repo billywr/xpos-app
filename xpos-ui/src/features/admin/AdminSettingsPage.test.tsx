@@ -377,5 +377,50 @@ describe("AdminSettingsPage", () => {
       "false"
     );
   });
+
+  it("renders POS item image background settings under Appearance tab and toggles dummy bg", () => {
+    renderSettingsPage(["/admin/settings?tab=appearance"]);
+
+    const toggle = screen.getByLabelText(/Use dummy item background for uploaded images/i);
+    expect(toggle).toBeInTheDocument();
+    expect(toggle).not.toBeChecked();
+
+    fireEvent.click(toggle);
+    expect(mockContextValue.setAdminLabel).toHaveBeenCalledWith(
+      "ui.pos.dummy_image_bg_for_uploaded",
+      "true"
+    );
+  });
+
+  it("renders brand stamp badge toggle when dummy image background is enabled", () => {
+    mockContextValue.adminLabels = {
+      "ui.pos.dummy_image_bg_for_uploaded": "true",
+      "ui.pos.dummy_image_bg_show_badge": "true",
+    };
+
+    renderSettingsPage(["/admin/settings?tab=appearance"]);
+
+    const badgeToggle = screen.getByLabelText(/Show brand stamp badge on image background/i);
+    expect(badgeToggle).toBeInTheDocument();
+    expect(badgeToggle).toBeChecked();
+
+    fireEvent.click(badgeToggle);
+    expect(mockContextValue.setAdminLabel).toHaveBeenCalledWith(
+      "ui.pos.dummy_image_bg_show_badge",
+      "false"
+    );
+  });
+
+  it("finds POS item image background section when searching 'dummy background'", () => {
+    renderSettingsPage(["/admin/settings"]);
+
+    const searchInput = screen.getByRole("textbox", { name: /search sections or settings/i });
+    fireEvent.change(searchInput, { target: { value: "dummy background" } });
+
+    expect(screen.getByText("POS item image background")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Use dummy item background for uploaded images/i)
+    ).toBeInTheDocument();
+  });
 });
 

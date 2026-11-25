@@ -3,6 +3,7 @@ import { Plus, Minus } from "lucide-react";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { formatQty } from "@/utils/formatQuantity";
 import { getItemImageUrl, DEFAULT_PRODUCT_PLACEHOLDER } from "@/utils/itemImage";
+import { ItemDummyBackground } from "@/components/ItemDummyBackground";
 
 export interface MenuItemCardProps {
   /** Item name */
@@ -23,6 +24,12 @@ export interface MenuItemCardProps {
   quantityInCart: number;
   /** Card presentation variant: 'standard' (side-by-side) or 'compact-stacked' (stacked name & price for 4-col grid) */
   variant?: "standard" | "compact-stacked";
+  /** Whether to use the dummy item dark ambient glow background behind uploaded images */
+  useDummyImageBg?: boolean;
+  /** Whether to show the brand stamp badge on the dummy image background */
+  showBrandBadge?: boolean;
+  /** Brand or organization name to display on the stamp badge */
+  brandName?: string;
   /** Called when user clicks reduce/minus */
   onReduce: () => void;
   /** Called when user clicks add/plus */
@@ -42,6 +49,10 @@ export function MenuItemCard({
   stockOnHand,
   price,
   quantityInCart,
+  variant: _variant = "standard",
+  useDummyImageBg = false,
+  showBrandBadge = true,
+  brandName = "STONE PUB",
   onReduce,
   onAdd,
 }: MenuItemCardProps) {
@@ -54,8 +65,11 @@ export function MenuItemCard({
 
   const available = active && stockOnHand > 0;
   const priceNotSet = price <= 0;
+  const maxStock = trackInventory
+    ? Math.max(0, Math.floor(stockOnHand))
+    : Infinity;
   const addDisabled =
-    (trackInventory && quantityInCart >= stockOnHand) || priceNotSet;
+    (trackInventory && quantityInCart >= maxStock) || priceNotSet;
   const addTooltip =
     priceNotSet && available
       ? "Price should be set before selling (Admin → Catalog → Price list items)"
@@ -111,9 +125,19 @@ export function MenuItemCard({
       {/* Top Header / Image Area */}
       <div
         className={`relative aspect-[16/9] w-full overflow-hidden flex items-center justify-center ${
-          hasValidImage ? "bg-white dark:bg-white" : "bg-slate-100 dark:bg-slate-900"
+          hasValidImage
+            ? useDummyImageBg
+              ? "bg-[#0f172a]"
+              : "bg-white dark:bg-white"
+            : "bg-slate-100 dark:bg-slate-900"
         }`}
       >
+        {hasValidImage && useDummyImageBg && (
+          <ItemDummyBackground
+            showBadge={showBrandBadge}
+            brandName={brandName}
+          />
+        )}
         <img
           src={displayImageUrl}
           alt={name}
@@ -121,7 +145,11 @@ export function MenuItemCard({
           onError={() => setImgFailed(true)}
           draggable={false}
           className={`h-full w-full transition-transform duration-200 group-hover:scale-105 ${
-            hasValidImage ? "object-contain p-1.5" : "object-cover"
+            hasValidImage
+              ? useDummyImageBg
+                ? "relative z-10 object-contain p-2"
+                : "object-contain p-1.5"
+              : "object-cover"
           }`}
         />
 

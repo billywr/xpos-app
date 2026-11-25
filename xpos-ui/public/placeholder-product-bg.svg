@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 250" width="100%" height="100%">
+  <defs>
+    <linearGradient id="dummyBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="50%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#090d16" />
+    </linearGradient>
+    <radialGradient id="dummyAmberGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.25" />
+      <stop offset="50%" stop-color="#d97706" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#d97706" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="400" height="250" fill="url(#dummyBgGrad)" />
+
+  <!-- Center Ambient Radial Glow -->
+  <ellipse cx="200" cy="115" rx="140" ry="90" fill="url(#dummyAmberGlow)" />
+
+  <!-- Subtle Decorative Grid Lines -->
+  <g stroke="#ffffff" stroke-opacity="0.04" stroke-width="1">
+    <line x1="0" y1="180" x2="400" y2="180" />
+    <circle cx="200" cy="115" r="70" fill="none" stroke-dasharray="4,4" />
+  </g>
+
+  <!-- Product Silhouette / Ground Shadow -->
+  <ellipse cx="200" cy="160" rx="75" ry="12" fill="#000000" fill-opacity="0.4" />
+</svg>

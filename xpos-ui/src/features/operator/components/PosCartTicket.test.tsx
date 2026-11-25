@@ -162,4 +162,51 @@ describe("PosCartTicket Component", () => {
     expect(unitPriceEl).toHaveClass("sm:text-base");
     expect(unitPriceEl).toHaveClass("font-bold");
   });
+
+  it("disables plus button in cart ticket when quantity reaches whole number limit for fractional stock (e.g. 5 units for 5.25 stock)", () => {
+    const trackedItem = {
+      id: "kibao-250",
+      orgId: "org-1",
+      categoryId: "cat-1",
+      name: "Kibao 250ml",
+      sku: "KIB-250",
+      itemType: "STOCK" as const,
+      baseUomId: "uom-1",
+      taxProfileId: "tax-1",
+      buyingPrice: 200,
+      primaryImageUrl: null,
+      defaultSellingPrice: 300,
+      active: true,
+      trackInventory: true,
+      visibleInPos: true,
+      createdAt: "2026-01-01",
+      updatedAt: "2026-01-01",
+    } as Item;
+
+    const itemMap = new Map<string, Item>([["kibao-250", trackedItem]]);
+    const stockMap = new Map<string, number>([["kibao-250", 5.25]]);
+
+    // Render with 5 units already in cart
+    renderTicket({
+      itemMap,
+      stockMap,
+      cartLines: [
+        {
+          tempId: "line-kibao",
+          itemId: "kibao-250",
+          itemName: "Kibao 250ml",
+          primaryImageUrl: null,
+          qty: 5,
+          unitPrice: 300,
+          modifiers: [],
+        },
+      ],
+    });
+
+    const plusBtn = screen.getByRole("button", { name: /increase quantity of kibao 250ml/i });
+    expect(plusBtn).toBeDisabled();
+
+    const minusBtn = screen.getByRole("button", { name: /decrease quantity of kibao 250ml/i });
+    expect(minusBtn).toBeEnabled();
+  });
 });
