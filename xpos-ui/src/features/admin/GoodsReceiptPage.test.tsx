@@ -640,7 +640,7 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     // Slide-over opens
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Add stock" })).toBeInTheDocument();
-      expect(screen.getByText(/Total:/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^Total 0/i)).toBeInTheDocument();
       expect(screen.queryByText(/Items already on another receipt/i)).not.toBeInTheDocument();
     });
 
@@ -706,7 +706,7 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Add stock" })).toBeInTheDocument();
-      expect(screen.getByText(/Total:/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^Total 0/i)).toBeInTheDocument();
       expect(screen.getByText("Qty*")).toBeInTheDocument();
       expect(screen.getAllByText("Price").length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText("Total").length).toBeGreaterThanOrEqual(1);
@@ -728,7 +728,7 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
     fireEvent.change(qtyInput, { target: { value: "4" } });
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Total: KSh\s*600/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Total 600/i)).toBeInTheDocument();
     });
   });
 
@@ -1619,7 +1619,7 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
 
     // Total should be 50 * 108 = 5,400
     await waitFor(() => {
-      expect(screen.getByLabelText(/Total: KSh\s*5,400/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Total 5,400/i)).toBeInTheDocument();
     });
 
     // Verify user can edit the value from 50 to 75 (within default maxQty 99)
@@ -1628,7 +1628,7 @@ describe("GoodsReceiptPage Intelligence & Filters", () => {
 
     // Total should now be 75 * 108 = 8,100
     await waitFor(() => {
-      expect(screen.getByLabelText(/Total: KSh\s*8,100/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Total 8,100/i)).toBeInTheDocument();
     });
   });
 

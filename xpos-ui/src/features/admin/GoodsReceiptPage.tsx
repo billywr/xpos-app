@@ -2156,6 +2156,14 @@ export function GoodsReceiptPage({
               : "Edit stock receipt"
             : formCustom.form?.sheetTitle ?? "Add stock"
         }
+        headerAction={
+          <div
+            className="text-lg font-bold tabular-nums text-slate-900 sm:text-xl dark:text-white"
+            aria-label={`Total ${formatAmount(linesTotalCost)}`}
+          >
+            Total {formatAmount(linesTotalCost)}
+          </div>
+        }
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {formError && (
@@ -2305,24 +2313,15 @@ export function GoodsReceiptPage({
                 className="col-span-1 sm:col-span-2 space-y-3"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    {editingGrn && (
-                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        {editingSingleLineId
-                          ? "Line on receipt"
-                          : formCustom.getFieldLabel("lines", "Receipt lines")}
-                      </label>
-                    )}
-                    <span
-                      className="inline-flex items-center gap-1.5 text-[13px] text-slate-600 dark:text-slate-300"
-                      aria-label={`Total: ${formatCurrency(linesTotalCost)}`}
-                    >
-                      <span>Total:</span>
-                      <span className="font-semibold tabular-nums text-slate-900 dark:text-white">
-                        {formatCurrency(linesTotalCost)}
-                      </span>
-                    </span>
-                  </div>
+                  {editingGrn ? (
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      {editingSingleLineId
+                        ? "Line on receipt"
+                        : formCustom.getFieldLabel("lines", "Receipt lines")}
+                    </label>
+                  ) : (
+                    <span />
+                  )}
                   {!editingSingleLineId ? (
                     <button
                       type="button"

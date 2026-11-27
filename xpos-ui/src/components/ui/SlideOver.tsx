@@ -79,7 +79,7 @@ export function SlideOver({
           <h2 id="slideover-title" className="text-base font-semibold text-slate-900 sm:text-lg dark:text-white">
             {toSentenceCase(title)}
           </h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 sm:gap-4">
             {headerAction}
             <IconButton variant="bordered" onClick={onClose} aria-label="Close">
               <X className="h-5 w-5" />
