@@ -2463,6 +2463,80 @@ describe("StandardStockCountSheetPage rapid input & keyboard flow", () => {
     });
   });
 
+  it("keeps the sum total at top unchanged when filtering while updating the total at the bottom of datatable", async () => {
+    const today = localTodayStr();
+    vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
+      date: today,
+      branchId: "branch-1",
+      totalQtyToRecord: 0,
+      totalValueToRecord: 0,
+      lines: [],
+    });
+    vi.mocked(stdApi.fetchStdStockCountSheet).mockResolvedValue({
+      date: today,
+      outletId: "branch-1",
+      rows: [
+        {
+          itemId: "item-1",
+          sku: "SKU-1",
+          name: "Blue ice 250ml",
+          openingStock: 30,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 200,
+          closingStock: 28,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+        {
+          itemId: "item-2",
+          sku: "SKU-2",
+          name: "Tusker Lager 500ml",
+          openingStock: 20,
+          addedStock: 0,
+          addedTodayStock: 0,
+          sellingPrice: 200,
+          closingStock: 17,
+          lastSavedAt: new Date().toISOString(),
+          firstStockAddedAt: null,
+          comments: null,
+        },
+      ],
+    });
+
+    wrap(<StandardStockCountSheetPage />, "term-1");
+
+    await waitFor(() => {
+      expect(screen.getByText("Blue ice 250ml")).toBeInTheDocument();
+      expect(screen.getByText("Tusker Lager 500ml")).toBeInTheDocument();
+    });
+
+    // Unfiltered: total across all rows is 400 + 600 = 1000
+    const topBadges = screen.getAllByTitle(/Total sales amount/i);
+    expect(topBadges[0]).toHaveTextContent(/1,000/);
+
+    const bottomSalesLabel = screen.getByText(/Total sales/i);
+    const bottomSalesChip = bottomSalesLabel.closest('[role="status"]')!;
+    expect(bottomSalesChip).toHaveTextContent(/1,000/);
+
+    // Filter by "Blue ice"
+    const input = screen.getByPlaceholderText(/search (items|all columns)/i);
+    fireEvent.change(input, { target: { value: "Blue ice" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("Blue ice 250ml")).toBeInTheDocument();
+      expect(screen.queryByText("Tusker Lager 500ml")).not.toBeInTheDocument();
+    });
+
+    // Top sum total badge MUST NOT change with filter — stays Ksh 1,000
+    const topBadgesAfterFilter = screen.getAllByTitle(/Total sales amount/i);
+    expect(topBadgesAfterFilter[0]).toHaveTextContent(/1,000/);
+
+    // Bottom total sales MUST change with filter — shows Ksh 400
+    expect(bottomSalesChip).toHaveTextContent(/400/);
+  });
+
   it("does not show Tot: amount badge when total sales is 0 or less", async () => {
     const today = localTodayStr();
     vi.mocked(stdApi.fetchStdStockCountSalesPreview).mockResolvedValue({
